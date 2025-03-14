@@ -18,6 +18,14 @@ export type BunnyAdapterOptions = {
     apiKey: string
     hostname: string
     libraryId: string
+    mp4Fallback?: {
+      enabled: boolean
+    }
+    /**
+     * @deprecated Use mp4Fallback with enabled: true instead.
+     *
+     * Example: mp4Fallback: { enabled: true }
+     */
     mp4FallbackQuality?: '240p' | '360p' | '480p' | '720p'
     thumbnailTime?: number
   }
@@ -29,4 +37,19 @@ export type BunnyStorageOptions = {
   collections: Partial<Record<UploadCollectionSlug, Omit<CollectionOptions, 'adapter'> | true>>
   enabled?: boolean
   options: BunnyAdapterOptions
+}
+
+export interface BunnyVideoMeta {
+  availableMp4Resolutions?: string[]
+  highestMp4Resolution?: string
+}
+
+export interface BunnyResolutionsResponse {
+  data: {
+    mp4Resolutions: Array<{
+      path: string
+      resolution: string
+    }>
+  }
+  success: boolean
 }

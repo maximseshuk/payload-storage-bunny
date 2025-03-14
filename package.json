@@ -1,6 +1,6 @@
 {
   "name": "@seshuk/payload-storage-bunny",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Payload storage adapter for Bunny.net",
   "author": "Maxim Seshuk",
   "license": "MIT",
@@ -10,7 +10,7 @@
   },
   "keywords": [
     "payload",
-    "payloadcms", 
+    "payloadcms",
     "cms",
     "plugin",
     "typescript",
@@ -49,6 +49,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@payloadcms/eslint-config": "3.9.0",
+    "@stylistic/eslint-plugin": "^4.2.0",
     "@swc-node/register": "1.10.9",
     "@swc/cli": "0.5.1",
     "@types/node": "^22.10.10",

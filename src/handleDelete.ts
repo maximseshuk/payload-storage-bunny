@@ -6,16 +6,16 @@ import { APIError } from 'payload'
 
 import type { BunnyAdapterOptions } from './types.js'
 
-import { getStorageUrl, getVideoId } from './utils.js'
+import { getStorageUrl, getVideoFromDoc } from './utils.js'
 
 export const getHandleDelete = ({ storage, stream }: BunnyAdapterOptions): HandleDelete => {
   return async ({ doc, filename, req }) => {
     try {
-      const videoId = getVideoId(doc, filename)
+      const video = getVideoFromDoc(doc, filename)
 
-      if (stream && videoId) {
+      if (stream && video) {
         await ky.delete(
-          `https://video.bunnycdn.com/library/${stream.libraryId}/videos/${videoId}`,
+          `https://video.bunnycdn.com/library/${stream.libraryId}/videos/${video.videoId}`,
           {
             headers: {
               accept: 'application/json',

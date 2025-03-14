@@ -2,41 +2,51 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/maximseshuk/payload-storage-bunny.svg)](https://github.com/maximseshuk/payload-storage-bunny/releases/) [![Generic badge](https://img.shields.io/badge/npm-blue.svg)](https://www.npmjs.com/package/@seshuk/payload-storage-bunny) [![Generic badge](https://img.shields.io/badge/license-grey.svg)](https://github.com/maximseshuk/payload-storage-bunny/blob/main/LICENSE) [![NPM Downloads](https://img.shields.io/npm/dm/@seshuk/payload-storage-bunny)](https://www.npmjs.com/package/@seshuk/payload-storage-bunny)
 
-A plugin to use Bunny Storage and Bunny Stream with Payload CMS. Store and serve your media files using Bunny's CDN.
+Store and serve media files from your Payload CMS using Bunny's CDN.
 
-Built on top of `@payloadcms/plugin-cloud-storage` for seamless integration with Payload CMS.
+Built on top of `@payloadcms/plugin-cloud-storage` for easy integration with Payload CMS.
 
 ## Table of Contents
 
 - [Features](#features)
+- [Performance Recommendation](#⚡-performance-recommendation)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Plugin Options](#plugin-options)
+- [Configuration](#configuration)
+  - [Collections](#collections-configuration)
+  - [Storage](#storage-configuration)
+  - [Stream](#stream-configuration)
+  - [Admin Thumbnails](#admin-thumbnail-configuration)
+  - [Access Control](#access-control-configuration)
+- [Getting API Keys](#getting-api-keys)
 - [Storage Regions](#storage-regions)
-- [Video Handling](#video-handling)
-  - [With Bunny Stream](#with-bunny-stream)
-    - [MP4 Video Access](#mp4-video-access)
-    - [Video Thumbnails](#video-thumbnails)
-- [Admin Thumbnails](#admin-thumbnails)
 - [Examples](#examples)
-  - [Basic Media Upload](#basic-media-upload)
-  - [With Video Support](#with-video-support)
 
 ## Features
 
 - Upload files to Bunny Storage
-- Handle videos with optional Bunny Stream integration for advanced features (HLS, thumbnails)
-- Show thumbnails in admin panel
+- Handle videos with Bunny Stream (HLS, MP4, thumbnails)
+- Show thumbnails in your admin panel
+- Control access via Payload or direct CDN links
+
+## ⚡ Performance Recommendation
+
+> Set `disablePayloadAccessControl: true` for best performance.
+> 
+> This lets users download files directly from Bunny's CDN servers instead of through your Payload server - making content delivery much faster.
 
 ## Installation
 
-Requires Payload CMS version 3.0.0 or higher.
+Requires Payload CMS 3.0.0 or higher.
 
 ```bash
+# npm
 npm install @seshuk/payload-storage-bunny
-# or
+
+# yarn
 yarn add @seshuk/payload-storage-bunny
-# or
+
+# pnpm
 pnpm add @seshuk/payload-storage-bunny
 ```
 
@@ -50,12 +60,15 @@ export default buildConfig({
   plugins: [
     bunnyStorage({
       collections: {
-        media: true, // Use for 'media' collection
+        media: {
+          prefix: 'media',
+          disablePayloadAccessControl: true, // Use direct CDN access
+        },
       },
       options: {
         storage: {
           apiKey: process.env.BUNNY_STORAGE_API_KEY,
-          hostname: 'files.example.b-cdn.net', // Your custom domain or Bunny hostname
+          hostname: 'files.example.b-cdn.net',
           zoneName: 'your-storage-zone',
         },
       },
@@ -64,68 +77,169 @@ export default buildConfig({
 })
 ```
 
-## Plugin Options
+## Configuration
 
-> **Note**: When you use this plugin, `disableLocalStorage` will be automatically set to `true` for each collection. This means files won't be stored locally.
+> **Important**: When you use this plugin, `disableLocalStorage` is automatically set to `true` for each collection. Files won't be stored on your server.
+
+### Collections Configuration
+
+Define which collections will use Bunny Storage:
 
 ```typescript
-type BunnyAdapterOptions = {
-  /**
-   * Admin thumbnail configuration
-   * - When set to `true`, uses default behavior
-   * - When object provided, allows customizing thumbnail behavior
-   */
-  adminThumbnail?:
-    | {
-        /** Append timestamp for cache busting */
-        appendTimestamp?: boolean
-        /** Custom query parameters (can be used with Bunny Optimizer or for other needs) */
-        queryParams?: Record<string, string>
-      }
-    | boolean
-
-  /**
-   * Bunny Storage settings (required)
-   */
-  storage: {
-    /** Your Storage API key */
-    apiKey: string
-    /** Custom domain or Bunny CDN hostname (e.g., 'files.example.b-cdn.net') */
-    hostname: string
-    /** Where to store files (optional) */
-    region?: 'br' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | string
-    /** Your storage zone name */
-    zoneName: string
-  }
-
-  /**
-   * Bunny Stream settings (optional)
-   * Add this if you want to handle videos with Bunny Stream
-   */
-  stream?: {
-    /** Your Stream API key */
-    apiKey: string
-    /** Stream service URL */
-    hostname: string
-    /** Your library ID */
-    libraryId: string
-    /** MP4 video quality for direct access */
-    mp4FallbackQuality?: '240p' | '360p' | '480p' | '720p'
-    /** When to take video thumbnail (in seconds) */
-    thumbnailTime?: number
+collections: {
+  // Simple
+  media: true,
+  
+  // With options
+  [collectionSlug]: {
+    // Store files in a specific folder
+    prefix: 'media',
+    
+    // Control how files are accessed
+    disablePayloadAccessControl: true
   }
 }
 ```
 
+The `prefix` option organizes files in folders within your Bunny Storage. For example, `prefix: 'images'` will store uploads in an "images" folder.
+
+### Storage Configuration
+
+Connect to Bunny Storage:
+
+```typescript
+storage: {
+  // Your Storage API key
+  apiKey: string,
+  
+  // Your CDN domain (e.g., 'files.example.b-cdn.net')
+  hostname: string,
+  
+  // Your storage zone name
+  zoneName: string,
+  
+  // Optional: Region code ('uk', 'ny', etc.)
+  region?: string
+}
+```
+
+> **Important**: Bunny Storage requires a Pull Zone to be configured for your Storage Zone. Files will not be accessible without a properly configured Pull Zone. The `hostname` should be your Pull Zone hostname, not the Storage API endpoint. See [Bunny's documentation](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage) on how to access and deliver files from Bunny Storage.
+
+### Stream Configuration
+
+Optional settings for video handling:
+
+```typescript
+stream: {
+  // Your Stream API key
+  apiKey: string,
+  
+  // Stream CDN domain
+  hostname: string,
+  
+  // Your library ID
+  libraryId: string, // like "123456"
+  
+  // Enable MP4 downloads (required with access control)
+  mp4Fallback: {
+    enabled: true
+  },
+  
+  // Deprecated: Use mp4Fallback instead
+  mp4FallbackQuality?: '240p' | '360p' | '480p' | '720p',
+  
+  // When to take the thumbnail (milliseconds)
+  thumbnailTime?: number
+}
+```
+
+> **Note**: If you use Payload's access control, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream).
+
+**Important**: Video support is always available, even without Bunny Stream configured. If Bunny Stream is disabled, video files will simply be uploaded to Bunny Storage like any other file type. Bunny Stream just provides enhanced video features (streaming, adaptive bitrates, thumbnails).
+
+### Admin Thumbnail Configuration
+
+Control thumbnails in your admin panel:
+
+```typescript
+adminThumbnail: true // Default
+// or
+adminThumbnail: {
+  // Add timestamp to bust cache
+  appendTimestamp: boolean,
+  
+  // Custom image parameters (works with Bunny Optimizer)
+  queryParams: {
+    width: '300',
+    height: '300',
+    quality: '90'
+  }
+}
+```
+
+The `queryParams` option is particularly useful when used with Bunny's Image Optimizer service, allowing you to resize, crop, and optimize images on-the-fly.
+
+### Access Control Configuration
+
+```typescript
+collections: {
+  media: {
+    // Optional folder prefix
+    prefix: 'media',
+    
+    // How files are accessed
+    disablePayloadAccessControl: true
+  }
+}
+```
+
+If `disablePayloadAccessControl` is not `true`:
+- Files go through Payload's API
+- Your access rules work
+- Videos need MP4 fallback enabled
+- MP4s are served instead of HLS
+- Good for files that need protection
+
+When `disablePayloadAccessControl: true`:
+- Files go directly from Bunny CDN
+- No access rules
+- Videos use HLS streams (`playlist.m3u8`)
+- Faster delivery but open access
+- No need for MP4 fallback
+
+## Getting API Keys
+
+### Bunny Storage API Key
+
+To find your Bunny Storage API key:
+
+1. Go to your Bunny Storage dashboard
+2. Click on your Storage Zone
+3. Go to "FTP & API Access" section
+4. Use the "Password" field as your API key (**important**: you must use the full Password, not the Read-only password as it won't work for uploads)
+5. Your "Username" is your storage zone name (use this for the `zoneName` parameter)
+6. The "Hostname" value can help determine your `region` (e.g., if it shows `ny.storage.bunnycdn.com`, your region is `ny`)
+
+Remember that the `hostname` parameter in the plugin configuration should come from your Pull Zone, not from this section.
+
+### Bunny Stream API Key
+
+To find your Bunny Stream API key:
+
+1. Go to your Bunny Stream dashboard
+2. Select your library
+3. Click on "API" in the sidebar
+4. Find "Video Library ID" for your `libraryId` setting (like "123456")
+5. Find "CDN Hostname" for your `hostname` setting (like "vz-example-123.b-cdn.net")
+6. The "API Key" is found at the bottom of the page
+
 ## Storage Regions
 
-You can choose where to store your files. If you don't pick a region, the default storage endpoint will be used.
+Choose where to store your files. If you don't pick a region, the default storage location is used.
 
-When setting the `region` field, use only the region code (like 'uk' or 'ny'), not the full hostname.
+Use only the region code in the `region` setting:
 
-Available regions and their codes:
-
-- Default: leave empty or undefined
+- Default: leave empty
 - `uk` - London, UK
 - `ny` - New York, US
 - `la` - Los Angeles, US
@@ -135,122 +249,89 @@ Available regions and their codes:
 - `jh` - Johannesburg, SA
 - `syd` - Sydney, AU
 
-You can also use a custom region code if needed.
+To determine your region, check your Bunny Storage Zone settings. Pick a region closest to your users for best performance. The region code is found in your Storage Zone's hostname (e.g., if your endpoint is `ny.storage.bunnycdn.com`, use `ny` as the region).
 
 Example:
 
 ```typescript
 storage: {
   apiKey: process.env.BUNNY_STORAGE_API_KEY,
-  hostname: 'assets.example.b-cdn.net',  // Your Bunny CDN hostname
-  region: 'ny',  // Just the code: 'ny', not 'ny.storage.bunnycdn.com'
+  hostname: 'assets.example.b-cdn.net',
+  region: 'ny',  // Just 'ny', not 'ny.storage.bunnycdn.com'
   zoneName: 'my-zone'
 }
 ```
 
-## Video Handling
+## Examples
 
-By default, video files will be uploaded to Bunny Storage just like any other files. However, if you add `stream` settings, videos will be handled by Bunny Stream instead, giving you additional features like adaptive streaming and automatic thumbnails.
-
-### With Bunny Stream
-
-If you add `stream` settings, the plugin will:
-
-#### MP4 Video Access
-
-To use MP4 video files directly:
-
-1. Turn on MP4 support in your Bunny Stream dashboard
-2. Set `disablePayloadAccessControl` to `false` in Payload
-3. Choose quality in `mp4FallbackQuality`
-
-#### Video Thumbnails
-
-Use `thumbnailTime` to pick when in the video to take the thumbnail (in seconds).
-
-## Admin Thumbnails
-
-The plugin can show thumbnails in your admin panel. This is optional and works differently for each file type:
-
-- Videos: Uses Bunny Stream's automatic thumbnails (thumbnail.jpg)
-- Images: You can add timestamps to refresh cached images and add any query parameters you need. While this is particularly useful with Bunny Optimizer (for image resizing), you can use any query parameters that suit your needs.
-
-Example setup:
+### Basic Setup with Direct CDN Access
 
 ```typescript
 bunnyStorage({
+  collections: {
+    media: true,
+  },
   options: {
-    adminThumbnail: {
-      appendTimestamp: true, // Add time to refresh thumbnails
-      queryParams: {
-        // You can use Bunny Optimizer parameters
-        width: '300',
-        height: '300',
-        // Or any other query parameters you need
-        quality: '90',
-        custom: 'value',
-      },
+    storage: {
+      apiKey: process.env.BUNNY_STORAGE_API_KEY,
+      hostname: 'storage.example.b-cdn.net',
+      zoneName: 'my-zone',
     },
-    // ... other settings
   },
 })
 ```
 
-## Examples
-
-### Basic Media Upload
+### With Bunny Stream & Direct CDN Access
 
 ```typescript
-import { buildConfig } from 'payload'
-import { bunnyStorage } from '@seshuk/payload-storage-bunny'
-
-export default buildConfig({
-  plugins: [
-    bunnyStorage({
-      collections: {
-        media: true,
-      },
-      options: {
-        storage: {
-          apiKey: process.env.BUNNY_STORAGE_API_KEY,
-          hostname: 'storage.example.b-cdn.net',
-          zoneName: 'my-zone',
-        },
-      },
-    }),
-  ],
+bunnyStorage({
+  collections: {
+    media: {
+      prefix: 'uploads',
+      disablePayloadAccessControl: true,
+    },
+  },
+  options: {
+    storage: {
+      apiKey: process.env.BUNNY_STORAGE_API_KEY,
+      hostname: 'storage.example.b-cdn.net',
+      region: 'ny',
+      zoneName: 'my-zone',
+    },
+    stream: {
+      apiKey: process.env.BUNNY_STREAM_API_KEY,
+      hostname: 'stream.example.b-cdn.net',
+      libraryId: '123456',
+      thumbnailTime: 5000, // 5 seconds in milliseconds
+    },
+  },
 })
 ```
 
-### With Video Support
+### With Bunny Stream & Payload Access Control
 
 ```typescript
-import { buildConfig } from 'payload'
-import { bunnyStorage } from '@seshuk/payload-storage-bunny'
-
-export default buildConfig({
-  plugins: [
-    bunnyStorage({
-      collections: {
-        media: {
-          prefix: 'media',
-        },
-      },
-      options: {
-        storage: {
-          apiKey: process.env.BUNNY_STORAGE_API_KEY,
-          hostname: 'storage.example.b-cdn.net',
-          region: 'ny',
-          zoneName: 'my-zone',
-        },
-        stream: {
-          apiKey: process.env.BUNNY_STREAM_API_KEY,
-          hostname: 'stream.example.b-cdn.net',
-          libraryId: 'lib-123',
-          mp4FallbackQuality: '720p',
-        },
-      },
-    }),
-  ],
+bunnyStorage({
+  collections: {
+    media: {
+      prefix: 'uploads',
+      // Not setting disablePayloadAccessControl uses Payload's access control
+    },
+  },
+  options: {
+    storage: {
+      apiKey: process.env.BUNNY_STORAGE_API_KEY,
+      hostname: 'storage.example.b-cdn.net',
+      region: 'ny',
+      zoneName: 'my-zone',
+    },
+    stream: {
+      apiKey: process.env.BUNNY_STREAM_API_KEY,
+      hostname: 'stream.example.b-cdn.net',
+      libraryId: '123456',
+      mp4Fallback: { enabled: true }, // Required with access control
+      thumbnailTime: 5000, // 5 seconds in milliseconds
+    },
+  },
 })
 ```

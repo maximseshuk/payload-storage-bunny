@@ -1,12 +1,13 @@
 import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
 import type { CollectionConfig } from 'payload'
 
-import ky, { HTTPError } from 'ky'
-import { posix } from 'node:path'
+import { HTTPError } from 'ky'
 
 import type { BunnyAdapterOptions } from './types.js'
 
-import { getStorageUrl, getVideoId } from './utils.js'
+import { storageStaticHandler } from './staticHandlerStorage.js'
+import { streamStaticHandler } from './staticHandlerStream.js'
+import { getVideoFromDoc } from './utils.js'
 
 type Args = { collection: CollectionConfig; prefix?: string } & BunnyAdapterOptions
 
@@ -16,88 +17,75 @@ export const getStaticHandler = ({
   storage,
   stream,
 }: Args): StaticHandler => {
-  return async (req, { doc, params: { filename } }) => {
+  return async (req, data) => {
     try {
-      let videoId = getVideoId(doc, filename)
+      const { doc, params: { filename } } = data
 
-      if (!videoId) {
-        const doc = (await req.payload.find({
-          collection: collection.slug,
-          limit: 1,
-          where: {
-            bunnyVideoId: {
-              exists: true,
+      if (stream) {
+        if (filename && filename.startsWith('bunny:stream:')) {
+          const parts = filename.split(':')
+          if (parts.length === 4 && parts[3] === 'thumbnail.jpg') {
+            const videoId = parts[2]
+
+            const thumbnailUrl = `https://${stream.hostname}/${videoId}/thumbnail.jpg`
+
+            try {
+              const response = await fetch(thumbnailUrl)
+              if (!response.ok) {
+                return new Response(`Thumbnail not found: ${response.status}`, { status: response.status })
+              }
+
+              const headers = new Headers()
+              response.headers.forEach((value, key) => {
+                headers.set(key, value)
+              })
+
+              return new Response(response.body, {
+                headers,
+                status: response.status,
+              })
+            } catch (error) {
+              req.payload.logger.error({
+                error,
+                thumbnailUrl,
+              })
+              return new Response('Error fetching thumbnail', { status: 500 })
+            }
+          }
+        }
+
+        let video = getVideoFromDoc(doc, filename)
+
+        if (!video) {
+          const result = await req.payload.find({
+            collection: collection.slug,
+            limit: 1,
+            where: {
+              bunnyVideoId: {
+                exists: true,
+              },
+              filename: {
+                equals: filename,
+              },
             },
-            filename: {
-              equals: filename,
-            },
-          },
-        })) as unknown as { docs: { bunnyVideoId: string }[] }
+          })
 
-        if (doc.docs.length === 0) {
-          return new Response('Not Found', { status: 404 })
+          if (result.docs.length > 0) {
+            video = getVideoFromDoc(result.docs[0], filename)
+          }
         }
 
-        videoId = doc.docs[0].bunnyVideoId
-      }
-
-      if (stream && videoId) {
-        if (!stream.mp4FallbackQuality) {
-          return new Response('MP4 fallback quality not configured', { status: 400 })
+        if (video && video.videoId) {
+          return await streamStaticHandler(req, stream, {
+            collection: collection.slug,
+            docId: video.docId,
+            videoId: video.videoId,
+            videoMeta: video.videoMeta,
+          })
         }
-
-        const mp4Url = `https://${stream.hostname}/${videoId}/play_${stream.mp4FallbackQuality}.mp4`
-        req.payload.logger.info(mp4Url)
-        const response = await ky.get(mp4Url)
-
-        if (!response.ok) {
-          return new Response(null, { status: 404, statusText: 'Not Found' })
-        }
-
-        return new Response(response.body, {
-          headers: new Headers({
-            'content-length': response.headers.get('Content-Length') || '',
-            'content-type': 'video/mp4',
-          }),
-          status: 200,
-        })
       }
 
-      const response = await ky.get(
-        `https://${getStorageUrl(storage.region)}/${storage.zoneName}/${posix.join(prefix, filename)}`,
-        {
-          headers: {
-            AccessKey: storage.apiKey,
-          },
-        },
-      )
-
-      if (!response.ok) {
-        return new Response(null, { status: 404, statusText: 'Not Found' })
-      }
-
-      const etagFromHeaders = req.headers.get('etag') || req.headers.get('if-none-match')
-      const objectEtag = response.headers.get('etag') as string
-
-      if (etagFromHeaders && etagFromHeaders === objectEtag) {
-        return new Response(null, {
-          headers: new Headers({
-            'content-length': response.headers.get('Content-Length') || '',
-            'content-type': response.headers.get('Content-Type') || '',
-            ETag: objectEtag,
-          }),
-          status: 304,
-        })
-      }
-
-      return new Response(response.body, {
-        headers: new Headers({
-          'content-length': response.headers.get('Content-Length') || '',
-          'content-type': response.headers.get('Content-Type') || '',
-          ETag: objectEtag,
-        }),
-        status: 200,
-      })
+      return await storageStaticHandler(req, data, filename, storage, prefix)
     } catch (err) {
       if (err instanceof HTTPError) {
         const errorResponse = await err.response.text()
@@ -108,7 +96,7 @@ export const getStaticHandler = ({
             status: err.response.status,
             statusText: err.response.statusText,
           },
-          file: { name: filename },
+          file: { name: data.params.filename },
           storage: storage.zoneName,
         })
 
@@ -120,7 +108,7 @@ export const getStaticHandler = ({
 
       req.payload.logger.error({
         error: err,
-        file: { name: filename },
+        file: { name: data.params.filename },
         storage: storage.zoneName,
       })
 
