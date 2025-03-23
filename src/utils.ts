@@ -17,11 +17,12 @@ export const getVideoFromDoc = (doc: TypeWithID | undefined, filename: string) =
     'id' in doc &&
     'filename' in doc &&
     doc.filename === filename &&
-    'bunnyVideoId' in doc
+    'bunnyVideoId' in doc &&
+    typeof doc.bunnyVideoId === 'string'
   ) {
     return {
       docId: doc.id,
-      videoId: doc.bunnyVideoId as string,
+      videoId: doc.bunnyVideoId,
       videoMeta: ('bunnyVideoMeta' in doc ? doc.bunnyVideoMeta : null) as BunnyVideoMeta | null,
     }
   }
