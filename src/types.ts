@@ -8,6 +8,11 @@ export type AdminThumbnailOptions = {
 
 export type BunnyAdapterOptions = {
   adminThumbnail?: AdminThumbnailOptions | boolean
+  purge?: {
+    apiKey: string
+    async?: boolean
+    enabled: boolean
+  }
   storage: {
     apiKey: string
     hostname: string

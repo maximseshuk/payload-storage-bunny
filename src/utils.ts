@@ -1,6 +1,8 @@
-import type { TypeWithID } from 'payload'
+import type { PayloadRequest, TypeWithID } from 'payload'
 
-import type { BunnyStorageOptions, BunnyVideoMeta } from './types.js'
+import ky, { HTTPError } from 'ky'
+
+import type { BunnyAdapterOptions, BunnyStorageOptions, BunnyVideoMeta } from './types.js'
 
 export const getStorageUrl = (region: string | undefined) => {
   if (!region) {
@@ -42,6 +44,14 @@ export const validateOptions = (
     errors.push('Hostname in storage settings cannot contain "storage.bunnycdn.com"')
   }
 
+  if (storageOptions.options.purge) {
+    const { purge } = storageOptions.options
+
+    if (purge.enabled && !purge.apiKey) {
+      errors.push('When purge is enabled, an API key must be provided')
+    }
+  }
+
   if (storageOptions.options.stream) {
     const collectionsWithAccessControl = Object.entries(storageOptions.collections).filter(([_, collection]) =>
       typeof collection === 'object' &&
@@ -63,5 +73,54 @@ export const validateOptions = (
     throw new Error(
       `Bunny Storage configuration error: ${errors.join('; ')}. Please refer to the documentation: https://github.com/maximseshuk/payload-storage-bunny`,
     )
+  }
+}
+
+export const purgeBunnyCache = async (
+  url: string,
+  options: BunnyAdapterOptions['purge'],
+  req?: PayloadRequest,
+): Promise<boolean> => {
+  if (!options || !options.enabled) {
+    return false
+  }
+
+  try {
+    await ky.post('https://api.bunny.net/purge', {
+      headers: {
+        AccessKey: options.apiKey,
+      },
+      searchParams: {
+        async: options.async || false,
+        url,
+      },
+      timeout: 30000,
+    })
+
+    return true
+  } catch (err) {
+    if (req) {
+      if (err instanceof HTTPError) {
+        const errorResponse = await err.response.text()
+
+        req.payload.logger.error({
+          action: 'Cache purge',
+          error: {
+            response: errorResponse,
+            status: err.response.status,
+            statusText: err.response.statusText,
+          },
+          url,
+        })
+      } else {
+        req.payload.logger.error({
+          action: 'Cache purge',
+          error: err,
+          url,
+        })
+      }
+    }
+
+    return false
   }
 }

@@ -9,15 +9,17 @@ Built on top of `@payloadcms/plugin-cloud-storage` for easy integration with Pay
 ## Table of Contents
 
 - [Features](#features)
-- [Performance Recommendation](#⚡-performance-recommendation)
+- [Performance Recommendation](#-performance-recommendation)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
   - [Collections](#collections-configuration)
   - [Storage](#storage-configuration)
   - [Stream](#stream-configuration)
+  - [Cache Purging](#cache-purging-configuration)
   - [Admin Thumbnails](#admin-thumbnail-configuration)
   - [Access Control](#access-control-configuration)
+- [CDN Cache Management](#cdn-cache-management)
 - [Getting API Keys](#getting-api-keys)
 - [Storage Regions](#storage-regions)
 - [Examples](#examples)
@@ -28,6 +30,7 @@ Built on top of `@payloadcms/plugin-cloud-storage` for easy integration with Pay
 - Handle videos with Bunny Stream (HLS, MP4, thumbnails)
 - Show thumbnails in your admin panel
 - Control access via Payload or direct CDN links
+- Automatic CDN cache purging for updated files
 
 ## ⚡ Performance Recommendation
 
@@ -157,6 +160,29 @@ stream: {
 
 **Important**: Video support is always available, even without Bunny Stream configured. If Bunny Stream is disabled, video files will simply be uploaded to Bunny Storage like any other file type. Bunny Stream just provides enhanced video features (streaming, adaptive bitrates, thumbnails).
 
+### Cache Purging Configuration
+
+Enable automatic CDN cache purging for storage files (not applicable to Stream):
+
+```typescript
+purge: {
+  // Enable cache purging
+  enabled: true,
+  
+  // Your Bunny API key
+  apiKey: string,
+  
+  // Optional: wait for purge to complete (default: false)
+  async?: boolean
+}
+```
+
+When enabled, the plugin will automatically purge the CDN cache after:
+- File uploads
+- File deletions
+
+This ensures that visitors always see the most up-to-date version of your files, which is especially important when replacing existing files (e.g., during image cropping operations).
+
 ### Admin Thumbnail Configuration
 
 Control thumbnails in your admin panel:
@@ -176,6 +202,8 @@ adminThumbnail: {
   }
 }
 ```
+
+When `appendTimestamp` is enabled (or using the default setting), the plugin automatically adds a timestamp parameter to image URLs in the admin panel. This ensures that when files are updated, the admin UI always shows the latest version without browser caching issues.
 
 The `queryParams` option is particularly useful when used with Bunny's Image Optimizer service, allowing you to resize, crop, and optimize images on-the-fly.
 
@@ -207,6 +235,47 @@ When `disablePayloadAccessControl: true`:
 - Faster delivery but open access
 - No need for MP4 fallback
 
+## CDN Cache Management
+
+There are two approaches to managing the CDN cache for your Bunny Storage files:
+
+### Option 1: Automatic Cache Purging
+
+You can enable automatic cache purging whenever files are uploaded or deleted:
+
+```typescript
+purge: {
+  enabled: true,
+  apiKey: process.env.BUNNY_API_KEY,
+  async: false // Wait for purge to complete (default: false)
+}
+```
+
+This is the most comprehensive approach as it ensures the CDN cache is immediately purged when files change, making the updated content available to all visitors.
+
+### Option 2: Timestamp-Based Cache Busting
+
+For the admin panel specifically, you can use timestamp-based cache busting:
+
+1. First, configure the plugin to add timestamps to image URLs:
+
+```typescript
+adminThumbnail: {
+  appendTimestamp: true
+}
+```
+
+2. In your Bunny Pull Zone settings:
+   - Go to the "Caching" section
+   - Enable "Vary Cache" for "URL Query String"
+   - Add "t" to the "Query String Vary Parameters" list
+
+This approach only affects how images are displayed in the admin panel and doesn't purge the actual CDN cache. It appends a timestamp parameter (`?t=1234567890`) to image URLs, causing Bunny CDN to treat each timestamped URL as a unique cache entry.
+
+Choose the approach that best fits your needs:
+- Use **automatic cache purging** for immediate updates everywhere
+- Use **timestamp-based cache busting** for a simpler setup that only affects the admin panel
+
 ## Getting API Keys
 
 ### Bunny Storage API Key
@@ -232,6 +301,16 @@ To find your Bunny Stream API key:
 4. Find "Video Library ID" for your `libraryId` setting (like "123456")
 5. Find "CDN Hostname" for your `hostname` setting (like "vz-example-123.b-cdn.net")
 6. The "API Key" is found at the bottom of the page
+
+### Bunny API Key
+
+To find your Bunny API key (used for cache purging):
+
+1. Go to your Bunny.net dashboard
+2. Click on your account in the top-right corner
+3. Select "Account settings" from the dropdown menu
+4. Click on "API" in the sidebar menu
+5. Copy the API key displayed on the page
 
 ## Storage Regions
 
@@ -281,6 +360,28 @@ bunnyStorage({
 })
 ```
 
+### With Cache Purging Enabled
+
+```typescript
+bunnyStorage({
+  collections: {
+    media: true,
+  },
+  options: {
+    storage: {
+      apiKey: process.env.BUNNY_STORAGE_API_KEY,
+      hostname: 'storage.example.b-cdn.net',
+      zoneName: 'my-zone',
+    },
+    purge: {
+      enabled: true,
+      apiKey: process.env.BUNNY_API_KEY,
+      async: false, // Wait for purge to complete
+    },
+  },
+})
+```
+
 ### With Bunny Stream & Direct CDN Access
 
 ```typescript
@@ -303,6 +404,10 @@ bunnyStorage({
       hostname: 'stream.example.b-cdn.net',
       libraryId: '123456',
       thumbnailTime: 5000, // 5 seconds in milliseconds
+    },
+    purge: {
+      enabled: true,
+      apiKey: process.env.BUNNY_API_KEY,
     },
   },
 })
@@ -331,6 +436,10 @@ bunnyStorage({
       libraryId: '123456',
       mp4Fallback: { enabled: true }, // Required with access control
       thumbnailTime: 5000, // 5 seconds in milliseconds
+    },
+    purge: {
+      enabled: true,
+      apiKey: process.env.BUNNY_API_KEY,
     },
   },
 })

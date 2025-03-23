@@ -6,12 +6,23 @@ import { APIError } from 'payload'
 
 import type { BunnyAdapterOptions } from './types.js'
 
-import { getStorageUrl, getVideoFromDoc } from './utils.js'
+import { getGenerateURL } from './generateURL.js'
+import { getStorageUrl, getVideoFromDoc, purgeBunnyCache } from './utils.js'
 
-export const getHandleDelete = ({ storage, stream }: BunnyAdapterOptions): HandleDelete => {
-  return async ({ doc, filename, req }) => {
+export const getHandleDelete = ({ purge, storage, stream }: BunnyAdapterOptions): HandleDelete => {
+  return async ({ collection, doc, filename, req }) => {
     try {
       const video = getVideoFromDoc(doc, filename)
+
+      let fileUrl: null | string = null
+      if (!video && purge && purge.enabled) {
+        fileUrl = await getGenerateURL({ storage, stream })({
+          collection,
+          data: doc,
+          filename,
+          prefix: doc.prefix || '',
+        })
+      }
 
       if (stream && video) {
         await ky.delete(
@@ -37,6 +48,10 @@ export const getHandleDelete = ({ storage, stream }: BunnyAdapterOptions): Handl
             timeout: 120000,
           },
         )
+
+        if (purge && purge.enabled && fileUrl) {
+          await purgeBunnyCache(fileUrl, purge, req)
+        }
       }
     } catch (err) {
       if (err instanceof HTTPError) {

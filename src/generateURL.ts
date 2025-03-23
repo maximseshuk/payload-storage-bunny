@@ -10,6 +10,6 @@ export const getGenerateURL = ({ storage, stream }: BunnyAdapterOptions): Genera
       return `https://${stream.hostname}/${data.bunnyVideoId}/playlist.m3u8`
     }
 
-    return `https://${storage.hostname}/${posix.join(prefix, filename)}`
+    return `https://${storage.hostname}/${encodeURI(posix.join(prefix, filename))}`
   }
 }

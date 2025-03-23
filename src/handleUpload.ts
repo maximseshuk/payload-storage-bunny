@@ -6,12 +6,13 @@ import { APIError } from 'payload'
 
 import type { BunnyAdapterOptions } from './types.js'
 
-import { getStorageUrl } from './utils.js'
+import { getGenerateURL } from './generateURL.js'
+import { getStorageUrl, purgeBunnyCache } from './utils.js'
 
 type Args = { prefix?: string } & BunnyAdapterOptions
 
-export const getHandleUpload = ({ prefix, storage, stream }: Args): HandleUpload => {
-  return async ({ data, file, req }) => {
+export const getHandleUpload = ({ prefix, purge, storage, stream }: Args): HandleUpload => {
+  return async ({ collection, data, file, req }) => {
     data.url = null
     data.thumbnailURL = null
 
@@ -57,6 +58,11 @@ export const getHandleUpload = ({ prefix, storage, stream }: Args): HandleUpload
 
         data.filename = fileName
         data.bunnyVideoId = null
+
+        if (purge && purge.enabled) {
+          const url = await getGenerateURL({ storage, stream })({ collection, data, filename: fileName, prefix: prefix || '' })
+          await purgeBunnyCache(url, purge, req)
+        }
       }
 
       return data
