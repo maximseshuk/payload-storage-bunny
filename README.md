@@ -35,7 +35,7 @@ Built on top of `@payloadcms/plugin-cloud-storage` for easy integration with Pay
 ## ⚡ Performance Recommendation
 
 > Set `disablePayloadAccessControl: true` for best performance.
-> 
+>
 > This lets users download files directly from Bunny's CDN servers instead of through your Payload server - making content delivery much faster.
 
 ## Installation
@@ -92,12 +92,12 @@ Define which collections will use Bunny Storage:
 collections: {
   // Simple
   media: true,
-  
+
   // With options
   [collectionSlug]: {
     // Store files in a specific folder
     prefix: 'media',
-    
+
     // Control how files are accessed
     disablePayloadAccessControl: true
   }
@@ -114,13 +114,13 @@ Connect to Bunny Storage:
 storage: {
   // Your Storage API key
   apiKey: string,
-  
+
   // Your CDN domain (e.g., 'files.example.b-cdn.net')
   hostname: string,
-  
+
   // Your storage zone name
   zoneName: string,
-  
+
   // Optional: Region code ('uk', 'ny', etc.)
   region?: string
 }
@@ -136,21 +136,21 @@ Optional settings for video handling:
 stream: {
   // Your Stream API key
   apiKey: string,
-  
+
   // Stream CDN domain
   hostname: string,
-  
+
   // Your library ID
   libraryId: string, // like "123456"
-  
+
   // Enable MP4 downloads (required with access control)
   mp4Fallback: {
     enabled: true
   },
-  
+
   // Deprecated: Use mp4Fallback instead
   mp4FallbackQuality?: '240p' | '360p' | '480p' | '720p',
-  
+
   // When to take the thumbnail (milliseconds)
   thumbnailTime?: number
 }
@@ -168,16 +168,17 @@ Enable automatic CDN cache purging for storage files (not applicable to Stream):
 purge: {
   // Enable cache purging
   enabled: true,
-  
+
   // Your Bunny API key
   apiKey: string,
-  
+
   // Optional: wait for purge to complete (default: false)
   async?: boolean
 }
 ```
 
 When enabled, the plugin will automatically purge the CDN cache after:
+
 - File uploads
 - File deletions
 
@@ -193,7 +194,7 @@ adminThumbnail: true // Default
 adminThumbnail: {
   // Add timestamp to bust cache
   appendTimestamp: boolean,
-  
+
   // Custom image parameters (works with Bunny Optimizer)
   queryParams: {
     width: '300',
@@ -214,7 +215,7 @@ collections: {
   media: {
     // Optional folder prefix
     prefix: 'media',
-    
+
     // How files are accessed
     disablePayloadAccessControl: true
   }
@@ -222,6 +223,7 @@ collections: {
 ```
 
 If `disablePayloadAccessControl` is not `true`:
+
 - Files go through Payload's API
 - Your access rules work
 - Videos need MP4 fallback enabled
@@ -229,6 +231,7 @@ If `disablePayloadAccessControl` is not `true`:
 - Good for files that need protection
 
 When `disablePayloadAccessControl: true`:
+
 - Files go directly from Bunny CDN
 - No access rules
 - Videos use HLS streams (`playlist.m3u8`)
@@ -273,6 +276,7 @@ adminThumbnail: {
 This approach only affects how images are displayed in the admin panel and doesn't purge the actual CDN cache. It appends a timestamp parameter (`?t=1234567890`) to image URLs, causing Bunny CDN to treat each timestamped URL as a unique cache entry.
 
 Choose the approach that best fits your needs:
+
 - Use **automatic cache purging** for immediate updates everywhere
 - Use **timestamp-based cache busting** for a simpler setup that only affects the admin panel
 

@@ -1,0 +1,8 @@
+# TypeScript files
+*.ts
+
+# Distribution folder
+dist/
+
+# PNPM files
+pnpm-lock.yaml
