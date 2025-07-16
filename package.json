@@ -1,6 +1,6 @@
 {
   "name": "@seshuk/payload-storage-bunny",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Payload storage adapter for Bunny.net",
   "author": "Maxim Seshuk",
   "license": "MIT",
@@ -21,13 +21,13 @@
     "storage"
   ],
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "default": "./src/index.ts",
-      "import": "./src/index.ts",
-      "types": "./src/index.ts"
+      "default": "./dist/index.js",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "files": [
@@ -43,39 +43,30 @@
     "prepublishOnly": "pnpm clean && pnpm build"
   },
   "dependencies": {
-    "@payloadcms/plugin-cloud-storage": "^3.19.0",
-    "ky": "^1.7.4"
+    "@payloadcms/plugin-cloud-storage": "^3.47.0",
+    "ky": "1.7.5"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/eslintrc": "^3.3.1",
     "@payloadcms/eslint-config": "3.9.0",
-    "@stylistic/eslint-plugin": "^4.2.0",
+    "@stylistic/eslint-plugin": "^4.4.1",
     "@swc-node/register": "1.10.9",
     "@swc/cli": "0.5.1",
-    "@types/node": "^22.10.10",
-    "eslint": "^9.19.0",
-    "payload": "^3.19.0",
-    "prettier": "^3.4.2",
+    "@types/node": "^22.16.4",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
     "rimraf": "3.0.2",
     "typescript": "5.7.3"
   },
   "peerDependencies": {
-    "payload": ">=3.0.0"
+    "payload": "latest"
   },
   "engines": {
     "node": "^18.20.2 || >=20.9.0"
   },
   "publishConfig": {
-    "access": "public",
-    "exports": {
-      ".": {
-        "default": "./dist/index.js",
-        "import": "./dist/index.js",
-        "types": "./dist/index.d.ts"
-      }
-    },
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts"
+    "access": "public"
   },
-  "registry": "https://registry.npmjs.org/"
+  "registry": "https://registry.npmjs.org/",
+  "packageManager": "pnpm@10.13.1+sha512.37ebf1a5c7a30d5fabe0c5df44ee8da4c965ca0c5af3dbab28c3a1681b70a256218d05c81c9c0dcf767ef6b8551eb5b960042b9ed4300c59242336377e01cfad"
 }

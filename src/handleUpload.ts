@@ -43,7 +43,6 @@ export const getHandleUpload = ({ prefix, purge, storage, stream }: Args): Handl
           timeout: 120000,
         })
 
-        data.filename = fileName
         data.bunnyVideoId = guid
       } else {
         await ky.put(`https://${getStorageUrl(storage.region)}/${storage.zoneName}/${filePath}`, {
@@ -56,7 +55,6 @@ export const getHandleUpload = ({ prefix, purge, storage, stream }: Args): Handl
           timeout: 120000,
         })
 
-        data.filename = fileName
         data.bunnyVideoId = null
 
         if (purge && purge.enabled) {
