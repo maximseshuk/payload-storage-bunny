@@ -1,8 +1,8 @@
-# TypeScript files
-*.ts
-
-# Distribution folder
-dist/
-
-# PNPM files
-pnpm-lock.yaml
+**/.git
+**/.next
+**/dist
+**/node_modules
+**/*.ts
+**/*.yaml
+.tmp
+dev/app/(payload)/**

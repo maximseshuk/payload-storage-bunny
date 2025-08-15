@@ -1,6 +1,6 @@
 {
   "name": "@seshuk/payload-storage-bunny",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Payload storage adapter for Bunny.net",
   "author": "Maxim Seshuk",
   "license": "MIT",
@@ -21,13 +21,18 @@
     "storage"
   ],
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "default": "./dist/index.js",
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "default": "./src/index.ts",
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./client": {
+      "import": "./src/exports/client.ts",
+      "types": "./src/exports/client.ts",
+      "default": "./src/exports/client.ts"
     }
   },
   "files": [
@@ -42,33 +47,62 @@
     "format:check": "prettier --check .",
     "lint": "eslint",
     "lint:fix": "eslint ./src --fix",
-    "prepublishOnly": "pnpm clean && pnpm build"
+    "prepublishOnly": "pnpm clean && pnpm build",
+    "dev": "next dev dev",
+    "dev:generate-importmap": "pnpm dev:payload generate:importmap",
+    "dev:generate-types": "pnpm dev:payload generate:types",
+    "dev:payload": "dotenv -e ./dev/.env -v PAYLOAD_CONFIG_PATH=./dev/payload.config.ts -- payload"
   },
   "dependencies": {
-    "@payloadcms/plugin-cloud-storage": "^3.47.0",
+    "@payloadcms/plugin-cloud-storage": "^3.44.0",
     "ky": "1.7.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@payloadcms/db-mongodb": "^3.44.0",
     "@payloadcms/eslint-config": "3.9.0",
+    "@payloadcms/next": "^3.44.0",
+    "@payloadcms/ui": "^3.44.0",
     "@stylistic/eslint-plugin": "^4.4.1",
     "@swc-node/register": "1.10.9",
     "@swc/cli": "0.5.1",
-    "@types/node": "^22.16.4",
-    "eslint": "^9.31.0",
+    "@types/node": "^22.17.1",
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "dotenv-cli": "^10.0.0",
+    "eslint": "^9.33.0",
+    "next": "15.4.6",
+    "payload": "^3.44.0",
     "prettier": "^3.6.2",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
     "rimraf": "3.0.2",
+    "sharp": "0.34.2",
     "typescript": "5.7.3"
   },
   "peerDependencies": {
-    "payload": "latest"
+    "payload": "^3.44.0"
   },
   "engines": {
     "node": "^18.20.2 || >=20.9.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./client": {
+        "import": "./dist/exports/client.js",
+        "types": "./dist/exports/client.d.ts",
+        "default": "./dist/exports/client.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "registry": "https://registry.npmjs.org/",
+    "types": "./dist/index.d.ts"
   },
-  "registry": "https://registry.npmjs.org/",
   "packageManager": "pnpm@10.13.1+sha512.37ebf1a5c7a30d5fabe0c5df44ee8da4c965ca0c5af3dbab28c3a1681b70a256218d05c81c9c0dcf767ef6b8551eb5b960042b9ed4300c59242336377e01cfad"
 }

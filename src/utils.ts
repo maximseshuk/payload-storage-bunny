@@ -40,7 +40,7 @@ export const validateOptions = (
 ): void => {
   const errors: string[] = []
 
-  if (storageOptions.options.storage.hostname.includes('storage.bunnycdn.com')) {
+  if (storageOptions.options.storage.hostname?.includes('storage.bunnycdn.com')) {
     errors.push('Hostname in storage settings cannot contain "storage.bunnycdn.com"')
   }
 

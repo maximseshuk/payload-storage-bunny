@@ -50,6 +50,18 @@ export const bunnyStorage: BunnyPlugin =
 
           return {
             ...collection,
+            admin: {
+              ...(collection.admin || {}),
+              components: {
+                ...(collection.admin?.components || {}),
+                edit: {
+                  ...(collection.admin?.components?.edit || {}),
+                  ...(bunnyStorageOptions.experimental?.replaceSaveButtonComponent ? {
+                    SaveButton: '@seshuk/payload-storage-bunny/client#CustomSaveButton',
+                  } : {}),
+                },
+              },
+            },
             upload: {
               ...(typeof collection.upload === 'object' ? collection.upload : {}),
               ...(bunnyStorageOptions.options.adminThumbnail ? {
@@ -74,7 +86,6 @@ const bunnyInternal = ({ options }: BunnyStorageOptions): Adapter => {
         type: 'text',
         admin: {
           disabled: true,
-          hidden: true,
         },
       },
       ...(options.stream.mp4Fallback?.enabled || !!options.stream.mp4FallbackQuality

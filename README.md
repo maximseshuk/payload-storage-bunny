@@ -18,6 +18,7 @@ Built on top of `@payloadcms/plugin-cloud-storage` for easy integration with Pay
   - [Stream](#stream-configuration)
   - [Cache Purging](#cache-purging-configuration)
   - [Admin Thumbnails](#admin-thumbnail-configuration)
+  - [Experimental Features](#experimental-features-configuration)
   - [Access Control](#access-control-configuration)
 - [CDN Cache Management](#cdn-cache-management)
 - [Getting API Keys](#getting-api-keys)
@@ -207,6 +208,45 @@ adminThumbnail: {
 When `appendTimestamp` is enabled (or using the default setting), the plugin automatically adds a timestamp parameter to image URLs in the admin panel. This ensures that when files are updated, the admin UI always shows the latest version without browser caching issues.
 
 The `queryParams` option is particularly useful when used with Bunny's Image Optimizer service, allowing you to resize, crop, and optimize images on-the-fly.
+
+### Experimental Features Configuration
+
+Experimental features that may change or be removed in future versions:
+
+```typescript
+experimental: {
+  // Fix for Payload CMS unnecessary file re-downloads during field updates
+  replaceSaveButtonComponent: true
+}
+```
+
+Available experimental options:
+
+#### `replaceSaveButtonComponent`
+
+Fixes a Payload CMS issue where updating collection fields (like `alt` text) causes unnecessary file re-downloads and overwrites. When enabled, the plugin replaces the save button component to prevent files from being physically rewritten when only collection fields are being modified.
+
+> **Note**: This is a temporary workaround for [Payload CMS issue #13182](https://github.com/payloadcms/payload/issues/13182). It will be removed when the upstream issue is resolved.
+
+Example with experimental features:
+
+```typescript
+bunnyStorage({
+  collections: {
+    media: true,
+  },
+  options: {
+    storage: {
+      apiKey: process.env.BUNNY_STORAGE_API_KEY,
+      hostname: 'files.example.b-cdn.net',
+      zoneName: 'my-zone',
+    },
+  },
+  experimental: {
+    replaceSaveButtonComponent: true,
+  },
+})
+```
 
 ### Access Control Configuration
 

@@ -41,6 +41,19 @@ export type BunnyPlugin = (bunnyStorageOptions: BunnyStorageOptions) => Plugin
 export type BunnyStorageOptions = {
   collections: Partial<Record<UploadCollectionSlug, Omit<CollectionOptions, 'adapter'> | true>>
   enabled?: boolean
+  experimental?: {
+    /**
+       * Temporary workaround for Payload CMS issue where updating collection fields
+       * (like alt text) causes unnecessary file re-download and overwrite operations.
+       *
+       * When enabled, replaces the save button component to prevent files from being
+       * physically rewritten when only collection fields are being modified.
+       *
+       * @see https://github.com/payloadcms/payload/issues/13182
+       * @deprecated Will be removed when upstream issue is resolved
+       */
+    replaceSaveButtonComponent?: boolean
+  }
   options: BunnyAdapterOptions
 }
 
