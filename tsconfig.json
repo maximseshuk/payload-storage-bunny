@@ -20,7 +20,10 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["./src/**/*.ts", "./src/**/*.tsx", "./dev/next-env.d.ts"]
 }

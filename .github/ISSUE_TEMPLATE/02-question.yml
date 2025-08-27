@@ -1,0 +1,48 @@
+name: Question / Support
+description: Ask a question or get help with using the plugin
+title: '[Question]: '
+labels: ['question']
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before asking:** Please check [documentation](https://github.com/maximseshuk/payload-storage-bunny#readme), [migration guide](https://github.com/maximseshuk/payload-storage-bunny/blob/main/docs/migration-guide.md), and [existing issues](https://github.com/maximseshuk/payload-storage-bunny/issues).
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What do you need help with?
+      placeholder: |
+        Please tell us:
+        - What you're trying to do
+        - What specific feature you need
+        - What you've tried so far
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-config
+    attributes:
+      label: Current Configuration (if relevant)
+      description: Share your plugin setup (**remove API keys and sensitive data**)
+      placeholder: |
+        ```typescript
+        export default buildConfig({
+          plugins: [
+            bunnyStorage({
+              collections: {
+                media: true,
+              },
+              storage: {
+                apiKey: 'REDACTED',
+                hostname: 'files.example.b-cdn.net',
+                zoneName: 'your-zone',
+              },
+            }),
+          ],
+        })
+        ```
+      render: typescript

@@ -1,1 +1,1 @@
-export { CustomSaveButton } from '../components/CustomSaveButton/index.js'
+export { TusUpload } from '@/components/TusUpload/index.js'

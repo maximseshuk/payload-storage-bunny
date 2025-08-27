@@ -8,6 +8,10 @@
       "tsx": true,
       "dts": true
     },
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "transform": {
       "react": {
         "runtime": "automatic",

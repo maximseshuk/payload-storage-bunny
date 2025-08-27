@@ -21,7 +21,7 @@ const stylisticConfig = {
     '@stylistic/brace-style': ['error', '1tbs'],
     '@stylistic/comma-dangle': ['error', 'always-multiline'],
     '@stylistic/comma-spacing': ['error', { after: true, before: false }],
-    '@stylistic/func-call-spacing': ['error', 'never'],
+    '@stylistic/function-call-spacing': ['error', 'never'],
     '@stylistic/indent': ['error', 2],
     '@stylistic/key-spacing': [
       'error',
@@ -87,6 +87,7 @@ const stylisticConfig = {
         overrides: { arrow: { after: true, before: true } },
       },
     ],
+    '@typescript-eslint/no-redundant-type-constituents': 'off',
     'eol-last': ['error', 'always'],
     'no-multi-spaces': 'error',
     'no-trailing-spaces': 'error',

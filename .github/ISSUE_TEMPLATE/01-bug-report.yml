@@ -1,0 +1,90 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: '[Bug]: '
+labels: ['bug', 'needs-triage']
+assignees: []
+
+body:
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched existing issues to ensure this bug hasn't been reported already
+          required: true
+        - label: I have read the [documentation](https://github.com/maximseshuk/payload-storage-bunny#readme)
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: Tell us what happened, what you expected, and how to reproduce the issue
+      placeholder: |
+        What happened:
+        What you expected:
+        Steps to reproduce:
+        1. 
+        2. 
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Plugin Configuration
+      description: Share your plugin setup (**remove API keys and sensitive data**)
+      placeholder: |
+        ```typescript
+        export default buildConfig({
+          plugins: [
+            bunnyStorage({
+              collections: {
+                media: {
+                  prefix: 'media',
+                  disablePayloadAccessControl: true,
+                },
+              },
+              storage: {
+                apiKey: 'REDACTED',
+                hostname: 'files.example.b-cdn.net',
+                zoneName: 'your-zone',
+              },
+            }),
+          ],
+        })
+        ```
+      render: typescript
+    validations:
+      required: true
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Environment Info
+      description: |
+        Paste output from `pnpm payload info` or list your versions. 
+        Please use specific version numbers instead of "latest" to help us debug faster.
+      placeholder: |
+        @seshuk/payload-storage-bunny: 2.0.0
+        payload: 3.53.0
+        next: 15.4.4
+        node: 20.9.0
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: code-link
+    attributes:
+      label: Link to reproduction code (if needed)
+      description: Optional link to minimal reproduction repository
+      placeholder: https://github.com/username/repo
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs
+      description: Error messages, stack traces, or console logs
+      render: shell

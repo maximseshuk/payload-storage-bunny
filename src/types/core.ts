@@ -1,0 +1,58 @@
+import type { CollectionConfig, TypeWithID } from 'payload'
+
+import type {
+  NormalizedAdminThumbnailConfig,
+  NormalizedPurgeConfig,
+  NormalizedSignedUrlsConfig,
+  NormalizedStorageConfig,
+  NormalizedStreamConfig,
+  NormalizedUrlTransformConfig,
+} from './configNormalized.js'
+
+export type CollectionContext = {
+  adminThumbnail?: NormalizedAdminThumbnailConfig
+  collection: CollectionConfig
+  isTusUploadSupported: boolean
+  prefix?: string
+  purgeConfig?: NormalizedPurgeConfig
+  signedUrls?: NormalizedSignedUrlsConfig
+  storageConfig: NormalizedStorageConfig
+  streamConfig?: NormalizedStreamConfig
+  urlTransform?: NormalizedUrlTransformConfig
+  usePayloadAccessControl: boolean
+}
+
+export type StreamUploadSession = {
+  createdAt: string
+  libraryId: string
+  videoId: string
+} & TypeWithID
+
+export type StreamTusAuthRequest = {
+  collection: string
+  filename: string
+  filesize: number
+  filetype: string
+  thumbnailTime?: number
+  title?: string
+  videoId?: string
+}
+
+type StreamTusAuthBase = {
+  libraryId: number
+  thumbnailTime?: number
+  videoId: string
+}
+
+type StreamTusAuthUpload = {
+  authorizationExpire: number
+  authorizationSignature: string
+  type: 'upload'
+} & StreamTusAuthBase
+
+type StreamTusAuthUploaded = {
+  title: string
+  type: 'uploaded'
+} & StreamTusAuthBase
+
+export type StreamTusAuthResponse = StreamTusAuthUpload | StreamTusAuthUploaded

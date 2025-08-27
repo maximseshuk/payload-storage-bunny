@@ -17,7 +17,9 @@
     "baseUrl": "./",
     "paths": {
       "@payload-config": ["./payload.config.ts"],
-      "@seshuk/payload-storage-bunny": ["../src/index.ts"]
+      "@seshuk/payload-storage-bunny": ["../src/index.ts"],
+      "@seshuk/payload-storage-bunny/client": ["../src/exports/client.ts"],
+      "@/*": ["../src/*"]
     },
     "noEmit": true,
     "emitDeclarationOnly": false

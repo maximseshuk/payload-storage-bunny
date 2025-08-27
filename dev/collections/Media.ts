@@ -13,6 +13,7 @@ export const Media: CollectionConfig = {
     },
   ],
   upload: {
+    disableLocalStorage: true,
     skipSafeFetch: true,
   },
 }

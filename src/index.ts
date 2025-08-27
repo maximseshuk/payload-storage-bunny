@@ -4,32 +4,37 @@ import type {
   CollectionOptions,
   GeneratedAdapter,
 } from '@payloadcms/plugin-cloud-storage/types'
+import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { Config, Field } from 'payload'
 
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
-import type { BunnyPlugin, BunnyStorageOptions } from './types.js'
+import type { PluginDefaultTranslationsObject } from './translations/types.js'
+import type { NormalizedBunnyStorageConfig } from './types/configNormalized.js'
+import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
 
-import { getAdminThumbnail } from './adminThumbnail.js'
-import { getGenerateURL } from './generateURL.js'
-import { getHandleDelete } from './handleDelete.js'
-import { getHandleUpload } from './handleUpload.js'
-import { getStaticHandler } from './staticHandler.js'
-import { validateOptions } from './utils.js'
+import { getStreamUploadSessionsCollection } from './collections/StreamUploadSessions.js'
+import { getStreamEndpoints } from './endpoints/stream.js'
+import { getAdminThumbnail, getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
+import { getAfterChangeHook, getBeforeValidateHook } from './hooks/index.js'
+import { getStreamCleanupTask } from './tasks/cleanup.js'
+import { translations } from './translations/index.js'
+import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './utils/config/index.js'
 
-export const bunnyStorage: BunnyPlugin =
-  (bunnyStorageOptions: BunnyStorageOptions) =>
+export const bunnyStorage: BunnyStoragePlugin =
+  (pluginConfig: BunnyStorageConfig) =>
     (incomingConfig: Config): Config => {
-      if (bunnyStorageOptions.enabled === false) {
+      if (pluginConfig.enabled === false) {
         return incomingConfig
       }
 
-      validateOptions(bunnyStorageOptions)
+      const config = createNormalizedConfig(pluginConfig)
+      validateNormalizedConfig(config)
 
-      const adapter = bunnyInternal(bunnyStorageOptions)
+      const adapter = bunnyStorageInternal(config)
 
       const collectionsWithAdapter: CloudStoragePluginOptions['collections'] = Object.entries(
-        bunnyStorageOptions.collections,
+        pluginConfig.collections,
       ).reduce(
         (acc, [slug, collOptions]) => ({
           ...acc,
@@ -41,45 +46,122 @@ export const bunnyStorage: BunnyPlugin =
         {} as Record<string, CollectionOptions>,
       )
 
-      const config: Config = {
-        ...incomingConfig,
-        collections: (incomingConfig.collections || []).map((collection) => {
-          if (!collectionsWithAdapter[collection.slug]) {
-            return collection
-          }
+      const streamEndpoints = config.stream ? getStreamEndpoints(config) : []
+      const cleanupTask = config.stream?.cleanup ? getStreamCleanupTask(config.stream) : undefined
 
-          return {
-            ...collection,
-            admin: {
-              ...(collection.admin || {}),
-              components: {
-                ...(collection.admin?.components || {}),
-                edit: {
-                  ...(collection.admin?.components?.edit || {}),
-                  ...(bunnyStorageOptions.experimental?.replaceSaveButtonComponent ? {
-                    SaveButton: '@seshuk/payload-storage-bunny/client#CustomSaveButton',
-                  } : {}),
+      const finalConfig: Config = {
+        ...incomingConfig,
+        collections: [
+          ...(incomingConfig.collections || []).map((collection) => {
+            if (!collectionsWithAdapter[collection.slug]) {
+              return collection
+            }
+
+            const collectionContext = createCollectionContext(config, collection)
+
+            const originalFilesRequiredOnCreate = typeof collection.upload === 'object'
+              ? collection.upload.filesRequiredOnCreate ?? true
+              : true
+
+            return {
+              ...collection,
+              admin: {
+                ...(collection.admin || {}),
+                components: {
+                  ...(collection.admin?.components || {}),
+                  edit: {
+                    ...(collection.admin?.components?.edit || {}),
+                    ...(collectionContext.isTusUploadSupported ? {
+                      Upload: '@seshuk/payload-storage-bunny/client#TusUpload',
+                    } : {}),
+                  },
                 },
+                ...(collectionContext.isTusUploadSupported ? {
+                  custom: {
+                    ...(collection.admin?.custom || {}),
+                    '@seshuk/payload-storage-bunny': {
+                      ...(collection.admin?.custom?.['@seshuk/payload-storage-bunny'] || {}),
+                      tusAutoMode: collectionContext.streamConfig?.tus?.autoMode,
+                      tusEnabled: true,
+                      tusMimeTypes: collectionContext.streamConfig?.tus?.mimeTypes,
+                    },
+                  },
+                } : {}),
               },
-            },
-            upload: {
-              ...(typeof collection.upload === 'object' ? collection.upload : {}),
-              ...(bunnyStorageOptions.options.adminThumbnail ? {
-                adminThumbnail: getAdminThumbnail(collection, bunnyStorageOptions),
-              } : {}),
-              disableLocalStorage: true,
-            },
-          }
-        }),
+              hooks: {
+                afterChange: [
+                  ...(collection.hooks?.afterChange || []),
+                  getAfterChangeHook(collectionContext),
+                ],
+                beforeValidate: [
+                  ...(collection.hooks?.beforeValidate || []),
+                  ...(collectionContext.isTusUploadSupported ? [
+                    getBeforeValidateHook({
+                      context: collectionContext,
+                      filesRequiredOnCreate: originalFilesRequiredOnCreate,
+                    }),
+                  ] : []),
+                ],
+              },
+              upload: {
+                ...(typeof collection.upload === 'object' ? collection.upload : {}),
+                ...(config.adminThumbnail ? {
+                  adminThumbnail: getAdminThumbnail(collectionContext),
+                } : {}),
+                ...(config.adminThumbnail && config.adminThumbnail.appendTimestamp ? {
+                  cacheTags: false,
+                } : {}),
+                ...(collectionContext.isTusUploadSupported ? {
+                  filesRequiredOnCreate: false,
+                } : {}),
+                disableLocalStorage: true,
+              },
+            }
+          }),
+          ...(config.stream && config.stream.cleanup ? [getStreamUploadSessionsCollection()] : []),
+        ],
+        endpoints: [
+          ...(incomingConfig.endpoints || []),
+          ...streamEndpoints,
+        ],
+        i18n: {
+          ...incomingConfig.i18n,
+          translations: {
+            ...incomingConfig.i18n?.translations,
+            ...Object.entries(translations).reduce((acc, [locale, i18nObject]) => {
+              const typedLocale = locale as AcceptedLanguages
+
+              return {
+                ...acc,
+                [typedLocale]: {
+                  ...incomingConfig.i18n?.translations?.[typedLocale],
+                  '@seshuk/payload-storage-bunny': {
+                    ...i18nObject['@seshuk/payload-storage-bunny'],
+                    ...(config.i18n?.translations?.[typedLocale] || {}),
+                  },
+                },
+              }
+            }, {} as Record<AcceptedLanguages, PluginDefaultTranslationsObject>),
+          },
+        },
+        jobs: {
+          ...(incomingConfig.jobs || {}),
+          ...(cleanupTask ? {
+            tasks: [
+              ...(incomingConfig.jobs?.tasks || []),
+              cleanupTask,
+            ],
+          } : {}),
+        },
       }
 
       return cloudStoragePlugin({
         collections: collectionsWithAdapter,
-      })(config)
+      })(finalConfig)
     }
 
-const bunnyInternal = ({ options }: BunnyStorageOptions): Adapter => {
-  const fields: Field[] = options.stream
+const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => {
+  const fields: Field[] = config.stream?.apiKey
     ? [
       {
         name: 'bunnyVideoId',
@@ -88,7 +170,7 @@ const bunnyInternal = ({ options }: BunnyStorageOptions): Adapter => {
           disabled: true,
         },
       },
-      ...(options.stream.mp4Fallback?.enabled || !!options.stream.mp4FallbackQuality
+      ...(config.stream?.mp4Fallback
         ? [
           {
             name: 'bunnyVideoMeta',
@@ -101,13 +183,15 @@ const bunnyInternal = ({ options }: BunnyStorageOptions): Adapter => {
     : []
 
   return ({ collection, prefix }): GeneratedAdapter => {
+    const collectionContext = createCollectionContext(config, collection, prefix)
+
     return {
       name: 'bunny',
       fields,
-      generateURL: getGenerateURL(options),
-      handleDelete: getHandleDelete(options),
-      handleUpload: getHandleUpload({ ...options, prefix }),
-      staticHandler: getStaticHandler({ ...options, collection, prefix }),
+      generateURL: getGenerateURL(collectionContext),
+      handleDelete: getHandleDelete(collectionContext),
+      handleUpload: getHandleUpload(collectionContext),
+      staticHandler: getStaticHandler(collectionContext),
     }
   }
 }

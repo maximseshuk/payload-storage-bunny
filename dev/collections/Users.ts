@@ -6,5 +6,12 @@ export const Users: CollectionConfig = {
     useAsTitle: 'email',
   },
   auth: true,
-  fields: [],
+  fields: [
+    {
+      name: 'avatar',
+      type: 'upload',
+      hasMany: false,
+      relationTo: 'media',
+    },
+  ],
 }

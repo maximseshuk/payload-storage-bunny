@@ -1,0 +1,37 @@
+import { TIMEOUTS, TUS_MIME_TYPES } from '../constants.js'
+
+export const CONFIG_DEFAULTS = {
+  adminThumbnail: {
+    appendTimestamp: true,
+    queryParams: {},
+  },
+  purge: {
+    async: false,
+  },
+  signedUrls: {
+    expiresIn: 7200,
+  },
+  storage: {
+    uploadTimeout: TIMEOUTS.UPLOAD,
+  },
+  stream: {
+    cleanup: {
+      maxAge: 86400,
+      schedule: {
+        cron: '0 2 * * *',
+        queue: 'storage-bunny',
+      },
+    },
+    mp4Fallback: false,
+    tus: {
+      autoMode: true,
+      mimeTypes: TUS_MIME_TYPES,
+      uploadTimeout: 3600,
+    },
+    uploadTimeout: TIMEOUTS.STREAM_UPLOAD,
+  },
+  urlTransform: {
+    appendTimestamp: false,
+    queryParams: {},
+  },
+} as const

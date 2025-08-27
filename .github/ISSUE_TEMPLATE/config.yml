@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/maximseshuk/payload-storage-bunny#readme
+    about: Check the documentation for setup and configuration guides
+  - name: 🔄 Migration Guide
+    url: https://github.com/maximseshuk/payload-storage-bunny/blob/main/docs/migration-guide.md
+    about: Migration guide for upgrading from older versions

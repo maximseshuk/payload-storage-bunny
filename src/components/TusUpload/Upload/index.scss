@@ -1,0 +1,231 @@
+@import '~@payloadcms/ui/scss';
+
+.storage-bunny-tus-upload {
+  position: relative;
+  margin-bottom: var(--base);
+  background: var(--theme-elevation-50);
+  border-radius: var(--style-radius-s);
+
+  &__orText {
+    color: var(--theme-elevation-500);
+    text-transform: lowercase;
+  }
+
+  &__upload {
+    display: flex;
+  }
+
+  &__file-container {
+    background: var(--theme-elevation-50);
+    border-radius: var(--style-radius-s);
+    padding: $baseline;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--base) / 2);
+    width: 100%;
+  }
+
+  &__filename-section {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--base) * 0.5);
+    width: 100%;
+  }
+
+  &__filename {
+    @include formInput;
+    background-color: var(--theme-bg);
+  }
+
+  &__remove {
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  &__file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--base);
+    margin-top: calc(var(--base) * 0.5);
+    flex-wrap: wrap;
+    min-height: 24px;
+  }
+
+  &__tus-controls {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--base) * 0.375);
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  &__file-size {
+    font-size: 0.8rem;
+    color: var(--theme-elevation-500);
+    font-weight: 500;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  &__progress-bar {
+    position: relative;
+    height: 36px;
+    background: var(--theme-elevation-150);
+    border-radius: var(--style-radius-s);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+
+    &--checking {
+      .storage-bunny-tus-upload__progress-fill {
+        background: linear-gradient(90deg, transparent 0%, var(--theme-elevation-250) 50%, transparent 100%);
+        width: 40%;
+        animation: skeletonShimmer 2s ease-in-out infinite;
+      }
+    }
+
+    &--uploading {
+      .storage-bunny-tus-upload__progress-fill {
+        background: linear-gradient(90deg, var(--theme-success-150), var(--theme-success-250));
+        width: var(--upload-progress, 0%);
+        transition: width 0.3s ease;
+      }
+    }
+
+    &--paused {
+      .storage-bunny-tus-upload__progress-fill {
+        background: linear-gradient(90deg, var(--theme-elevation-300), var(--theme-elevation-400));
+        width: var(--upload-progress, 0%);
+        opacity: 0.8;
+      }
+    }
+
+    &--error {
+      background: var(--theme-error-350);
+    }
+
+    &--completed {
+      background: var(--theme-success-200);
+    }
+  }
+
+  &__progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    z-index: 1;
+    border-radius: inherit;
+  }
+
+  &__progress-text {
+    position: relative;
+    z-index: 2;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--theme-text);
+    text-align: center;
+    padding: 0 calc(var(--base) * 0.5);
+    line-height: 1.2;
+    font-weight: 600;
+
+    .storage-bunny-tus-upload__progress-bar--error & {
+      color: var(--theme-error-800);
+    }
+
+    .storage-bunny-tus-upload__progress-bar--uploading & {
+      color: var(--theme-success-800);
+    }
+
+    .storage-bunny-tus-upload__progress-bar--completed & {
+      color: var(--theme-success-900);
+    }
+
+    .storage-bunny-tus-upload__progress-bar--idle & {
+      color: var(--theme-elevation-800);
+    }
+  }
+
+  .dropzone {
+    background-color: transparent;
+    padding-block: calc(var(--base) * 2.25);
+  }
+
+  &__dropzoneContent {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--base) * 0.4);
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  &__dropzoneButtons {
+    display: flex;
+    gap: calc(var(--base) * 0.5);
+    align-items: center;
+  }
+
+  &__dragAndDropText {
+    flex-shrink: 0;
+    margin: 0;
+    text-transform: lowercase;
+    align-self: center;
+    color: var(--theme-elevation-500);
+  }
+
+  &__hidden-input {
+    display: none !important;
+  }
+
+  @keyframes skeletonShimmer {
+    0% {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(250%);
+      opacity: 0;
+    }
+  }
+
+  @include small-break {
+    &__file-container {
+      padding: calc(var(--base) * 0.625);
+      gap: calc(var(--base) * 0.375);
+    }
+
+    &__filename-section {
+      gap: calc(var(--base) * 0.375);
+    }
+
+    &__filename {
+      order: 1;
+      font-size: 0.8rem;
+    }
+
+    &__remove {
+      order: 2;
+      align-self: center;
+    }
+
+    &__file-header {
+      gap: calc(var(--base) * 0.5);
+    }
+
+    &__progress-bar {
+      height: 32px;
+    }
+
+    &__progress-text {
+      font-size: 0.75rem;
+      padding: 0 calc(var(--base) * 0.375);
+    }
+  }
+}
