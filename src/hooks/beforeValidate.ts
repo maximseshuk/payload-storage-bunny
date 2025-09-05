@@ -10,69 +10,70 @@ type Args = {
   filesRequiredOnCreate: boolean
 }
 
-export const getBeforeValidateHook =
- ({ context, filesRequiredOnCreate }: Args): CollectionBeforeValidateHook<JsonObject & TypeWithID> => {
-   return async ({ data, operation, originalDoc, req }) => {
-     const file = req.file
+type Data = JsonObject & TypeWithID
 
-     if (operation === 'create' && filesRequiredOnCreate && !data?.bunnyVideoId && !file) {
-       throw new MissingFile(req.t)
-     }
+export const getBeforeValidateHook = ({ context, filesRequiredOnCreate }: Args): CollectionBeforeValidateHook<Data> => {
+  return async ({ data, operation, originalDoc, req }) => {
+    const file = req.file
 
-     if (data && !data.bunnyVideoId) {
-       data.bunnyVideoId = null
-     }
+    if (operation === 'create' && filesRequiredOnCreate && !data?.bunnyVideoId && !file) {
+      throw new MissingFile(req.t)
+    }
 
-     const processVideoData = async (videoId: string, targetData: typeof data) => {
-       if (!context.streamConfig || !targetData) {
-         return
-       }
+    if (data && !data.bunnyVideoId) {
+      data.bunnyVideoId = null
+    }
 
-       const videoData = await getStreamVideo({
-         streamConfig: context.streamConfig,
-         videoId,
-       })
+    const processVideoData = async (videoId: string, targetData: typeof data) => {
+      if (!context.streamConfig || !targetData) {
+        return
+      }
 
-       if (isVideoProcessed(videoData.status)) {
-         const safeFilename = await getSafeFileName({
-           collectionSlug: context.collection.slug,
-           desiredFilename: videoData.title || `video-${videoData.guid}`,
-           req,
-           staticPath: '',
-         })
+      const videoData = await getStreamVideo({
+        streamConfig: context.streamConfig,
+        videoId,
+      })
 
-         targetData.filename = safeFilename
-         targetData.width = null
-         targetData.height = null
-         targetData.focalX = null
-         targetData.focalY = null
-         targetData.bunnyVideoId = videoData.guid
+      if (isVideoProcessed(videoData.status)) {
+        const safeFilename = await getSafeFileName({
+          collectionSlug: context.collection.slug,
+          desiredFilename: videoData.title || `video-${videoData.guid}`,
+          req,
+          staticPath: '',
+        })
 
-         if (!targetData.mimeType) {
-           targetData.mimeType = 'video/mp4'
-         }
+        targetData.filename = safeFilename
+        targetData.width = null
+        targetData.height = null
+        targetData.focalX = null
+        targetData.focalY = null
+        targetData.bunnyVideoId = videoData.guid
 
-         if (!targetData.filesize) {
-           targetData.filesize = videoData.storageSize
-         }
-       }
-     }
+        if (!targetData.mimeType) {
+          targetData.mimeType = 'video/mp4'
+        }
 
-     if (operation === 'update' && originalDoc && data) {
-       if (!file && data.bunnyVideoId && data.bunnyVideoId !== originalDoc.bunnyVideoId) {
-         if (!req.context) {
-           req.context = {}
-         }
-         req.context.oldDoc = originalDoc
+        if (!targetData.filesize) {
+          targetData.filesize = videoData.storageSize
+        }
+      }
+    }
 
-         await processVideoData(data.bunnyVideoId, data)
-       }
-     }
+    if (operation === 'update' && originalDoc && data) {
+      if (!file && data.bunnyVideoId && data.bunnyVideoId !== originalDoc.bunnyVideoId) {
+        if (!req.context) {
+          req.context = {}
+        }
+        req.context.oldDoc = originalDoc
 
-     if (operation === 'create' && !file && data?.bunnyVideoId) {
-       await processVideoData(data.bunnyVideoId, data)
-     }
+        await processVideoData(data.bunnyVideoId, data)
+      }
+    }
 
-     return data
-   }
- }
+    if (operation === 'create' && !file && data?.bunnyVideoId) {
+      await processVideoData(data.bunnyVideoId, data)
+    }
+
+    return data
+  }
+}

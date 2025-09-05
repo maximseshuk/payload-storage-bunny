@@ -1,0 +1,50 @@
+name: Test Build 🔧
+
+on:
+  workflow_dispatch:
+    inputs:
+      node_version:
+        description: 'Node.js version'
+        required: false
+        default: '20'
+        type: choice
+        options:
+          - '18'
+          - '20'
+          - '22'
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 🔧
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ github.event.inputs.node_version || '20' }}
+
+      - name: Setup PNPM 📦
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies ⚡
+        run: pnpm install
+
+      - name: Type check 🔍
+        run: pnpm typecheck
+
+      - name: Lint code ✨
+        run: pnpm lint
+
+      - name: Build project 🔨
+        run: pnpm build
+
+      - name: Check build output 📁
+        run: |
+          echo "Checking if build output exists..."
+          ls -la dist/
+          echo "Build completed successfully! ✅"

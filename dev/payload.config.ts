@@ -76,7 +76,7 @@ export default buildConfig({
           adminThumbnail: {
             transformUrl: ({ baseUrl, data }) => {
               const timestamp = Date.now()
-              const customId = data?.id || 'unknown'
+              const customId = data?.id as string || 'unknown'
               return `${baseUrl}?secure_thumb=true&id=${customId}&t=${timestamp}`
             },
           },
