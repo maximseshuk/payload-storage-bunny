@@ -3,7 +3,14 @@
 import type { UploadProps as PayloadUploadProps } from '@payloadcms/ui/elements/Upload'
 import type { ClientCollectionConfig } from 'payload'
 
-import { Upload as PayloadUpload, useConfig, useDocumentInfo, useForm, useUploadControls, useUploadEdits } from '@payloadcms/ui'
+import {
+  Upload as PayloadUpload,
+  useConfig,
+  useDocumentInfo,
+  useForm,
+  useUploadControls,
+  useUploadEdits,
+} from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import { ToggleControl } from './ToggleButton/index.js'

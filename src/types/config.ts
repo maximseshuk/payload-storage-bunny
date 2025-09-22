@@ -36,7 +36,13 @@ export type UrlTransformConfig =
     transformUrl: UrlTransformFunction
   }
 
-export type AdminThumbnailConfig = UrlTransformConfig
+export type AdminThumbnailConfig = {
+  /**
+   * Use a specific size from upload collection's sizes instead of original file
+   * Only works for image uploads that have sizes configured
+   */
+  sizeName?: string
+} & UrlTransformConfig
 
 export type PurgeConfig = {
   /** Bunny API key for CDN cache purging operations */

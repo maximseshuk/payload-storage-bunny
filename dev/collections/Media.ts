@@ -14,6 +14,18 @@ export const Media: CollectionConfig = {
   ],
   upload: {
     disableLocalStorage: true,
+    imageSizes: [
+      {
+        name: 'thumbnail',
+        height: 100,
+        width: 100,
+      },
+      {
+        name: 'preview',
+        height: 400,
+        width: 300,
+      },
+    ],
     skipSafeFetch: true,
   },
 }

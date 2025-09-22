@@ -351,3 +351,66 @@ BUNNY_API_KEY=your-bunny-api-key
 ```
 
 See the [Getting API Keys](../README.md#getting-api-keys) section in the main README for instructions on obtaining these keys.
+
+## Admin Thumbnail with Size Selection
+
+Use specific sizes from upload collection configuration for admin thumbnails:
+
+```typescript
+import { bunnyStorage } from '@seshuk/payload-storage-bunny'
+
+export default buildConfig({
+  collections: [
+    {
+      slug: 'media',
+      upload: {
+        staticDir: 'media',
+        // Define sizes that will be generated for uploads
+        imageSizes: [
+          {
+            name: 'thumbnail',
+            width: 150,
+            height: 150,
+          },
+          {
+            name: 'preview',
+            width: 400,
+            height: 300,
+          },
+        ],
+      },
+      fields: [
+        {
+          name: 'alt',
+          type: 'text',
+          required: true,
+        },
+      ],
+    },
+  ],
+  plugins: [
+    bunnyStorage({
+      collections: {
+        media: {
+          // Use the 'thumbnail' size for admin thumbnails instead of original file
+          adminThumbnail: {
+            sizeName: 'thumbnail',
+            appendTimestamp: true, // Can combine with other options
+          },
+        },
+      },
+      storage: {
+        apiKey: process.env.BUNNY_STORAGE_API_KEY,
+        hostname: 'example.b-cdn.net',
+        zoneName: 'my-zone',
+      },
+    }),
+  ],
+})
+```
+
+This configuration will:
+
+1. Generate 'thumbnail' and 'preview' sizes when images are uploaded
+2. Use the smaller 'thumbnail' size for admin panel thumbnails
+3. Fall back to the original file if the 'thumbnail' size doesn't exist for a particular document

@@ -44,7 +44,9 @@ export type NormalizedUrlTransformConfig = {
   transformUrl?: UrlTransformFunction
 }
 
-export type NormalizedAdminThumbnailConfig = NormalizedUrlTransformConfig
+export type NormalizedAdminThumbnailConfig = {
+  sizeName?: string
+} & NormalizedUrlTransformConfig
 
 export type NormalizedPurgeConfig = {
   async: boolean

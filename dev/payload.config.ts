@@ -1,4 +1,6 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
+import { de } from '@payloadcms/translations/languages/de'
+import { en } from '@payloadcms/translations/languages/en'
 import { bunnyStorage } from '@seshuk/payload-storage-bunny'
 import path from 'path'
 import { buildConfig } from 'payload'
@@ -33,6 +35,9 @@ export default buildConfig({
   db: mongooseAdapter({
     url: process.env.DATABASE_URI || '',
   }),
+  i18n: {
+    supportedLanguages: { de, en },
+  },
   jobs: {
     autoRun: [
       {
@@ -52,6 +57,7 @@ export default buildConfig({
           class: 'thumbnail',
           version: '2.0',
         },
+        sizeName: 'preview',
       },
       collections: {
         media: {
@@ -65,7 +71,7 @@ export default buildConfig({
           },
           urlTransform: {
             transformUrl: ({ baseUrl, data }) => {
-              const isVideo = data?.mimeType?.startsWith('video/')
+              const isVideo = typeof data?.mimeType === 'string' && data.mimeType.startsWith('video/')
               const quality = isVideo ? 'hd' : 'original'
               const sessionId = Math.random().toString(36).substr(2, 9)
               return `${baseUrl}?quality=${quality}&session=${sessionId}&secure=true`

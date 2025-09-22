@@ -1,101 +1,116 @@
+import type { NormalizedAdminThumbnailConfig } from '@/types/configNormalized.js'
 import type { CollectionContext } from '@/types/index.js'
 
 import { applyUrlTransform, generateSignedUrl, isImage } from '@/utils/index.js'
 import { posix } from 'node:path'
 
+const createBaseUrl = (hostname: string, prefix: string, filename: string): string => {
+  return `https://${hostname}/${posix.join(prefix, filename)}`
+}
+
+const applyTransform = (
+  config: false | NormalizedAdminThumbnailConfig | undefined,
+  context: CollectionContext,
+  doc: Record<string, unknown>,
+  filename: string,
+  prefix: string,
+  url: string,
+): string => {
+  if (!config) {
+    return url
+  }
+
+  const { sizeName: _sizeName, ...configWithoutSizeName } = config
+  return applyUrlTransform({
+    collection: context.collection,
+    config: configWithoutSizeName,
+    data: doc,
+    filename,
+    prefix,
+    url,
+  })
+}
+
+const signUrl = (
+  baseUrl: string,
+  signedUrls: CollectionContext['signedUrls'],
+  tokenSecurityKey: string | undefined,
+  collection: CollectionContext['collection'],
+  filename: string,
+): string => {
+  if (!signedUrls || typeof signedUrls !== 'object' || !tokenSecurityKey) {
+    return baseUrl
+  }
+
+  const shouldSign = signedUrls.shouldUseSignedUrl
+    ? signedUrls.shouldUseSignedUrl({ collection, filename })
+    : true
+
+  return shouldSign ? generateSignedUrl(baseUrl, tokenSecurityKey, signedUrls) : baseUrl
+}
+
 export const getAdminThumbnail = (context: CollectionContext) => {
   const { adminThumbnail, collection, signedUrls, storageConfig, streamConfig } = context
 
   return ({ doc }: { doc: Record<string, unknown> }): null | string => {
-    if (doc.mimeType && isImage(doc.mimeType as string) && doc.filename && typeof doc.filename === 'string') {
-      if (context.usePayloadAccessControl) {
-        let internalUrl = `/api/${collection.slug}/file/${doc.filename}`
+    if (
+      adminThumbnail &&
+      typeof adminThumbnail === 'object' &&
+      adminThumbnail.sizeName &&
+      doc.sizes &&
+      typeof doc.sizes === 'object' &&
+      doc.sizes !== null
+    ) {
+      const sizes = doc.sizes as Record<string, { filename?: string }>
+      const requestedSize = sizes[adminThumbnail.sizeName]
 
-        if (adminThumbnail) {
-          internalUrl = applyUrlTransform({
-            collection,
-            config: adminThumbnail,
-            data: doc,
-            filename: doc.filename,
-            prefix: typeof doc.prefix === 'string' ? doc.prefix : '',
-            url: internalUrl,
-          })
+      if (requestedSize && requestedSize.filename && typeof requestedSize.filename === 'string') {
+        const sizeFilename = requestedSize.filename
+        const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
+
+        if (context.usePayloadAccessControl) {
+          const internalUrl = `/api/${collection.slug}/file/${sizeFilename}`
+          return applyTransform(adminThumbnail, context, doc, sizeFilename, prefix, internalUrl)
         }
 
-        return internalUrl
-      }
-
-      let baseUrl = `https://${storageConfig.hostname}/${posix.join(typeof doc.prefix === 'string' ? doc.prefix : '', doc.filename)}`
-
-      if (adminThumbnail) {
-        baseUrl = applyUrlTransform({
+        const baseUrl = createBaseUrl(storageConfig.hostname, prefix, sizeFilename)
+        const transformedUrl = applyTransform(adminThumbnail, context, doc, sizeFilename, prefix, baseUrl)
+        return signUrl(
+          transformedUrl,
+          signedUrls,
+          storageConfig.tokenSecurityKey,
           collection,
-          config: adminThumbnail,
-          data: doc,
-          filename: doc.filename,
-          prefix: typeof doc.prefix === 'string' ? doc.prefix : '',
-          url: baseUrl,
-        })
+          sizeFilename,
+        )
+      }
+    }
+
+    if (doc.mimeType && isImage(doc.mimeType as string) && doc.filename && typeof doc.filename === 'string') {
+      const filename = doc.filename
+      const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
+
+      if (context.usePayloadAccessControl) {
+        const internalUrl = `/api/${collection.slug}/file/${filename}`
+        return applyTransform(adminThumbnail, context, doc, filename, prefix, internalUrl)
       }
 
-      if (signedUrls && typeof signedUrls === 'object' && storageConfig.tokenSecurityKey) {
-        const shouldSign = signedUrls.shouldUseSignedUrl
-          ? signedUrls.shouldUseSignedUrl({ collection, filename: doc.filename })
-          : true
-
-        if (shouldSign) {
-          return generateSignedUrl(baseUrl, storageConfig.tokenSecurityKey, signedUrls)
-        }
-      }
-
-      return baseUrl
+      const baseUrl = createBaseUrl(storageConfig.hostname, prefix, filename)
+      const transformedUrl = applyTransform(adminThumbnail, context, doc, filename, prefix, baseUrl)
+      return signUrl(transformedUrl, signedUrls, storageConfig.tokenSecurityKey, collection, filename)
     }
 
     if (streamConfig && doc.bunnyVideoId && typeof doc.bunnyVideoId === 'string') {
+      const filename = `${doc.bunnyVideoId}/thumbnail.jpg`
+      const prefix = ''
+
       if (context.usePayloadAccessControl) {
-        let internalUrl = `/api/${collection.slug}/file/bunny:stream:${doc.bunnyVideoId}:thumbnail.jpg`
-
-        if (adminThumbnail) {
-          internalUrl = applyUrlTransform({
-            collection,
-            config: adminThumbnail,
-            data: doc,
-            filename: `${doc.bunnyVideoId}/thumbnail.jpg`,
-            prefix: '',
-            url: internalUrl,
-          })
-        }
-
-        return internalUrl
+        const internalUrl = `/api/${collection.slug}/file/bunny:stream:${doc.bunnyVideoId}:thumbnail.jpg`
+        return applyTransform(adminThumbnail, context, doc, filename, prefix, internalUrl)
       }
 
-      let streamThumbnailUrl = `https://${streamConfig.hostname}/${doc.bunnyVideoId}/thumbnail.jpg`
-
-      if (adminThumbnail) {
-        streamThumbnailUrl = applyUrlTransform({
-          collection,
-          config: adminThumbnail,
-          data: doc,
-          filename: `${doc.bunnyVideoId}/thumbnail.jpg`,
-          prefix: '',
-          url: streamThumbnailUrl,
-        })
-      }
-
-      if (signedUrls && typeof signedUrls === 'object' && streamConfig.tokenSecurityKey) {
-        const shouldSign = signedUrls.shouldUseSignedUrl
-          ? signedUrls.shouldUseSignedUrl({
-            collection,
-            filename: `${doc.bunnyVideoId}/thumbnail.jpg`,
-          })
-          : true
-
-        if (shouldSign) {
-          return generateSignedUrl(streamThumbnailUrl, streamConfig.tokenSecurityKey, signedUrls)
-        }
-      }
-
-      return streamThumbnailUrl
+      const baseUrl = createBaseUrl(streamConfig.hostname, prefix, filename)
+      const transformedUrl = applyTransform(adminThumbnail, context, doc, filename, prefix, baseUrl)
+      return signUrl(transformedUrl, signedUrls, streamConfig.tokenSecurityKey, collection, filename)
     }
 
     return null

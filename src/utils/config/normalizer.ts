@@ -148,7 +148,16 @@ const normalizeUrlTransformConfig = (
 const normalizeAdminThumbnailConfig = (
   value?: AdminThumbnailConfig | boolean,
 ): false | NormalizedAdminThumbnailConfig => {
-  return normalizeUrlTransformConfig(value, CONFIG_DEFAULTS.adminThumbnail)
+  const baseConfig = normalizeUrlTransformConfig(value, CONFIG_DEFAULTS.adminThumbnail)
+
+  if (!baseConfig) {
+    return false
+  }
+
+  return {
+    ...baseConfig,
+    sizeName: typeof value === 'object' && value && 'sizeName' in value ? value.sizeName : undefined,
+  }
 }
 
 const normalizeCollectionsConfig = (

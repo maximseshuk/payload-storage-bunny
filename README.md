@@ -130,18 +130,18 @@ export const Media: CollectionConfig = {
 
 Main plugin configuration options:
 
-| Option            | Type                | Required | Description                                      |
-| ----------------- | ------------------- | -------- | ------------------------------------------------ |
-| `enabled`         | `boolean`           | ❌       | Enable or disable the plugin (default: true)     |
-| `collections`     | `object`            | ✅       | Which collections should use Bunny Storage       |
-| `storage`         | `object`            | ✅       | Bunny Storage configuration                      |
-| `stream`          | `object`            | ❌       | Bunny Stream configuration (optional)            |
-| `purge`           | `object`            | ❌       | CDN cache purging configuration (optional)       |
-| `adminThumbnail`  | `boolean \| object` | ❌       | Global admin thumbnail settings (optional)       |
-| `signedUrls`      | `boolean \| object` | ❌       | Global signed URLs configuration (optional)      |
-| `urlTransform`    | `object`            | ❌       | Global URL transformation config (optional)      |
-| `i18n`            | `object`            | ❌       | Internationalization settings (optional)         |
-| `experimental`    | `object`            | ❌       | Experimental features (optional)                 |
+| Option           | Type                | Required | Description                                  |
+| ---------------- | ------------------- | -------- | -------------------------------------------- |
+| `enabled`        | `boolean`           | ❌       | Enable or disable the plugin (default: true) |
+| `collections`    | `object`            | ✅       | Which collections should use Bunny Storage   |
+| `storage`        | `object`            | ✅       | Bunny Storage configuration                  |
+| `stream`         | `object`            | ❌       | Bunny Stream configuration (optional)        |
+| `purge`          | `object`            | ❌       | CDN cache purging configuration (optional)   |
+| `adminThumbnail` | `boolean \| object` | ❌       | Global admin thumbnail settings (optional)   |
+| `signedUrls`     | `boolean \| object` | ❌       | Global signed URLs configuration (optional)  |
+| `urlTransform`   | `object`            | ❌       | Global URL transformation config (optional)  |
+| `i18n`           | `object`            | ❌       | Internationalization settings (optional)     |
+| `experimental`   | `object`            | ❌       | Experimental features (optional)             |
 
 ### Collections Configuration
 
@@ -175,7 +175,7 @@ Connect to Bunny Storage:
 | Option             | Type     | Required | Description                                                           |
 | ------------------ | -------- | -------- | --------------------------------------------------------------------- |
 | `apiKey`           | `string` | ✅       | Your Bunny Storage API key                                            |
-| `hostname`         | `string` | ✅       | Your CDN domain from Pull Zone (e.g., 'example.b-cdn.net')      |
+| `hostname`         | `string` | ✅       | Your CDN domain from Pull Zone (e.g., 'example.b-cdn.net')            |
 | `zoneName`         | `string` | ✅       | Your storage zone name                                                |
 | `region`           | `string` | ❌       | Storage region code ('uk', 'ny', 'la', 'sg', 'se', 'br', 'jh', 'syd') |
 | `tokenSecurityKey` | `string` | ❌       | Security key for signing storage URLs                                 |
@@ -187,17 +187,17 @@ Connect to Bunny Storage:
 
 Optional settings for video handling:
 
-| Option             | Type                | Required | Description                                                         |
-| ------------------ | ------------------- | -------- | ------------------------------------------------------------------- |
-| `apiKey`           | `string`            | ✅       | Your Bunny Stream API key                                           |
-| `hostname`         | `string`            | ✅       | Stream CDN domain (e.g., 'vz-abc123def-456.b-cdn.net')                |
-| `libraryId`        | `number`            | ✅       | Your video library ID (e.g., 123456)                                |
+| Option             | Type                | Required | Description                                                                                |
+| ------------------ | ------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `apiKey`           | `string`            | ✅       | Your Bunny Stream API key                                                                  |
+| `hostname`         | `string`            | ✅       | Stream CDN domain (e.g., 'vz-abc123def-456.b-cdn.net')                                     |
+| `libraryId`        | `number`            | ✅       | Your video library ID (e.g., 123456)                                                       |
 | `mp4Fallback`      | `boolean`           | ❌       | Enable MP4 downloads (required with access control unless using signed URLs with redirect) |
-| `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds                              |
-| `tokenSecurityKey` | `string`            | ❌       | Security key for signing stream URLs                                |
-| `uploadTimeout`    | `number`            | ❌       | Upload timeout in milliseconds (default: 300000)                    |
-| `tus`              | `boolean \| object` | ❌       | Enable TUS resumable uploads (see TUS config below)                 |
-| `cleanup`          | `boolean \| object` | ❌       | Automatic cleanup of incomplete uploads (requires Jobs Queue setup) |
+| `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds                                                     |
+| `tokenSecurityKey` | `string`            | ❌       | Security key for signing stream URLs                                                       |
+| `uploadTimeout`    | `number`            | ❌       | Upload timeout in milliseconds (default: 300000)                                           |
+| `tus`              | `boolean \| object` | ❌       | Enable TUS resumable uploads (see TUS config below)                                        |
+| `cleanup`          | `boolean \| object` | ❌       | Automatic cleanup of incomplete uploads (requires Jobs Queue setup)                        |
 
 #### TUS Upload Configuration
 
@@ -225,10 +225,10 @@ Optional settings for video handling:
 
 Enable automatic CDN cache purging for storage files (not applicable to Stream):
 
-| Option    | Type      | Required | Description                                 |
-| --------- | --------- | -------- | ------------------------------------------- |
-| `apiKey`  | `string`  | ✅       | Your Bunny API key for purging operations   |
-| `async`   | `boolean` | ❌       | Wait for purge to complete (default: false) |
+| Option   | Type      | Required | Description                                 |
+| -------- | --------- | -------- | ------------------------------------------- |
+| `apiKey` | `string`  | ✅       | Your Bunny API key for purging operations   |
+| `async`  | `boolean` | ❌       | Wait for purge to complete (default: false) |
 
 When enabled, the plugin automatically purges CDN cache after:
 
@@ -241,10 +241,11 @@ This ensures visitors always see the most up-to-date files, especially important
 
 Control thumbnails in admin panel. Use `adminThumbnail: true` to enable with defaults, `adminThumbnail: false` to disable, or provide an object to customize:
 
-| Option            | Type      | Default | Description                                          |
-| ----------------- | --------- | ------- | ---------------------------------------------------- |
-| `appendTimestamp` | `boolean` | `false` | Add timestamp to bust cache                          |
-| `queryParams`     | `object`  | `{}`    | Custom query parameters appended to URLs (optimized for Bunny Optimizer) |
+| Option            | Type      | Default | Description                                                               |
+| ----------------- | --------- | ------- | ------------------------------------------------------------------------- |
+| `appendTimestamp` | `boolean` | `false` | Add timestamp to bust cache                                               |
+| `queryParams`     | `object`  | `{}`    | Custom query parameters appended to URLs (optimized for Bunny Optimizer)  |
+| `sizeName`        | `string`  | -       | Use specific size from upload collection's sizes instead of original file |
 
 **Example queryParams:**
 
@@ -259,6 +260,17 @@ queryParams: {
 When `appendTimestamp` is enabled, the plugin automatically adds a timestamp parameter to image URLs in the admin panel. This ensures updated files show the latest version without browser caching issues. Additionally, when `appendTimestamp` is enabled, Payload's cache tags are automatically disabled for admin thumbnails to prevent caching conflicts.
 
 The `queryParams` option adds custom query parameters to URLs. It works great with Bunny's Image Optimizer service for resizing, cropping, and optimizing images on-the-fly, but you can add any query parameters you need.
+
+**Example using sizeName with upload collection sizes:**
+
+```typescript
+adminThumbnail: {
+  sizeName: 'thumbnail', // Uses 'thumbnail' size from collection's sizes config
+  appendTimestamp: true  // Can be combined with other options
+}
+```
+
+The `sizeName` option allows you to use a specific size variant from your upload collection's sizes configuration instead of the original file for admin thumbnails. This works only with image uploads that have sizes configured in your Payload collection. If the specified size doesn't exist in the document, it falls back to the original file.
 
 ### Signed URLs Configuration
 
@@ -295,9 +307,9 @@ Custom URL transformations for complete control over file URLs:
 
 #### Simple Transform Options
 
-| Option            | Type      | Default | Description                       |
-| ----------------- | --------- | ------- | --------------------------------- |
-| `appendTimestamp` | `boolean` | `false` | Add timestamp parameter to URLs   |
+| Option            | Type      | Default | Description                              |
+| ----------------- | --------- | ------- | ---------------------------------------- |
+| `appendTimestamp` | `boolean` | `false` | Add timestamp parameter to URLs          |
 | `queryParams`     | `object`  | `{}`    | Static query parameters appended to URLs |
 
 #### Advanced Transform Function

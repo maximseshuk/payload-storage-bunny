@@ -97,7 +97,7 @@ export const generateSignedUrl = (
     ? formatQueryParams(allQueryParams)
     : ''
 
-  const signedUrlPath = options?.tokenPath || url.pathname
+  const signedUrlPath = options?.tokenPath || decodeURIComponent(url.pathname)
 
   const token = generateSignedToken(
     securityKey,
