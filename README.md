@@ -181,7 +181,7 @@ Connect to Bunny Storage:
 | `tokenSecurityKey` | `string` | ❌       | Security key for signing storage URLs                                 |
 | `uploadTimeout`    | `number` | ❌       | Upload timeout in milliseconds (default: 120000)                      |
 
-> **Important**: Bunny Storage requires a Pull Zone to be configured for your Storage Zone. Files will not be accessible without a properly configured Pull Zone. The `hostname` should be your Pull Zone hostname, not the Storage API endpoint. See [Bunny's documentation](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage) on accessing and delivering files from Bunny Storage.
+> **Important**: Bunny Storage requires a Pull Zone to be configured for your Storage Zone. Files will not be accessible without a properly configured Pull Zone. The `hostname` should be your Pull Zone hostname, not the Storage API endpoint. See [Bunny's documentation](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage?ref=fndfoymy0j) on accessing and delivering files from Bunny Storage.
 
 ### Stream Configuration
 
@@ -217,7 +217,7 @@ Optional settings for video handling:
 
 > **Note**: Cleanup feature requires Jobs Queue to be configured in your Payload setup. See [Payload Jobs Queue documentation](https://payloadcms.com/docs/jobs-queue/overview) for setup instructions.
 
-> **Note**: If you use Payload's access control without signed URLs, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream). However, if you use signed URLs with `staticHandler.useRedirect: true`, MP4 fallback is not required as users are redirected directly to Bunny's HLS streams.
+> **Note**: If you use Payload's access control without signed URLs, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream?ref=fndfoymy0j). However, if you use signed URLs with `staticHandler.useRedirect: true`, MP4 fallback is not required as users are redirected directly to Bunny's HLS streams.
 
 > **Important**: Video support works even without Bunny Stream configured. If Bunny Stream is disabled, video files upload to Bunny Storage like any other file. Bunny Stream adds enhanced video features (streaming, adaptive bitrates, thumbnails).
 
@@ -575,7 +575,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Need help? Here are some resources:
 
-- **Documentation**: [Bunny.net Documentation](https://docs.bunny.net/)
+- **Documentation**: [Bunny.net Documentation](https://docs.bunny.net/?ref=fndfoymy0j)
 - **Bug Reports**: [GitHub Issues](https://github.com/maximseshuk/payload-storage-bunny/issues)
 - **Community Support**: [Payload CMS Discord](https://discord.gg/payloadcms)
 - **Questions**: Join the discussion in our GitHub Issues or Payload Discord
@@ -583,3 +583,7 @@ Need help? Here are some resources:
 ## Credits
 
 Built with ❤️ for the Payload CMS community.
+
+---
+
+**Disclosure**: Links to bunny.net in this documentation are referral links.
