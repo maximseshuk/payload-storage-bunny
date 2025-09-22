@@ -29,7 +29,7 @@ export default buildConfig({
       },
       storage: {
         apiKey: process.env.BUNNY_STORAGE_API_KEY,
-        hostname: 'storage.example.b-cdn.net',
+        hostname: 'example.b-cdn.net',
         zoneName: 'my-zone',
       },
     }),
@@ -48,11 +48,10 @@ bunnyStorage({
   },
   storage: {
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: 'storage.example.b-cdn.net',
+    hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
   purge: {
-    enabled: true,
     apiKey: process.env.BUNNY_API_KEY,
     async: false, // Wait for purge to complete
   },
@@ -73,19 +72,18 @@ bunnyStorage({
   },
   storage: {
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: 'storage.example.b-cdn.net',
+    hostname: 'example.b-cdn.net',
     region: 'ny',
     zoneName: 'my-zone',
   },
   stream: {
     apiKey: process.env.BUNNY_STREAM_API_KEY,
-    hostname: 'stream.example.b-cdn.net',
+    hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     thumbnailTime: 5000, // 5 seconds in milliseconds
     tus: true, // Enable TUS resumable uploads
   },
   purge: {
-    enabled: true,
     apiKey: process.env.BUNNY_API_KEY,
   },
 })
@@ -109,16 +107,16 @@ bunnyStorage({
   },
   storage: {
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: 'storage.example.b-cdn.net',
+    hostname: 'example.b-cdn.net',
     region: 'ny',
     zoneName: 'my-zone',
     tokenSecurityKey: process.env.BUNNY_TOKEN_SECURITY_KEY,
   },
   stream: {
     apiKey: process.env.BUNNY_STREAM_API_KEY,
-    hostname: 'stream.example.b-cdn.net',
+    hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
-    mp4Fallback: true, // Required with access control
+    mp4Fallback: true, // Required with access control (unless using signed URLs with redirect)
     thumbnailTime: 5000,
     tokenSecurityKey: process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY,
     tus: {
@@ -134,7 +132,6 @@ bunnyStorage({
     },
   },
   purge: {
-    enabled: true,
     apiKey: process.env.BUNNY_API_KEY,
   },
 })
@@ -165,7 +162,7 @@ bunnyStorage({
   },
   storage: {
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: 'storage.example.b-cdn.net',
+    hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     tokenSecurityKey: process.env.BUNNY_TOKEN_SECURITY_KEY,
   },
@@ -204,7 +201,7 @@ bunnyStorage({
   },
   storage: {
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: 'storage.example.b-cdn.net',
+    hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
   adminThumbnail: {
@@ -232,13 +229,13 @@ bunnyStorage({
   },
   storage: {
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: 'storage.example.b-cdn.net',
+    hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     uploadTimeout: 300000, // 5 minutes
   },
   stream: {
     apiKey: process.env.BUNNY_STREAM_API_KEY,
-    hostname: 'stream.example.b-cdn.net',
+    hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     tus: {
       autoMode: true, // Auto-enable for supported video types
@@ -328,7 +325,6 @@ bunnyStorage({
     },
   },
   purge: {
-    enabled: true,
     apiKey: process.env.BUNNY_API_KEY,
   },
   adminThumbnail: {

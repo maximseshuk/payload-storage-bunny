@@ -25,6 +25,7 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
 - [CDN Cache Management](#cdn-cache-management)
 - [Getting API Keys](#getting-api-keys)
 - [Storage Regions](#storage-regions)
+- [Basic Usage Example](#basic-usage-example)
 - [Examples](docs/examples.md)
 
 ## Features
@@ -69,7 +70,7 @@ Create a `.env` file in your project root:
 
 ```env
 BUNNY_STORAGE_API_KEY=your-storage-api-key
-BUNNY_HOSTNAME=files.example.b-cdn.net
+BUNNY_HOSTNAME=example.b-cdn.net
 BUNNY_ZONE_NAME=your-storage-zone
 ```
 
@@ -124,6 +125,23 @@ export const Media: CollectionConfig = {
 ## Configuration
 
 > **Important**: When you use this plugin, `disableLocalStorage` is automatically set to `true` for each collection. Files won't be stored on your server.
+>
+> **Plugin Control**: Use `enabled: false` to disable the plugin entirely. When disabled, collections will fall back to Payload's default storage behavior.
+
+Main plugin configuration options:
+
+| Option            | Type                | Required | Description                                      |
+| ----------------- | ------------------- | -------- | ------------------------------------------------ |
+| `enabled`         | `boolean`           | ❌       | Enable or disable the plugin (default: true)     |
+| `collections`     | `object`            | ✅       | Which collections should use Bunny Storage       |
+| `storage`         | `object`            | ✅       | Bunny Storage configuration                      |
+| `stream`          | `object`            | ❌       | Bunny Stream configuration (optional)            |
+| `purge`           | `object`            | ❌       | CDN cache purging configuration (optional)       |
+| `adminThumbnail`  | `boolean \| object` | ❌       | Global admin thumbnail settings (optional)       |
+| `signedUrls`      | `boolean \| object` | ❌       | Global signed URLs configuration (optional)      |
+| `urlTransform`    | `object`            | ❌       | Global URL transformation config (optional)      |
+| `i18n`            | `object`            | ❌       | Internationalization settings (optional)         |
+| `experimental`    | `object`            | ❌       | Experimental features (optional)                 |
 
 ### Collections Configuration
 
@@ -157,7 +175,7 @@ Connect to Bunny Storage:
 | Option             | Type     | Required | Description                                                           |
 | ------------------ | -------- | -------- | --------------------------------------------------------------------- |
 | `apiKey`           | `string` | ✅       | Your Bunny Storage API key                                            |
-| `hostname`         | `string` | ✅       | Your CDN domain from Pull Zone (e.g., 'files.example.b-cdn.net')      |
+| `hostname`         | `string` | ✅       | Your CDN domain from Pull Zone (e.g., 'example.b-cdn.net')      |
 | `zoneName`         | `string` | ✅       | Your storage zone name                                                |
 | `region`           | `string` | ❌       | Storage region code ('uk', 'ny', 'la', 'sg', 'se', 'br', 'jh', 'syd') |
 | `tokenSecurityKey` | `string` | ❌       | Security key for signing storage URLs                                 |
@@ -172,9 +190,9 @@ Optional settings for video handling:
 | Option             | Type                | Required | Description                                                         |
 | ------------------ | ------------------- | -------- | ------------------------------------------------------------------- |
 | `apiKey`           | `string`            | ✅       | Your Bunny Stream API key                                           |
-| `hostname`         | `string`            | ✅       | Stream CDN domain (e.g., 'vz-example-123.b-cdn.net')                |
+| `hostname`         | `string`            | ✅       | Stream CDN domain (e.g., 'vz-abc123def-456.b-cdn.net')                |
 | `libraryId`        | `number`            | ✅       | Your video library ID (e.g., 123456)                                |
-| `mp4Fallback`      | `boolean`           | ❌       | Enable MP4 downloads (required with access control)                 |
+| `mp4Fallback`      | `boolean`           | ❌       | Enable MP4 downloads (required with access control unless using signed URLs with redirect) |
 | `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds                              |
 | `tokenSecurityKey` | `string`            | ❌       | Security key for signing stream URLs                                |
 | `uploadTimeout`    | `number`            | ❌       | Upload timeout in milliseconds (default: 300000)                    |
@@ -199,7 +217,7 @@ Optional settings for video handling:
 
 > **Note**: Cleanup feature requires Jobs Queue to be configured in your Payload setup. See [Payload Jobs Queue documentation](https://payloadcms.com/docs/jobs-queue/overview) for setup instructions.
 
-> **Note**: If you use Payload's access control, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream).
+> **Note**: If you use Payload's access control without signed URLs, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream). However, if you use signed URLs with `staticHandler.useRedirect: true`, MP4 fallback is not required as users are redirected directly to Bunny's HLS streams.
 
 > **Important**: Video support works even without Bunny Stream configured. If Bunny Stream is disabled, video files upload to Bunny Storage like any other file. Bunny Stream adds enhanced video features (streaming, adaptive bitrates, thumbnails).
 
@@ -209,7 +227,6 @@ Enable automatic CDN cache purging for storage files (not applicable to Stream):
 
 | Option    | Type      | Required | Description                                 |
 | --------- | --------- | -------- | ------------------------------------------- |
-| `enabled` | `boolean` | ✅       | Enable cache purging                        |
 | `apiKey`  | `string`  | ✅       | Your Bunny API key for purging operations   |
 | `async`   | `boolean` | ❌       | Wait for purge to complete (default: false) |
 
@@ -222,13 +239,12 @@ This ensures visitors always see the most up-to-date files, especially important
 
 ### Admin Thumbnail Configuration
 
-Control thumbnails in admin panel:
+Control thumbnails in admin panel. Use `adminThumbnail: true` to enable with defaults, `adminThumbnail: false` to disable, or provide an object to customize:
 
 | Option            | Type      | Default | Description                                          |
 | ----------------- | --------- | ------- | ---------------------------------------------------- |
-| `enabled`         | `boolean` | `true`  | Enable admin thumbnails                              |
 | `appendTimestamp` | `boolean` | `false` | Add timestamp to bust cache                          |
-| `queryParams`     | `object`  | `{}`    | Custom image parameters (works with Bunny Optimizer) |
+| `queryParams`     | `object`  | `{}`    | Custom query parameters appended to URLs (optimized for Bunny Optimizer) |
 
 **Example queryParams:**
 
@@ -240,9 +256,9 @@ queryParams: {
 }
 ```
 
-When `appendTimestamp` is enabled, the plugin automatically adds a timestamp parameter to image URLs in the admin panel. This ensures updated files show the latest version without browser caching issues.
+When `appendTimestamp` is enabled, the plugin automatically adds a timestamp parameter to image URLs in the admin panel. This ensures updated files show the latest version without browser caching issues. Additionally, when `appendTimestamp` is enabled, Payload's cache tags are automatically disabled for admin thumbnails to prevent caching conflicts.
 
-The `queryParams` option works great with Bunny's Image Optimizer service, letting you resize, crop, and optimize images on-the-fly.
+The `queryParams` option adds custom query parameters to URLs. It works great with Bunny's Image Optimizer service for resizing, cropping, and optimizing images on-the-fly, but you can add any query parameters you need.
 
 ### Signed URLs Configuration
 
@@ -282,7 +298,7 @@ Custom URL transformations for complete control over file URLs:
 | Option            | Type      | Default | Description                       |
 | ----------------- | --------- | ------- | --------------------------------- |
 | `appendTimestamp` | `boolean` | `false` | Add timestamp parameter to URLs   |
-| `queryParams`     | `object`  | `{}`    | Static query parameters to append |
+| `queryParams`     | `object`  | `{}`    | Static query parameters appended to URLs |
 
 #### Advanced Transform Function
 
@@ -344,10 +360,11 @@ If `disablePayloadAccessControl` is not `true`:
 
 - Files go through Payload's API
 - Your access rules work
-- Videos need MP4 fallback enabled (unless using signed URLs with redirect)
-- MP4s are served instead of HLS
+- Videos need MP4 fallback enabled OR signed URLs with redirect
+- MP4s are served instead of HLS (unless using signed URLs with redirect)
 - Good for files that need protection
-- **Performance tip**: Use signed URLs with redirect (configured in Static Handler Configuration) to avoid MP4 fallback and reduce server load
+
+> **Performance tip**: Use signed URLs with redirect to serve HLS streams directly and reduce server load
 
 When `disablePayloadAccessControl: true`:
 
@@ -367,7 +384,6 @@ Enable automatic cache purging when files are uploaded or deleted:
 
 ```typescript
 purge: {
-  enabled: true,
   apiKey: process.env.BUNNY_API_KEY,
   async: false // Wait for purge to complete (default: false)
 }
@@ -405,37 +421,38 @@ Choose the approach that best fits your needs:
 
 ### Bunny Storage API Key
 
-To find your Bunny Storage API key:
+To get your Bunny Storage API key:
 
-1. Go to your Bunny Storage dashboard
-2. Click on your Storage Zone
-3. Go to "FTP & API Access" section
-4. Use the "Password" field as your API key (**important**: you must use the full Password, not the Read-only password as it won't work for uploads)
-5. Your "Username" is your storage zone name (use this for the `zoneName` parameter)
-6. The "Hostname" value can help determine your `region` (e.g., if it shows `ny.storage.bunnycdn.com`, your region is `ny`)
+1. Go to your **Bunny Storage** dashboard
+2. Click on your **Storage Zone**
+3. Navigate to **FTP & API Access** section
+4. Copy the **Password** field as your API key
+   > **Important**: Use the full Password, not the Read-only password (it won't work for uploads)
+5. Note your **Username** (this is your `zoneName` parameter)
+6. Note the **Hostname** value to determine your `region` (e.g., `ny.storage.bunnycdn.com` = region `ny`)
 
-Remember that the `hostname` parameter in the plugin configuration should come from your Pull Zone, not from this section.
+> **Note**: The `hostname` parameter in plugin configuration comes from your Pull Zone, not from this section.
 
 ### Bunny Stream API Key
 
-To find your Bunny Stream API key:
+To get your Bunny Stream API key:
 
-1. Go to your Bunny Stream dashboard
-2. Select your library
-3. Click on "API" in the sidebar
-4. Find "Video Library ID" for your `libraryId` setting (like "123456")
-5. Find "CDN Hostname" for your `hostname` setting (like "vz-example-123.b-cdn.net")
-6. The "API Key" is found at the bottom of the page
+1. Go to your **Bunny Stream** dashboard
+2. Select your **Video Library**
+3. Click on **API** in the sidebar
+4. Copy the **Video Library ID** (use for `libraryId` setting, e.g., "123456")
+5. Copy the **CDN Hostname** (use for `hostname` setting, e.g., "vz-abc123def-456.b-cdn.net")
+6. Copy the **API Key** (found at the bottom of the page)
 
 ### Bunny API Key
 
-To find your Bunny API key (used for cache purging):
+To get your Bunny API key (used for cache purging):
 
-1. Go to your Bunny.net dashboard
-2. Click on your account in the top-right corner
-3. Select "Account settings" from the dropdown menu
-4. Click on "API" in the sidebar menu
-5. Copy the API key displayed on the page
+1. Go to your **Bunny.net** dashboard
+2. Click on your **account** in the top-right corner
+3. Select **Account settings** from the dropdown menu
+4. Click on **API** in the sidebar menu
+5. Copy the **API key** displayed on the page
 
 ### Token Security Keys
 
@@ -445,28 +462,28 @@ Token security keys are used for signed URLs to provide secure access to files.
 
 To get your Storage token security key:
 
-1. Go to your Bunny.net dashboard
+1. Go to your **Bunny.net** dashboard
 2. Navigate to **Delivery** → **CDN**
-3. Select your Pull Zone
+3. Select your **Pull Zone**
 4. Click on **Security** in the sidebar
 5. Click on **Token Authentication**
-6. Enable "Token authentication"
-7. Copy the **Url token authentication Key**
+6. Enable **Token authentication**
+7. Copy the **URL token authentication Key**
 
 #### Stream Token Security Key
 
 To get your Stream token security key:
 
-1. Go to your Bunny.net dashboard
+1. Go to your **Bunny.net** dashboard
 2. Navigate to **Delivery** → **Stream**
-3. Select your Video Library
+3. Select your **Video Library**
 4. Click on **API** in the sidebar
 5. Find **CDN zone management** section
 6. Click **Manage** button
 7. Click on **Security** in the sidebar
 8. Click on **Token Authentication**
-9. Enable "Token authentication"
-10. Copy the **Url token authentication Key**
+9. Enable **Token authentication**
+10. Copy the **URL token authentication Key**
 
 ## Storage Regions
 
@@ -491,7 +508,7 @@ Example:
 ```typescript
 storage: {
   apiKey: process.env.BUNNY_STORAGE_API_KEY,
-  hostname: 'assets.example.b-cdn.net',
+  hostname: 'example.b-cdn.net',
   region: 'ny',  // Just 'ny', not 'ny.storage.bunnycdn.com'
   zoneName: 'my-zone'
 }
@@ -506,6 +523,7 @@ import { bunnyStorage } from '@seshuk/payload-storage-bunny'
 export default buildConfig({
   plugins: [
     bunnyStorage({
+      enabled: true, // Enable/disable the plugin (default: true)
       collections: {
         media: {
           prefix: 'media',
@@ -514,19 +532,18 @@ export default buildConfig({
       },
       storage: {
         apiKey: process.env.BUNNY_STORAGE_API_KEY,
-        hostname: 'files.example.b-cdn.net',
+        hostname: 'example.b-cdn.net',
         zoneName: 'your-storage-zone',
       },
       // Optional: Enable video streaming
       stream: {
         apiKey: process.env.BUNNY_STREAM_API_KEY,
-        hostname: 'vz-example-123.b-cdn.net',
+        hostname: 'vz-abc123def-456.b-cdn.net',
         libraryId: 123456,
         tus: true, // Enable resumable uploads
       },
       // Optional: Auto-purge CDN cache
       purge: {
-        enabled: true,
         apiKey: process.env.BUNNY_API_KEY,
       },
     }),

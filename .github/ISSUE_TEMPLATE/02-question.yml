@@ -17,9 +17,10 @@ body:
       description: What do you need help with?
       placeholder: |
         Please tell us:
-        - What you're trying to do
-        - What specific feature you need
+        - What you're trying to accomplish
+        - What problem you're encountering
         - What you've tried so far
+        - Any error messages you're seeing
     validations:
       required: true
 
@@ -30,19 +31,15 @@ body:
       description: Share your plugin setup (**remove API keys and sensitive data**)
       placeholder: |
         ```typescript
-        export default buildConfig({
-          plugins: [
-            bunnyStorage({
-              collections: {
-                media: true,
-              },
-              storage: {
-                apiKey: 'REDACTED',
-                hostname: 'files.example.b-cdn.net',
-                zoneName: 'your-zone',
-              },
-            }),
-          ],
+        bunnyStorage({
+          collections: {
+            media: true,
+          },
+          storage: {
+            apiKey: 'REDACTED',
+            hostname: 'example.b-cdn.net',
+            zoneName: 'your-zone',
+          },
         })
         ```
       render: typescript

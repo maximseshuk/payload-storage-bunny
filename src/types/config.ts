@@ -51,7 +51,7 @@ export type PurgeConfig = {
 export type StorageConfig = {
   /** Bunny Storage API key */
   apiKey: string
-  /** CDN domain from your Pull Zone (e.g., 'files.example.b-cdn.net') */
+  /** CDN domain from your Pull Zone (e.g., 'example.b-cdn.net') */
   hostname: string
   /** Storage region code (optional, defaults to primary region) */
   region?: 'br' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | ({} & string)

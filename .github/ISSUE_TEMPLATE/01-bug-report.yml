@@ -37,22 +37,18 @@ body:
       description: Share your plugin setup (**remove API keys and sensitive data**)
       placeholder: |
         ```typescript
-        export default buildConfig({
-          plugins: [
-            bunnyStorage({
-              collections: {
-                media: {
-                  prefix: 'media',
-                  disablePayloadAccessControl: true,
-                },
-              },
-              storage: {
-                apiKey: 'REDACTED',
-                hostname: 'files.example.b-cdn.net',
-                zoneName: 'your-zone',
-              },
-            }),
-          ],
+        bunnyStorage({
+          collections: {
+            media: {
+              prefix: 'media',
+              disablePayloadAccessControl: true,
+            },
+          },
+          storage: {
+            apiKey: 'REDACTED',
+            hostname: 'example.b-cdn.net',
+            zoneName: 'your-zone',
+          },
         })
         ```
       render: typescript

@@ -128,13 +128,13 @@ bunnyStorage({
     // ❌ Remove wrapper
     storage: {
       apiKey: process.env.BUNNY_STORAGE_API_KEY,
-      hostname: 'storage.example.b-cdn.net',
+      hostname: 'example.b-cdn.net',
       region: 'ny',
       zoneName: 'my-zone',
     },
     stream: {
       apiKey: process.env.BUNNY_STREAM_API_KEY,
-      hostname: 'stream.example.b-cdn.net',
+      hostname: 'vz-abc123def-456.b-cdn.net',
       libraryId: '123456', // ❌ String
       mp4Fallback: { enabled: true }, // ❌ Object
       thumbnailTime: 5000,
@@ -164,13 +164,13 @@ bunnyStorage({
   storage: {
     // ✅ No wrapper
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: 'storage.example.b-cdn.net',
+    hostname: 'example.b-cdn.net',
     region: 'ny',
     zoneName: 'my-zone',
   },
   stream: {
     apiKey: process.env.BUNNY_STREAM_API_KEY,
-    hostname: 'stream.example.b-cdn.net',
+    hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456, // ✅ Number
     mp4Fallback: true, // ✅ Boolean
     thumbnailTime: 5000,
