@@ -1,6 +1,6 @@
 {
   "name": "@seshuk/payload-storage-bunny",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Payload storage adapter for Bunny.net",
   "author": "Maxim Seshuk",
   "license": "MIT",
