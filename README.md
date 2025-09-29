@@ -156,6 +156,7 @@ Define which collections will use Bunny Storage:
 | `[collectionSlug]`            | `boolean \| object` | -               | Enable Bunny Storage for collection (true) or with options   |
 | `prefix`                      | `string`            | Collection slug | Folder prefix within Bunny Storage                           |
 | `disablePayloadAccessControl` | `boolean`           | `false`         | Use direct CDN access (bypasses Payload auth)                |
+| `purge`                       | `boolean \| object` | Global setting  | Override global cache purging config (false to disable)      |
 | `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                             |
 | `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                           |
 | `urlTransform`                | `object`            | Global setting  | Override global URL transform config                         |
@@ -422,6 +423,24 @@ purge: {
 ```
 
 This is the most comprehensive approach as it ensures CDN cache is immediately purged when files change, making updated content available to all visitors.
+
+**Per-collection override:**
+
+You can override or disable cache purging for specific collections:
+
+```typescript
+collections: {
+  images: {
+    purge: false // Disable cache purging for this collection
+  },
+  documents: {
+    purge: {
+      async: true // Override async setting for this collection
+    }
+  },
+  videos: true // Uses global purge config
+}
+```
 
 ### Option 2: Timestamp-Based Cache Busting
 

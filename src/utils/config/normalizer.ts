@@ -187,6 +187,7 @@ const normalizeCollectionConfig = (
     return {
       disablePayloadAccessControl: false,
       prefix: '',
+      purge: globalConfig.purge ? normalizePurgeConfig(globalConfig.purge) : false,
       signedUrls: normalizeSignedUrlsConfig(globalConfig.signedUrls),
       stream: globalConfig.stream
         ? { thumbnailTime: globalConfig.stream.thumbnailTime }
@@ -202,6 +203,7 @@ const normalizeCollectionConfig = (
   return {
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
     prefix: collectionConfig.prefix ?? '',
+    purge: resolveCollectionPurgeConfig(collectionConfig.purge, globalConfig.purge),
     signedUrls: resolveCollectionConfigSetting(
       collectionConfig.signedUrls,
       globalConfig.signedUrls,
@@ -225,6 +227,25 @@ const normalizeCollectionConfig = (
       normalizeUrlTransformConfig,
     ),
   }
+}
+
+const resolveCollectionPurgeConfig = (
+  collectionValue: boolean | PurgeConfig | undefined,
+  globalValue: PurgeConfig | undefined,
+): false | NormalizedPurgeConfig => {
+  if (collectionValue === false) {
+    return false
+  }
+
+  if (collectionValue === true) {
+    return globalValue ? normalizePurgeConfig(globalValue) : false
+  }
+
+  if (collectionValue !== undefined) {
+    return normalizePurgeConfig(collectionValue)
+  }
+
+  return globalValue ? normalizePurgeConfig(globalValue) : false
 }
 
 const resolveCollectionConfigSetting = <T, R>(

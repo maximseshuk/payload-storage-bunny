@@ -55,6 +55,7 @@ export type NormalizedPurgeConfig = {
 export interface NormalizedCollectionConfig extends Pick<BunnyStorageCollectionConfig, 'stream'> {
   disablePayloadAccessControl: boolean
   prefix: string
+  purge: false | NormalizedPurgeConfig
   signedUrls: false | NormalizedSignedUrlsConfig
   thumbnail: false | NormalizedThumbnailConfig
   urlTransform: false | NormalizedUrlTransformConfig

@@ -38,7 +38,7 @@ export const createCollectionContext = (
     collection,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? collectionConfig.prefix,
-    purgeConfig: config.purge,
+    purgeConfig: collectionConfig.purge === false ? undefined : collectionConfig.purge,
     signedUrls: collectionConfig.signedUrls || undefined,
     storageConfig: config.storage || undefined,
     streamConfig: prepareStreamConfig(config, collection, collectionConfig),

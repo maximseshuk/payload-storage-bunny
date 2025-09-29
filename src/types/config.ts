@@ -210,6 +210,11 @@ export type SignedUrlsConfig = {
 export type BunnyStorageCollectionConfig = {
   /** @deprecated Use thumbnail instead. Will be removed in v2.2.0 */
   adminThumbnail?: boolean | ThumbnailConfig
+  /**
+   * Override global CDN cache purging config for this collection.
+   * Set to false to disable cache purging for this collection.
+   */
+  purge?: boolean | PurgeConfig
   /** Override global signed URLs config for this collection */
   signedUrls?: boolean | SignedUrlsConfig
   /** Stream settings for this collection */
