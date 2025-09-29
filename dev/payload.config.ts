@@ -1,12 +1,12 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { de } from '@payloadcms/translations/languages/de'
 import { en } from '@payloadcms/translations/languages/en'
-import { bunnyStorage } from '@seshuk/payload-storage-bunny'
 import path from 'path'
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
 import { fileURLToPath } from 'url'
 
+import { bunnyStorage } from '../src/index.js'
 import { Media } from './collections/Media.js'
 import { MediaAccessControl } from './collections/MediaAccessControl.js'
 import { Users } from './collections/Users.js'
@@ -51,14 +51,6 @@ export default buildConfig({
   },
   plugins: [
     bunnyStorage({
-      adminThumbnail: {
-        appendTimestamp: true,
-        queryParams: {
-          class: 'thumbnail',
-          version: '2.0',
-        },
-        sizeName: 'preview',
-      },
       collections: {
         media: {
           disablePayloadAccessControl: true,
@@ -76,13 +68,6 @@ export default buildConfig({
           },
         },
         mediaAccessControl: {
-          adminThumbnail: {
-            transformUrl: ({ baseUrl, data }) => {
-              const timestamp = Date.now()
-              const customId = data?.id as string || 'unknown'
-              return `${baseUrl}?secure_thumb=true&id=${customId}&t=${timestamp}`
-            },
-          },
           prefix: 'mediaAccessControl',
           signedUrls: {
             staticHandler: {
@@ -93,6 +78,13 @@ export default buildConfig({
           },
           stream: {
             thumbnailTime: 3000,
+          },
+          thumbnail: {
+            transformUrl: ({ baseUrl, data }) => {
+              const timestamp = Date.now()
+              const customId = data?.id as string || 'unknown'
+              return `${baseUrl}?secure_thumb=true&id=${customId}&t=${timestamp}`
+            },
           },
         },
       },
@@ -131,6 +123,14 @@ export default buildConfig({
         thumbnailTime: 0,
         tokenSecurityKey: process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY || '',
         tus: true,
+      },
+      thumbnail: {
+        appendTimestamp: true,
+        queryParams: {
+          class: 'thumbnail',
+          version: '2.0',
+        },
+        sizeName: 'preview',
       },
       urlTransform: {
         appendTimestamp: false,

@@ -1,10 +1,6 @@
 import { TIMEOUTS, TUS_MIME_TYPES } from '../constants.js'
 
 export const CONFIG_DEFAULTS = {
-  adminThumbnail: {
-    appendTimestamp: true,
-    queryParams: {},
-  },
   purge: {
     async: false,
   },
@@ -29,6 +25,10 @@ export const CONFIG_DEFAULTS = {
       uploadTimeout: 3600,
     },
     uploadTimeout: TIMEOUTS.STREAM_UPLOAD,
+  },
+  thumbnail: {
+    appendTimestamp: true,
+    queryParams: {},
   },
   urlTransform: {
     appendTimestamp: false,

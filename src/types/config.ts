@@ -36,7 +36,7 @@ export type UrlTransformConfig =
     transformUrl: UrlTransformFunction
   }
 
-export type AdminThumbnailConfig = {
+export type ThumbnailConfig = {
   /**
    * Use a specific size from upload collection's sizes instead of original file
    * Only works for image uploads that have sizes configured
@@ -145,7 +145,9 @@ export type StreamConfig = {
    */
   mp4Fallback?: boolean
   /**
-   * Default thumbnail time in ms for all collections. Can be overridden per collection
+   * Default thumbnail time in milliseconds for Bunny Stream videos.
+   * Specifies which moment in videos to capture as thumbnail.
+   * Can be overridden per collection. Use with thumbnail: true to display thumbnails.
    */
   thumbnailTime?: number
   /** Security key for signing stream URLs. Used to generate signed URLs for secure video access */
@@ -206,15 +208,28 @@ export type SignedUrlsConfig = {
 }
 
 export type BunnyStorageCollectionConfig = {
-  /** Override global admin thumbnail config for this collection */
-  adminThumbnail?: AdminThumbnailConfig | boolean
+  /** @deprecated Use thumbnail instead. Will be removed in v2.2.0 */
+  adminThumbnail?: boolean | ThumbnailConfig
   /** Override global signed URLs config for this collection */
   signedUrls?: boolean | SignedUrlsConfig
   /** Stream settings for this collection */
   stream?: {
-    /** Override default thumbnail time in milliseconds */
+    /**
+     * Override default thumbnail time in milliseconds for Bunny Stream videos.
+     * Specifies which moment in the video to capture as thumbnail.
+     * Use with thumbnail: true to display the thumbnail in admin and API responses.
+     */
     thumbnailTime?: number
   }
+  /**
+   * Enable thumbnail display in admin panel and thumbnailURL field in API responses.
+   *
+   * For Bunny Stream videos: combines with stream.thumbnailTime to show video thumbnails.
+   * For images: can specify sizeName to use a particular image size as thumbnail.
+   *
+   * Uses Payload's adminThumbnail mechanism internally.
+   */
+  thumbnail?: boolean | ThumbnailConfig
   /**
    * Override global URL transformation config for this collection
    * @note Does not work when `disablePayloadAccessControl` is true
@@ -232,8 +247,8 @@ export type CollectionsConfig = Partial<
 >
 
 type BunnyStorageBaseConfig = {
-  /** Global admin thumbnail settings for all collections */
-  adminThumbnail?: AdminThumbnailConfig | boolean
+  /** @deprecated Use thumbnail instead. Will be removed in v2.2.0 */
+  adminThumbnail?: boolean | ThumbnailConfig
   /** Which collections should use Bunny Storage */
   collections: CollectionsConfig
   /**
@@ -256,6 +271,16 @@ type BunnyStorageBaseConfig = {
   purge?: PurgeConfig
   /** Global signed URLs config (can be overridden per collection) */
   signedUrls?: boolean | SignedUrlsConfig
+  /**
+   * Global thumbnail settings for all collections.
+   *
+   * Enables thumbnail display in admin panel and thumbnailURL field in API responses.
+   * For Bunny Stream videos: works with stream.thumbnailTime setting.
+   * For images: can specify sizeName to use a particular image size.
+   *
+   * Uses Payload's adminThumbnail mechanism internally.
+   */
+  thumbnail?: boolean | ThumbnailConfig
   /**
    * Global URL transformation config for all collections (can be overridden per collection)
    * @note Does not work when `disablePayloadAccessControl` is true for the collection

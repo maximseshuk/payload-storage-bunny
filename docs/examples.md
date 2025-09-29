@@ -11,6 +11,7 @@ This document provides detailed configuration examples for different use cases o
 - [Signed URLs for Security](#signed-urls-for-security)
 - [Custom URL Transforms](#custom-url-transforms)
 - [TUS Resumable Uploads](#tus-resumable-uploads)
+- [Stream Only (No Storage)](#stream-only-no-storage)
 - [Multiple Collections](#multiple-collections)
 
 ## Basic Setup
@@ -204,7 +205,7 @@ bunnyStorage({
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
-  adminThumbnail: {
+  thumbnail: {
     appendTimestamp: true,
     queryParams: {
       width: '200',
@@ -258,6 +259,48 @@ bunnyStorage({
 })
 ```
 
+## Stream Only (No Storage)
+
+Configuration using only Bunny Stream for video uploads without Bunny Storage:
+
+```typescript
+bunnyStorage({
+  collections: {
+    videos: {
+      prefix: 'videos',
+      disablePayloadAccessControl: true,
+    },
+  },
+  stream: {
+    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    hostname: 'vz-abc123def-456.b-cdn.net',
+    libraryId: 123456,
+    mp4Fallback: true, // Enable MP4 downloads
+    thumbnailTime: 2000, // Capture thumbnail at 2 seconds
+    tus: {
+      autoMode: true,
+      uploadTimeout: 3600, // 1 hour for large videos
+    },
+    cleanup: {
+      maxAge: 86400, // Clean up failed uploads after 24 hours
+    },
+  },
+  thumbnail: {
+    appendTimestamp: true, // Prevent caching issues for video thumbnails
+  },
+})
+```
+
+This configuration is perfect for:
+
+- **Video-only platforms**: When you only need video streaming capabilities
+- **Separate storage solutions**: When you already have other storage for non-video files
+- **Simplified setup**: Fewer API keys and configuration to manage
+- **Stream-specific features**: Full access to TUS uploads, cleanup, and video thumbnails
+
+> [!NOTE]
+> In stream-only mode, only video files can be uploaded. For mixed content (videos + images + documents), you'll need to add Storage configuration.
+
 ## Multiple Collections
 
 Configuration with different settings for multiple collections:
@@ -269,7 +312,7 @@ bunnyStorage({
     media: {
       prefix: 'public',
       disablePayloadAccessControl: true,
-      adminThumbnail: {
+      thumbnail: {
         appendTimestamp: true,
         queryParams: { width: '200', height: '200' },
       },
@@ -327,7 +370,7 @@ bunnyStorage({
   purge: {
     apiKey: process.env.BUNNY_API_KEY,
   },
-  adminThumbnail: {
+  thumbnail: {
     appendTimestamp: true, // Global default
   },
 })
@@ -352,9 +395,9 @@ BUNNY_API_KEY=your-bunny-api-key
 
 See the [Getting API Keys](../README.md#getting-api-keys) section in the main README for instructions on obtaining these keys.
 
-## Admin Thumbnail with Size Selection
+## Thumbnail with Size Selection
 
-Use specific sizes from upload collection configuration for admin thumbnails:
+Use specific sizes from upload collection configuration for thumbnails:
 
 ```typescript
 import { bunnyStorage } from '@seshuk/payload-storage-bunny'
@@ -392,8 +435,8 @@ export default buildConfig({
     bunnyStorage({
       collections: {
         media: {
-          // Use the 'thumbnail' size for admin thumbnails instead of original file
-          adminThumbnail: {
+          // Use the 'thumbnail' size for thumbnails instead of original file
+          thumbnail: {
             sizeName: 'thumbnail',
             appendTimestamp: true, // Can combine with other options
           },
@@ -412,5 +455,5 @@ export default buildConfig({
 This configuration will:
 
 1. Generate 'thumbnail' and 'preview' sizes when images are uploaded
-2. Use the smaller 'thumbnail' size for admin panel thumbnails
+2. Use the smaller 'thumbnail' size for admin panel display and API responses
 3. Fall back to the original file if the 'thumbnail' size doesn't exist for a particular document

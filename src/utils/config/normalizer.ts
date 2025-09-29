@@ -1,5 +1,4 @@
 import type {
-  AdminThumbnailConfig,
   BunnyStorageCollectionConfig,
   BunnyStorageConfig,
   CollectionsConfig,
@@ -7,16 +6,17 @@ import type {
   SignedUrlsConfig,
   StorageConfig,
   StreamConfig,
+  ThumbnailConfig,
   UrlTransformConfig,
 } from '@/types/config.js'
 import type {
-  NormalizedAdminThumbnailConfig,
   NormalizedBunnyStorageConfig,
   NormalizedCollectionConfig,
   NormalizedPurgeConfig,
   NormalizedSignedUrlsConfig,
   NormalizedStorageConfig,
   NormalizedStreamConfig,
+  NormalizedThumbnailConfig,
   NormalizedUrlTransformConfig,
 } from '@/types/configNormalized.js'
 
@@ -25,15 +25,17 @@ import { CONFIG_DEFAULTS } from './defaults.js'
 export const createNormalizedConfig = (
   options: BunnyStorageConfig,
 ): NormalizedBunnyStorageConfig => {
+  const thumbnailConfig = options.thumbnail ?? options.adminThumbnail
+
   const normalized: NormalizedBunnyStorageConfig = {
     _original: options,
-    adminThumbnail: normalizeAdminThumbnailConfig(options.adminThumbnail),
     collections: normalizeCollectionsConfig(options.collections, options),
     i18n: options.i18n,
     purge: options.purge ? normalizePurgeConfig(options.purge) : undefined,
     signedUrls: normalizeSignedUrlsConfig(options.signedUrls),
     storage: options.storage ? normalizeStorageConfig(options.storage) : undefined,
     stream: options.stream ? normalizeStreamConfig(options.stream) : undefined,
+    thumbnail: normalizeThumbnailConfig(thumbnailConfig),
     urlTransform: normalizeUrlTransformConfig(options.urlTransform),
   }
 
@@ -145,10 +147,10 @@ const normalizeUrlTransformConfig = (
   }
 }
 
-const normalizeAdminThumbnailConfig = (
-  value?: AdminThumbnailConfig | boolean,
-): false | NormalizedAdminThumbnailConfig => {
-  const baseConfig = normalizeUrlTransformConfig(value, CONFIG_DEFAULTS.adminThumbnail)
+const normalizeThumbnailConfig = (
+  value?: boolean | ThumbnailConfig,
+): false | NormalizedThumbnailConfig => {
+  const baseConfig = normalizeUrlTransformConfig(value, CONFIG_DEFAULTS.thumbnail)
 
   if (!baseConfig) {
     return false
@@ -181,24 +183,23 @@ const normalizeCollectionConfig = (
   globalConfig: BunnyStorageConfig,
 ): NormalizedCollectionConfig => {
   if (collectionConfig === true) {
+    const globalThumbnailConfig = globalConfig.thumbnail ?? globalConfig.adminThumbnail
     return {
-      adminThumbnail: normalizeAdminThumbnailConfig(globalConfig.adminThumbnail),
       disablePayloadAccessControl: false,
       prefix: '',
       signedUrls: normalizeSignedUrlsConfig(globalConfig.signedUrls),
       stream: globalConfig.stream
         ? { thumbnailTime: globalConfig.stream.thumbnailTime }
         : undefined,
+      thumbnail: normalizeThumbnailConfig(globalThumbnailConfig),
       urlTransform: normalizeUrlTransformConfig(globalConfig.urlTransform),
     }
   }
 
+  const collectionThumbnailConfig = collectionConfig.thumbnail ?? collectionConfig.adminThumbnail
+  const globalThumbnailConfig = globalConfig.thumbnail ?? globalConfig.adminThumbnail
+
   return {
-    adminThumbnail: resolveCollectionConfigSetting(
-      collectionConfig.adminThumbnail,
-      globalConfig.adminThumbnail,
-      normalizeAdminThumbnailConfig,
-    ),
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
     prefix: collectionConfig.prefix ?? '',
     signedUrls: resolveCollectionConfigSetting(
@@ -213,6 +214,11 @@ const normalizeCollectionConfig = (
       : globalConfig.stream
         ? { thumbnailTime: globalConfig.stream.thumbnailTime }
         : undefined,
+    thumbnail: resolveCollectionConfigSetting(
+      collectionThumbnailConfig,
+      globalThumbnailConfig,
+      normalizeThumbnailConfig,
+    ),
     urlTransform: resolveCollectionConfigSetting(
       collectionConfig.urlTransform,
       globalConfig.urlTransform,

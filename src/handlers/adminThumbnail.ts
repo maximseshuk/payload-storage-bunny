@@ -1,4 +1,4 @@
-import type { NormalizedAdminThumbnailConfig } from '@/types/configNormalized.js'
+import type { NormalizedThumbnailConfig } from '@/types/configNormalized.js'
 import type { CollectionContext } from '@/types/index.js'
 
 import { applyUrlTransform, generateSignedUrl, isImage } from '@/utils/index.js'
@@ -9,7 +9,7 @@ const createBaseUrl = (hostname: string, prefix: string, filename: string): stri
 }
 
 const applyTransform = (
-  config: false | NormalizedAdminThumbnailConfig | undefined,
+  config: false | NormalizedThumbnailConfig | undefined,
   context: CollectionContext,
   doc: Record<string, unknown>,
   filename: string,
@@ -50,19 +50,19 @@ const signUrl = (
 }
 
 export const getAdminThumbnail = (context: CollectionContext) => {
-  const { adminThumbnail, collection, signedUrls, storageConfig, streamConfig } = context
+  const { collection, signedUrls, storageConfig, streamConfig, thumbnail } = context
 
   return ({ doc }: { doc: Record<string, unknown> }): null | string => {
     if (
-      adminThumbnail &&
-      typeof adminThumbnail === 'object' &&
-      adminThumbnail.sizeName &&
+      thumbnail &&
+      typeof thumbnail === 'object' &&
+      thumbnail.sizeName &&
       doc.sizes &&
       typeof doc.sizes === 'object' &&
       doc.sizes !== null
     ) {
       const sizes = doc.sizes as Record<string, { filename?: string }>
-      const requestedSize = sizes[adminThumbnail.sizeName]
+      const requestedSize = sizes[thumbnail.sizeName]
 
       if (requestedSize && requestedSize.filename && typeof requestedSize.filename === 'string') {
         const sizeFilename = requestedSize.filename
@@ -70,7 +70,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
         if (context.usePayloadAccessControl) {
           const internalUrl = `/api/${collection.slug}/file/${sizeFilename}`
-          return applyTransform(adminThumbnail, context, doc, sizeFilename, prefix, internalUrl)
+          return applyTransform(thumbnail, context, doc, sizeFilename, prefix, internalUrl)
         }
 
         if (!storageConfig) {
@@ -78,7 +78,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         }
 
         const baseUrl = createBaseUrl(storageConfig.hostname, prefix, sizeFilename)
-        const transformedUrl = applyTransform(adminThumbnail, context, doc, sizeFilename, prefix, baseUrl)
+        const transformedUrl = applyTransform(thumbnail, context, doc, sizeFilename, prefix, baseUrl)
         return signUrl(
           transformedUrl,
           signedUrls,
@@ -95,7 +95,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
       if (context.usePayloadAccessControl) {
         const internalUrl = `/api/${collection.slug}/file/${filename}`
-        return applyTransform(adminThumbnail, context, doc, filename, prefix, internalUrl)
+        return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 
       if (!storageConfig) {
@@ -103,7 +103,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       }
 
       const baseUrl = createBaseUrl(storageConfig.hostname, prefix, filename)
-      const transformedUrl = applyTransform(adminThumbnail, context, doc, filename, prefix, baseUrl)
+      const transformedUrl = applyTransform(thumbnail, context, doc, filename, prefix, baseUrl)
       return signUrl(transformedUrl, signedUrls, storageConfig.tokenSecurityKey, collection, filename)
     }
 
@@ -113,11 +113,11 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
       if (context.usePayloadAccessControl) {
         const internalUrl = `/api/${collection.slug}/file/bunny:stream:${doc.bunnyVideoId}:thumbnail.jpg`
-        return applyTransform(adminThumbnail, context, doc, filename, prefix, internalUrl)
+        return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 
       const baseUrl = createBaseUrl(streamConfig.hostname, prefix, filename)
-      const transformedUrl = applyTransform(adminThumbnail, context, doc, filename, prefix, baseUrl)
+      const transformedUrl = applyTransform(thumbnail, context, doc, filename, prefix, baseUrl)
       return signUrl(transformedUrl, signedUrls, streamConfig.tokenSecurityKey, collection, filename)
     }
 

@@ -35,7 +35,6 @@ export const createCollectionContext = (
   const streamConfig = prepareStreamConfig(config, collection, collectionConfig)
 
   return {
-    adminThumbnail: collectionConfig.adminThumbnail || undefined,
     collection,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? collectionConfig.prefix,
@@ -43,6 +42,7 @@ export const createCollectionContext = (
     signedUrls: collectionConfig.signedUrls || undefined,
     storageConfig: config.storage || undefined,
     streamConfig: prepareStreamConfig(config, collection, collectionConfig),
+    thumbnail: collectionConfig.thumbnail || undefined,
     urlTransform: collectionConfig.urlTransform || undefined,
     usePayloadAccessControl: !collectionConfig.disablePayloadAccessControl,
   }
@@ -54,7 +54,6 @@ const createDefaultContext = (
   prefixOverride?: string,
 ): CollectionContext => {
   return {
-    adminThumbnail: config.adminThumbnail || undefined,
     collection,
     isTusUploadSupported: !!config.stream?.tus && !!collection.upload,
     prefix: prefixOverride ?? '',
@@ -62,6 +61,7 @@ const createDefaultContext = (
     signedUrls: config.signedUrls || undefined,
     storageConfig: config.storage || undefined,
     streamConfig: config.stream,
+    thumbnail: config.thumbnail || undefined,
     urlTransform: config.urlTransform || undefined,
     usePayloadAccessControl: true,
   }

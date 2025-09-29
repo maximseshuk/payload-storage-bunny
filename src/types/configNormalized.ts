@@ -44,7 +44,7 @@ export type NormalizedUrlTransformConfig = {
   transformUrl?: UrlTransformFunction
 }
 
-export type NormalizedAdminThumbnailConfig = {
+export type NormalizedThumbnailConfig = {
   sizeName?: string
 } & NormalizedUrlTransformConfig
 
@@ -53,20 +53,20 @@ export type NormalizedPurgeConfig = {
 } & PurgeConfig
 
 export interface NormalizedCollectionConfig extends Pick<BunnyStorageCollectionConfig, 'stream'> {
-  adminThumbnail: false | NormalizedAdminThumbnailConfig
   disablePayloadAccessControl: boolean
   prefix: string
   signedUrls: false | NormalizedSignedUrlsConfig
+  thumbnail: false | NormalizedThumbnailConfig
   urlTransform: false | NormalizedUrlTransformConfig
 }
 
 export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, 'i18n'> {
   _original: BunnyStorageConfig
-  adminThumbnail: false | NormalizedAdminThumbnailConfig
   collections: Map<string, NormalizedCollectionConfig>
   purge?: NormalizedPurgeConfig
   signedUrls: false | NormalizedSignedUrlsConfig
   storage?: NormalizedStorageConfig
   stream?: NormalizedStreamConfig
+  thumbnail: false | NormalizedThumbnailConfig
   urlTransform: false | NormalizedUrlTransformConfig
 }

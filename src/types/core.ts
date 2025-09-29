@@ -1,16 +1,15 @@
 import type { CollectionConfig, TypeWithID } from 'payload'
 
 import type {
-  NormalizedAdminThumbnailConfig,
   NormalizedPurgeConfig,
   NormalizedSignedUrlsConfig,
   NormalizedStorageConfig,
   NormalizedStreamConfig,
+  NormalizedThumbnailConfig,
   NormalizedUrlTransformConfig,
 } from './configNormalized.js'
 
 export type CollectionContext = {
-  adminThumbnail?: NormalizedAdminThumbnailConfig
   collection: CollectionConfig
   isTusUploadSupported: boolean
   prefix?: string
@@ -18,6 +17,7 @@ export type CollectionContext = {
   signedUrls?: NormalizedSignedUrlsConfig
   storageConfig?: NormalizedStorageConfig
   streamConfig?: NormalizedStreamConfig
+  thumbnail?: NormalizedThumbnailConfig
   urlTransform?: NormalizedUrlTransformConfig
   usePayloadAccessControl: boolean
 }

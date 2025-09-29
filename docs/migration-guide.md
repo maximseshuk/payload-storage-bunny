@@ -2,6 +2,17 @@
 
 This guide covers upgrading between major versions of the Bunny Storage plugin.
 
+## v2.0.x to v2.1.0
+
+### What Changed
+
+The main changes in v2.1.0:
+
+| What                | v2.0.x                            | v2.1.0                            |
+| ------------------- | --------------------------------- | --------------------------------- |
+| Thumbnail config    | `adminThumbnail: {...}`           | `thumbnail: {...}`                |
+| Service requirement | Storage required, stream optional | Either storage OR stream required |
+
 ## v1.x to v2.x
 
 ### Version Requirements
@@ -221,10 +232,10 @@ urlTransform: {
 }
 ```
 
-**Admin Thumbnail Control** - Better admin panel thumbnails:
+**Thumbnail Control** - Better admin panel thumbnails:
 
 ```typescript
-adminThumbnail: {
+thumbnail: {
   appendTimestamp: true, // Default in v2.x
   queryParams: { w: '300', h: '300' }
 }

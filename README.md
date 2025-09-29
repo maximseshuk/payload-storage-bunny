@@ -11,7 +11,6 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
 ## Table of Contents
 
 - [Features](#features)
-- [Performance Tip](#-performance-tip)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
@@ -19,7 +18,7 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
   - [Storage](#storage-configuration)
   - [Stream](#stream-configuration)
   - [Cache Purging](#cache-purging-configuration)
-  - [Admin Thumbnails](#admin-thumbnail-configuration)
+  - [Thumbnails](#thumbnail-configuration)
   - [Signed URLs](#signed-urls-configuration)
   - [URL Transform](#url-transform-configuration)
   - [TUS Uploads](#tus-uploads-configuration)
@@ -41,16 +40,14 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
 - Control file access with Payload rules or direct CDN links
 - Automatic CDN cache purging when files change
 
-## ⚡ Performance Tip
-
-> Set `disablePayloadAccessControl: true` for best performance.
->
-> This lets users download files directly from Bunny's CDN servers instead of through your Payload server, making content delivery much faster.
+> [!TIP]
+> **⚡ Performance**: Set `disablePayloadAccessControl: true` for best performance. This lets users download files directly from Bunny's CDN servers instead of through your Payload server, making content delivery much faster.
 
 ## Installation
 
 Requires Payload CMS 3.53.0 or higher.
 
+> [!IMPORTANT]
 > **Migration from v1.x**: Version 2.0.0+ requires Payload CMS 3.53.0+. For older Payload versions (3.0.0 - 3.52.x), use version 1.x with the optional experimental `replaceSaveButtonComponent` feature to fix the field update bug. See [Migration Guide](docs/migration-guide.md) for detailed upgrade instructions.
 
 ```bash
@@ -126,40 +123,43 @@ export const Media: CollectionConfig = {
 
 ## Configuration
 
-> **Important**: When you use this plugin, `disableLocalStorage` is automatically set to `true` for each collection. Files won't be stored on your server.
->
-> **Plugin Control**: Use `enabled: false` to disable the plugin entirely. When disabled, collections will fall back to Payload's default storage behavior.
->
+> [!IMPORTANT]
+> When you use this plugin, `disableLocalStorage` is automatically set to `true` for each collection. Files won't be stored on your server.
+
+> [!WARNING]
 > **Service Requirement**: You must configure at least one service - either `storage` (Bunny Storage) or `stream` (Bunny Stream). You can configure both for full functionality.
+
+> [!NOTE]
+> Use `enabled: false` to disable the plugin entirely. When disabled, collections will fall back to Payload's default storage behavior.
 
 Main plugin configuration options:
 
-| Option           | Type                | Required | Description                                                     |
-| ---------------- | ------------------- | -------- | --------------------------------------------------------------- |
-| `enabled`        | `boolean`           | ❌       | Enable or disable the plugin (default: true)                    |
-| `collections`    | `object`            | ✅       | Which collections should use Bunny Storage                      |
-| `storage`        | `object`            | ⚠️       | Bunny Storage configuration (required if `stream` not provided) |
-| `stream`         | `object`            | ⚠️       | Bunny Stream configuration (required if `storage` not provided) |
-| `purge`          | `object`            | ❌       | CDN cache purging configuration (optional)                      |
-| `adminThumbnail` | `boolean \| object` | ❌       | Global admin thumbnail settings (optional)                      |
-| `signedUrls`     | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                     |
-| `urlTransform`   | `object`            | ❌       | Global URL transformation config (optional)                     |
-| `i18n`           | `object`            | ❌       | Internationalization settings (optional)                        |
-| `experimental`   | `object`            | ❌       | Experimental features (optional)                                |
+| Option         | Type                | Required | Description                                                     |
+| -------------- | ------------------- | -------- | --------------------------------------------------------------- |
+| `enabled`      | `boolean`           | ❌       | Enable or disable the plugin (default: true)                    |
+| `collections`  | `object`            | ✅       | Which collections should use Bunny Storage                      |
+| `storage`      | `object`            | ⚠️       | Bunny Storage configuration (required if `stream` not provided) |
+| `stream`       | `object`            | ⚠️       | Bunny Stream configuration (required if `storage` not provided) |
+| `purge`        | `object`            | ❌       | CDN cache purging configuration (optional)                      |
+| `thumbnail`    | `boolean \| object` | ❌       | Global thumbnail settings (optional)                            |
+| `signedUrls`   | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                     |
+| `urlTransform` | `object`            | ❌       | Global URL transformation config (optional)                     |
+| `i18n`         | `object`            | ❌       | Internationalization settings (optional)                        |
+| `experimental` | `object`            | ❌       | Experimental features (optional)                                |
 
 ### Collections Configuration
 
 Define which collections will use Bunny Storage:
 
-| Option                        | Type                | Default         | Description                                                |
-| ----------------------------- | ------------------- | --------------- | ---------------------------------------------------------- |
-| `[collectionSlug]`            | `boolean \| object` | -               | Enable Bunny Storage for collection (true) or with options |
-| `prefix`                      | `string`            | Collection slug | Folder prefix within Bunny Storage                         |
-| `disablePayloadAccessControl` | `boolean`           | `false`         | Use direct CDN access (bypasses Payload auth)              |
-| `adminThumbnail`              | `boolean \| object` | Global setting  | Override global admin thumbnail config                     |
-| `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                         |
-| `urlTransform`                | `object`            | Global setting  | Override global URL transform config                       |
-| `stream.thumbnailTime`        | `number`            | Global setting  | Override default thumbnail time for videos                 |
+| Option                        | Type                | Default         | Description                                                  |
+| ----------------------------- | ------------------- | --------------- | ------------------------------------------------------------ |
+| `[collectionSlug]`            | `boolean \| object` | -               | Enable Bunny Storage for collection (true) or with options   |
+| `prefix`                      | `string`            | Collection slug | Folder prefix within Bunny Storage                           |
+| `disablePayloadAccessControl` | `boolean`           | `false`         | Use direct CDN access (bypasses Payload auth)                |
+| `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                             |
+| `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                           |
+| `urlTransform`                | `object`            | Global setting  | Override global URL transform config                         |
+| `stream.thumbnailTime`        | `number`            | Global setting  | Override default thumbnail time for videos (in milliseconds) |
 
 **Simple usage:**
 
@@ -185,7 +185,8 @@ Connect to Bunny Storage:
 | `tokenSecurityKey` | `string` | ❌       | Security key for signing storage URLs                                 |
 | `uploadTimeout`    | `number` | ❌       | Upload timeout in milliseconds (default: 120000)                      |
 
-> **Important**: Bunny Storage requires a Pull Zone to be configured for your Storage Zone. Files will not be accessible without a properly configured Pull Zone. The `hostname` should be your Pull Zone hostname, not the Storage API endpoint. See [Bunny's documentation](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage?ref=fndfoymy0j) on accessing and delivering files from Bunny Storage.
+> [!IMPORTANT]
+> Bunny Storage requires a Pull Zone to be configured for your Storage Zone. Files will not be accessible without a properly configured Pull Zone. The `hostname` should be your Pull Zone hostname, not the Storage API endpoint. See [Bunny's documentation](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage?ref=fndfoymy0j) on accessing and delivering files from Bunny Storage.
 
 ### Stream Configuration
 
@@ -197,7 +198,7 @@ Optional settings for video handling:
 | `hostname`         | `string`            | ✅       | Stream CDN domain (e.g., 'vz-abc123def-456.b-cdn.net')                                     |
 | `libraryId`        | `number`            | ✅       | Your video library ID (e.g., 123456)                                                       |
 | `mp4Fallback`      | `boolean`           | ❌       | Enable MP4 downloads (required with access control unless using signed URLs with redirect) |
-| `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds                                                     |
+| `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds (specifies moment in video to capture)              |
 | `tokenSecurityKey` | `string`            | ❌       | Security key for signing stream URLs                                                       |
 | `uploadTimeout`    | `number`            | ❌       | Upload timeout in milliseconds (default: 300000)                                           |
 | `tus`              | `boolean \| object` | ❌       | Enable TUS resumable uploads (see TUS config below)                                        |
@@ -219,11 +220,14 @@ Optional settings for video handling:
 | `maxAge`   | `number` | `86400`                                         | Time in seconds after which incomplete uploads are considered dead |
 | `schedule` | `object` | `{ cron: '0 2 * * *', queue: 'storage-bunny' }` | Cron schedule for cleanup task                                     |
 
-> **Note**: Cleanup feature requires Jobs Queue to be configured in your Payload setup. See [Payload Jobs Queue documentation](https://payloadcms.com/docs/jobs-queue/overview) for setup instructions.
+> [!NOTE]
+> Cleanup feature requires Jobs Queue to be configured in your Payload setup. See [Payload Jobs Queue documentation](https://payloadcms.com/docs/jobs-queue/overview) for setup instructions.
 
-> **Note**: If you use Payload's access control without signed URLs, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream?ref=fndfoymy0j). However, if you use signed URLs with `staticHandler.useRedirect: true`, MP4 fallback is not required as users are redirected directly to Bunny's HLS streams.
+> [!WARNING]
+> If you use Payload's access control without signed URLs, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream?ref=fndfoymy0j). However, if you use signed URLs with `staticHandler.useRedirect: true`, MP4 fallback is not required as users are redirected directly to Bunny's HLS streams.
 
-> **Important**: Video support works even without Bunny Stream configured. If Bunny Stream is disabled, video files upload to Bunny Storage like any other file. Bunny Stream adds enhanced video features (streaming, adaptive bitrates, thumbnails).
+> [!NOTE]
+> Video support works even without Bunny Stream configured. If Bunny Stream is disabled, video files upload to Bunny Storage like any other file. Bunny Stream adds enhanced video features (streaming, adaptive bitrates, thumbnails).
 
 ### Cache Purging Configuration
 
@@ -241,9 +245,18 @@ When enabled, the plugin automatically purges CDN cache after:
 
 This ensures visitors always see the most up-to-date files, especially important when replacing existing files (like during image cropping).
 
-### Admin Thumbnail Configuration
+### Thumbnail Configuration
 
-Control thumbnails in admin panel. Use `adminThumbnail: true` to enable with defaults, `adminThumbnail: false` to disable, or provide an object to customize:
+Enable thumbnail generation for upload collections. When enabled, the plugin provides a function to Payload's `adminThumbnail` configuration that generates thumbnail URLs for your files.
+
+**For Bunny Stream videos**: Uses the thumbnail generated at `stream.thumbnailTime` moment.
+
+**For images**: Uses the original file or a specific size if `sizeName` is configured.
+
+Use `thumbnail: true` to enable with defaults, `thumbnail: false` to disable, or provide an object to customize:
+
+> [!NOTE]
+> This configures Payload's `upload.adminThumbnail` function which populates the `thumbnailURL` field in API responses.
 
 | Option            | Type      | Default | Description                                                               |
 | ----------------- | --------- | ------- | ------------------------------------------------------------------------- |
@@ -261,14 +274,14 @@ queryParams: {
 }
 ```
 
-When `appendTimestamp` is enabled, the plugin automatically adds a timestamp parameter to image URLs in the admin panel. This ensures updated files show the latest version without browser caching issues. Additionally, when `appendTimestamp` is enabled, Payload's cache tags are automatically disabled for admin thumbnails to prevent caching conflicts.
+When `appendTimestamp` is enabled, the plugin automatically adds a timestamp parameter to image URLs in the admin panel and API responses. This ensures updated files show the latest version without browser caching issues. Additionally, when `appendTimestamp` is enabled, Payload's cache tags are automatically disabled for thumbnails to prevent caching conflicts.
 
 The `queryParams` option adds custom query parameters to URLs. It works great with Bunny's Image Optimizer service for resizing, cropping, and optimizing images on-the-fly, but you can add any query parameters you need.
 
 **Example using sizeName with upload collection sizes:**
 
 ```typescript
-adminThumbnail: {
+thumbnail: {
   sizeName: 'thumbnail', // Uses 'thumbnail' size from collection's sizes config
   appendTimestamp: true  // Can be combined with other options
 }
@@ -334,7 +347,8 @@ Custom URL transformations for complete control over file URLs:
 }) => string
 ```
 
-> **Note**: URL transforms don't work when `disablePayloadAccessControl` is true for the collection.
+> [!WARNING]
+> URL transforms don't work when `disablePayloadAccessControl` is true for the collection.
 
 ### TUS Uploads Configuration
 
@@ -356,7 +370,8 @@ TUS (resumable uploads) enables reliable uploads of large video files by breakin
 
 **Detailed configuration:** See [TUS Upload Configuration table](#tus-upload-configuration) in Stream Configuration section above.
 
-> **Important**: The TUS `mimeTypes` setting works together with your collection's `mimeTypes` setting. If a file type is allowed in TUS config but blocked in your collection config, the collection setting takes priority and the file will be rejected.
+> [!IMPORTANT]
+> The TUS `mimeTypes` setting works together with your collection's `mimeTypes` setting. If a file type is allowed in TUS config but blocked in your collection config, the collection setting takes priority and the file will be rejected.
 
 ### Access Control Configuration
 
@@ -380,7 +395,8 @@ If `disablePayloadAccessControl` is not `true`:
 - MP4s are served instead of HLS (unless using signed URLs with redirect)
 - Good for files that need protection
 
-> **Performance tip**: Use signed URLs with redirect to serve HLS streams directly and reduce server load
+> [!TIP]
+> Use signed URLs with redirect to serve HLS streams directly and reduce server load
 
 When `disablePayloadAccessControl: true`:
 
@@ -414,7 +430,7 @@ For the admin panel specifically, you can use timestamp-based cache busting:
 1. First, configure the plugin to add timestamps to image URLs:
 
 ```typescript
-adminThumbnail: {
+thumbnail: {
   appendTimestamp: true
 }
 ```
@@ -433,7 +449,8 @@ Choose the approach that best fits your needs:
 
 ## Getting API Keys
 
-> **New to Bunny.net?** [Sign up here](https://bunny.net?ref=fndfoymy0j) to get started with fast global CDN and streaming services.
+> [!TIP]
+> New to Bunny.net? [Sign up here](https://bunny.net?ref=fndfoymy0j) to get started with fast global CDN and streaming services.
 
 ### Bunny Storage API Key
 
@@ -443,11 +460,13 @@ To get your Bunny Storage API key:
 2. Click on your **Storage Zone**
 3. Navigate to **FTP & API Access** section
 4. Copy the **Password** field as your API key
-   > **Important**: Use the full Password, not the Read-only password (it won't work for uploads)
+   > [!IMPORTANT]
+   > Use the full Password, not the Read-only password (it won't work for uploads)
 5. Note your **Username** (this is your `zoneName` parameter)
 6. Note the **Hostname** value to determine your `region` (e.g., `ny.storage.bunnycdn.com` = region `ny`)
 
-> **Note**: The `hostname` parameter in plugin configuration comes from your Pull Zone, not from this section.
+> [!NOTE]
+> The `hostname` parameter in plugin configuration comes from your Pull Zone, not from this section.
 
 ### Bunny Stream API Key
 
