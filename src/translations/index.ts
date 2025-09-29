@@ -39,6 +39,7 @@ import { ru } from './locales/ru.js'
 import { sk } from './locales/sk.js'
 import { sl } from './locales/sl.js'
 import { sv } from './locales/sv.js'
+import { ta } from './locales/ta.js'
 import { th } from './locales/th.js'
 import { tr } from './locales/tr.js'
 import { uk } from './locales/uk.js'
@@ -86,6 +87,7 @@ export const translations: {
   sk,
   sl,
   sv,
+  ta,
   th,
   tr,
   uk,

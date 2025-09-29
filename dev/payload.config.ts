@@ -58,6 +58,7 @@ export default buildConfig({
           signedUrls: {
             expiresIn: 3600,
           },
+          thumbnail: false,
           urlTransform: {
             transformUrl: ({ baseUrl, data }) => {
               const isVideo = typeof data?.mimeType === 'string' && data.mimeType.startsWith('video/')
