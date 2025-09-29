@@ -52,6 +52,10 @@ const signUrl = (
 export const getAdminThumbnail = (context: CollectionContext) => {
   const { collection, signedUrls, storageConfig, streamConfig, thumbnail } = context
 
+  if (!thumbnail) {
+    return undefined
+  }
+
   return ({ doc }: { doc: Record<string, unknown> }): null | string => {
     if (
       thumbnail &&

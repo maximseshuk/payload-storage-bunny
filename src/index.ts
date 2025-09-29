@@ -105,10 +105,10 @@ export const bunnyStorage: BunnyStoragePlugin =
               },
               upload: {
                 ...(typeof collection.upload === 'object' ? collection.upload : {}),
-                ...(config.thumbnail ? {
+                ...(collectionContext.thumbnail ? {
                   adminThumbnail: getAdminThumbnail(collectionContext),
                 } : {}),
-                ...(config.thumbnail && config.thumbnail.appendTimestamp ? {
+                ...(collectionContext.thumbnail?.appendTimestamp ? {
                   cacheTags: false,
                 } : {}),
                 ...(collectionContext.isTusUploadSupported ? {

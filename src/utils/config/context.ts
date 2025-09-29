@@ -42,7 +42,7 @@ export const createCollectionContext = (
     signedUrls: collectionConfig.signedUrls || undefined,
     storageConfig: config.storage || undefined,
     streamConfig: prepareStreamConfig(config, collection, collectionConfig),
-    thumbnail: collectionConfig.thumbnail || undefined,
+    thumbnail: collectionConfig.thumbnail === false ? undefined : collectionConfig.thumbnail,
     urlTransform: collectionConfig.urlTransform || undefined,
     usePayloadAccessControl: !collectionConfig.disablePayloadAccessControl,
   }
@@ -61,7 +61,7 @@ const createDefaultContext = (
     signedUrls: config.signedUrls || undefined,
     storageConfig: config.storage || undefined,
     streamConfig: config.stream,
-    thumbnail: config.thumbnail || undefined,
+    thumbnail: config.thumbnail === false ? undefined : config.thumbnail,
     urlTransform: config.urlTransform || undefined,
     usePayloadAccessControl: true,
   }
