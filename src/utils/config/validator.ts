@@ -3,12 +3,20 @@ import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) => {
   const errors: string[] = []
 
-  if (config.storage.hostname.includes('storage.bunnycdn.com')) {
-    errors.push('storage `hostname` cannot include "storage.bunnycdn.com"')
+  // Validate that at least one service (storage or stream) is configured
+  if (!config.storage && !config.stream) {
+    errors.push('either `storage` or `stream` configuration must be provided')
   }
 
-  if (config.signedUrls && !config.storage.tokenSecurityKey) {
-    errors.push('storage `tokenSecurityKey` is required when signed URLs are enabled')
+  // Storage-specific validations (only when storage is configured)
+  if (config.storage) {
+    if (config.storage.hostname.includes('storage.bunnycdn.com')) {
+      errors.push('storage `hostname` cannot include "storage.bunnycdn.com"')
+    }
+
+    if (config.signedUrls && !config.storage.tokenSecurityKey) {
+      errors.push('storage `tokenSecurityKey` is required when signed URLs are enabled')
+    }
   }
 
   if (config.signedUrls && config.stream && !config.stream.tokenSecurityKey) {

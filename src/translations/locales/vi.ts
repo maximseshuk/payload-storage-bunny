@@ -33,6 +33,7 @@ export const vi: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Không thể xóa tệp: {{filename}}',
     errorInternalServer: 'Đã xảy ra lỗi từ phía chúng tôi',
     errorMissingRequiredFields: 'Thiếu một số thông tin cần thiết',
+    errorNoServiceConfigured: 'Không có dịch vụ nào được cấu hình',
     errorStreamConfigMissing: 'Bunny Stream chưa được cấu hình đúng cách',
     errorTitleRequired: 'Vui lòng nhập tiêu đề cho video của bạn',
     errorUploadFileFailed: 'Không thể tải lên tệp: {{filename}}',

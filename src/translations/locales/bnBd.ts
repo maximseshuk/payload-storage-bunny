@@ -33,6 +33,7 @@ export const bnBd: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'ফাইল মুছে ফেলা যায়নি: {{filename}}',
     errorInternalServer: 'আমাদের দিক থেকে কিছু ভুল হয়েছে',
     errorMissingRequiredFields: 'কিছু প্রয়োজনীয় তথ্য অনুপস্থিত',
+    errorNoServiceConfigured: 'কোনো সার্ভিস কনফিগার করা নেই',
     errorStreamConfigMissing: 'Bunny Stream সঠিকভাবে কনফিগার করা হয়নি',
     errorTitleRequired: 'অনুগ্রহ করে আপনার ভিডিওর জন্য একটি শিরোনাম লিখুন',
     errorUploadFileFailed: 'ফাইল আপলোড করা যায়নি: {{filename}}',

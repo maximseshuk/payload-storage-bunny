@@ -66,6 +66,10 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
       }
 
       // Handle storage requests
+      if (!storageConfig) {
+        return new Response('Storage not configured', { status: 404 })
+      }
+
       return await storageStaticHandler({
         collection,
         filename,
@@ -80,7 +84,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         req.payload.logger.error({
           err,
           file: { name: data.params.filename },
-          storage: storageConfig.zoneName,
+          ...(storageConfig && { storage: storageConfig.zoneName }),
         })
 
         return new Response(null, {
@@ -92,7 +96,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
       req.payload.logger.error({
         err,
         file: { name: data.params.filename },
-        storage: storageConfig.zoneName,
+        ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 
       return new Response('Internal Server Error', { status: 500 })

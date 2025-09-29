@@ -32,7 +32,7 @@ export const createNormalizedConfig = (
     i18n: options.i18n,
     purge: options.purge ? normalizePurgeConfig(options.purge) : undefined,
     signedUrls: normalizeSignedUrlsConfig(options.signedUrls),
-    storage: normalizeStorageConfig(options.storage),
+    storage: options.storage ? normalizeStorageConfig(options.storage) : undefined,
     stream: options.stream ? normalizeStreamConfig(options.stream) : undefined,
     urlTransform: normalizeUrlTransformConfig(options.urlTransform),
   }

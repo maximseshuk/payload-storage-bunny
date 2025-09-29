@@ -33,6 +33,7 @@ export const rsLatin: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Nije moguće obrisati fajl: {{filename}}',
     errorInternalServer: 'Nešto je pošlo po zlo sa naše strane',
     errorMissingRequiredFields: 'Nedostaju neke potrebne informacije',
+    errorNoServiceConfigured: 'Nijedna usluga nije konfigurisana',
     errorStreamConfigMissing: 'Bunny Stream nije ispravno konfigurisan',
     errorTitleRequired: 'Molimo unesite naslov za vaš video',
     errorUploadFileFailed: 'Nije moguće otpremiti fajl: {{filename}}',

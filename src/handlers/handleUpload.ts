@@ -40,7 +40,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         })
 
         data.bunnyVideoId = video.guid
-      } else {
+      } else if (storageConfig) {
         await uploadStorageFile({
           buffer: file.buffer,
           mimeType: file.mimeType,
@@ -66,6 +66,8 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             })
           }
         }
+      } else {
+        throw new APIError(reqT('@seshuk/payload-storage-bunny:errorNoServiceConfigured'), 500, undefined, true)
       }
 
       return data
@@ -77,10 +79,10 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           type: file.mimeType,
           size: file.filesize,
         },
-        storage: storageConfig.zoneName,
+        ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 
-      throw new APIError(reqT('@seshuk/payload-storage-bunny:errorUploadFileFailed', { filename: file.filename }), 500)
+      throw new APIError(reqT('@seshuk/payload-storage-bunny:errorUploadFileFailed', { filename: file.filename }), 500, undefined, true)
     }
   }
 }

@@ -33,6 +33,7 @@ export const zhTw: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: '無法刪除檔案：{{filename}}',
     errorInternalServer: '我們這邊出了問題',
     errorMissingRequiredFields: '缺少一些必要的資訊',
+    errorNoServiceConfigured: '未配置任何服務',
     errorStreamConfigMissing: 'Bunny Stream 設定不正確',
     errorTitleRequired: '請為您的影片輸入標題',
     errorUploadFileFailed: '無法上傳檔案：{{filename}}',

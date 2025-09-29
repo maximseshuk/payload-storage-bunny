@@ -231,7 +231,7 @@ export type CollectionsConfig = Partial<
   >
 >
 
-export type BunnyStorageConfig = {
+type BunnyStorageBaseConfig = {
   /** Global admin thumbnail settings for all collections */
   adminThumbnail?: AdminThumbnailConfig | boolean
   /** Which collections should use Bunny Storage */
@@ -256,15 +256,26 @@ export type BunnyStorageConfig = {
   purge?: PurgeConfig
   /** Global signed URLs config (can be overridden per collection) */
   signedUrls?: boolean | SignedUrlsConfig
-  /** Bunny Storage configuration */
-  storage: StorageConfig
-  /** Bunny Stream configuration */
-  stream?: StreamConfig
   /**
    * Global URL transformation config for all collections (can be overridden per collection)
    * @note Does not work when `disablePayloadAccessControl` is true for the collection
    */
   urlTransform?: UrlTransformConfig
 }
+
+export type BunnyStorageConfig = (
+  | {
+    /** Bunny Storage configuration */
+    storage: StorageConfig
+    /** Bunny Stream configuration */
+    stream?: StreamConfig
+  }
+  | {
+    /** Bunny Storage configuration */
+    storage?: StorageConfig
+    /** Bunny Stream configuration */
+    stream: StreamConfig
+  }
+) & BunnyStorageBaseConfig
 
 export type BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => Plugin

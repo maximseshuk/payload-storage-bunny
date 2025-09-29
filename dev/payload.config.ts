@@ -66,9 +66,6 @@ export default buildConfig({
           signedUrls: {
             expiresIn: 3600,
           },
-          stream: {
-            thumbnailTime: 500,
-          },
           urlTransform: {
             transformUrl: ({ baseUrl, data }) => {
               const isVideo = typeof data?.mimeType === 'string' && data.mimeType.startsWith('video/')
@@ -95,7 +92,7 @@ export default buildConfig({
             },
           },
           stream: {
-            thumbnailTime: 1000,
+            thumbnailTime: 3000,
           },
         },
       },
@@ -131,7 +128,7 @@ export default buildConfig({
         hostname: process.env.BUNNY_STREAM_HOSTNAME || '',
         libraryId: parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || ''),
         mp4Fallback: true,
-        thumbnailTime: 500,
+        thumbnailTime: 0,
         tokenSecurityKey: process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY || '',
         tus: true,
       },

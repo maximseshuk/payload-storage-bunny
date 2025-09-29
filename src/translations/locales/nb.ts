@@ -33,6 +33,7 @@ export const nb: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Kunne ikke slette fil: {{filename}}',
     errorInternalServer: 'Noe gikk galt på vår side',
     errorMissingRequiredFields: 'Noe nødvendig informasjon mangler',
+    errorNoServiceConfigured: 'Ingen tjeneste konfigurert',
     errorStreamConfigMissing: 'Bunny Stream er ikke riktig konfigurert',
     errorTitleRequired: 'Vennligst skriv inn en tittel for videoen din',
     errorUploadFileFailed: 'Kunne ikke laste opp fil: {{filename}}',

@@ -73,6 +73,10 @@ export const getAdminThumbnail = (context: CollectionContext) => {
           return applyTransform(adminThumbnail, context, doc, sizeFilename, prefix, internalUrl)
         }
 
+        if (!storageConfig) {
+          return null
+        }
+
         const baseUrl = createBaseUrl(storageConfig.hostname, prefix, sizeFilename)
         const transformedUrl = applyTransform(adminThumbnail, context, doc, sizeFilename, prefix, baseUrl)
         return signUrl(
@@ -92,6 +96,10 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       if (context.usePayloadAccessControl) {
         const internalUrl = `/api/${collection.slug}/file/${filename}`
         return applyTransform(adminThumbnail, context, doc, filename, prefix, internalUrl)
+      }
+
+      if (!storageConfig) {
+        return null
       }
 
       const baseUrl = createBaseUrl(storageConfig.hostname, prefix, filename)

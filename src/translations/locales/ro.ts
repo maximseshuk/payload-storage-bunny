@@ -33,6 +33,7 @@ export const ro: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Nu s-a putut șterge fișierul: {{filename}}',
     errorInternalServer: 'Ceva a mers prost de partea noastră',
     errorMissingRequiredFields: 'Lipsesc unele informații necesare',
+    errorNoServiceConfigured: 'Nu este configurat niciun serviciu',
     errorStreamConfigMissing: 'Bunny Stream nu este configurat corect',
     errorTitleRequired: 'Te rog să introduci un titlu pentru videoclipul tău',
     errorUploadFileFailed: 'Nu s-a putut încărca fișierul: {{filename}}',

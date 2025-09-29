@@ -16,7 +16,7 @@ export type CollectionContext = {
   prefix?: string
   purgeConfig?: NormalizedPurgeConfig
   signedUrls?: NormalizedSignedUrlsConfig
-  storageConfig: NormalizedStorageConfig
+  storageConfig?: NormalizedStorageConfig
   streamConfig?: NormalizedStreamConfig
   urlTransform?: NormalizedUrlTransformConfig
   usePayloadAccessControl: boolean

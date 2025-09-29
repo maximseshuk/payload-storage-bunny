@@ -66,7 +66,7 @@ export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, '
   collections: Map<string, NormalizedCollectionConfig>
   purge?: NormalizedPurgeConfig
   signedUrls: false | NormalizedSignedUrlsConfig
-  storage: NormalizedStorageConfig
+  storage?: NormalizedStorageConfig
   stream?: NormalizedStreamConfig
   urlTransform: false | NormalizedUrlTransformConfig
 }

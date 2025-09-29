@@ -33,6 +33,7 @@ export const en: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Couldn\'t delete file: {{filename}}',
     errorInternalServer: 'Something went wrong on our end',
     errorMissingRequiredFields: 'Some required information is missing',
+    errorNoServiceConfigured: 'No service configured',
     errorStreamConfigMissing: 'Bunny Stream isn\'t configured properly',
     errorTitleRequired: 'Please enter a title for your video',
     errorUploadFileFailed: 'Couldn\'t upload file: {{filename}}',

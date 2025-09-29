@@ -33,6 +33,7 @@ export const hr: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Nije moguće obrisati datoteku: {{filename}}',
     errorInternalServer: 'Nešto je pošlo po zlu s naše strane',
     errorMissingRequiredFields: 'Nedostaju neke potrebne informacije',
+    errorNoServiceConfigured: 'Nijedna usluga nije konfigurirana',
     errorStreamConfigMissing: 'Bunny Stream nije ispravno konfiguriran',
     errorTitleRequired: 'Molimo unesite naslov za svoj video',
     errorUploadFileFailed: 'Nije moguće prenijeti datoteku: {{filename}}',

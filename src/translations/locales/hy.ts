@@ -33,6 +33,7 @@ export const hy: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Չհաջողվեց ջնջել ֆայլը՝ {{filename}}',
     errorInternalServer: 'Ինչ-որ բան սխալվեց մեր կողմից',
     errorMissingRequiredFields: 'Մի քանի անհրաժեշտ տվյալներ բացակայում են',
+    errorNoServiceConfigured: 'Ոչ մի ծառայություն կարգավորված չէ',
     errorStreamConfigMissing: 'Bunny Stream-ը ճիշտ կարգավորված չէ',
     errorTitleRequired: 'Խնդրում ենք մուտքագրել ձեր տեսանյութի վերնագիր',
     errorUploadFileFailed: 'Չհաջողվեց վերբեռնել ֆայլը՝ {{filename}}',

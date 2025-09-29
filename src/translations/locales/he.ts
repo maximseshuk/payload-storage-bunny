@@ -33,6 +33,7 @@ export const he: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'לא ניתן למחוק קובץ: {{filename}}',
     errorInternalServer: 'משהו השתבש בצד שלנו',
     errorMissingRequiredFields: 'חסר מידע נדרש',
+    errorNoServiceConfigured: 'לא הוגדר שירות',
     errorStreamConfigMissing: 'Bunny Stream לא מוגדר כראוי',
     errorTitleRequired: 'אנא הזן כותרת לסרטון שלך',
     errorUploadFileFailed: 'לא ניתן להעלות קובץ: {{filename}}',

@@ -5,6 +5,7 @@ import type { TFunction } from '@payloadcms/translations'
 import type { Endpoint } from 'payload'
 
 import { createStreamVideo, getStreamVideo } from '@/utils/client/index.js'
+import { createCollectionContext } from '@/utils/config/context.js'
 import {
   canUploadToVideo,
   createStreamVideoSession,
@@ -33,13 +34,13 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
 
         try {
           if (!stream.apiKey || !stream.libraryId) {
-            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorStreamConfigMissing'), 500)
+            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorStreamConfigMissing'), 500, undefined, true)
           }
 
           const body: StreamTusAuthRequest = req.json ? await req.json() : req.body
 
           if (!body.collection || !body.filename || !body.filetype || !body.filesize) {
-            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorMissingRequiredFields'), 400)
+            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorMissingRequiredFields'), 400, undefined, true)
           }
 
           let accessResult = true
@@ -64,6 +65,14 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 403, undefined, true)
           }
 
+          const collection = req.payload.collections[body.collection]?.config
+          if (!collection) {
+            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 404, undefined, true)
+          }
+
+          const collectionContext = createCollectionContext(config, collection)
+          const collectionStreamConfig = collectionContext.streamConfig || stream
+
           let videoId = body.videoId
           let videoData = null
 
@@ -79,7 +88,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                 return Response.json({
                   type: 'uploaded',
                   libraryId: stream.libraryId,
-                  thumbnailTime: stream.thumbnailTime,
+                  thumbnailTime: collectionStreamConfig.thumbnailTime,
                   title: videoData.title || body.filename,
                   videoId,
                 } as StreamTusAuthResponse)
@@ -100,8 +109,8 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             }
 
             const newVideo = await createStreamVideo({
-              streamConfig: stream,
-              thumbnailTime: body.thumbnailTime,
+              streamConfig: collectionStreamConfig,
+              thumbnailTime: collectionStreamConfig.thumbnailTime,
               title,
             })
 
@@ -129,7 +138,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             authorizationExpire: expirationTime,
             authorizationSignature: signature,
             libraryId: stream.libraryId,
-            thumbnailTime: stream.thumbnailTime,
+            thumbnailTime: collectionStreamConfig.thumbnailTime,
             videoId,
           } as StreamTusAuthResponse)
 

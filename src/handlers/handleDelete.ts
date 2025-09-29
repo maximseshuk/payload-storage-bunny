@@ -31,7 +31,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
 
       if (streamConfig && video) {
         await deleteStreamVideo({ streamConfig, videoId: video.videoId })
-      } else {
+      } else if (storageConfig) {
         const path = posix.join(doc.prefix || '', filename)
 
         await deleteStorageFile({
@@ -46,15 +46,20 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
             url: fileUrl,
           })
         }
+      } else {
+        req.payload.logger.debug({
+          action: 'No storage or stream config, skipping delete',
+          file: { name: filename },
+        })
       }
     } catch (err) {
       req.payload.logger.error({
         err,
         file: { name: filename },
-        storage: storageConfig.zoneName,
+        ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 
-      throw new APIError(reqT('@seshuk/payload-storage-bunny:errorDeleteFileFailed', { filename }), 500)
+      throw new APIError(reqT('@seshuk/payload-storage-bunny:errorDeleteFileFailed', { filename }), 500, undefined, true)
     }
   }
 }

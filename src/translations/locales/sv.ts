@@ -33,6 +33,7 @@ export const sv: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Kunde inte radera fil: {{filename}}',
     errorInternalServer: 'Något gick fel på vår sida',
     errorMissingRequiredFields: 'Viss nödvändig information saknas',
+    errorNoServiceConfigured: 'Ingen tjänst konfigurerad',
     errorStreamConfigMissing: 'Bunny Stream är inte korrekt konfigurerat',
     errorTitleRequired: 'Vänligen ange en titel för din video',
     errorUploadFileFailed: 'Kunde inte ladda upp fil: {{filename}}',

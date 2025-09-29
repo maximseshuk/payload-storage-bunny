@@ -33,6 +33,7 @@ export const bg: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Неуспешно изтриване на файл: {{filename}}',
     errorInternalServer: 'Възникна грешка от наша страна',
     errorMissingRequiredFields: 'Липсва задължителна информация',
+    errorNoServiceConfigured: 'Няма конфигурирана услуга',
     errorStreamConfigMissing: 'Bunny Stream не е конфигуриран правилно',
     errorTitleRequired: 'Моля, въведете заглавие за вашето видео',
     errorUploadFileFailed: 'Неуспешно качване на файл: {{filename}}',

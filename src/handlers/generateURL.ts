@@ -37,6 +37,10 @@ export const getGenerateURL = (context: CollectionContext): GenerateURL => {
       return streamUrl
     }
 
+    if (!storageConfig) {
+      return ''
+    }
+
     let baseUrl = `https://${storageConfig.hostname}/${encodeURI(posix.join(prefix, filename))}`
 
     if (urlTransform) {

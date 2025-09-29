@@ -129,21 +129,23 @@ export const Media: CollectionConfig = {
 > **Important**: When you use this plugin, `disableLocalStorage` is automatically set to `true` for each collection. Files won't be stored on your server.
 >
 > **Plugin Control**: Use `enabled: false` to disable the plugin entirely. When disabled, collections will fall back to Payload's default storage behavior.
+>
+> **Service Requirement**: You must configure at least one service - either `storage` (Bunny Storage) or `stream` (Bunny Stream). You can configure both for full functionality.
 
 Main plugin configuration options:
 
-| Option           | Type                | Required | Description                                  |
-| ---------------- | ------------------- | -------- | -------------------------------------------- |
-| `enabled`        | `boolean`           | ❌       | Enable or disable the plugin (default: true) |
-| `collections`    | `object`            | ✅       | Which collections should use Bunny Storage   |
-| `storage`        | `object`            | ✅       | Bunny Storage configuration                  |
-| `stream`         | `object`            | ❌       | Bunny Stream configuration (optional)        |
-| `purge`          | `object`            | ❌       | CDN cache purging configuration (optional)   |
-| `adminThumbnail` | `boolean \| object` | ❌       | Global admin thumbnail settings (optional)   |
-| `signedUrls`     | `boolean \| object` | ❌       | Global signed URLs configuration (optional)  |
-| `urlTransform`   | `object`            | ❌       | Global URL transformation config (optional)  |
-| `i18n`           | `object`            | ❌       | Internationalization settings (optional)     |
-| `experimental`   | `object`            | ❌       | Experimental features (optional)             |
+| Option           | Type                | Required | Description                                                     |
+| ---------------- | ------------------- | -------- | --------------------------------------------------------------- |
+| `enabled`        | `boolean`           | ❌       | Enable or disable the plugin (default: true)                    |
+| `collections`    | `object`            | ✅       | Which collections should use Bunny Storage                      |
+| `storage`        | `object`            | ⚠️       | Bunny Storage configuration (required if `stream` not provided) |
+| `stream`         | `object`            | ⚠️       | Bunny Stream configuration (required if `storage` not provided) |
+| `purge`          | `object`            | ❌       | CDN cache purging configuration (optional)                      |
+| `adminThumbnail` | `boolean \| object` | ❌       | Global admin thumbnail settings (optional)                      |
+| `signedUrls`     | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                     |
+| `urlTransform`   | `object`            | ❌       | Global URL transformation config (optional)                     |
+| `i18n`           | `object`            | ❌       | Internationalization settings (optional)                        |
+| `experimental`   | `object`            | ❌       | Experimental features (optional)                                |
 
 ### Collections Configuration
 
@@ -530,6 +532,8 @@ storage: {
 
 ## Basic Usage Example
 
+### Storage + Stream (Full Configuration)
+
 ```typescript
 import { buildConfig } from 'payload'
 import { bunnyStorage } from '@seshuk/payload-storage-bunny'
@@ -537,7 +541,6 @@ import { bunnyStorage } from '@seshuk/payload-storage-bunny'
 export default buildConfig({
   plugins: [
     bunnyStorage({
-      enabled: true, // Enable/disable the plugin (default: true)
       collections: {
         media: {
           prefix: 'media',
@@ -549,7 +552,6 @@ export default buildConfig({
         hostname: 'example.b-cdn.net',
         zoneName: 'your-storage-zone',
       },
-      // Optional: Enable video streaming
       stream: {
         apiKey: process.env.BUNNY_STREAM_API_KEY,
         hostname: 'vz-abc123def-456.b-cdn.net',
@@ -559,6 +561,46 @@ export default buildConfig({
       // Optional: Auto-purge CDN cache
       purge: {
         apiKey: process.env.BUNNY_API_KEY,
+      },
+    }),
+  ],
+})
+```
+
+### Storage Only (Files + Basic Videos)
+
+```typescript
+export default buildConfig({
+  plugins: [
+    bunnyStorage({
+      collections: {
+        media: { prefix: 'uploads', disablePayloadAccessControl: true },
+      },
+      storage: {
+        apiKey: process.env.BUNNY_STORAGE_API_KEY,
+        hostname: 'example.b-cdn.net',
+        zoneName: 'your-storage-zone',
+      },
+    }),
+  ],
+})
+```
+
+### Stream Only (Advanced Video Features)
+
+```typescript
+export default buildConfig({
+  plugins: [
+    bunnyStorage({
+      collections: {
+        videos: { prefix: 'videos' },
+      },
+      stream: {
+        apiKey: process.env.BUNNY_STREAM_API_KEY,
+        hostname: 'vz-abc123def-456.b-cdn.net',
+        libraryId: 123456,
+        mp4Fallback: true,
+        tus: true,
       },
     }),
   ],
