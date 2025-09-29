@@ -213,7 +213,7 @@ export const Upload: React.FC<UploadProps> = ({
           filetype: file.type,
           title: state.fileName || file.name,
           videoId: authData.videoId,
-          ...(authData.thumbnailTime && { thumbnailTime: authData.thumbnailTime.toString() }),
+          ...(typeof authData.thumbnailTime === 'number' && { thumbnailTime: authData.thumbnailTime.toString() }),
         },
         onError: (err) => {
           updateState({

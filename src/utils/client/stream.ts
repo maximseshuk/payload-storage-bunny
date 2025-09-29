@@ -67,11 +67,7 @@ export const createStreamVideo = async ({
   }
 
   const finalThumbnailTime = thumbnailTime ?? streamConfig.thumbnailTime
-  if (finalThumbnailTime && finalThumbnailTime > 0) {
-    data.thumbnailTime = finalThumbnailTime
-  } else {
-    data.thumbnailTime = null
-  }
+  data.thumbnailTime = typeof finalThumbnailTime === 'number' ? finalThumbnailTime : null
 
   try {
     const response = await kyClient.post(`${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos`, {
