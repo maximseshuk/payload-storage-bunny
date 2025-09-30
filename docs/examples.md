@@ -44,6 +44,7 @@ Automatically purge CDN cache when files are uploaded or deleted:
 
 ```typescript
 bunnyStorage({
+  apiKey: process.env.BUNNY_API_KEY, // Required for purge
   collections: {
     media: true,
   },
@@ -52,10 +53,12 @@ bunnyStorage({
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
-  purge: {
-    apiKey: process.env.BUNNY_API_KEY,
-    async: false, // Wait for purge to complete
-  },
+  purge: true, // Simple enable with defaults
+
+  // OR with custom settings
+  // purge: {
+  //   async: false, // Wait for purge to complete (default: false)
+  // },
 })
 ```
 
@@ -65,6 +68,7 @@ Configuration with Bunny Stream for direct CDN video delivery:
 
 ```typescript
 bunnyStorage({
+  apiKey: process.env.BUNNY_API_KEY, // For cache purging
   collections: {
     media: {
       prefix: 'uploads',
@@ -84,9 +88,7 @@ bunnyStorage({
     thumbnailTime: 5000, // 5 seconds in milliseconds
     tus: true, // Enable TUS resumable uploads
   },
-  purge: {
-    apiKey: process.env.BUNNY_API_KEY,
-  },
+  purge: true,
 })
 ```
 
@@ -96,6 +98,7 @@ Configuration with Payload access control and signed URLs:
 
 ```typescript
 bunnyStorage({
+  apiKey: process.env.BUNNY_API_KEY, // For cache purging
   collections: {
     media: {
       prefix: 'uploads',
@@ -132,9 +135,7 @@ bunnyStorage({
       },
     },
   },
-  purge: {
-    apiKey: process.env.BUNNY_API_KEY,
-  },
+  purge: true,
 })
 ```
 
@@ -307,6 +308,7 @@ Configuration with different settings for multiple collections:
 
 ```typescript
 bunnyStorage({
+  apiKey: process.env.BUNNY_API_KEY, // For cache purging
   collections: {
     // Public media with direct CDN access
     media: {
@@ -327,6 +329,7 @@ bunnyStorage({
           useRedirect: false, // Proxy through Payload
         },
       },
+      purge: false, // Disable cache purging for this collection
     },
 
     // Videos with streaming
@@ -335,6 +338,9 @@ bunnyStorage({
       disablePayloadAccessControl: true,
       stream: {
         thumbnailTime: 3000, // 3 seconds
+        tus: {
+          uploadTimeout: 7200, // Override: 2 hours for large videos
+        },
       },
     },
 
@@ -347,6 +353,9 @@ bunnyStorage({
           height: '150',
           quality: '90',
         },
+      },
+      purge: {
+        async: true, // Override: don't wait for purge completion
       },
     },
   },
@@ -367,9 +376,7 @@ bunnyStorage({
       maxAge: 172800, // 48 hours
     },
   },
-  purge: {
-    apiKey: process.env.BUNNY_API_KEY,
-  },
+  purge: true,
   thumbnail: {
     appendTimestamp: true, // Global default
   },

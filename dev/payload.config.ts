@@ -51,10 +51,14 @@ export default buildConfig({
   },
   plugins: [
     bunnyStorage({
+      apiKey: process.env.BUNNY_API_KEY || '',
       collections: {
         media: {
           disablePayloadAccessControl: true,
           prefix: 'media',
+          purge: {
+            async: false,
+          },
           signedUrls: {
             expiresIn: 3600,
           },
@@ -98,10 +102,7 @@ export default buildConfig({
           },
         },
       },
-      purge: {
-        apiKey: process.env.BUNNY_API_KEY || '',
-        async: true,
-      },
+      purge: true,
       signedUrls: true,
       storage: {
         apiKey: process.env.BUNNY_STORAGE_API_KEY || '',

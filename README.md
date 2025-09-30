@@ -31,14 +31,15 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
 
 ## Features
 
-- Upload files to Bunny Storage
-- Handle videos with Bunny Stream (HLS, MP4, thumbnails)
-- TUS resumable uploads for large video files
-- Show thumbnails in admin panel
-- Signed URLs for secure file access
-- Custom URL transformations
-- Control file access with Payload rules or direct CDN links
-- Automatic CDN cache purging when files change
+- **Bunny Storage** - Upload files, images, and documents to Bunny's global CDN
+- **Bunny Stream** - Handle videos with HLS/MP4 streaming, adaptive bitrates, and thumbnails
+- **TUS Resumable Uploads** - Reliable uploads for large video files with auto-resume on interruption
+- **Thumbnail Generation** - Automatic thumbnails for admin panel and API responses with customizable transformations
+- **Signed URLs** - Secure file access with time limits and geo-restrictions
+- **Custom URL Transformations** - Apply query parameters or custom logic to file URLs
+- **Access Control** - Use Payload's access rules or direct CDN delivery
+- **Automatic CDN Cache Purging** - Invalidate cache on file upload/delete for instant updates
+- **Per-Collection Configuration** - Override global settings for specific collections
 
 > [!TIP]
 > **⚡ Performance**: Set `disablePayloadAccessControl: true` for best performance. This lets users download files directly from Bunny's CDN servers instead of through your Payload server, making content delivery much faster.
@@ -137,10 +138,11 @@ Main plugin configuration options:
 | Option         | Type                | Required | Description                                                     |
 | -------------- | ------------------- | -------- | --------------------------------------------------------------- |
 | `enabled`      | `boolean`           | ❌       | Enable or disable the plugin (default: true)                    |
+| `apiKey`       | `string`            | ⚠️       | Bunny Account API key (required for `purge` feature)            |
 | `collections`  | `object`            | ✅       | Which collections should use Bunny Storage                      |
 | `storage`      | `object`            | ⚠️       | Bunny Storage configuration (required if `stream` not provided) |
 | `stream`       | `object`            | ⚠️       | Bunny Stream configuration (required if `storage` not provided) |
-| `purge`        | `object`            | ❌       | CDN cache purging configuration (optional)                      |
+| `purge`        | `boolean \| object` | ❌       | CDN cache purging configuration (optional)                      |
 | `thumbnail`    | `boolean \| object` | ❌       | Global thumbnail settings (optional)                            |
 | `signedUrls`   | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                     |
 | `urlTransform` | `object`            | ❌       | Global URL transformation config (optional)                     |
@@ -157,17 +159,33 @@ Define which collections will use Bunny Storage:
 | `prefix`                      | `string`            | Collection slug | Folder prefix within Bunny Storage                           |
 | `disablePayloadAccessControl` | `boolean`           | `false`         | Use direct CDN access (bypasses Payload auth)                |
 | `purge`                       | `boolean \| object` | Global setting  | Override global cache purging config (false to disable)      |
+| `storage.uploadTimeout`       | `number`            | Global setting  | Override storage upload timeout in milliseconds              |
+| `stream.mp4Fallback`          | `boolean`           | Global setting  | Override MP4 fallback setting for videos                     |
+| `stream.thumbnailTime`        | `number`            | Global setting  | Override default thumbnail time for videos (in milliseconds) |
+| `stream.tus.uploadTimeout`    | `number`            | Global setting  | Override TUS upload timeout in seconds                       |
+| `stream.uploadTimeout`        | `number`            | Global setting  | Override stream upload timeout in milliseconds               |
 | `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                             |
 | `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                           |
 | `urlTransform`                | `object`            | Global setting  | Override global URL transform config                         |
-| `stream.thumbnailTime`        | `number`            | Global setting  | Override default thumbnail time for videos (in milliseconds) |
 
 **Simple usage:**
 
 ```typescript
 collections: {
   media: true, // Enable with defaults
-  videos: { prefix: 'video-uploads', disablePayloadAccessControl: true }
+  videos: {
+    prefix: 'video-uploads',
+    disablePayloadAccessControl: true
+  },
+  largeVideos: {
+    prefix: 'large-videos',
+    stream: {
+      mp4Fallback: true,
+      tus: {
+        uploadTimeout: 7200 // 2 hours for large files
+      }
+    }
+  }
 }
 ```
 
@@ -234,10 +252,12 @@ Optional settings for video handling:
 
 Enable automatic CDN cache purging for storage files (not applicable to Stream):
 
-| Option   | Type      | Required | Description                                 |
-| -------- | --------- | -------- | ------------------------------------------- |
-| `apiKey` | `string`  | ✅       | Your Bunny API key for purging operations   |
-| `async`  | `boolean` | ❌       | Wait for purge to complete (default: false) |
+| Option  | Type      | Required | Description                                 |
+| ------- | --------- | -------- | ------------------------------------------- |
+| `async` | `boolean` | ❌       | Wait for purge to complete (default: false) |
+
+> [!IMPORTANT]
+> Cache purging requires a global `apiKey` to be configured at the plugin level. See [Bunny API Key](#bunny-api-key) section for setup instructions.
 
 When enabled, the plugin automatically purges CDN cache after:
 
@@ -245,6 +265,16 @@ When enabled, the plugin automatically purges CDN cache after:
 - File deletions
 
 This ensures visitors always see the most up-to-date files, especially important when replacing existing files (like during image cropping).
+
+**Simple enable:** `purge: true` (uses default settings)
+
+**Detailed configuration:** Provide an object to customize behavior:
+
+```typescript
+purge: {
+  async: true // Don't wait for purge to complete
+}
+```
 
 ### Thumbnail Configuration
 
@@ -416,8 +446,12 @@ There are two approaches to managing CDN cache for your Bunny Storage files:
 Enable automatic cache purging when files are uploaded or deleted:
 
 ```typescript
+// At plugin level
+apiKey: process.env.BUNNY_API_KEY, // Required for purge
+purge: true, // Simple enable with defaults
+
+// OR with custom settings
 purge: {
-  apiKey: process.env.BUNNY_API_KEY,
   async: false // Wait for purge to complete (default: false)
 }
 ```
@@ -500,7 +534,7 @@ To get your Bunny Stream API key:
 
 ### Bunny API Key
 
-To get your Bunny API key (used for cache purging):
+To get your Bunny API key:
 
 1. Go to your **Bunny.net** dashboard
 2. Click on your **account** in the top-right corner
@@ -579,6 +613,8 @@ import { bunnyStorage } from '@seshuk/payload-storage-bunny'
 export default buildConfig({
   plugins: [
     bunnyStorage({
+      // Bunny Account API key for account-level operations
+      apiKey: process.env.BUNNY_API_KEY,
       collections: {
         media: {
           prefix: 'media',
@@ -596,10 +632,8 @@ export default buildConfig({
         libraryId: 123456,
         tus: true, // Enable resumable uploads
       },
-      // Optional: Auto-purge CDN cache
-      purge: {
-        apiKey: process.env.BUNNY_API_KEY,
-      },
+      // Optional: Auto-purge CDN cache (requires apiKey)
+      purge: true,
     }),
   ],
 })

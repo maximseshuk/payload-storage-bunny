@@ -1,9 +1,7 @@
 import type { TaskConfig } from 'payload'
 
 import type {
-  BunnyStorageCollectionConfig,
   BunnyStorageConfig,
-  PurgeConfig,
   SignedUrlsConfig,
   StorageConfig,
   StreamConfig,
@@ -50,24 +48,27 @@ export type NormalizedThumbnailConfig = {
 
 export type NormalizedPurgeConfig = {
   async: boolean
-} & PurgeConfig
+}
 
-export interface NormalizedCollectionConfig extends Pick<BunnyStorageCollectionConfig, 'stream'> {
+export interface NormalizedCollectionConfig {
   disablePayloadAccessControl: boolean
   prefix: string
-  purge: false | NormalizedPurgeConfig
-  signedUrls: false | NormalizedSignedUrlsConfig
-  thumbnail: false | NormalizedThumbnailConfig
-  urlTransform: false | NormalizedUrlTransformConfig
+  purge?: NormalizedPurgeConfig
+  signedUrls?: NormalizedSignedUrlsConfig
+  storage?: NormalizedStorageConfig
+  stream?: NormalizedStreamConfig
+  thumbnail?: NormalizedThumbnailConfig
+  urlTransform?: NormalizedUrlTransformConfig
 }
 
 export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, 'i18n'> {
   _original: BunnyStorageConfig
+  apiKey?: string
   collections: Map<string, NormalizedCollectionConfig>
   purge?: NormalizedPurgeConfig
-  signedUrls: false | NormalizedSignedUrlsConfig
+  signedUrls?: NormalizedSignedUrlsConfig
   storage?: NormalizedStorageConfig
   stream?: NormalizedStreamConfig
-  thumbnail: false | NormalizedThumbnailConfig
-  urlTransform: false | NormalizedUrlTransformConfig
+  thumbnail?: NormalizedThumbnailConfig
+  urlTransform?: NormalizedUrlTransformConfig
 }

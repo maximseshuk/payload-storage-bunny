@@ -11,7 +11,7 @@ import { APIError } from 'payload'
 import { getGenerateURL } from './generateURL.js'
 
 export const getHandleDelete = (context: CollectionContext): HandleDelete => {
-  const { purgeConfig, storageConfig, streamConfig } = context
+  const { apiKey, purgeConfig, storageConfig, streamConfig } = context
 
   return async ({ collection, doc, filename, req }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
@@ -39,8 +39,8 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
           storageConfig,
         })
 
-        if (purgeConfig && fileUrl) {
-          await purgeCache({ purgeConfig, url: fileUrl })
+        if (purgeConfig && apiKey && fileUrl) {
+          await purgeCache({ apiKey, purgeConfig, url: fileUrl })
           req.payload.logger.debug({
             action: 'Cache purged after delete',
             url: fileUrl,

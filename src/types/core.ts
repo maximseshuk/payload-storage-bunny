@@ -10,6 +10,7 @@ import type {
 } from './configNormalized.js'
 
 export type CollectionContext = {
+  apiKey?: string
   collection: CollectionConfig
   isTusUploadSupported: boolean
   prefix?: string

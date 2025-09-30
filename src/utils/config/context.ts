@@ -1,4 +1,4 @@
-import type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig, NormalizedStreamConfig } from '@/types/configNormalized.js'
+import type { NormalizedBunnyStorageConfig, NormalizedStreamConfig } from '@/types/configNormalized.js'
 import type { BunnyStorageConfig, CollectionContext } from '@/types/index.js'
 import type { CollectionConfig } from 'payload'
 
@@ -32,18 +32,19 @@ export const createCollectionContext = (
     return createDefaultContext(config, collection, prefixOverride)
   }
 
-  const streamConfig = prepareStreamConfig(config, collection, collectionConfig)
+  const streamConfig = applyStreamConfig(collectionConfig.stream, collection)
 
   return {
+    apiKey: config.apiKey,
     collection,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? collectionConfig.prefix,
-    purgeConfig: collectionConfig.purge === false ? undefined : collectionConfig.purge,
-    signedUrls: collectionConfig.signedUrls || undefined,
-    storageConfig: config.storage || undefined,
-    streamConfig: prepareStreamConfig(config, collection, collectionConfig),
-    thumbnail: collectionConfig.thumbnail === false ? undefined : collectionConfig.thumbnail,
-    urlTransform: collectionConfig.urlTransform || undefined,
+    purgeConfig: collectionConfig.purge,
+    signedUrls: collectionConfig.signedUrls,
+    storageConfig: collectionConfig.storage,
+    streamConfig,
+    thumbnail: collectionConfig.thumbnail,
+    urlTransform: collectionConfig.urlTransform,
     usePayloadAccessControl: !collectionConfig.disablePayloadAccessControl,
   }
 }
@@ -53,50 +54,48 @@ const createDefaultContext = (
   collection: CollectionConfig,
   prefixOverride?: string,
 ): CollectionContext => {
+  const streamConfig = applyStreamConfig(config.stream, collection)
+
   return {
+    apiKey: config.apiKey,
     collection,
-    isTusUploadSupported: !!config.stream?.tus && !!collection.upload,
+    isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? '',
     purgeConfig: config.purge,
-    signedUrls: config.signedUrls || undefined,
-    storageConfig: config.storage || undefined,
-    streamConfig: config.stream,
-    thumbnail: config.thumbnail === false ? undefined : config.thumbnail,
-    urlTransform: config.urlTransform || undefined,
+    signedUrls: config.signedUrls,
+    storageConfig: config.storage,
+    streamConfig,
+    thumbnail: config.thumbnail,
+    urlTransform: config.urlTransform,
     usePayloadAccessControl: true,
   }
 }
 
-const prepareStreamConfig = (
-  config: NormalizedBunnyStorageConfig,
+const applyStreamConfig = (
+  streamConfig: NormalizedStreamConfig | undefined,
   collection: CollectionConfig,
-  collectionConfig: NormalizedCollectionConfig,
 ): NormalizedStreamConfig | undefined => {
-  if (!config.stream) {
-    return undefined
+  if (!streamConfig?.tus || typeof collection.upload !== 'object' || !collection.upload.mimeTypes) {
+    return streamConfig
   }
 
-  const streamConfig = { ...config.stream }
+  const filtered = intersectMimeTypes(
+    collection.upload.mimeTypes,
+    streamConfig.tus.mimeTypes,
+  )
 
-  if (collectionConfig.stream?.thumbnailTime !== undefined) {
-    streamConfig.thumbnailTime = collectionConfig.stream.thumbnailTime
-  }
-
-  if (streamConfig.tus && typeof collection.upload === 'object' && collection.upload.mimeTypes) {
-    const filtered = intersectMimeTypes(
-      collection.upload.mimeTypes,
-      streamConfig.tus.mimeTypes,
-    )
-
-    if (filtered?.length) {
-      streamConfig.tus = {
+  if (filtered?.length) {
+    return {
+      ...streamConfig,
+      tus: {
         ...streamConfig.tus,
         mimeTypes: filtered,
-      }
-    } else {
-      streamConfig.tus = undefined
+      },
     }
   }
 
-  return streamConfig
+  return {
+    ...streamConfig,
+    tus: undefined,
+  }
 }

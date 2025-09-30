@@ -7,6 +7,14 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     errors.push('either `storage` or `stream` configuration must be provided')
   }
 
+  const purge = config._original.purge
+  if (purge) {
+    const purgeApiKey = typeof purge === 'object' ? purge.apiKey : undefined
+    if (!config.apiKey && !purgeApiKey) {
+      errors.push('`purge` requires global `apiKey` to be provided')
+    }
+  }
+
   if (config.storage) {
     if (config.storage.hostname.includes('storage.bunnycdn.com')) {
       errors.push('storage `hostname` cannot include "storage.bunnycdn.com"')
@@ -29,18 +37,15 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
         continue
       }
 
+      const effectiveMp4Fallback = collection.stream?.mp4Fallback ?? config.stream.mp4Fallback
+
       const hasSignedUrlsWithRedirect =
         collection.signedUrls &&
         collection.signedUrls.staticHandler?.useRedirect === true
 
-      const hasGlobalSignedUrlsWithRedirect =
-        config.signedUrls &&
-        config.signedUrls.staticHandler?.useRedirect === true
-
       const hasValidAlternative =
-        config.stream.mp4Fallback ||
-        hasSignedUrlsWithRedirect ||
-        hasGlobalSignedUrlsWithRedirect
+        effectiveMp4Fallback ||
+        hasSignedUrlsWithRedirect
 
       if (!hasValidAlternative) {
         collectionsWithIssues.push(slug)

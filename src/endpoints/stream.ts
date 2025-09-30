@@ -125,7 +125,8 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             videoId = newVideo.guid
           }
 
-          const expirationTime = Math.floor(Date.now() / 1000) + stream.tus.uploadTimeout
+          const tusUploadTimeout = collectionStreamConfig.tus?.uploadTimeout ?? stream.tus.uploadTimeout
+          const expirationTime = Math.floor(Date.now() / 1000) + tusUploadTimeout
           const signature = generateStreamTusUploadSignature({
             apiKey: stream.apiKey,
             expirationTime,

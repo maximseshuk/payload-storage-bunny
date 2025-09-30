@@ -45,8 +45,11 @@ export type ThumbnailConfig = {
 } & UrlTransformConfig
 
 export type PurgeConfig = {
-  /** Bunny API key for CDN cache purging operations */
-  apiKey: string
+  /**
+   * @deprecated Use global `apiKey` instead. This option will be removed in v2.3.0.
+   * Bunny Account API key (AccessKey) for CDN cache purging operations. If not specified, uses the global apiKey.
+   */
+  apiKey?: string
   /**
    * Wait for purge to complete before continuing
    * @default false
@@ -214,17 +217,41 @@ export type BunnyStorageCollectionConfig = {
    * Override global CDN cache purging config for this collection.
    * Set to false to disable cache purging for this collection.
    */
-  purge?: boolean | PurgeConfig
+  purge?: boolean | Partial<PurgeConfig>
   /** Override global signed URLs config for this collection */
   signedUrls?: boolean | SignedUrlsConfig
+  /** Storage settings for this collection */
+  storage?: {
+    /**
+     * Override upload timeout in milliseconds for this collection
+     */
+    uploadTimeout?: number
+  }
   /** Stream settings for this collection */
   stream?: {
+    /**
+     * Override MP4 fallback setting for this collection
+     */
+    mp4Fallback?: boolean
     /**
      * Override default thumbnail time in milliseconds for Bunny Stream videos.
      * Specifies which moment in the video to capture as thumbnail.
      * Use with thumbnail: true to display the thumbnail in admin and API responses.
      */
     thumbnailTime?: number
+    /**
+     * Override TUS resumable uploads config for this collection
+     */
+    tus?: {
+      /**
+       * Override TUS upload timeout in seconds for this collection
+       */
+      uploadTimeout?: number
+    }
+    /**
+     * Override upload timeout in milliseconds for this collection
+     */
+    uploadTimeout?: number
   }
   /**
    * Enable thumbnail display in admin panel and thumbnailURL field in API responses.
@@ -254,6 +281,11 @@ export type CollectionsConfig = Partial<
 type BunnyStorageBaseConfig = {
   /** @deprecated Use thumbnail instead. Will be removed in v2.2.0 */
   adminThumbnail?: boolean | ThumbnailConfig
+  /**
+   * Bunny Account API key (AccessKey) for account-level operations.
+   * Required for CDN cache purging feature.
+   */
+  apiKey?: string
   /** Which collections should use Bunny Storage */
   collections: CollectionsConfig
   /**
@@ -273,7 +305,7 @@ type BunnyStorageBaseConfig = {
     }
   }
   /** CDN cache purging configuration */
-  purge?: PurgeConfig
+  purge?: boolean | PurgeConfig
   /** Global signed URLs config (can be overridden per collection) */
   signedUrls?: boolean | SignedUrlsConfig
   /**
