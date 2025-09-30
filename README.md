@@ -153,20 +153,22 @@ Main plugin configuration options:
 
 Define which collections will use Bunny Storage:
 
-| Option                        | Type                | Default         | Description                                                  |
-| ----------------------------- | ------------------- | --------------- | ------------------------------------------------------------ |
-| `[collectionSlug]`            | `boolean \| object` | -               | Enable Bunny Storage for collection (true) or with options   |
-| `prefix`                      | `string`            | Collection slug | Folder prefix within Bunny Storage                           |
-| `disablePayloadAccessControl` | `boolean`           | `false`         | Use direct CDN access (bypasses Payload auth)                |
-| `purge`                       | `boolean \| object` | Global setting  | Override global cache purging config (false to disable)      |
-| `storage.uploadTimeout`       | `number`            | Global setting  | Override storage upload timeout in milliseconds              |
-| `stream.mp4Fallback`          | `boolean`           | Global setting  | Override MP4 fallback setting for videos                     |
-| `stream.thumbnailTime`        | `number`            | Global setting  | Override default thumbnail time for videos (in milliseconds) |
-| `stream.tus.uploadTimeout`    | `number`            | Global setting  | Override TUS upload timeout in seconds                       |
-| `stream.uploadTimeout`        | `number`            | Global setting  | Override stream upload timeout in milliseconds               |
-| `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                             |
-| `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                           |
-| `urlTransform`                | `object`            | Global setting  | Override global URL transform config                         |
+| Option                        | Type                | Default         | Description                                                      |
+| ----------------------------- | ------------------- | --------------- | ---------------------------------------------------------------- |
+| `[collectionSlug]`            | `boolean \| object` | -               | Enable Bunny Storage for collection (true) or with options       |
+| `prefix`                      | `string`            | Collection slug | Folder prefix within Bunny Storage                               |
+| `disablePayloadAccessControl` | `boolean`           | `false`         | Use direct CDN access (bypasses Payload auth)                    |
+| `purge`                       | `boolean \| object` | Global setting  | Override global cache purging config (false to disable)          |
+| `storage`                     | `false \| object`   | Global setting  | Disable storage for this collection (false) or override settings |
+| `storage.uploadTimeout`       | `number`            | Global setting  | Override storage upload timeout in milliseconds                  |
+| `stream`                      | `false \| object`   | Global setting  | Disable stream for this collection (false) or override settings  |
+| `stream.mp4Fallback`          | `boolean`           | Global setting  | Override MP4 fallback setting for videos                         |
+| `stream.thumbnailTime`        | `number`            | Global setting  | Override default thumbnail time for videos (in milliseconds)     |
+| `stream.tus.uploadTimeout`    | `number`            | Global setting  | Override TUS upload timeout in seconds                           |
+| `stream.uploadTimeout`        | `number`            | Global setting  | Override stream upload timeout in milliseconds                   |
+| `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                                 |
+| `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                               |
+| `urlTransform`                | `object`            | Global setting  | Override global URL transform config                             |
 
 **Simple usage:**
 
@@ -188,6 +190,24 @@ collections: {
   }
 }
 ```
+
+**Disable specific services per collection:**
+
+```typescript
+collections: {
+  // Only use Bunny Storage (disable stream for this collection)
+  images: {
+    stream: false // Videos won't be uploaded to Bunny Stream
+  },
+  // Only use Bunny Stream (disable storage for this collection)
+  videos: {
+    storage: false // Only video files will be uploaded to Bunny Stream, others will fail
+  },
+}
+```
+
+> [!NOTE]
+> At least one service (storage or stream) must be enabled per collection. You cannot disable both.
 
 The `prefix` option organizes files in folders within your Bunny Storage. For example, `prefix: 'images'` stores uploads in an "images" folder.
 

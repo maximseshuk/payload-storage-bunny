@@ -220,14 +220,22 @@ export type BunnyStorageCollectionConfig = {
   purge?: boolean | Partial<PurgeConfig>
   /** Override global signed URLs config for this collection */
   signedUrls?: boolean | SignedUrlsConfig
-  /** Storage settings for this collection */
+  /**
+   * Storage settings for this collection.
+   * Set to false to disable Bunny Storage uploads for this collection.
+   * When disabled, only stream can be used.
+   */
   storage?: {
     /**
      * Override upload timeout in milliseconds for this collection
      */
     uploadTimeout?: number
-  }
-  /** Stream settings for this collection */
+  } | false
+  /**
+   * Stream settings for this collection.
+   * Set to false to disable Bunny Stream uploads for this collection.
+   * When disabled, only storage can be used.
+   */
   stream?: {
     /**
      * Override MP4 fallback setting for this collection
@@ -252,7 +260,7 @@ export type BunnyStorageCollectionConfig = {
      * Override upload timeout in milliseconds for this collection
      */
     uploadTimeout?: number
-  }
+  } | false
   /**
    * Enable thumbnail display in admin panel and thumbnailURL field in API responses.
    *

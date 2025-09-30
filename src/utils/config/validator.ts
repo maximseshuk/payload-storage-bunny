@@ -7,6 +7,19 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     errors.push('either `storage` or `stream` configuration must be provided')
   }
 
+  const collectionsWithoutService: string[] = []
+  for (const [slug, collection] of config.collections) {
+    if (!collection.storage && !collection.stream) {
+      collectionsWithoutService.push(slug)
+    }
+  }
+
+  if (collectionsWithoutService.length > 0) {
+    errors.push(
+      `collections [${collectionsWithoutService.join(', ')}] must have at least one service enabled (storage or stream). `,
+    )
+  }
+
   const purge = config._original.purge
   if (purge) {
     const purgeApiKey = typeof purge === 'object' ? purge.apiKey : undefined

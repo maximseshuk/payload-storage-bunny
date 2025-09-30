@@ -250,6 +250,10 @@ const resolveCollectionStorageConfig = (
   collectionOverride: BunnyStorageCollectionConfig['storage'],
   globalStorage: NormalizedStorageConfig | undefined,
 ): NormalizedStorageConfig | undefined => {
+  if (collectionOverride === false) {
+    return undefined
+  }
+
   if (!globalStorage) {
     return undefined
   }
@@ -271,6 +275,10 @@ const resolveCollectionStreamConfig = (
   collectionOverride: BunnyStorageCollectionConfig['stream'],
   globalStream: NormalizedStreamConfig | undefined,
 ): NormalizedStreamConfig | undefined => {
+  if (collectionOverride === false) {
+    return undefined
+  }
+
   if (!globalStream) {
     return undefined
   }

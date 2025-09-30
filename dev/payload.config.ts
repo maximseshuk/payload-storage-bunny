@@ -62,6 +62,7 @@ export default buildConfig({
           signedUrls: {
             expiresIn: 3600,
           },
+          stream: false,
           thumbnail: false,
           urlTransform: {
             transformUrl: ({ baseUrl, data }) => {
