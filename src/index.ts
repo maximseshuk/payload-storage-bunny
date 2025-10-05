@@ -89,6 +89,7 @@ export const bunnyStorage: BunnyStoragePlugin =
                 } : {}),
               },
               hooks: {
+                ...(collection.hooks || {}),
                 afterChange: [
                   ...(collection.hooks?.afterChange || []),
                   getAfterChangeHook(collectionContext),
