@@ -11,7 +11,7 @@ export const Users: CollectionConfig = {
       name: 'avatar',
       type: 'upload',
       hasMany: false,
-      relationTo: 'media',
+      relationTo: 'mediaBasic',
     },
   ],
 }

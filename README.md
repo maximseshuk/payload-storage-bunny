@@ -22,6 +22,7 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
   - [Signed URLs](#signed-urls-configuration)
   - [URL Transform](#url-transform-configuration)
   - [TUS Uploads](#tus-uploads-configuration)
+  - [Media Preview](#media-preview)
   - [Access Control](#access-control-configuration)
 - [CDN Cache Management](#cdn-cache-management)
 - [Getting API Keys](#getting-api-keys)
@@ -146,6 +147,7 @@ Main plugin configuration options:
 | `thumbnail`    | `boolean \| object` | ❌       | Global thumbnail settings (optional)                            |
 | `signedUrls`   | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                     |
 | `urlTransform` | `object`            | ❌       | Global URL transformation config (optional)                     |
+| `mediaPreview` | `boolean \| object` | ❌       | Global media preview settings for all collections (optional)    |
 | `i18n`         | `object`            | ❌       | Internationalization settings (optional)                        |
 | `experimental` | `object`            | ❌       | Experimental features (optional)                                |
 
@@ -169,8 +171,11 @@ Define which collections will use Bunny Storage:
 | `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                                 |
 | `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                               |
 | `urlTransform`                | `object`            | Global setting  | Override global URL transform config                             |
+| `mediaPreview`                | `boolean \| object` | Global setting  | Override global media preview config (false to disable)          |
 
-**Simple usage:**
+**Examples:**
+
+Simple usage:
 
 ```typescript
 collections: {
@@ -191,7 +196,7 @@ collections: {
 }
 ```
 
-**Disable specific services per collection:**
+Disable specific services per collection:
 
 ```typescript
 collections: {
@@ -240,10 +245,10 @@ Optional settings for video handling:
 | `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds (specifies moment in video to capture)              |
 | `tokenSecurityKey` | `string`            | ❌       | Security key for signing stream URLs                                                       |
 | `uploadTimeout`    | `number`            | ❌       | Upload timeout in milliseconds (default: 300000)                                           |
-| `tus`              | `boolean \| object` | ❌       | Enable TUS resumable uploads (see TUS config below)                                        |
-| `cleanup`          | `boolean \| object` | ❌       | Automatic cleanup of incomplete uploads (requires Jobs Queue setup)                        |
+| `tus`              | `boolean \| object` | ❌       | Enable TUS resumable uploads (see options below)                                           |
+| `cleanup`          | `boolean \| object` | ❌       | Automatic cleanup of incomplete uploads (requires Jobs Queue setup, see options below)     |
 
-#### TUS Upload Configuration
+**TUS upload options:**
 
 | Option          | Type       | Default           | Description                              |
 | --------------- | ---------- | ----------------- | ---------------------------------------- |
@@ -252,7 +257,7 @@ Optional settings for video handling:
 | `mimeTypes`     | `string[]` | Video/audio types | Supported MIME types for TUS uploads     |
 | `uploadTimeout` | `number`   | `3600`            | Upload timeout in seconds                |
 
-#### Cleanup Configuration
+**Cleanup options:**
 
 | Option     | Type     | Default                                         | Description                                                        |
 | ---------- | -------- | ----------------------------------------------- | ------------------------------------------------------------------ |
@@ -270,7 +275,13 @@ Optional settings for video handling:
 
 ### Cache Purging Configuration
 
-Enable automatic CDN cache purging for storage files (not applicable to Stream):
+Enable automatic CDN cache purging for storage files (not applicable to Stream).
+
+**Configuration options:**
+
+- `purge: true` - Enable with default settings
+- `purge: false` - Disable cache purging
+- `purge: { ... }` - Enable with custom settings (see options below)
 
 | Option  | Type      | Required | Description                                 |
 | ------- | --------- | -------- | ------------------------------------------- |
@@ -286,11 +297,16 @@ When enabled, the plugin automatically purges CDN cache after:
 
 This ensures visitors always see the most up-to-date files, especially important when replacing existing files (like during image cropping).
 
-**Simple enable:** `purge: true` (uses default settings)
-
-**Detailed configuration:** Provide an object to customize behavior:
+**Examples:**
 
 ```typescript
+// Simple enable with defaults
+purge: true
+
+// Disable
+purge: false
+
+// Custom configuration
 purge: {
   async: true // Don't wait for purge to complete
 }
@@ -309,34 +325,43 @@ Use `thumbnail: true` to enable with defaults, `thumbnail: false` to disable, or
 > [!NOTE]
 > This configures Payload's `upload.adminThumbnail` function which populates the `thumbnailURL` field in API responses.
 
-| Option            | Type      | Default | Description                                                               |
-| ----------------- | --------- | ------- | ------------------------------------------------------------------------- |
-| `appendTimestamp` | `boolean` | `false` | Add timestamp to bust cache                                               |
-| `queryParams`     | `object`  | `{}`    | Custom query parameters appended to URLs (optimized for Bunny Optimizer)  |
-| `sizeName`        | `string`  | -       | Use specific size from upload collection's sizes instead of original file |
+| Option            | Type      | Default | Description                                                                     |
+| ----------------- | --------- | ------- | ------------------------------------------------------------------------------- |
+| `appendTimestamp` | `boolean` | `false` | Add timestamp to bust cache                                                     |
+| `streamAnimated`  | `boolean` | `false` | Use animated preview (WebP) instead of static thumbnail for Bunny Stream videos |
+| `queryParams`     | `object`  | `{}`    | Custom query parameters appended to URLs (optimized for Bunny Optimizer)        |
+| `sizeName`        | `string`  | -       | Use specific size from upload collection's sizes instead of original file       |
 
-**Example queryParams:**
+**Examples:**
 
 ```typescript
-queryParams: {
-  width: '300',
-  height: '300',
-  quality: '90'
+// Enable animated preview for Bunny Stream videos
+thumbnail: {
+  streamAnimated: true,
+  appendTimestamp: true
 }
-```
 
-When `appendTimestamp` is enabled, the plugin automatically adds a timestamp parameter to image URLs in the admin panel and API responses. This ensures updated files show the latest version without browser caching issues. Additionally, when `appendTimestamp` is enabled, Payload's cache tags are automatically disabled for thumbnails to prevent caching conflicts.
+// Custom query parameters for image optimization
+thumbnail: {
+  queryParams: {
+    width: '300',
+    height: '300',
+    quality: '90'
+  }
+}
 
-The `queryParams` option adds custom query parameters to URLs. It works great with Bunny's Image Optimizer service for resizing, cropping, and optimizing images on-the-fly, but you can add any query parameters you need.
-
-**Example using sizeName with upload collection sizes:**
-
-```typescript
+// Use specific size from upload collection sizes
 thumbnail: {
   sizeName: 'thumbnail', // Uses 'thumbnail' size from collection's sizes config
   appendTimestamp: true  // Can be combined with other options
 }
 ```
+
+When `appendTimestamp` is enabled, the plugin automatically adds a timestamp parameter to image URLs in the admin panel and API responses. This ensures updated files show the latest version without browser caching issues. Additionally, when `appendTimestamp` is enabled, Payload's cache tags are automatically disabled for thumbnails to prevent caching conflicts.
+
+The `streamAnimated` option enables animated WebP previews for Bunny Stream videos instead of static JPEG thumbnails. This option only works when stream configuration is enabled for the collection. When enabled, the plugin uses `preview.webp` URLs instead of `thumbnail.jpg` for video thumbnails.
+
+The `queryParams` option adds custom query parameters to URLs. It works great with Bunny's Image Optimizer service for resizing, cropping, and optimizing images on-the-fly, but you can add any query parameters you need.
 
 The `sizeName` option allows you to use a specific size variant from your upload collection's sizes configuration instead of the original file for admin thumbnails. This works only with image uploads that have sizes configured in your Payload collection. If the specified size doesn't exist in the document, it falls back to the original file.
 
@@ -352,14 +377,15 @@ Enable signed URLs for secure file access:
 | `shouldUseSignedUrl` | `function` | Always sign | Custom function to determine when to use signed URLs |
 | `staticHandler`      | `object`   | `{}`        | Static handler behavior (see below)                  |
 
-#### Static Handler Configuration
+**Static handler options:**
 
 When Payload access control is enabled, files can be served in two ways:
 
 1. **Proxying** (default): Payload downloads the file from Bunny and serves it to the user
 2. **Redirect**: Payload generates a signed URL and redirects the user to download directly from Bunny
 
-**Redirect is recommended** as it reduces server load and improves performance by avoiding file proxying.
+> [!TIP]
+> **Redirect is recommended** as it reduces server load and improves performance by avoiding file proxying.
 
 | Option           | Type      | Default               | Description                                                               |
 | ---------------- | --------- | --------------------- | ------------------------------------------------------------------------- |
@@ -367,26 +393,27 @@ When Payload access control is enabled, files can be served in two ways:
 | `redirectStatus` | `number`  | `302`                 | HTTP status code for redirects (301, 302, 307, 308)                       |
 | `expiresIn`      | `number`  | Uses main `expiresIn` | Override expiration time for redirects                                    |
 
-Signed URLs work with both Storage and Stream when `tokenSecurityKey` is configured.
+> [!NOTE]
+> Signed URLs work with both Storage and Stream when `tokenSecurityKey` is configured.
 
 ### URL Transform Configuration
 
-Custom URL transformations for complete control over file URLs:
+Custom URL transformations for complete control over file URLs.
 
-#### Simple Transform Options
+**Simple transform options:**
 
 | Option            | Type      | Default | Description                              |
 | ----------------- | --------- | ------- | ---------------------------------------- |
 | `appendTimestamp` | `boolean` | `false` | Add timestamp parameter to URLs          |
 | `queryParams`     | `object`  | `{}`    | Static query parameters appended to URLs |
 
-#### Advanced Transform Function
+**Advanced transform function:**
 
 | Option         | Type       | Description                              |
 | -------------- | ---------- | ---------------------------------------- |
 | `transformUrl` | `function` | Custom function for complete URL control |
 
-**Transform function signature:**
+**Function signature:**
 
 ```typescript
 ;(args: {
@@ -405,40 +432,148 @@ Custom URL transformations for complete control over file URLs:
 
 TUS (resumable uploads) enables reliable uploads of large video files by breaking them into chunks and allowing resume if the connection is interrupted.
 
-**Why use TUS uploads?**
+**Why use TUS uploads:**
 
 - **Large files**: Essential for video files over 100MB
 - **Unreliable connections**: Automatically resumes interrupted uploads
 - **Serverless environments**: Perfect for platforms like Vercel with request timeout and file size limits
 - **Better UX**: Users don't lose progress if something goes wrong
 
-**Upload Modes:**
+**Upload modes:**
 
 - **Auto mode** (`autoMode: true`): TUS is automatically enabled for supported video/audio files
 - **Manual mode** (`autoMode: false`): Admin UI shows a toggle button to switch between standard and TUS uploads
 
-**Simple enable:** `tus: true` (uses auto mode by default)
+**Configuration:**
 
-**Detailed configuration:** See [TUS Upload Configuration table](#tus-upload-configuration) in Stream Configuration section above.
+- **Simple enable:** `tus: true` (uses auto mode by default)
+- **Detailed configuration:** See [Stream Configuration](#stream-configuration) section for all TUS options
 
 > [!IMPORTANT]
 > The TUS `mimeTypes` setting works together with your collection's `mimeTypes` setting. If a file type is allowed in TUS config but blocked in your collection config, the collection setting takes priority and the file will be rejected.
 
+### Media Preview
+
+Add preview capability in admin panels to view media files directly in the UI. Works in both table cells and document views. Supports images, videos, audio, and documents.
+
+**Examples:**
+
+Global configuration (all collections):
+
+```typescript
+bunnyStorage({
+  mediaPreview: true, // Enable with defaults for all collections
+  // OR with custom settings
+  mediaPreview: {
+    mode: 'fullscreen',
+    contentMode: {
+      video: 'inline',
+      audio: 'inline',
+    },
+  },
+  collections: {
+    media: true,
+    videos: true,
+  },
+  // ... storage/stream config
+})
+```
+
+Per-collection configuration:
+
+```typescript
+bunnyStorage({
+  collections: {
+    media: {
+      mediaPreview: true, // Enable with defaults
+    },
+    videos: {
+      mediaPreview: {
+        mode: 'fullscreen',
+        contentMode: {
+          video: 'inline',
+          audio: 'inline',
+          image: 'newTab',
+          document: 'newTab',
+        },
+        position: { after: 'filename' },
+      },
+    },
+    documents: {
+      mediaPreview: false, // Disable for this collection
+    },
+  },
+  // ... storage/stream config
+})
+```
+
+Manual field addition:
+
+```typescript
+import { mediaPreviewField } from '@seshuk/payload-storage-bunny'
+
+export const Media: CollectionConfig = {
+  slug: 'media',
+  upload: true,
+  fields: [
+    mediaPreviewField({
+      mode: 'fullscreen',
+      contentMode: {
+        video: 'inline',
+        image: 'newTab',
+      },
+    }),
+  ],
+}
+```
+
+**Configuration options:**
+
+| Option                 | Type            | Default  | Description                                          |
+| ---------------------- | --------------- | -------- | ---------------------------------------------------- |
+| `mode`                 | `string`        | `auto`   | `auto` (smart) or `fullscreen` (always modal)        |
+| `contentMode`          | `object`        | -        | Configure how each file type opens                   |
+| `contentMode.video`    | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
+| `contentMode.audio`    | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
+| `contentMode.image`    | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
+| `contentMode.document` | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
+| `position`             | `string/object` | `last`   | Where to insert field (see position options below)   |
+| `overrides`            | `object`        | -        | Override field properties                            |
+
+**Mode options:**
+
+- `auto` - Table cells show popup, field shows fullscreen modal, mobile always uses fullscreen
+- `fullscreen` - Always shows fullscreen modal everywhere
+
+**Position options:**
+
+- `'first'` - Insert at the beginning of fields array
+- `'last'` - Insert at the end of fields array (default)
+- `{ after: 'fieldName' }` - Insert after specific field (e.g., `{ after: 'alt' }`)
+- `{ before: 'fieldName' }` - Insert before specific field (e.g., `{ before: 'alt' }`)
+- Supports dot notation for nested fields (e.g., `{ after: 'meta.title' }`)
+
+**Supported file formats:**
+
+- **Videos** - All video formats (MP4, WebM, MOV, AVI, etc.) - Uses Bunny Stream player if configured, otherwise native HTML5
+- **Audio** - All audio formats (MP3, WAV, OGG, FLAC, etc.) - Uses Bunny Stream player if configured, otherwise native HTML5
+- **Images** - All image formats (JPEG, PNG, GIF, WebP, SVG, etc.)
+- **Documents** - PDF, Office files (Word, Excel, PowerPoint), text files (TXT, HTML, CSS, JS, PHP, C, C++), Adobe files (AI, PSD), CAD files (DXF), Pages, PostScript, XPS, and more (max 25MB)
+
 ### Access Control Configuration
+
+**Example:**
 
 ```typescript
 collections: {
   media: {
-    // Optional folder prefix
     prefix: 'media',
-
-    // How files are accessed
     disablePayloadAccessControl: true
   }
 }
 ```
 
-If `disablePayloadAccessControl` is not `true`:
+**When `disablePayloadAccessControl` is `false` (default):**
 
 - Files go through Payload's API
 - Your access rules work
@@ -449,7 +584,7 @@ If `disablePayloadAccessControl` is not `true`:
 > [!TIP]
 > Use signed URLs with redirect to serve HLS streams directly and reduce server load
 
-When `disablePayloadAccessControl: true`:
+**When `disablePayloadAccessControl: true`:**
 
 - Files go directly from Bunny CDN
 - No access rules
@@ -465,6 +600,8 @@ There are two approaches to managing CDN cache for your Bunny Storage files:
 
 Enable automatic cache purging when files are uploaded or deleted:
 
+**Example:**
+
 ```typescript
 // At plugin level
 apiKey: process.env.BUNNY_API_KEY, // Required for purge
@@ -478,9 +615,7 @@ purge: {
 
 This is the most comprehensive approach as it ensures CDN cache is immediately purged when files change, making updated content available to all visitors.
 
-**Per-collection override:**
-
-You can override or disable cache purging for specific collections:
+Per-collection override:
 
 ```typescript
 collections: {
@@ -498,9 +633,11 @@ collections: {
 
 ### Option 2: Timestamp-Based Cache Busting
 
-For the admin panel specifically, you can use timestamp-based cache busting:
+Append timestamps to file URLs to force browser cache updates without purging CDN cache.
 
-1. First, configure the plugin to add timestamps to image URLs:
+**Configuration:**
+
+For thumbnail URLs (thumbnailURL field):
 
 ```typescript
 thumbnail: {
@@ -508,17 +645,31 @@ thumbnail: {
 }
 ```
 
-2. In your Bunny Pull Zone settings:
-   - Go to the "Caching" section
-   - Enable "Vary Cache" for "URL Query String"
-   - Add "t" to the "Query String Vary Parameters" list
+For all file URLs (url field):
 
-This approach only affects how images display in the admin panel and doesn't purge the actual CDN cache. It appends a timestamp parameter (`?t=1234567890`) to image URLs, causing Bunny CDN to treat each timestamped URL as a unique cache entry.
+```typescript
+urlTransform: {
+  appendTimestamp: true
+}
+```
 
-Choose the approach that best fits your needs:
+**Bunny CDN configuration:**
 
-- Use **automatic cache purging** for immediate updates everywhere
-- Use **timestamp-based cache busting** for a simpler setup that only affects the admin panel
+To make this work, configure your Pull Zone:
+
+1. Go to your Pull Zone settings
+2. Navigate to the "Caching" section
+3. Enable "Vary Cache" for "URL Query String"
+4. Add "t" to the "Query String Vary Parameters" list
+
+**How it works:**
+
+This approach appends a timestamp parameter (`?t=1234567890`) to file URLs. When a file is updated, the timestamp changes, causing browsers and Bunny CDN to treat it as a new file and fetch the latest version.
+
+**Comparison:**
+
+- **Automatic cache purging** - Immediate updates everywhere, requires global `apiKey`
+- **Timestamp-based cache busting** - Simpler setup, works without `apiKey`, updates only when files are re-uploaded
 
 ## Getting API Keys
 
@@ -611,7 +762,7 @@ Use only the region code in the `region` setting:
 
 To determine your region, check your Bunny Storage Zone settings. Pick a region closest to your users for best performance. The region code is found in your Storage Zone's hostname (e.g., if your endpoint is `ny.storage.bunnycdn.com`, use `ny` as the region).
 
-Example:
+**Example:**
 
 ```typescript
 storage: {

@@ -11,6 +11,7 @@ type Args = {
   req: PayloadRequest
   signedUrls: false | NormalizedSignedUrlsConfig
   streamConfig: NormalizedStreamConfig
+  thumbnailType: 'preview.webp' | 'thumbnail.jpg'
   usePayloadAccessControl: boolean
   videoId: string
 }
@@ -20,13 +21,14 @@ export const streamThumbnailStaticHandler = async ({
   req,
   signedUrls,
   streamConfig,
+  thumbnailType,
   usePayloadAccessControl,
   videoId,
 }: Args): Promise<Response> => {
-  const thumbnailUrl = `https://${streamConfig.hostname}/${videoId}/thumbnail.jpg`
+  const thumbnailUrl = `https://${streamConfig.hostname}/${videoId}/${thumbnailType}`
   const context = {
     collection,
-    filename: `${videoId}/thumbnail.jpg`,
+    filename: `${videoId}/${thumbnailType}`,
     signedUrls,
     tokenSecurityKey: streamConfig.tokenSecurityKey,
     usePayloadAccessControl,

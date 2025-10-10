@@ -421,6 +421,8 @@ export const Upload: React.FC<UploadProps> = ({
       selectedFile: fileToUpload,
     })
 
+    dispatchFields({ type: 'UPDATE', path: 'mimeType', value: fileToUpload.type })
+
     await checkPreviousUploads(fileToUpload)
   }
 
@@ -431,6 +433,8 @@ export const Upload: React.FC<UploadProps> = ({
     }
 
     resetState()
+
+    dispatchFields({ type: 'UPDATE', path: 'mimeType', value: null })
 
     if (isAutoMode) {
       onDisableTus()

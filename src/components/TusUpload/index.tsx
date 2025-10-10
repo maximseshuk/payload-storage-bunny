@@ -5,6 +5,7 @@ import type { ClientCollectionConfig } from 'payload'
 
 import {
   Upload as PayloadUpload,
+  useBulkUpload,
   useConfig,
   useDocumentInfo,
   useForm,
@@ -24,6 +25,7 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
   const { dispatchFields } = useForm()
   const { resetUploadEdits } = useUploadEdits()
   const { setUploadControlFile, setUploadControlFileName, setUploadControlFileUrl } = useUploadControls()
+  const bulkUploadContext = useBulkUpload()
 
   const [isTusMode, setIsTusMode] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -43,7 +45,9 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
   }, [tusCustomConfig])
 
   const collectionSlug = collectionConfig?.slug || ''
-  const isAutoModeEnabled = tusCustomConfig?.tusAutoMode === true
+  const isBulkUpload = !!bulkUploadContext?.collectionSlug
+  const isAutoModeEnabled = tusCustomConfig?.tusAutoMode === true && !isBulkUpload
+  const isTusEnabled = tusCustomConfig?.tusEnabled === true && !isBulkUpload
 
   const clearUploadControls = useCallback(() => {
     resetUploadEdits()
@@ -89,7 +93,7 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
   )
 
   const combinedUploadControls = useMemo(() => {
-    if (isAutoModeEnabled) {
+    if (isAutoModeEnabled || !isTusEnabled) {
       return UploadControls || null
     }
 
@@ -99,7 +103,7 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
         <ToggleControl isEnabled={false} onToggle={handleEnableTus} />
       </>
     )
-  }, [handleEnableTus, isAutoModeEnabled, UploadControls])
+  }, [handleEnableTus, isAutoModeEnabled, isTusEnabled, UploadControls])
 
   return (
     <div>

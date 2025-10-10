@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const bnBd: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: 'বন্ধ করুন',
+    mediaPreviewLabel: 'প্রাকদর্শন',
+    mediaPreviewOpen: 'খুলুন',
+    mediaPreviewTitleAudio: 'অডিও প্রিভিউ',
+    mediaPreviewTitleDocument: 'ডকুমেন্ট প্রিভিউ',
+    mediaPreviewTitleImage: 'ছবি প্রিভিউ',
+    mediaPreviewTitleVideo: 'ভিডিও প্রিভিউ',
+
     // TUS Upload
     tusUploadChecking: 'পূর্ববর্তী আপলোড চেক করা হচ্ছে...',
     tusUploadDisableMode: 'TUS মোড নিষ্ক্রিয় করুন',
@@ -31,7 +40,6 @@ export const bnBd: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: 'এই ভিডিওতে আপলোড করা যাবে না',
     errorCreateVideoFailed: 'Bunny CDN এ ভিডিও তৈরি করা যায়নি',
     errorDeleteFileFailed: 'ফাইল মুছে ফেলা যায়নি: {{filename}}',
-    errorInternalServer: 'আমাদের দিক থেকে কিছু ভুল হয়েছে',
     errorMissingRequiredFields: 'কিছু প্রয়োজনীয় তথ্য অনুপস্থিত',
     errorNoServiceConfigured: 'কোনো সার্ভিস কনফিগার করা নেই',
     errorStreamConfigMissing: 'Bunny Stream সঠিকভাবে কনফিগার করা হয়নি',

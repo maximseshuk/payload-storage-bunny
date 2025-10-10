@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const my: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: 'ပိတ်မည်',
+    mediaPreviewLabel: 'အစမ်းကြည့်ရှုခြင်း',
+    mediaPreviewOpen: 'ဖွင့်မည်',
+    mediaPreviewTitleAudio: 'အသံ အကြိုကြည့်ရှုခြင်း',
+    mediaPreviewTitleDocument: 'စာရွက်စာတမ်း အကြိုကြည့်ရှုခြင်း',
+    mediaPreviewTitleImage: 'ပုံ အကြိုကြည့်ရှုခြင်း',
+    mediaPreviewTitleVideo: 'ဗီဒီယို အကြိုကြည့်ရှုခြင်း',
+
     // TUS Upload
     tusUploadChecking: 'ယခင်တင်ပြမှုများကို စစ်ဆေးနေသည်...',
     tusUploadDisableMode: 'TUS မုဒ်ကို ပိတ်ပါ',
@@ -31,7 +40,6 @@ export const my: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: 'ဤဗီဒီယိုသို့ တင်ပြ၍ မရပါ',
     errorCreateVideoFailed: 'Bunny CDN တွင် ဗီဒီယို ဖန်တီး၍ မရပါ',
     errorDeleteFileFailed: 'ဖိုင်ကို ဖျက်၍ မရပါ: {{filename}}',
-    errorInternalServer: 'ကျွန်ုပ်တို့ဘက်မှ တစ်ခုခု မှားယွင်းနေပါသည်',
     errorMissingRequiredFields: 'လိုအပ်သော အချက်အလက်အချို့ ပျောက်နေပါသည်',
     errorNoServiceConfigured: 'ဝန်ဆောင်မှုတစ်ခုမှ ဖွဲ့စည်းတည်ဆောက်မထားပါ',
     errorStreamConfigMissing: 'Bunny Stream ကို မှန်ကန်စွာ ပြင်ဆင်မထားပါ',

@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-export const MediaAccessControl: CollectionConfig = {
-  slug: 'mediaAccessControl',
+export const MediaBasic: CollectionConfig = {
+  slug: 'mediaBasic',
   access: {
     read: () => true,
   },
@@ -12,9 +12,9 @@ export const MediaAccessControl: CollectionConfig = {
       required: true,
     },
   ],
+  folders: true,
   upload: {
     disableLocalStorage: true,
-    mimeTypes: ['video/mp4'],
     skipSafeFetch: true,
   },
 }

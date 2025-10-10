@@ -5,7 +5,6 @@ export type PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: string
     errorCreateVideoFailed: string
     errorDeleteFileFailed: string
-    errorInternalServer: string
     errorMissingRequiredFields: string
     errorNoServiceConfigured: string
     errorStreamConfigMissing: string
@@ -13,6 +12,15 @@ export type PluginDefaultTranslationsObject = {
     errorUploadFileFailed: string
     errorVideoInErrorState: string
     errorVideoNotFound: string
+
+    // Media Preview
+    mediaPreviewClose: string
+    mediaPreviewLabel: string
+    mediaPreviewOpen: string
+    mediaPreviewTitleAudio: string
+    mediaPreviewTitleDocument: string
+    mediaPreviewTitleImage: string
+    mediaPreviewTitleVideo: string
 
     // TUS Upload
     tusUploadChecking: string

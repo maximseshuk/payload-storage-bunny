@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-export const Media: CollectionConfig = {
-  slug: 'media',
+export const MediaProtected: CollectionConfig = {
+  slug: 'mediaProtected',
   access: {
     read: () => true,
   },
@@ -14,18 +14,7 @@ export const Media: CollectionConfig = {
   ],
   upload: {
     disableLocalStorage: true,
-    imageSizes: [
-      {
-        name: 'thumbnail',
-        height: 100,
-        width: 100,
-      },
-      {
-        name: 'preview',
-        height: 400,
-        width: 300,
-      },
-    ],
+    mimeTypes: ['video/mp4'],
     skipSafeFetch: true,
   },
 }

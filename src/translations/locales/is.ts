@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const is: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: 'Loka',
+    mediaPreviewLabel: 'Forskoðun',
+    mediaPreviewOpen: 'Opna',
+    mediaPreviewTitleAudio: 'Hljóðforskoðun',
+    mediaPreviewTitleDocument: 'Skjalaforskoðun',
+    mediaPreviewTitleImage: 'Myndaforskoðun',
+    mediaPreviewTitleVideo: 'Myndbandsforskoðun',
+
     // TUS Upload
     tusUploadChecking: 'Athuga fyrri upphal...',
     tusUploadDisableMode: 'Slökkva á TUS stillingu',
@@ -31,7 +40,6 @@ export const is: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: 'Ekki er hægt að hlaða upp í þetta myndskeið',
     errorCreateVideoFailed: 'Mistókst að búa til myndskeið á Bunny CDN',
     errorDeleteFileFailed: 'Mistókst að eyða skrá: {{filename}}',
-    errorInternalServer: 'Eitthvað fór úrskeiðis hjá okkur',
     errorMissingRequiredFields: 'Sumar nauðsynlegar upplýsingar vantar',
     errorNoServiceConfigured: 'Engin þjónusta stillt',
     errorStreamConfigMissing: 'Bunny Stream er ekki rétt stillt',

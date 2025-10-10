@@ -68,8 +68,9 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
-    media: Media;
-    mediaAccessControl: MediaAccessControl;
+    mediaBasic: MediaBasic;
+    mediaSecure: MediaSecure;
+    mediaProtected: MediaProtected;
     'bunny-stream-upload-sessions': BunnyStreamUploadSession;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -79,8 +80,9 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
-    mediaAccessControl: MediaAccessControlSelect<false> | MediaAccessControlSelect<true>;
+    mediaBasic: MediaBasicSelect<false> | MediaBasicSelect<true>;
+    mediaSecure: MediaSecureSelect<false> | MediaSecureSelect<true>;
+    mediaProtected: MediaProtectedSelect<false> | MediaProtectedSelect<true>;
     'bunny-stream-upload-sessions': BunnyStreamUploadSessionsSelect<false> | BunnyStreamUploadSessionsSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -135,7 +137,7 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: string;
-  avatar?: (string | null) | Media;
+  avatar?: (string | null) | MediaBasic;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -156,9 +158,9 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
+ * via the `definition` "mediaBasic".
  */
-export interface Media {
+export interface MediaBasic {
   id: string;
   alt: string;
   bunnyVideoId?: string | null;
@@ -171,6 +173,44 @@ export interface Media {
     | number
     | boolean
     | null;
+  /**
+   * Select Bunny Stream collection for this video
+   */
+  bunnyCollectionId?: string | null;
+  prefix?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mediaSecure".
+ */
+export interface MediaSecure {
+  id: string;
+  alt: string;
+  bunnyVideoId?: string | null;
+  bunnyVideoMeta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Select Bunny Stream collection for this video
+   */
+  bunnyCollectionId?: string | null;
   prefix?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -195,6 +235,10 @@ export interface Media {
         | number
         | boolean
         | null;
+      /**
+       * Select Bunny Stream collection for this video
+       */
+      bunnyCollectionId?: string | null;
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -213,6 +257,10 @@ export interface Media {
         | number
         | boolean
         | null;
+      /**
+       * Select Bunny Stream collection for this video
+       */
+      bunnyCollectionId?: string | null;
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -224,9 +272,9 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "mediaAccessControl".
+ * via the `definition` "mediaProtected".
  */
-export interface MediaAccessControl {
+export interface MediaProtected {
   id: string;
   alt: string;
   bunnyVideoId?: string | null;
@@ -239,6 +287,10 @@ export interface MediaAccessControl {
     | number
     | boolean
     | null;
+  /**
+   * Select Bunny Stream collection for this video
+   */
+  bunnyCollectionId?: string | null;
   prefix?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -376,12 +428,16 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
-        relationTo: 'media';
-        value: string | Media;
+        relationTo: 'mediaBasic';
+        value: string | MediaBasic;
       } | null)
     | ({
-        relationTo: 'mediaAccessControl';
-        value: string | MediaAccessControl;
+        relationTo: 'mediaSecure';
+        value: string | MediaSecure;
+      } | null)
+    | ({
+        relationTo: 'mediaProtected';
+        value: string | MediaProtected;
       } | null)
     | ({
         relationTo: 'bunny-stream-upload-sessions';
@@ -458,12 +514,35 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media_select".
+ * via the `definition` "mediaBasic_select".
  */
-export interface MediaSelect<T extends boolean = true> {
+export interface MediaBasicSelect<T extends boolean = true> {
   alt?: T;
   bunnyVideoId?: T;
   bunnyVideoMeta?: T;
+  bunnyCollectionId?: T;
+  prefix?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mediaSecure_select".
+ */
+export interface MediaSecureSelect<T extends boolean = true> {
+  alt?: T;
+  bunnyVideoId?: T;
+  bunnyVideoMeta?: T;
+  bunnyCollectionId?: T;
   prefix?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -484,6 +563,7 @@ export interface MediaSelect<T extends boolean = true> {
           | {
               bunnyVideoId?: T;
               bunnyVideoMeta?: T;
+              bunnyCollectionId?: T;
               url?: T;
               width?: T;
               height?: T;
@@ -496,6 +576,7 @@ export interface MediaSelect<T extends boolean = true> {
           | {
               bunnyVideoId?: T;
               bunnyVideoMeta?: T;
+              bunnyCollectionId?: T;
               url?: T;
               width?: T;
               height?: T;
@@ -507,12 +588,13 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "mediaAccessControl_select".
+ * via the `definition` "mediaProtected_select".
  */
-export interface MediaAccessControlSelect<T extends boolean = true> {
+export interface MediaProtectedSelect<T extends boolean = true> {
   alt?: T;
   bunnyVideoId?: T;
   bunnyVideoMeta?: T;
+  bunnyCollectionId?: T;
   prefix?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const zhTw: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: '關閉',
+    mediaPreviewLabel: '預覽',
+    mediaPreviewOpen: '開啟',
+    mediaPreviewTitleAudio: '音訊預覽',
+    mediaPreviewTitleDocument: '文件預覽',
+    mediaPreviewTitleImage: '圖片預覽',
+    mediaPreviewTitleVideo: '影片預覽',
+
     // TUS Upload
     tusUploadChecking: '正在檢查之前的上傳...',
     tusUploadDisableMode: '停用 TUS 模式',
@@ -31,7 +40,6 @@ export const zhTw: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: '無法上傳到此影片',
     errorCreateVideoFailed: '無法在 Bunny CDN 上建立影片',
     errorDeleteFileFailed: '無法刪除檔案：{{filename}}',
-    errorInternalServer: '我們這邊出了問題',
     errorMissingRequiredFields: '缺少一些必要的資訊',
     errorNoServiceConfigured: '未配置任何服務',
     errorStreamConfigMissing: 'Bunny Stream 設定不正確',

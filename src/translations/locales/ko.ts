@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const ko: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: '닫기',
+    mediaPreviewLabel: '미리보기',
+    mediaPreviewOpen: '열기',
+    mediaPreviewTitleAudio: '오디오 미리보기',
+    mediaPreviewTitleDocument: '문서 미리보기',
+    mediaPreviewTitleImage: '이미지 미리보기',
+    mediaPreviewTitleVideo: '비디오 미리보기',
+
     // TUS Upload
     tusUploadChecking: '이전 업로드 확인 중...',
     tusUploadDisableMode: 'TUS 모드 비활성화',
@@ -31,7 +40,6 @@ export const ko: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: '이 동영상에는 업로드할 수 없습니다',
     errorCreateVideoFailed: 'Bunny CDN에서 동영상을 생성할 수 없습니다',
     errorDeleteFileFailed: '파일을 삭제할 수 없습니다: {{filename}}',
-    errorInternalServer: '저희 쪽에서 문제가 발생했습니다',
     errorMissingRequiredFields: '필수 정보가 누락되었습니다',
     errorNoServiceConfigured: '구성된 서비스가 없습니다',
     errorStreamConfigMissing: 'Bunny Stream이 올바르게 구성되지 않았습니다',

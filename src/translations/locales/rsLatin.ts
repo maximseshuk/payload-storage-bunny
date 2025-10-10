@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const rsLatin: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: 'Zatvori',
+    mediaPreviewLabel: 'Pregled',
+    mediaPreviewOpen: 'Otvori',
+    mediaPreviewTitleAudio: 'Pregled audia',
+    mediaPreviewTitleDocument: 'Pregled dokumenta',
+    mediaPreviewTitleImage: 'Pregled slike',
+    mediaPreviewTitleVideo: 'Pregled videa',
+
     // TUS Upload
     tusUploadChecking: 'Proveravam prethodna otpremanja...',
     tusUploadDisableMode: 'Isključi TUS režim',
@@ -31,7 +40,6 @@ export const rsLatin: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: 'Ne mogu da otpremim na ovaj video',
     errorCreateVideoFailed: 'Nije moguće kreirati video na Bunny CDN',
     errorDeleteFileFailed: 'Nije moguće obrisati fajl: {{filename}}',
-    errorInternalServer: 'Nešto je pošlo po zlo sa naše strane',
     errorMissingRequiredFields: 'Nedostaju neke potrebne informacije',
     errorNoServiceConfigured: 'Nijedna usluga nije konfigurisana',
     errorStreamConfigMissing: 'Bunny Stream nije ispravno konfigurisan',

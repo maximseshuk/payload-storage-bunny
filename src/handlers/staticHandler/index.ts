@@ -16,24 +16,24 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
       const { doc, params: { filename } } = data
 
       if (streamConfig) {
-        // Handle stream thumbnail requests
         if (filename?.startsWith('bunny:stream:')) {
           const parts = filename.split(':')
-          if (parts.length === 4 && parts[3] === 'thumbnail.jpg') {
+          if (parts.length === 4 && (parts[3] === 'thumbnail.jpg' || parts[3] === 'preview.webp')) {
             const videoId = parts[2]
+            const thumbnailType = parts[3]
 
             return await streamThumbnailStaticHandler({
               collection,
               req,
               signedUrls: signedUrls || false,
               streamConfig,
+              thumbnailType,
               usePayloadAccessControl,
               videoId,
             })
           }
         }
 
-        // Handle video stream requests
         let video = parseVideoFromDocument(doc, filename)
 
         if (!video) {
@@ -65,7 +65,6 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         }
       }
 
-      // Handle storage requests
       if (!storageConfig) {
         return new Response('Storage not configured', { status: 404 })
       }

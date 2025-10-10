@@ -29,6 +29,7 @@ export const CONFIG_DEFAULTS = {
   thumbnail: {
     appendTimestamp: true,
     queryParams: {},
+    streamAnimated: false,
   },
   urlTransform: {
     appendTimestamp: false,

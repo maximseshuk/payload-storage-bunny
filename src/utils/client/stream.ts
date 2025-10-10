@@ -21,13 +21,16 @@ export const getStreamVideo = async ({
   }
 
   try {
-    const response = await kyClient.get(`${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`, {
-      headers: {
-        'Accept': 'application/json',
-        'AccessKey': streamConfig.apiKey,
+    const response = await kyClient.get(
+      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'AccessKey': streamConfig.apiKey,
+        },
+        timeout: TIMEOUTS.DEFAULT,
       },
-      timeout: TIMEOUTS.DEFAULT,
-    })
+    )
 
     const videoData = await response.json<BunnyStreamVideo>()
     return videoData
@@ -70,15 +73,18 @@ export const createStreamVideo = async ({
   data.thumbnailTime = typeof finalThumbnailTime === 'number' ? finalThumbnailTime : null
 
   try {
-    const response = await kyClient.post(`${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos`, {
-      headers: {
-        'Accept': 'application/json',
-        'AccessKey': streamConfig.apiKey,
-        'Content-Type': 'application/json',
+    const response = await kyClient.post(
+      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'AccessKey': streamConfig.apiKey,
+          'Content-Type': 'application/json',
+        },
+        json: data,
+        timeout: TIMEOUTS.DEFAULT,
       },
-      json: data,
-      timeout: TIMEOUTS.DEFAULT,
-    }).json<BunnyStreamVideo>()
+    ).json<BunnyStreamVideo>()
 
     return response
   } catch (err) {
@@ -108,13 +114,16 @@ export const deleteStreamVideo = async ({
   }
 
   try {
-    await kyClient.delete(`${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`, {
-      headers: {
-        'Accept': 'application/json',
-        'AccessKey': streamConfig.apiKey,
+    await kyClient.delete(
+      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'AccessKey': streamConfig.apiKey,
+        },
+        timeout: TIMEOUTS.DEFAULT,
       },
-      timeout: TIMEOUTS.DEFAULT,
-    })
+    )
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 401) {
@@ -144,14 +153,17 @@ export const uploadStreamVideo = async ({
   }
 
   try {
-    await kyClient.put(`${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`, {
-      body: buffer,
-      headers: {
-        'Accept': 'application/json',
-        'AccessKey': streamConfig.apiKey,
+    await kyClient.put(
+      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`,
+      {
+        body: buffer as unknown as BodyInit,
+        headers: {
+          'Accept': 'application/json',
+          'AccessKey': streamConfig.apiKey,
+        },
+        timeout: streamConfig.uploadTimeout || TIMEOUTS.STREAM_UPLOAD,
       },
-      timeout: streamConfig.uploadTimeout || TIMEOUTS.STREAM_UPLOAD,
-    })
+    )
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 400) {
@@ -181,13 +193,16 @@ export const getStreamVideoResolutions = async ({
   }
 
   try {
-    const response = await kyClient.get(`${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}/resolutions`, {
-      headers: {
-        'Accept': 'application/json',
-        'AccessKey': streamConfig.apiKey,
+    const response = await kyClient.get(
+      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}/resolutions`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'AccessKey': streamConfig.apiKey,
+        },
+        timeout: TIMEOUTS.DEFAULT,
       },
-      timeout: TIMEOUTS.DEFAULT,
-    })
+    )
 
     return await response.json<BunnyStreamVideoResolutionsResponse>()
   } catch (err) {

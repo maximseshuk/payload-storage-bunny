@@ -2,6 +2,7 @@ import type {
   BunnyStorageCollectionConfig,
   BunnyStorageConfig,
   CollectionsConfig,
+  MediaPreviewConfig,
   PurgeConfig,
   SignedUrlsConfig,
   StorageConfig,
@@ -25,18 +26,17 @@ import { CONFIG_DEFAULTS } from './defaults.js'
 export const createNormalizedConfig = (
   options: BunnyStorageConfig,
 ): NormalizedBunnyStorageConfig => {
-  const thumbnailConfig = options.thumbnail ?? options.adminThumbnail
-
   const normalized: NormalizedBunnyStorageConfig = {
     _original: options,
     apiKey: options.apiKey,
     collections: new Map(),
     i18n: options.i18n,
+    mediaPreview: normalizeMediaPreviewConfig(options.mediaPreview),
     purge: options.purge ? normalizePurgeConfig(options.purge, options.apiKey) : undefined,
     signedUrls: normalizeSignedUrlsConfig(options.signedUrls),
     storage: options.storage ? normalizeStorageConfig(options.storage) : undefined,
     stream: options.stream ? normalizeStreamConfig(options.stream) : undefined,
-    thumbnail: normalizeThumbnailConfig(thumbnailConfig),
+    thumbnail: normalizeThumbnailConfig(options.thumbnail),
     urlTransform: normalizeUrlTransformConfig(options.urlTransform),
   }
 
@@ -118,8 +118,14 @@ const normalizePurgeConfig = (
 const normalizeSignedUrlsConfig = (
   value?: boolean | SignedUrlsConfig,
 ): NormalizedSignedUrlsConfig | undefined => {
-  if (!value || value === true) {
+  if (!value) {
     return undefined
+  }
+
+  if (value === true) {
+    return {
+      expiresIn: CONFIG_DEFAULTS.signedUrls.expiresIn,
+    }
   }
 
   const normalized: NormalizedSignedUrlsConfig = {
@@ -152,6 +158,9 @@ const normalizeThumbnailConfig = (
   return {
     ...baseConfig,
     sizeName: typeof value === 'object' && value && 'sizeName' in value ? value.sizeName : undefined,
+    streamAnimated: typeof value === 'object' && value && 'streamAnimated' in value
+      ? value.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated
+      : CONFIG_DEFAULTS.thumbnail.streamAnimated,
   }
 }
 
@@ -187,6 +196,20 @@ const normalizeUrlTransformConfig = (
   }
 }
 
+const normalizeMediaPreviewConfig = (
+  value?: boolean | MediaPreviewConfig,
+): MediaPreviewConfig | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  if (value === true) {
+    return {}
+  }
+
+  return value
+}
+
 const normalizeCollectionsConfig = (
   collections: CollectionsConfig,
   normalizedGlobalConfig: NormalizedBunnyStorageConfig,
@@ -210,6 +233,7 @@ const normalizeCollectionConfig = (
   if (collectionConfig === true) {
     return {
       disablePayloadAccessControl: false,
+      mediaPreview: normalizedGlobalConfig.mediaPreview,
       prefix: '',
       purge: normalizedGlobalConfig.purge,
       signedUrls: normalizedGlobalConfig.signedUrls,
@@ -220,10 +244,13 @@ const normalizeCollectionConfig = (
     }
   }
 
-  const collectionThumbnailConfig = collectionConfig.thumbnail ?? collectionConfig.adminThumbnail
-
   return {
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
+    mediaPreview: resolveCollectionConfigSetting(
+      collectionConfig.mediaPreview,
+      normalizedGlobalConfig.mediaPreview,
+      normalizeMediaPreviewConfig,
+    ),
     prefix: collectionConfig.prefix ?? '',
     purge: resolveCollectionPurgeConfig(collectionConfig.purge, normalizedGlobalConfig.purge),
     signedUrls: resolveCollectionConfigSetting(
@@ -234,7 +261,7 @@ const normalizeCollectionConfig = (
     storage: resolveCollectionStorageConfig(collectionConfig.storage, normalizedGlobalConfig.storage),
     stream: resolveCollectionStreamConfig(collectionConfig.stream, normalizedGlobalConfig.stream),
     thumbnail: resolveCollectionConfigSetting(
-      collectionThumbnailConfig,
+      collectionConfig.thumbnail,
       normalizedGlobalConfig.thumbnail,
       normalizeThumbnailConfig,
     ),

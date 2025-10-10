@@ -15,11 +15,22 @@ import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
 
 import { getStreamUploadSessionsCollection } from './collections/StreamUploadSessions.js'
 import { getStreamEndpoints } from './endpoints/stream.js'
+import { mediaPreviewField, videoIdField, videoResolutionsField } from './fields/index.js'
 import { getAdminThumbnail, getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
 import { getAfterChangeHook, getBeforeValidateHook } from './hooks/index.js'
 import { getStreamCleanupTask } from './tasks/cleanup.js'
 import { translations } from './translations/index.js'
 import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './utils/config/index.js'
+import { insertField } from './utils/index.js'
+
+export { mediaPreviewField } from './fields/index.js'
+export type {
+  MediaPreviewContentMode,
+  MediaPreviewContentModeType,
+  MediaPreviewContentType,
+  MediaPreviewMode,
+  MediaPreviewProps,
+} from './fields/mediaPreviewField.js'
 
 export const bunnyStorage: BunnyStoragePlugin =
   (pluginConfig: BunnyStorageConfig) =>
@@ -63,6 +74,17 @@ export const bunnyStorage: BunnyStoragePlugin =
               ? collection.upload.filesRequiredOnCreate ?? true
               : true
 
+            const collectionConfig = config.collections.get(collection.slug)
+            const mediaPreviewConfig = collectionConfig?.mediaPreview ?? config.mediaPreview
+            const shouldAddMediaPreview = mediaPreviewConfig !== undefined
+
+            let fields = collection.fields
+
+            if (shouldAddMediaPreview) {
+              const position = mediaPreviewConfig?.position ?? 'last'
+              fields = insertField(fields, position, mediaPreviewField(mediaPreviewConfig))
+            }
+
             return {
               ...collection,
               admin: {
@@ -76,18 +98,22 @@ export const bunnyStorage: BunnyStoragePlugin =
                     } : {}),
                   },
                 },
-                ...(collectionContext.isTusUploadSupported ? {
+                ...(collectionContext.streamConfig ? {
                   custom: {
                     ...(collection.admin?.custom || {}),
                     '@seshuk/payload-storage-bunny': {
                       ...(collection.admin?.custom?.['@seshuk/payload-storage-bunny'] || {}),
-                      tusAutoMode: collectionContext.streamConfig?.tus?.autoMode,
-                      tusEnabled: true,
-                      tusMimeTypes: collectionContext.streamConfig?.tus?.mimeTypes,
+                      streamLibraryId: collectionContext.streamConfig.libraryId,
+                      ...(collectionContext.isTusUploadSupported ? {
+                        tusAutoMode: collectionContext.streamConfig.tus?.autoMode,
+                        tusEnabled: true,
+                        tusMimeTypes: collectionContext.streamConfig.tus?.mimeTypes,
+                      } : {}),
                     },
                   },
                 } : {}),
               },
+              fields,
               hooks: {
                 ...(collection.hooks || {}),
                 afterChange: [
@@ -162,29 +188,17 @@ export const bunnyStorage: BunnyStoragePlugin =
     }
 
 const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => {
-  const fields: Field[] = config.stream?.apiKey
-    ? [
-      {
-        name: 'bunnyVideoId',
-        type: 'text',
-        admin: {
-          disabled: true,
-        },
-      },
-      ...(config.stream?.mp4Fallback
-        ? [
-          {
-            name: 'bunnyVideoMeta',
-            type: 'json' as const,
-            hidden: true,
-          },
-        ]
-        : []),
-    ]
-    : []
-
   return ({ collection, prefix }): GeneratedAdapter => {
     const collectionContext = createCollectionContext(config, collection, prefix)
+
+    const fields: Field[] = []
+    if (collectionContext.streamConfig) {
+      fields.push(videoIdField())
+
+      if (collectionContext.streamConfig.mp4Fallback) {
+        fields.push(videoResolutionsField())
+      }
+    }
 
     return {
       name: 'bunny',

@@ -1,0 +1,43 @@
+@import '~@payloadcms/ui/scss';
+
+td.cell-bunnyMediaPreview {
+  position: static !important;
+  z-index: auto !important;
+
+  &:has(.bunny-media-preview-cell) {
+    vertical-align: middle !important;
+  }
+}
+
+.bunny-media-preview-cell {
+  &__button-wrapper {
+    all: unset;
+    cursor: pointer;
+    display: inline-block;
+  }
+
+  &__pill {
+    color: var(--theme-elevation-800);
+    box-shadow: 0 0 0 1px var(--theme-elevation-150);
+    cursor: pointer;
+    gap: calc(var(--base) * 0.3) !important;
+    padding-inline: calc(var(--base) * 0.4) !important;
+    background-color: transparent;
+    transition: background-color 0.15s ease;
+
+    &:hover,
+    &--active {
+      background-color: var(--theme-elevation-100);
+    }
+  }
+
+  &__icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+
+    .stroke {
+      stroke-width: 1;
+    }
+  }
+}

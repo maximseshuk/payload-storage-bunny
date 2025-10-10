@@ -26,6 +26,8 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
+    "./client": "./dist/exports/client.js",
+    "./rsc": "./dist/exports/rsc.js",
     "./*": "./*"
   },
   "files": [
@@ -71,6 +73,7 @@
     "cpy-cli": "^6.0.0",
     "dotenv-cli": "^10.0.0",
     "eslint": "^9.34.0",
+    "eslint-plugin-perfectionist": "^4.15.1",
     "next": "15.4.4",
     "payload": "^3.57.0",
     "prettier": "^3.6.2",

@@ -112,11 +112,13 @@ export const getAdminThumbnail = (context: CollectionContext) => {
     }
 
     if (streamConfig && doc.bunnyVideoId && typeof doc.bunnyVideoId === 'string') {
-      const filename = `${doc.bunnyVideoId}/thumbnail.jpg`
+      const isStreamAnimated = thumbnail && typeof thumbnail === 'object' && thumbnail.streamAnimated
+      const thumbnailFile = isStreamAnimated ? 'preview.webp' : 'thumbnail.jpg'
+      const filename = `${doc.bunnyVideoId}/${thumbnailFile}`
       const prefix = ''
 
       if (context.usePayloadAccessControl) {
-        const internalUrl = `/api/${collection.slug}/file/bunny:stream:${doc.bunnyVideoId}:thumbnail.jpg`
+        const internalUrl = `/api/${collection.slug}/file/bunny:stream:${doc.bunnyVideoId}:${thumbnailFile}`
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 

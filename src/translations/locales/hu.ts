@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const hu: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: 'Bezárás',
+    mediaPreviewLabel: 'Előnézet',
+    mediaPreviewOpen: 'Megnyitás',
+    mediaPreviewTitleAudio: 'Hanganyag előnézet',
+    mediaPreviewTitleDocument: 'Dokumentum előnézet',
+    mediaPreviewTitleImage: 'Kép előnézet',
+    mediaPreviewTitleVideo: 'Videó előnézet',
+
     // TUS Upload
     tusUploadChecking: 'Korábbi feltöltések ellenőrzése...',
     tusUploadDisableMode: 'TUS mód kikapcsolása',
@@ -31,7 +40,6 @@ export const hu: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: 'Erre a videóra nem lehet feltölteni',
     errorCreateVideoFailed: 'Nem sikerült videót létrehozni a Bunny CDN-en',
     errorDeleteFileFailed: 'Nem sikerült törölni a fájlt: {{filename}}',
-    errorInternalServer: 'Valami hiba történt a mi oldalunkon',
     errorMissingRequiredFields: 'Hiányzik néhány szükséges információ',
     errorNoServiceConfigured: 'Nincs szolgáltatás konfigurálva',
     errorStreamConfigMissing: 'A Bunny Stream nincs megfelelően beállítva',

@@ -12,8 +12,11 @@ export enum BunnyStreamVideoStatus {
 }
 
 export interface BunnyStreamVideoDocumentMeta {
-  availableMp4Resolutions?: string[]
-  highestMp4Resolution?: string
+  collectionId?: string
+  resolutions?: {
+    available?: string[]
+    highest?: string
+  }
 }
 
 export interface StreamVideoFromDocument {

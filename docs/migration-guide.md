@@ -2,6 +2,30 @@
 
 This guide covers upgrading between major versions of the Bunny Storage plugin.
 
+## v2.1.x to v2.2.0
+
+### What Changed
+
+The main changes in v2.2.0:
+
+| What                        | v2.1.x                     | v2.2.0                                         |
+| --------------------------- | -------------------------- | ---------------------------------------------- |
+| Cache purging API key       | `purge: { apiKey: '...' }` | `apiKey: '...'` (plugin level)                 |
+| Cache purging config        | `purge: { apiKey, async }` | `purge: true` or `purge: { async }`            |
+| Deprecated `adminThumbnail` | Still supported with alias | ⚠️ Removed (use `thumbnail` instead)           |
+| Collection-level overrides  | `thumbnailTime` only       | `uploadTimeout`, `mp4Fallback`, `tus` and more |
+
+**Migration actions:**
+
+1. Move `purge.apiKey` to plugin-level `apiKey` (old way still works but deprecated)
+2. Replace `adminThumbnail` with `thumbnail` (required, no backward compatibility)
+3. Optionally use new collection-level overrides for `storage.uploadTimeout`, `stream.uploadTimeout`, `stream.mp4Fallback`, `stream.tus.uploadTimeout`
+
+**Backward compatibility:**
+
+- `purge.apiKey` still works in v2.2.0 but will be removed in v2.3.0
+- `adminThumbnail` is removed - you must use `thumbnail` instead
+
 ## v2.0.x to v2.1.0
 
 ### What Changed

@@ -7,8 +7,9 @@ import sharp from 'sharp'
 import { fileURLToPath } from 'url'
 
 import { bunnyStorage } from '../src/index.js'
-import { Media } from './collections/Media.js'
-import { MediaAccessControl } from './collections/MediaAccessControl.js'
+import { MediaBasic } from './collections/MediaBasic.js'
+import { MediaProtected } from './collections/MediaProtected.js'
+import { MediaSecure } from './collections/MediaSecure.js'
 import { Users } from './collections/Users.js'
 import { devUser } from './helpers/credentials.js'
 import { seed } from './seed.js'
@@ -31,7 +32,7 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Media, MediaAccessControl],
+  collections: [Users, MediaBasic, MediaSecure, MediaProtected],
   db: mongooseAdapter({
     url: process.env.DATABASE_URI || '',
   }),
@@ -53,36 +54,20 @@ export default buildConfig({
     bunnyStorage({
       apiKey: process.env.BUNNY_API_KEY || '',
       collections: {
-        media: {
+        mediaBasic: {
           disablePayloadAccessControl: true,
-          prefix: 'media',
-          purge: {
-            async: false,
-          },
-          signedUrls: {
-            expiresIn: 3600,
-          },
+          prefix: 'basic',
+          signedUrls: true,
           stream: false,
-          thumbnail: false,
-          urlTransform: {
-            transformUrl: ({ baseUrl, data }) => {
-              const isVideo = typeof data?.mimeType === 'string' && data.mimeType.startsWith('video/')
-              const quality = isVideo ? 'hd' : 'original'
-              const sessionId = Math.random().toString(36).substr(2, 9)
-              return `${baseUrl}?quality=${quality}&session=${sessionId}&secure=true`
-            },
+          thumbnail: {
+            streamAnimated: true,
           },
         },
-        mediaAccessControl: {
-          prefix: 'mediaAccessControl',
-          signedUrls: {
-            staticHandler: {
-              expiresIn: 10,
-              redirectStatus: 301,
-              useRedirect: true,
-            },
-          },
+        mediaProtected: {
+          prefix: 'protected',
+          signedUrls: false,
           stream: {
+            mp4Fallback: true,
             thumbnailTime: 3000,
           },
           thumbnail: {
@@ -90,6 +75,25 @@ export default buildConfig({
               const timestamp = Date.now()
               const customId = data?.id as string || 'unknown'
               return `${baseUrl}?secure_thumb=true&id=${customId}&t=${timestamp}`
+            },
+          },
+        },
+        mediaSecure: {
+          disablePayloadAccessControl: true,
+          prefix: 'secure',
+          purge: {
+            async: false,
+          },
+          signedUrls: {
+            expiresIn: 3600,
+          },
+          thumbnail: false,
+          urlTransform: {
+            transformUrl: ({ baseUrl, data }) => {
+              const isVideo = typeof data?.mimeType === 'string' && data.mimeType.startsWith('video/')
+              const quality = isVideo ? 'hd' : 'original'
+              const sessionId = Math.random().toString(36).substr(2, 9)
+              return `${baseUrl}?quality=${quality}&session=${sessionId}&secure=true`
             },
           },
         },
@@ -102,6 +106,12 @@ export default buildConfig({
             tusUploadEnableMode: 'Enable tus mode',
           },
         },
+      },
+      mediaPreview: {
+        contentMode: {
+          document: 'newTab',
+        },
+        mode: 'auto',
       },
       purge: true,
       signedUrls: true,

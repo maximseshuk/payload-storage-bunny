@@ -12,6 +12,8 @@ This document provides detailed configuration examples for different use cases o
 - [Custom URL Transforms](#custom-url-transforms)
 - [TUS Resumable Uploads](#tus-resumable-uploads)
 - [Stream Only (No Storage)](#stream-only-no-storage)
+- [Disable Storage/Stream Per Collection](#disable-storagestream-per-collection)
+- [Media Preview](#media-preview)
 - [Multiple Collections](#multiple-collections)
 
 ## Basic Setup
@@ -287,20 +289,206 @@ bunnyStorage({
     },
   },
   thumbnail: {
-    appendTimestamp: true, // Prevent caching issues for video thumbnails
+    appendTimestamp: true,
   },
 })
 ```
 
-This configuration is perfect for:
+## Disable Storage/Stream Per Collection
 
-- **Video-only platforms**: When you only need video streaming capabilities
-- **Separate storage solutions**: When you already have other storage for non-video files
-- **Simplified setup**: Fewer API keys and configuration to manage
-- **Stream-specific features**: Full access to TUS uploads, cleanup, and video thumbnails
+Disable storage or stream for specific collections:
 
-> [!NOTE]
-> In stream-only mode, only video files can be uploaded. For mixed content (videos + images + documents), you'll need to add Storage configuration.
+```typescript
+bunnyStorage({
+  collections: {
+    // Only use Bunny Storage - videos won't be uploaded to Stream
+    images: {
+      prefix: 'images',
+      stream: false,
+    },
+
+    // Only use Bunny Stream - non-video files will fail to upload
+    videos: {
+      prefix: 'videos',
+      storage: false,
+      disablePayloadAccessControl: true,
+    },
+
+    // Use both Storage and Stream (default behavior)
+    media: {
+      prefix: 'mixed-content',
+    },
+  },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+  },
+  stream: {
+    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    hostname: 'vz-abc123def-456.b-cdn.net',
+    libraryId: 123456,
+    tus: true,
+  },
+})
+```
+
+## Media Preview
+
+### Global Media Preview
+
+Enable media preview for all collections:
+
+```typescript
+bunnyStorage({
+  mediaPreview: true, // Enable with defaults for all collections
+  collections: {
+    media: true,
+    videos: true,
+    documents: true,
+  },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+  },
+})
+```
+
+### Custom Media Preview Configuration
+
+Customize preview behavior globally:
+
+```typescript
+bunnyStorage({
+  mediaPreview: {
+    mode: 'fullscreen', // Always show fullscreen modal
+    contentMode: {
+      video: 'inline', // Videos open in modal
+      audio: 'inline', // Audio opens in modal
+      image: 'newTab', // Images open in new tab
+      document: 'newTab', // Documents open in new tab
+    },
+  },
+  collections: {
+    media: true,
+  },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+  },
+})
+```
+
+### Per-Collection Media Preview
+
+Different preview settings for each collection:
+
+```typescript
+bunnyStorage({
+  collections: {
+    // Gallery with auto mode (smart behavior)
+    gallery: {
+      prefix: 'gallery',
+      mediaPreview: {
+        mode: 'auto', // Popup in cells, fullscreen in field
+        contentMode: {
+          image: 'inline',
+          video: 'inline',
+        },
+      },
+    },
+
+    // Videos always fullscreen
+    videos: {
+      prefix: 'videos',
+      mediaPreview: {
+        mode: 'fullscreen',
+        contentMode: {
+          video: 'inline',
+          audio: 'inline',
+        },
+      },
+    },
+
+    // Documents open in new tab
+    documents: {
+      prefix: 'docs',
+      mediaPreview: {
+        contentMode: {
+          document: 'newTab',
+          image: 'newTab',
+        },
+        position: { after: 'title' }, // Insert field after 'title'
+      },
+    },
+
+    // Disable preview for this collection
+    reports: {
+      prefix: 'reports',
+      mediaPreview: false,
+    },
+  },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+  },
+  stream: {
+    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    hostname: 'vz-abc123def-456.b-cdn.net',
+    libraryId: 123456,
+  },
+})
+```
+
+### Manual Field Addition
+
+Add media preview field directly to collection config:
+
+```typescript
+import { bunnyStorage, mediaPreviewField } from '@seshuk/payload-storage-bunny'
+
+export const Media: CollectionConfig = {
+  slug: 'media',
+  upload: true,
+  fields: [
+    {
+      name: 'alt',
+      type: 'text',
+    },
+    {
+      name: 'caption',
+      type: 'text',
+    },
+    mediaPreviewField({
+      mode: 'fullscreen',
+      contentMode: {
+        video: 'inline',
+        image: 'newTab',
+      },
+      position: { after: 'caption' },
+    }),
+  ],
+}
+
+export default buildConfig({
+  collections: [Media],
+  plugins: [
+    bunnyStorage({
+      collections: {
+        media: true,
+      },
+      storage: {
+        apiKey: process.env.BUNNY_STORAGE_API_KEY,
+        hostname: 'example.b-cdn.net',
+        zoneName: 'my-zone',
+      },
+    }),
+  ],
+})
+```
 
 ## Multiple Collections
 
@@ -318,6 +506,7 @@ bunnyStorage({
         appendTimestamp: true,
         queryParams: { width: '200', height: '200' },
       },
+      mediaPreview: true, // Enable preview for this collection
     },
 
     // Private documents with access control
@@ -404,8 +593,6 @@ See the [Getting API Keys](../README.md#getting-api-keys) section in the main RE
 
 ## Thumbnail with Size Selection
 
-Use specific sizes from upload collection configuration for thumbnails:
-
 ```typescript
 import { bunnyStorage } from '@seshuk/payload-storage-bunny'
 
@@ -458,9 +645,3 @@ export default buildConfig({
   ],
 })
 ```
-
-This configuration will:
-
-1. Generate 'thumbnail' and 'preview' sizes when images are uploaded
-2. Use the smaller 'thumbnail' size for admin panel display and API responses
-3. Fall back to the original file if the 'thumbnail' size doesn't exist for a particular document

@@ -32,7 +32,7 @@ export const streamStaticHandler = async ({
 
   const context = {
     collection,
-    filename: '', // Will be set per request
+    filename: '',
     signedUrls,
     tokenSecurityKey: streamConfig.tokenSecurityKey,
     usePayloadAccessControl,
@@ -42,10 +42,9 @@ export const streamStaticHandler = async ({
   let availableResolutions: string[] = []
   let metaNeedsUpdate = false
 
-  // Check saved resolution
-  if (videoMeta?.highestMp4Resolution) {
-    const savedResolutionUrl = `https://${streamConfig.hostname}/${videoId}/play_${videoMeta.highestMp4Resolution}.mp4`
-    const checkContext = { ...context, filename: `${videoId}/play_${videoMeta.highestMp4Resolution}.mp4` }
+  if (videoMeta?.resolutions?.highest) {
+    const savedResolutionUrl = `https://${streamConfig.hostname}/${videoId}/play_${videoMeta.resolutions.highest}.mp4`
+    const checkContext = { ...context, filename: `${videoId}/play_${videoMeta.resolutions.highest}.mp4` }
 
     try {
       const checkUrl = maybeGenerateSignedUrl(savedResolutionUrl, checkContext)
@@ -55,9 +54,9 @@ export const streamStaticHandler = async ({
       })
 
       if (headResponse.ok) {
-        fallbackQuality = videoMeta.highestMp4Resolution
-        if (videoMeta.availableMp4Resolutions && videoMeta.availableMp4Resolutions.length > 0) {
-          availableResolutions = videoMeta.availableMp4Resolutions
+        fallbackQuality = videoMeta.resolutions.highest
+        if (videoMeta.resolutions.available && videoMeta.resolutions.available.length > 0) {
+          availableResolutions = videoMeta.resolutions.available
         }
       } else {
         metaNeedsUpdate = true
@@ -70,7 +69,6 @@ export const streamStaticHandler = async ({
     metaNeedsUpdate = true
   }
 
-  // Find available resolution if needed
   if (!fallbackQuality) {
     try {
       const resolutionsData = await getStreamVideoResolutions({ streamConfig, videoId })
@@ -110,8 +108,8 @@ export const streamStaticHandler = async ({
           }
 
           if (fallbackQuality) {
-            metaNeedsUpdate = !videoMeta?.highestMp4Resolution ||
-                             videoMeta.highestMp4Resolution !== fallbackQuality
+            metaNeedsUpdate = !videoMeta?.resolutions?.highest ||
+                             videoMeta.resolutions.highest !== fallbackQuality
           }
         }
       } else {
@@ -126,21 +124,24 @@ export const streamStaticHandler = async ({
     return new Response('Could not determine a valid resolution for the video', { status: 404 })
   }
 
-  // Update metadata if needed
   if (metaNeedsUpdate && fallbackQuality && docId && collection) {
     try {
+      const updatedMeta: BunnyStreamVideoDocumentMeta = {
+        ...(videoMeta ?? {}),
+        resolutions: {
+          available: availableResolutions.length > 0 ? availableResolutions : undefined,
+          highest: fallbackQuality,
+        },
+      }
       await req.payload.update({
         id: docId,
         collection: collection.slug,
         data: {
-          bunnyVideoMeta: {
-            availableMp4Resolutions: availableResolutions.length > 0 ? availableResolutions : undefined,
-            highestMp4Resolution: fallbackQuality,
-          },
+          bunnyVideoResolutions: updatedMeta.resolutions,
         },
       })
     } catch (err) {
-      req.payload.logger.error({ err, msg: 'Failed to update bunnyVideoMeta' })
+      req.payload.logger.error({ err, msg: 'Failed to update bunnyVideoResolutions' })
     }
   }
 
@@ -149,7 +150,6 @@ export const streamStaticHandler = async ({
 
   const tokenPath = `/${videoId}/`
 
-  // Check if we should redirect to signed URL
   const redirect = maybeCreateRedirect(mp4Url, finalContext, {
     tokenPath,
   })
@@ -157,7 +157,6 @@ export const streamStaticHandler = async ({
     return redirect
   }
 
-  // Proxy the content
   const rangeHeader = req.headers.get('range')
   const requestHeaders = new Headers()
   if (rangeHeader) {

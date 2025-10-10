@@ -1,4 +1,4 @@
-import type { AcceptedLanguages, NestedKeysStripped } from '@payloadcms/translations'
+import type { AcceptedLanguages, DefaultTranslationKeys, NestedKeysStripped, TFunction } from '@payloadcms/translations'
 
 import type { PluginDefaultTranslationsObject } from './types.js'
 
@@ -98,3 +98,4 @@ export const translations: {
 
 export type PluginStorageBunnyTranslations = typeof translations.en
 export type PluginStorageBunnyTranslationsKeys = NestedKeysStripped<PluginStorageBunnyTranslations>
+export type PluginStorageBunnyTFunction = TFunction<DefaultTranslationKeys | PluginStorageBunnyTranslationsKeys>

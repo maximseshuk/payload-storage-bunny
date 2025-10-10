@@ -1,3 +1,4 @@
+import type { MediaPreviewProps } from '@/fields/index.js'
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { CollectionConfig, PayloadRequest, Plugin, TaskConfig, UploadCollectionSlug } from 'payload'
@@ -36,13 +37,59 @@ export type UrlTransformConfig =
     transformUrl: UrlTransformFunction
   }
 
+export type InsertPosition =
+  | 'first'
+  | 'last'
+  | { after: string; before?: never }
+  | { after?: never; before: string }
+
 export type ThumbnailConfig = {
   /**
    * Use a specific size from upload collection's sizes instead of original file
    * Only works for image uploads that have sizes configured
    */
   sizeName?: string
+  /**
+   * Enable animated preview (WebP) instead of static thumbnail for Bunny Stream videos.
+   * When enabled, uses preview.webp instead of thumbnail.jpg for video thumbnails.
+   * Only works when stream configuration is enabled for the collection.
+   * @default false
+   */
+  streamAnimated?: boolean
 } & UrlTransformConfig
+
+export type MediaPreviewConfig = {
+  /**
+   * Position where to insert mediaPreviewField.
+   * Supports dot notation for nested fields (e.g., 'meta.title' or 'tabs.0.content').
+   *
+   * @example
+   * ```typescript
+   * mediaPreview: {
+   *   position: 'first'  // Insert at the very beginning
+   * }
+   *
+   * mediaPreview: {
+   *   position: 'last'  // Insert at the end (default)
+   * }
+   *
+   * mediaPreview: {
+   *   position: { after: 'filename' }  // Insert after filename field
+   * }
+   *
+   * mediaPreview: {
+   *   position: { before: 'title' }  // Insert before title field
+   * }
+   *
+   * mediaPreview: {
+   *   position: { after: 'meta.description' }  // Insert in meta group after description
+   * }
+   * ```
+   *
+   * @default 'last'
+   */
+  position?: InsertPosition
+} & MediaPreviewProps
 
 export type PurgeConfig = {
   /**
@@ -162,6 +209,20 @@ export type StreamConfig = {
    * @default 300000
    */
   uploadTimeout?: number
+  /**
+   * Webhook configuration for receiving video status updates from Bunny Stream.
+   * When enabled, creates an endpoint at: /api/storage-bunny/stream/webhook?secret=<your-secret>
+   *
+   * Configure this URL with secret query parameter in your Bunny Stream library settings.
+   */
+  webhook?: {
+    /**
+     * Secret for webhook authentication.
+     * Must match the secret in your Bunny Stream webhook URL query parameter.
+     * Example webhook URL: https://your-site.com/api/storage-bunny/stream/webhook?secret=my-secret-123
+     */
+    secret: string
+  }
 }
 
 export type StaticHandlerConfig = {
@@ -211,8 +272,11 @@ export type SignedUrlsConfig = {
 }
 
 export type BunnyStorageCollectionConfig = {
-  /** @deprecated Use thumbnail instead. Will be removed in v2.2.0 */
-  adminThumbnail?: boolean | ThumbnailConfig
+  /**
+   * Override global media preview config for this collection.
+   * Set to false to disable media preview for this collection.
+   */
+  mediaPreview?: boolean | MediaPreviewConfig
   /**
    * Override global CDN cache purging config for this collection.
    * Set to false to disable cache purging for this collection.
@@ -237,6 +301,12 @@ export type BunnyStorageCollectionConfig = {
    * When disabled, only storage can be used.
    */
   stream?: {
+    /**
+     * Enable media preview in admin panel.
+     * Adds a virtual field showing preview for videos, images, and documents.
+     * @default false
+     */
+    mediaPreview?: boolean
     /**
      * Override MP4 fallback setting for this collection
      */
@@ -287,8 +357,6 @@ export type CollectionsConfig = Partial<
 >
 
 type BunnyStorageBaseConfig = {
-  /** @deprecated Use thumbnail instead. Will be removed in v2.2.0 */
-  adminThumbnail?: boolean | ThumbnailConfig
   /**
    * Bunny Account API key (AccessKey) for account-level operations.
    * Required for CDN cache purging feature.
@@ -307,11 +375,20 @@ type BunnyStorageBaseConfig = {
   i18n?: {
     translations: {
       [key in AcceptedLanguages]?: {
+        mediaPreviewClose?: string
+        mediaPreviewOpen?: string
         tusUploadDisableMode?: string
         tusUploadEnableMode?: string
       }
     }
   }
+  /**
+   * Enable media preview in admin panel for uploads.
+   * Supports videos (Bunny Stream and regular files), images, and documents.
+   * Can be overridden per collection.
+   * @default false
+   */
+  mediaPreview?: boolean | MediaPreviewConfig
   /** CDN cache purging configuration */
   purge?: boolean | PurgeConfig
   /** Global signed URLs config (can be overridden per collection) */

@@ -2,6 +2,15 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const fr: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
+    // Media Preview
+    mediaPreviewClose: 'Fermer',
+    mediaPreviewLabel: 'Aperçu',
+    mediaPreviewOpen: 'Ouvrir',
+    mediaPreviewTitleAudio: 'Aperçu audio',
+    mediaPreviewTitleDocument: 'Aperçu du document',
+    mediaPreviewTitleImage: 'Aperçu de l\'image',
+    mediaPreviewTitleVideo: 'Aperçu vidéo',
+
     // TUS Upload
     tusUploadChecking: 'Vérification des téléchargements précédents...',
     tusUploadDisableMode: 'Désactiver le mode TUS',
@@ -31,7 +40,6 @@ export const fr: PluginDefaultTranslationsObject = {
     errorCannotUploadToVideo: 'Impossible de télécharger vers cette vidéo',
     errorCreateVideoFailed: 'Impossible de créer la vidéo sur Bunny CDN',
     errorDeleteFileFailed: 'Impossible de supprimer le fichier : {{filename}}',
-    errorInternalServer: 'Une erreur s\'est produite de notre côté',
     errorMissingRequiredFields: 'Certaines informations requises sont manquantes',
     errorNoServiceConfigured: 'Aucun service configuré',
     errorStreamConfigMissing: 'Bunny Stream n\'est pas configuré correctement',
