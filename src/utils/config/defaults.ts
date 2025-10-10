@@ -18,6 +18,7 @@ export const CONFIG_DEFAULTS = {
         queue: 'storage-bunny',
       },
     },
+    mimeTypes: TUS_MIME_TYPES,
     mp4Fallback: false,
     tus: {
       autoMode: true,

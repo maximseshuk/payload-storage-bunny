@@ -241,6 +241,7 @@ Optional settings for video handling:
 | `apiKey`           | `string`            | ✅       | Your Bunny Stream API key                                                                  |
 | `hostname`         | `string`            | ✅       | Stream CDN domain (e.g., 'vz-abc123def-456.b-cdn.net')                                     |
 | `libraryId`        | `number`            | ✅       | Your video library ID (e.g., 123456)                                                       |
+| `mimeTypes`        | `string[]`          | ❌       | File types that should use Bunny Stream (defaults to video/audio types)                    |
 | `mp4Fallback`      | `boolean`           | ❌       | Enable MP4 downloads (required with access control unless using signed URLs with redirect) |
 | `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds (specifies moment in video to capture)              |
 | `tokenSecurityKey` | `string`            | ❌       | Security key for signing stream URLs                                                       |
@@ -248,14 +249,16 @@ Optional settings for video handling:
 | `tus`              | `boolean \| object` | ❌       | Enable TUS resumable uploads (see options below)                                           |
 | `cleanup`          | `boolean \| object` | ❌       | Automatic cleanup of incomplete uploads (requires Jobs Queue setup, see options below)     |
 
+> [!IMPORTANT]
+> The `stream.mimeTypes` setting works together with your collection's `mimeTypes` setting. If a file type is allowed in stream config but blocked in your collection config, the collection setting takes priority and the file will be rejected.
+
 **TUS upload options:**
 
-| Option          | Type       | Default           | Description                              |
-| --------------- | ---------- | ----------------- | ---------------------------------------- |
-| `autoMode`      | `boolean`  | `true`            | Auto-enable TUS for supported MIME types |
-| `checkAccess`   | `function` | Built-in check    | Custom authorization function            |
-| `mimeTypes`     | `string[]` | Video/audio types | Supported MIME types for TUS uploads     |
-| `uploadTimeout` | `number`   | `3600`            | Upload timeout in seconds                |
+| Option          | Type       | Default        | Description                              |
+| --------------- | ---------- | -------------- | ---------------------------------------- |
+| `autoMode`      | `boolean`  | `true`         | Auto-enable TUS for supported MIME types |
+| `checkAccess`   | `function` | Built-in check | Custom authorization function            |
+| `uploadTimeout` | `number`   | `3600`         | Upload timeout in seconds                |
 
 **Cleanup options:**
 
@@ -448,9 +451,6 @@ TUS (resumable uploads) enables reliable uploads of large video files by breakin
 
 - **Simple enable:** `tus: true` (uses auto mode by default)
 - **Detailed configuration:** See [Stream Configuration](#stream-configuration) section for all TUS options
-
-> [!IMPORTANT]
-> The TUS `mimeTypes` setting works together with your collection's `mimeTypes` setting. If a file type is allowed in TUS config but blocked in your collection config, the collection setting takes priority and the file will be rejected.
 
 ### Media Preview
 

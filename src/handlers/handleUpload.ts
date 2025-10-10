@@ -4,7 +4,7 @@ import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
 import type { TFunction } from '@payloadcms/translations'
 
 import { createStreamVideo, purgeCache, uploadStorageFile, uploadStreamVideo } from '@/utils/client/index.js'
-import { createStreamVideoSession, isStream } from '@/utils/index.js'
+import { createStreamVideoSession, matchesMimeTypePattern } from '@/utils/index.js'
 import { posix } from 'node:path'
 import { APIError } from 'payload'
 
@@ -22,7 +22,9 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
     try {
       const fileName = file.filename
       const path = posix.join(prefix || '', fileName)
-      const isVideoFile = isStream(file.mimeType)
+      const isVideoFile = !!(
+        streamConfig?.mimeTypes?.some(pattern => matchesMimeTypePattern(file.mimeType, pattern))
+      )
 
       if (streamConfig?.apiKey && isVideoFile) {
         const video = await createStreamVideo({ streamConfig, title: fileName })

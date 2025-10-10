@@ -137,27 +137,9 @@ export type StreamTusConfig = {
      */
   checkAccess?: (req: PayloadRequest) => boolean | Promise<boolean>
   /**
-     * Video and audio file types allowed for TUS uploads. Defaults include:
-     * - video/mp4 (mp4, m4p, m4v)
-     * - video/x-matroska (mkv)
-     * - video/webm (webm)
-     * - video/x-flv (flv)
-     * - video/x-ms-vod (vod)
-     * - video/x-msvideo (avi)
-     * - video/quicktime (mov)
-     * - video/x-ms-wmv (wmv)
-     * - video/x-amv (amv)
-     * - video/mpeg (mpeg, mpg)
-     * - video/4mv (4mv)
-     * - video/mp2t (ts)
-     * - video/mxf (mxf)
-     * - audio/mpeg (mp3)
-     * - audio/ogg (ogg)
-     * - audio/wav (wav)
-     *
-     * Collection mimeTypes settings override these TUS settings.
-     * If you allow a format here but block it in your collection config,
-     * the collection setting wins.
+     * @deprecated Use stream.mimeTypes instead. This option will be removed in v2.3.0.
+     * Video and audio file types allowed for TUS uploads.
+     * Moved to stream.mimeTypes for better organization.
      */
   mimeTypes?: string[]
   /**
@@ -189,6 +171,30 @@ export type StreamConfig = {
   hostname: string
   /** Video library ID from your Bunny Stream settings */
   libraryId: number
+  /**
+   * Video and audio file types that should use Bunny Stream. Defaults include:
+   * - video/mp4 (mp4, m4p, m4v)
+   * - video/x-matroska (mkv)
+   * - video/webm (webm)
+   * - video/x-flv (flv)
+   * - video/x-ms-vod (vod)
+   * - video/x-msvideo (avi)
+   * - video/quicktime (mov)
+   * - video/x-ms-wmv (wmv)
+   * - video/x-amv (amv)
+   * - video/mpeg (mpeg, mpg)
+   * - video/4mv (4mv)
+   * - video/mp2t (ts)
+   * - video/mxf (mxf)
+   * - audio/mpeg (mp3)
+   * - audio/ogg (ogg)
+   * - audio/wav (wav)
+   *
+   * Collection mimeTypes settings override these stream settings.
+   * If you allow a format here but block it in your collection config,
+   * the collection setting wins.
+   */
+  mimeTypes?: string[]
   /**
    * Enable MP4 downloads (required when using Payload access control, unless signed URLs with redirect are enabled)
    * @default false
@@ -307,6 +313,11 @@ export type BunnyStorageCollectionConfig = {
      * @default false
      */
     mediaPreview?: boolean
+    /**
+     * Override allowed MIME types for Bunny Stream uploads in this collection.
+     * Replaces the global stream.mimeTypes setting for this collection.
+     */
+    mimeTypes?: string[]
     /**
      * Override MP4 fallback setting for this collection
      */

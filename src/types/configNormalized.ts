@@ -21,14 +21,14 @@ export type NormalizedStreamConfig = {
     maxAge: number
     schedule: Exclude<TaskConfig['schedule'], undefined>[0]
   }
+  mimeTypes: string[]
   mp4Fallback: boolean
   tus?: {
     autoMode: boolean
-    mimeTypes: string[]
     uploadTimeout: number
   } & StreamTusConfig
   uploadTimeout: number
-} & Omit<StreamConfig, 'cleanup' | 'mp4Fallback' | 'tus' | 'uploadTimeout'>
+} & Omit<StreamConfig, 'cleanup' | 'mimeTypes' | 'mp4Fallback' | 'tus' | 'uploadTimeout'>
 
 export type NormalizedSignedUrlsConfig = {
   expiresIn: number

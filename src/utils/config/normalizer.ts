@@ -51,10 +51,17 @@ const normalizeStorageConfig = (storage: StorageConfig): NormalizedStorageConfig
 })
 
 const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => {
+  let mimeTypes = stream.mimeTypes
+
+  if (typeof stream.tus === 'object' && stream.tus.mimeTypes !== undefined && stream.mimeTypes === undefined) {
+    mimeTypes = stream.tus.mimeTypes
+  }
+
   const normalized: NormalizedStreamConfig = {
     apiKey: stream.apiKey,
     hostname: stream.hostname,
     libraryId: stream.libraryId,
+    mimeTypes: mimeTypes ?? [...CONFIG_DEFAULTS.stream.mimeTypes],
     mp4Fallback: stream.mp4Fallback ?? CONFIG_DEFAULTS.stream.mp4Fallback,
     thumbnailTime: stream.thumbnailTime,
     tokenSecurityKey: stream.tokenSecurityKey,
@@ -74,13 +81,11 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
     normalized.tus = {
       checkAccess: undefined,
       ...CONFIG_DEFAULTS.stream.tus,
-      mimeTypes: [...CONFIG_DEFAULTS.stream.tus.mimeTypes],
     }
   } else if (typeof stream.tus === 'object') {
     normalized.tus = {
       autoMode: stream.tus.autoMode ?? CONFIG_DEFAULTS.stream.tus.autoMode,
       checkAccess: stream.tus.checkAccess,
-      mimeTypes: stream.tus.mimeTypes ?? [...CONFIG_DEFAULTS.stream.tus.mimeTypes],
       uploadTimeout: stream.tus.uploadTimeout ?? CONFIG_DEFAULTS.stream.tus.uploadTimeout,
     }
   }
@@ -315,6 +320,10 @@ const resolveCollectionStreamConfig = (
   }
 
   const streamConfig = { ...globalStream }
+
+  if (collectionOverride.mimeTypes !== undefined) {
+    streamConfig.mimeTypes = collectionOverride.mimeTypes
+  }
 
   if (collectionOverride.mp4Fallback !== undefined) {
     streamConfig.mp4Fallback = collectionOverride.mp4Fallback

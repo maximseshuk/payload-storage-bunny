@@ -18,7 +18,7 @@ export const MediaPreviewCell: React.FC<Props> = ({ collectionConfig, contentMod
   const mimeType = rowData?.mimeType as string | undefined
   const url = rowData?.url as string | undefined
   const width = rowData?.width as number | undefined
-  const streamLibraryId = collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.streamLibraryId as
+  const streamLibraryId = collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.stream?.libraryId as
     | number
     | undefined
 

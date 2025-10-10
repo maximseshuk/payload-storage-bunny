@@ -46,7 +46,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = (props) => {
   let streamLibraryId: number | undefined
   if (bunnyVideoId && collectionSlug) {
     const collectionConfig = payload.collections[collectionSlug]?.config
-    streamLibraryId = collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.streamLibraryId as
+    streamLibraryId = collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.stream?.libraryId as
       | number
       | undefined
   }

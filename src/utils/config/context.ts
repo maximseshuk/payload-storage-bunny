@@ -2,7 +2,7 @@ import type { NormalizedBunnyStorageConfig, NormalizedStreamConfig } from '@/typ
 import type { BunnyStorageConfig, CollectionContext } from '@/types/index.js'
 import type { CollectionConfig } from 'payload'
 
-import { intersectMimeTypes } from '../file.js'
+import { intersectMimeTypes } from '../mimeTypes.js'
 import { createNormalizedConfig } from './normalizer.js'
 
 const configCache = new WeakMap<BunnyStorageConfig, NormalizedBunnyStorageConfig>()
@@ -81,16 +81,13 @@ const applyStreamConfig = (
 
   const filtered = intersectMimeTypes(
     collection.upload.mimeTypes,
-    streamConfig.tus.mimeTypes,
+    streamConfig.mimeTypes,
   )
 
   if (filtered?.length) {
     return {
       ...streamConfig,
-      tus: {
-        ...streamConfig.tus,
-        mimeTypes: filtered,
-      },
+      mimeTypes: filtered,
     }
   }
 

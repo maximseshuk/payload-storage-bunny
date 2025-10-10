@@ -87,6 +87,9 @@ export default buildConfig({
           signedUrls: {
             expiresIn: 3600,
           },
+          stream: {
+            mimeTypes: ['video/*'],
+          },
           thumbnail: false,
           urlTransform: {
             transformUrl: ({ baseUrl, data }) => {

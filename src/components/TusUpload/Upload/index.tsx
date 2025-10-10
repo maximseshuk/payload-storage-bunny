@@ -4,6 +4,7 @@ import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys
 import type { StreamTusAuthResponse } from '@/types/index.js'
 
 import { TUS_MIME_TYPES } from '@/utils/constants.js'
+import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 import { Button, Dropzone, useConfig, useDocumentEvents, useForm, useTranslation } from '@payloadcms/ui'
 import ky from 'ky'
 import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -70,7 +71,7 @@ export const Upload: React.FC<UploadProps> = ({
 
   const allowedMimeTypes = useMemo(() => {
     const collectionConfig = getEntityConfig({ collectionSlug })
-    return collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.tusMimeTypes ?? TUS_MIME_TYPES
+    return collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.stream?.mimeTypes ?? TUS_MIME_TYPES
   }, [collectionSlug, getEntityConfig])
 
   const acceptMimeTypes = allowedMimeTypes.join(', ')
@@ -404,7 +405,11 @@ export const Upload: React.FC<UploadProps> = ({
       return
     }
 
-    if (!allowedMimeTypes.includes(fileToUpload.type)) {
+    const isMimeTypeAllowed = allowedMimeTypes.some((pattern: string) =>
+      matchesMimeTypePattern(fileToUpload.type, pattern),
+    )
+
+    if (!isMimeTypeAllowed) {
       updateState({ uploadError: t('@seshuk/payload-storage-bunny:tusUploadErrorFileType') })
       return
     }

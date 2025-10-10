@@ -103,12 +103,15 @@ export const bunnyStorage: BunnyStoragePlugin =
                     ...(collection.admin?.custom || {}),
                     '@seshuk/payload-storage-bunny': {
                       ...(collection.admin?.custom?.['@seshuk/payload-storage-bunny'] || {}),
-                      streamLibraryId: collectionContext.streamConfig.libraryId,
-                      ...(collectionContext.isTusUploadSupported ? {
-                        tusAutoMode: collectionContext.streamConfig.tus?.autoMode,
-                        tusEnabled: true,
-                        tusMimeTypes: collectionContext.streamConfig.tus?.mimeTypes,
-                      } : {}),
+                      stream: {
+                        libraryId: collectionContext.streamConfig.libraryId,
+                        mimeTypes: collectionContext.streamConfig.mimeTypes,
+                        ...(collectionContext.isTusUploadSupported ? {
+                          tus: {
+                            autoMode: collectionContext.streamConfig.tus?.autoMode,
+                          },
+                        } : {}),
+                      },
                     },
                   },
                 } : {}),

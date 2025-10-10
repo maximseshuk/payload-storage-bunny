@@ -3,6 +3,7 @@
 import type { UploadProps as PayloadUploadProps } from '@payloadcms/ui/elements/Upload'
 import type { ClientCollectionConfig } from 'payload'
 
+import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 import {
   Upload as PayloadUpload,
   useBulkUpload,
@@ -36,18 +37,18 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
     }) as ClientCollectionConfig
   }, [docSlug, getEntityConfig])
 
-  const tusCustomConfig = useMemo(() => {
+  const customCollectionConfig = useMemo(() => {
     return collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']
   }, [collectionConfig])
 
   const allowedMimeTypes = useMemo(() => {
-    return tusCustomConfig?.tusMimeTypes || []
-  }, [tusCustomConfig])
+    return customCollectionConfig?.stream?.mimeTypes || []
+  }, [customCollectionConfig])
 
   const collectionSlug = collectionConfig?.slug || ''
   const isBulkUpload = !!bulkUploadContext?.collectionSlug
-  const isAutoModeEnabled = tusCustomConfig?.tusAutoMode === true && !isBulkUpload
-  const isTusEnabled = tusCustomConfig?.tusEnabled === true && !isBulkUpload
+  const isAutoModeEnabled = customCollectionConfig?.stream?.tus?.autoMode === true && !isBulkUpload
+  const isTusEnabled = customCollectionConfig?.stream?.tus !== undefined && !isBulkUpload
 
   const clearUploadControls = useCallback(() => {
     resetUploadEdits()
@@ -80,7 +81,11 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
         onChange(file)
       }
 
-      if (file && !isTusMode && isAutoModeEnabled && allowedMimeTypes.includes(file.type)) {
+      const isMimeTypeAllowed = file
+        ? allowedMimeTypes.some((pattern: string) => matchesMimeTypePattern(file.type, pattern))
+        : false
+
+      if (file && !isTusMode && isAutoModeEnabled && isMimeTypeAllowed) {
         setSelectedFile(file)
         clearUploadControls()
 
