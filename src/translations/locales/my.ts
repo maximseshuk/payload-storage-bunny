@@ -34,6 +34,9 @@ export const my: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'ဆက်လုပ်ရန် သို့မဟုတ် အစမှ စတင်ရန် အဆင်သင့်',
     tusUploadStatusPaused: 'တင်ပြမှု {{progress}}% တွင် ခေတ္တရပ်ထားသည်',
     tusUploadStatusUploading: 'တင်ပြနေသည်... {{progress}}%',
+    tusUploadTimeHours: 'နာရီ',
+    tusUploadTimeMinutes: 'မ',
+    tusUploadTimeSeconds: 'စ',
 
     // Error messages
     errorAccessDenied: 'ဤအရင်းအမြစ်ကို ဝင်ရောက်ခွင့် မရှိပါ',

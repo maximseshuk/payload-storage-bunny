@@ -10,14 +10,12 @@ import ky from 'ky'
 import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as tus from 'tus-js-client'
 
-import './index.scss'
-import { ToggleControl } from '../ToggleButton/index.js'
+import type { UploadState } from './Upload.types.js'
 
-const baseClass = 'storage-bunny-tus-upload'
-const TUS_ENDPOINT = 'https://video.bunnycdn.com/tusupload'
-const RETRY_DELAYS = [0, 3000, 5000, 10000, 20000, 60000, 60000]
-
-type UploadStatus = 'checking' | 'completed' | 'error' | 'idle' | 'paused' | 'preparing' | 'uploading'
+import { ToggleButton } from '../ToggleButton/ToggleButton.js'
+import { BASE_CLASS, INITIAL_STATE, TUS_ENDPOINT, TUS_RETRY_DELAYS } from './Upload.constants.js'
+import { cleanupTusLocalStorage, findPreviousTusUploads } from './Upload.utils.js'
+import './Upload.scss'
 
 type UploadProps = {
   collectionSlug: string
@@ -26,48 +24,30 @@ type UploadProps = {
   preSelectedFile?: File | null
 }
 
-type UploadState = {
-  canRestore: boolean
-  existingVideoId: null | string
-  fileName: string
-  isFileNameEditable: boolean
-  selectedFile: File | null
-  tusData: null | tus.PreviousUpload
-  uploadError: null | string
-  uploadProgress: number
-  uploadStatus: UploadStatus
-  videoAuthData: null | StreamTusAuthResponse
-}
-
-const initialState: UploadState = {
-  canRestore: false,
-  existingVideoId: null,
-  fileName: '',
-  isFileNameEditable: true,
-  selectedFile: null,
-  tusData: null,
-  uploadError: null,
-  uploadProgress: 0,
-  uploadStatus: 'idle',
-  videoAuthData: null,
-}
-
 export const Upload: React.FC<UploadProps> = ({
   collectionSlug,
   isAutoMode = false,
   onDisableTus,
   preSelectedFile,
 }) => {
-  const [state, setState] = useState<UploadState>(initialState)
+  const [state, setState] = useState<UploadState>(INITIAL_STATE)
   const inputRef = useRef<HTMLInputElement>(null)
   const tusUploadRef = useRef<null | tus.Upload>(null)
-  const prevUpdateRef = useRef<null | string>(null)
   const processedFileRef = useRef<File | null>(null)
+  const uploadStartTimeRef = useRef<null | number>(null)
+  const startingBytesRef = useRef<number>(0)
+  const prevUpdateRef = useRef<number | undefined>(undefined)
 
   const { dispatchFields, setBackgroundProcessing } = useForm()
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
-  const { getEntityConfig } = useConfig()
   const { mostRecentUpdate } = useDocumentEvents()
+  const {
+    config: {
+      routes: { api },
+      serverURL,
+    },
+    getEntityConfig,
+  } = useConfig()
 
   const allowedMimeTypes = useMemo(() => {
     const collectionConfig = getEntityConfig({ collectionSlug })
@@ -81,7 +61,7 @@ export const Upload: React.FC<UploadProps> = ({
   }, [])
 
   const resetState = useCallback(() => {
-    setState(initialState)
+    setState(INITIAL_STATE)
   }, [])
 
   const updateVideoFields = useCallback(
@@ -104,42 +84,12 @@ export const Upload: React.FC<UploadProps> = ({
     [dispatchFields, state.tusData],
   )
 
-  const cleanupTusLocalStorage = useCallback(async (file: File, videoId: string) => {
-    try {
-      const tempUpload = new tus.Upload(file, {
-        endpoint: TUS_ENDPOINT,
-        metadata: { videoId },
-      })
-
-      const { options } = tempUpload
-      const { fingerprint, urlStorage } = options
-
-      if (!fingerprint || !urlStorage) {
-        // eslint-disable-next-line no-console
-        console.warn('No fingerprint or urlStorage available')
-        return
-      }
-
-      const fp = await fingerprint(file, options)
-      const uploads = fp ? await urlStorage.findUploadsByFingerprint(fp) : []
-
-      const uploadsToRemove = uploads.filter((u) => u.metadata?.videoId === videoId)
-
-      await Promise.all(
-        uploadsToRemove.map((u) => (u.urlStorageKey ? urlStorage.removeUpload(u.urlStorageKey) : Promise.resolve())),
-      )
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('Failed to clean up tus localStorage entries:', err)
-    }
-  }, [])
-
   const getAuthData = useCallback(
     async (file: File, existingVideoId?: string): Promise<StreamTusAuthResponse> => {
       const filesize = state.tusData?.size || file.size
 
       const response = await ky
-        .post('/api/storage-bunny/stream/tus-auth', {
+        .post(`${serverURL}${api}/storage-bunny/stream/tus-auth`, {
           json: {
             collection: collectionSlug,
             filename: file.name,
@@ -153,7 +103,7 @@ export const Upload: React.FC<UploadProps> = ({
 
       return response
     },
-    [collectionSlug, state.fileName, state.tusData],
+    [api, collectionSlug, serverURL, state.fileName, state.tusData],
   )
 
   const handleVideoIdMismatch = useCallback(
@@ -168,7 +118,7 @@ export const Upload: React.FC<UploadProps> = ({
         })
       }
     },
-    [cleanupTusLocalStorage, updateState],
+    [updateState],
   )
 
   const handleUploadSuccess = useCallback(
@@ -186,11 +136,13 @@ export const Upload: React.FC<UploadProps> = ({
             updateState({ tusData: currentUploads[0] })
           }
           updateVideoFields(authData.videoId, file)
+          void cleanupTusLocalStorage(file, authData.videoId)
         })
         .catch((err) => {
           // eslint-disable-next-line no-console
           console.error('Error getting upload data:', err)
           updateVideoFields(authData.videoId, file)
+          void cleanupTusLocalStorage(file, authData.videoId)
         })
     },
     [setBackgroundProcessing, updateState, updateVideoFields],
@@ -224,10 +176,28 @@ export const Upload: React.FC<UploadProps> = ({
         },
         onProgress: (bytesUploaded, bytesTotal) => {
           const percentage = (bytesUploaded / bytesTotal) * 100
-          updateState({ uploadProgress: percentage })
+
+          let estimatedTimeRemaining: null | number = null
+          if (uploadStartTimeRef.current && bytesUploaded > 0 && bytesUploaded < bytesTotal) {
+            if (startingBytesRef.current === 0 && bytesUploaded > 0) {
+              startingBytesRef.current = bytesUploaded
+            }
+
+            const realBytesUploaded = bytesUploaded - startingBytesRef.current
+            const elapsed = (Date.now() - uploadStartTimeRef.current) / 1000
+
+            if (elapsed > 0 && realBytesUploaded > 0) {
+              const uploadSpeed = realBytesUploaded / elapsed
+              const remainingBytes = bytesTotal - realBytesUploaded
+              estimatedTimeRemaining = remainingBytes / uploadSpeed
+            }
+          }
+
+          updateState({ estimatedTimeRemaining, uploadProgress: percentage })
         },
         onSuccess: () => handleUploadSuccess(authData, file, upload),
-        retryDelays: RETRY_DELAYS,
+        removeFingerprintOnSuccess: true,
+        retryDelays: TUS_RETRY_DELAYS,
       })
 
       return upload
@@ -242,14 +212,15 @@ export const Upload: React.FC<UploadProps> = ({
       }
 
       updateState({
+        authData,
         fileName: authData.title,
         isFileNameEditable: false,
         uploadProgress: 100,
         uploadStatus: 'completed',
-        videoAuthData: authData,
       })
       setBackgroundProcessing(false)
       updateVideoFields(authData.videoId, file)
+      void cleanupTusLocalStorage(file, authData.videoId)
     },
     [setBackgroundProcessing, updateState, updateVideoFields],
   )
@@ -263,16 +234,11 @@ export const Upload: React.FC<UploadProps> = ({
       })
 
       try {
-        const tempUpload = new tus.Upload(file, {
-          endpoint: TUS_ENDPOINT,
-          metadata: {
-            collection: collectionSlug || '',
-            filename: file.name,
-            filetype: file.type,
-          },
+        const previousUploads = await findPreviousTusUploads(file, {
+          collection: collectionSlug || '',
+          filename: file.name,
+          filetype: file.type,
         })
-
-        const previousUploads = await tempUpload.findPreviousUploads()
 
         if (previousUploads.length === 0) {
           updateState({
@@ -358,10 +324,12 @@ export const Upload: React.FC<UploadProps> = ({
           return
         }
 
-        updateState({ videoAuthData: authData })
+        updateState({ authData })
 
         const upload = createTusUpload(state.selectedFile, authData)
         tusUploadRef.current = upload
+        uploadStartTimeRef.current = Date.now()
+        startingBytesRef.current = 0
 
         if (existingVideoId && authData.videoId === existingVideoId) {
           const previousUploads = await upload.findPreviousUploads()
@@ -467,13 +435,15 @@ export const Upload: React.FC<UploadProps> = ({
   }
 
   const resumeUpload = async () => {
-    if (!state.selectedFile || !state.videoAuthData || state.videoAuthData.type !== 'upload') {
+    if (!state.selectedFile || !state.authData || state.authData.type !== 'upload') {
       return
     }
 
     try {
-      const upload = createTusUpload(state.selectedFile, state.videoAuthData)
+      const upload = createTusUpload(state.selectedFile, state.authData)
       tusUploadRef.current = upload
+      uploadStartTimeRef.current = Date.now()
+      startingBytesRef.current = 0
       updateState({
         uploadError: null,
         uploadStatus: 'uploading',
@@ -522,28 +492,18 @@ export const Upload: React.FC<UploadProps> = ({
   }, [preSelectedFile])
 
   useEffect(() => {
-    const shouldCleanup =
+    const isDocumentSavedAfterUpload =
       mostRecentUpdate &&
       mostRecentUpdate !== prevUpdateRef.current &&
       state.uploadStatus === 'completed' &&
-      state.selectedFile &&
-      state.videoAuthData
+      state.authData
 
-    if (shouldCleanup) {
-      void cleanupTusLocalStorage(state.selectedFile!, state.videoAuthData!.videoId).then(() => {
-        onDisableTus()
-      })
+    if (isDocumentSavedAfterUpload) {
+      onDisableTus()
     }
 
     prevUpdateRef.current = mostRecentUpdate
-  }, [
-    mostRecentUpdate,
-    state.uploadStatus,
-    state.selectedFile,
-    state.videoAuthData,
-    onDisableTus,
-    cleanupTusLocalStorage,
-  ])
+  }, [mostRecentUpdate, state.uploadStatus, state.authData, onDisableTus])
 
   const renderUploadControls = () => {
     const { canRestore, uploadProgress, uploadStatus } = state
@@ -599,8 +559,26 @@ export const Upload: React.FC<UploadProps> = ({
     return statusButtonMap[uploadStatus as keyof typeof statusButtonMap] || null
   }
 
+  const formatTimeRemaining = (seconds: number): string => {
+    const s = t('@seshuk/payload-storage-bunny:tusUploadTimeSeconds')
+    const m = t('@seshuk/payload-storage-bunny:tusUploadTimeMinutes')
+    const h = t('@seshuk/payload-storage-bunny:tusUploadTimeHours')
+
+    if (seconds < 60) {
+      return `${Math.ceil(seconds)}${s}`
+    }
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = Math.ceil(seconds % 60)
+    if (minutes < 60) {
+      return remainingSeconds > 0 ? `${minutes}${m} ${remainingSeconds}${s}` : `${minutes}${m}`
+    }
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    return remainingMinutes > 0 ? `${hours}${h} ${remainingMinutes}${m}` : `${hours}${h}`
+  }
+
   const renderProgressText = () => {
-    const { canRestore, uploadError, uploadProgress, uploadStatus } = state
+    const { canRestore, estimatedTimeRemaining, uploadError, uploadProgress, uploadStatus } = state
 
     if (uploadError) {
       return uploadError
@@ -619,28 +597,31 @@ export const Upload: React.FC<UploadProps> = ({
       uploading:
         uploadProgress >= 99
           ? t('@seshuk/payload-storage-bunny:tusUploadStatusFinalizing')
-          : t('@seshuk/payload-storage-bunny:tusUploadStatusUploading', {
-            progress: uploadProgress.toFixed(1),
-          }),
+          : (() => {
+            const baseText = t('@seshuk/payload-storage-bunny:tusUploadStatusUploading', {
+              progress: uploadProgress.toFixed(1),
+            })
+            return `${baseText}${estimatedTimeRemaining ? ` (~${formatTimeRemaining(estimatedTimeRemaining)})` : ''}`
+          })(),
     }
 
     return statusTextMap[uploadStatus as keyof typeof statusTextMap] || null
   }
 
   return (
-    <div className={`${baseClass} ${baseClass}--${state.uploadStatus}`}>
-      <div className={`${baseClass}__upload`}>
+    <div className={`${BASE_CLASS} ${BASE_CLASS}--${state.uploadStatus}`}>
+      <div className={`${BASE_CLASS}__upload`}>
         {!state.selectedFile && (
           <Dropzone onChange={handleFileSelection}>
-            <div className={`${baseClass}__dropzoneContent`}>
-              <div className={`${baseClass}__dropzoneButtons`}>
+            <div className={`${BASE_CLASS}__dropzoneContent`}>
+              <div className={`${BASE_CLASS}__dropzoneButtons`}>
                 <Button buttonStyle="pill" onClick={() => inputRef.current?.click()} size="small">
                   {t('upload:selectFile')}
                 </Button>
                 <input
                   accept={acceptMimeTypes}
                   aria-hidden="true"
-                  className={`${baseClass}__hidden-input`}
+                  className={`${BASE_CLASS}__hidden-input`}
                   hidden
                   onChange={(e) => {
                     if (e.target.files?.length) {
@@ -650,9 +631,9 @@ export const Upload: React.FC<UploadProps> = ({
                   ref={inputRef}
                   type="file"
                 />
-                <ToggleControl isEnabled={true} onToggle={onDisableTus} />
+                <ToggleButton isEnabled={true} onToggle={onDisableTus} />
               </div>
-              <p className={`${baseClass}__dragAndDropText`}>
+              <p className={`${BASE_CLASS}__dragAndDropText`}>
                 {t('general:or')} {t('upload:dragAndDrop')}
               </p>
             </div>
@@ -661,11 +642,11 @@ export const Upload: React.FC<UploadProps> = ({
 
         {state.selectedFile && (
           <Fragment>
-            <div className={`${baseClass}__file-container`}>
-              <div className={`${baseClass}__filename-section`}>
+            <div className={`${BASE_CLASS}__file-container`}>
+              <div className={`${BASE_CLASS}__filename-section`}>
                 {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
                 <input
-                  className={`${baseClass}__filename`}
+                  className={`${BASE_CLASS}__filename`}
                   disabled={!state.isFileNameEditable}
                   onChange={handleFileNameChange}
                   title={state.fileName}
@@ -674,7 +655,7 @@ export const Upload: React.FC<UploadProps> = ({
                 />
                 <Button
                   buttonStyle="icon-label"
-                  className={`${baseClass}__remove`}
+                  className={`${BASE_CLASS}__remove`}
                   icon="x"
                   iconStyle="with-border"
                   onClick={handleFileRemoval}
@@ -683,21 +664,21 @@ export const Upload: React.FC<UploadProps> = ({
                 />
               </div>
 
-              <div className={`${baseClass}__file-header`}>
-                <div className={`${baseClass}__tus-controls`}>{renderUploadControls()}</div>
+              <div className={`${BASE_CLASS}__file-header`}>
+                <div className={`${BASE_CLASS}__tus-controls`}>{renderUploadControls()}</div>
 
-                <span className={`${baseClass}__file-size`}>
+                <span className={`${BASE_CLASS}__file-size`}>
                   {t('@seshuk/payload-storage-bunny:tusUploadFileSize', {
                     size: (state.selectedFile.size / 1024 / 1024).toFixed(2),
                   })}
                 </span>
               </div>
               <div
-                className={`${baseClass}__progress-bar ${baseClass}__progress-bar--${state.uploadStatus}`}
+                className={`${BASE_CLASS}__progress-bar ${BASE_CLASS}__progress-bar--${state.uploadStatus}`}
                 style={{ '--upload-progress': `${state.uploadProgress}%` } as React.CSSProperties}
               >
-                <div className={`${baseClass}__progress-fill`}></div>
-                <div className={`${baseClass}__progress-text`}>{renderProgressText()}</div>
+                <div className={`${BASE_CLASS}__progress-fill`}></div>
+                <div className={`${BASE_CLASS}__progress-text`}>{renderProgressText()}</div>
               </div>
             </div>
           </Fragment>

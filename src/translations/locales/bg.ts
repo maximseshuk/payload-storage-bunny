@@ -34,6 +34,9 @@ export const bg: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Готово за продължение или започване отначало',
     tusUploadStatusPaused: 'Качването е паузирано на {{progress}}%',
     tusUploadStatusUploading: 'Качва се... {{progress}}%',
+    tusUploadTimeHours: 'ч',
+    tusUploadTimeMinutes: 'м',
+    tusUploadTimeSeconds: 'с',
 
     // Error messages
     errorAccessDenied: 'Нямате разрешение за достъп до този ресурс',

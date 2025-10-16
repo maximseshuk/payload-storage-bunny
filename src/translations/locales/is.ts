@@ -34,6 +34,9 @@ export const is: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Tilbúið að halda áfram eða byrja aftur',
     tusUploadStatusPaused: 'Upphal á hlé við {{progress}}%',
     tusUploadStatusUploading: 'Hleð upp... {{progress}}%',
+    tusUploadTimeHours: 'k',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Þú hefur ekki heimild til að nálgast þetta tilfang',

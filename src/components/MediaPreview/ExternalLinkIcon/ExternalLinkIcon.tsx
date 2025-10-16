@@ -1,6 +1,6 @@
 import React from 'react'
 
-import './index.scss'
+import './ExternalLinkIcon.scss'
 
 export const ExternalLinkIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg

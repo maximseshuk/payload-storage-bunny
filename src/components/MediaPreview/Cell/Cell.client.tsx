@@ -7,15 +7,15 @@ import { Pill, useTranslation } from '@payloadcms/ui'
 import { EyeIcon } from '@payloadcms/ui/icons/Eye'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { ExternalLinkIcon } from '../ExternalLinkIcon/index.js'
-import { MediaPreviewModal } from '../Modal/index.js'
+import { ExternalLinkIcon } from '../ExternalLinkIcon/ExternalLinkIcon.js'
 import {
   canPreviewDocument,
   getDocumentViewerType,
   getGoogleViewerUrl,
   getMicrosoftViewerUrl,
   getPreviewType,
-} from '../utils.js'
+} from '../MediaPreview.utils.js'
+import { MediaPreviewModal } from '../Modal/Modal.js'
 
 type Props = {
   contentMode?: MediaPreviewContentMode

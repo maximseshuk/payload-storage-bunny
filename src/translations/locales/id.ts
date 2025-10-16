@@ -34,6 +34,9 @@ export const id: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Siap melanjutkan atau mulai ulang',
     tusUploadStatusPaused: 'Unggahan dijeda pada {{progress}}%',
     tusUploadStatusUploading: 'Mengunggah... {{progress}}%',
+    tusUploadTimeHours: 'j',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Anda tidak memiliki izin untuk mengakses sumber daya ini',

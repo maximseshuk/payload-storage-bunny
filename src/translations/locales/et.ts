@@ -34,6 +34,9 @@ export const et: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Valmis jätkamiseks või uuesti alustamiseks',
     tusUploadStatusPaused: 'Üleslaadimine peatatud {{progress}}% juures',
     tusUploadStatusUploading: 'Laaditakse üles... {{progress}}%',
+    tusUploadTimeHours: 'h',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Teil pole õigust sellele ressursile juurdepääsuks',

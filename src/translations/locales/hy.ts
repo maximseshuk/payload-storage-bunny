@@ -34,6 +34,9 @@ export const hy: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Պատրաստ է շարունակել կամ սկսել նորից',
     tusUploadStatusPaused: 'Վերբեռնումը դադարեցվել է {{progress}}%-ում',
     tusUploadStatusUploading: 'Վերբեռնվում է... {{progress}}%',
+    tusUploadTimeHours: 'ժ',
+    tusUploadTimeMinutes: 'ր',
+    tusUploadTimeSeconds: 'վ',
 
     // Error messages
     errorAccessDenied: 'Դուք թույլտվություն չունեք այս ռեսուրսին մուտք գործելու համար',

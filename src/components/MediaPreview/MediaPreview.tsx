@@ -6,10 +6,9 @@ import { getTranslation, type TFunction } from '@payloadcms/translations'
 import { FieldLabel } from '@payloadcms/ui'
 import React from 'react'
 
-import { MediaPreviewFieldClient } from './Field/index.js'
-import { getPreviewType } from './utils.js'
-
-const fieldBaseClass = 'field-type'
+import { MediaPreviewFieldClient } from './Field/Field.js'
+import { FIELD_BASE_CLASS } from './MediaPreview.constants.js'
+import { getPreviewType } from './MediaPreview.utils.js'
 
 type MediaPreviewProps = {
   contentMode?: MediaPreviewContentMode
@@ -60,7 +59,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = (props) => {
   }
 
   return (
-    <div className={`${fieldBaseClass} bunny-media-preview`}>
+    <div className={`${FIELD_BASE_CLASS} bunny-media-preview`}>
       {fieldLabel && <FieldLabel htmlFor={path} label={fieldLabel} />}
       <MediaPreviewFieldClient
         contentMode={contentMode}
@@ -78,5 +77,3 @@ export const MediaPreview: React.FC<MediaPreviewProps> = (props) => {
     </div>
   )
 }
-
-export default MediaPreview

@@ -34,6 +34,9 @@ export const cs: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Připraveno k pokračování nebo začátku znovu',
     tusUploadStatusPaused: 'Nahrávání pozastaveno na {{progress}}%',
     tusUploadStatusUploading: 'Nahrává se... {{progress}}%',
+    tusUploadTimeHours: 'h',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Nemáte oprávnění pro přístup k tomuto zdroji',

@@ -34,6 +34,9 @@ export const nb: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Klar for å gjenoppta eller starte på nytt',
     tusUploadStatusPaused: 'Opplasting satt på pause ved {{progress}}%',
     tusUploadStatusUploading: 'Laster opp... {{progress}}%',
+    tusUploadTimeHours: 't',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Du har ikke tilgang til denne ressursen',

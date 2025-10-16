@@ -34,6 +34,9 @@ export const ca: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Llest per reprendre o començar de nou',
     tusUploadStatusPaused: 'Càrrega pausada al {{progress}}%',
     tusUploadStatusUploading: 'Carregant... {{progress}}%',
+    tusUploadTimeHours: 'h',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'No tens permís per accedir a aquest recurs',

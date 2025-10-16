@@ -34,6 +34,9 @@ export const nl: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Klaar om te hervatten of opnieuw te beginnen',
     tusUploadStatusPaused: 'Upload gepauzeerd op {{progress}}%',
     tusUploadStatusUploading: 'Uploaden... {{progress}}%',
+    tusUploadTimeHours: 'u',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'U heeft geen toestemming om deze bron te benaderen',

@@ -34,6 +34,9 @@ export const vi: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Sẵn sàng tiếp tục hoặc bắt đầu lại',
     tusUploadStatusPaused: 'Tải lên đã tạm dừng ở {{progress}}%',
     tusUploadStatusUploading: 'Đang tải lên... {{progress}}%',
+    tusUploadTimeHours: 'g',
+    tusUploadTimeMinutes: 'p',
+    tusUploadTimeSeconds: 'g',
 
     // Error messages
     errorAccessDenied: 'Bạn không có quyền truy cập tài nguyên này',

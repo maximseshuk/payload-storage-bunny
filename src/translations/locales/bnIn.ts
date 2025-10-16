@@ -34,6 +34,9 @@ export const bnIn: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'পুনরায় আরম্ভ বা নতুনভাবে শুরু করার জন্য প্রস্তুত',
     tusUploadStatusPaused: 'আপলোড {{progress}}% এ বিরাম দেওয়া হয়েছে',
     tusUploadStatusUploading: 'আপলোড হচ্ছে... {{progress}}%',
+    tusUploadTimeHours: 'ঘ',
+    tusUploadTimeMinutes: 'মি',
+    tusUploadTimeSeconds: 'সে',
 
     // Error messages
     errorAccessDenied: 'এই সম্পদে প্রবেশ করার অনুমতি আপনার নেই',

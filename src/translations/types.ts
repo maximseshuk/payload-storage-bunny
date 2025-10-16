@@ -45,5 +45,8 @@ export type PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: string
     tusUploadStatusPaused: string
     tusUploadStatusUploading: string
+    tusUploadTimeHours: string
+    tusUploadTimeMinutes: string
+    tusUploadTimeSeconds: string
   }
 }

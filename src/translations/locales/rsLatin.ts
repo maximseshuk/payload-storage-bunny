@@ -34,6 +34,9 @@ export const rsLatin: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Spremno za nastavak ili početak iznova',
     tusUploadStatusPaused: 'Otpremanje pauzirano na {{progress}}%',
     tusUploadStatusUploading: 'Otpremam... {{progress}}%',
+    tusUploadTimeHours: 'č',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Nemate dozvolu za pristup ovom resursu',

@@ -34,6 +34,9 @@ export const ta: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'தொடர அல்லது புதிதாகத் தொடங்கத் தயார்',
     tusUploadStatusPaused: 'பதிவேற்றம் {{progress}}% இல் இடைநிறுத்தப்பட்டது',
     tusUploadStatusUploading: 'பதிவேற்றம் செய்கிறது... {{progress}}%',
+    tusUploadTimeHours: 'ம',
+    tusUploadTimeMinutes: 'நி',
+    tusUploadTimeSeconds: 'வி',
 
     // Error messages
     errorAccessDenied: 'இந்த ஆதாரத்தை அணுக உங்களுக்கு அனுமति இல்லை',

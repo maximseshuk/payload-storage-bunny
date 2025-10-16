@@ -34,6 +34,9 @@ export const zhTw: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: '準備繼續或重新開始',
     tusUploadStatusPaused: '上傳已在 {{progress}}% 處暫停',
     tusUploadStatusUploading: '正在上傳... {{progress}}%',
+    tusUploadTimeHours: '小時',
+    tusUploadTimeMinutes: '分',
+    tusUploadTimeSeconds: '秒',
 
     // Error messages
     errorAccessDenied: '您沒有權限存取此資源',

@@ -34,6 +34,9 @@ export const hu: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Készen áll a folytatásra vagy újrakezdésre',
     tusUploadStatusPaused: 'Feltöltés szüneteltetve {{progress}}%-nál',
     tusUploadStatusUploading: 'Feltöltés folyamatban... {{progress}}%',
+    tusUploadTimeHours: 'ó',
+    tusUploadTimeMinutes: 'p',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Nincs jogosultsága ennek az erőforrásnak az eléréséhez',

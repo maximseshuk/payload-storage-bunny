@@ -34,6 +34,9 @@ export const th: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'พร้อมดำเนินการต่อหรือเริ่มใหม่',
     tusUploadStatusPaused: 'การอัปโหลดหยุดชั่วคราวที่ {{progress}}%',
     tusUploadStatusUploading: 'กำลังอัปโหลด... {{progress}}%',
+    tusUploadTimeHours: 'ช',
+    tusUploadTimeMinutes: 'น',
+    tusUploadTimeSeconds: 'ว',
 
     // Error messages
     errorAccessDenied: 'คุณไม่มีสิทธิ์เข้าถึงทรัพยากรนี้',

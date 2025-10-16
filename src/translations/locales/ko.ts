@@ -34,6 +34,9 @@ export const ko: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: '재개 또는 처음부터 시작 준비됨',
     tusUploadStatusPaused: '업로드가 {{progress}}%에서 일시정지됨',
     tusUploadStatusUploading: '업로드 중... {{progress}}%',
+    tusUploadTimeHours: '시간',
+    tusUploadTimeMinutes: '분',
+    tusUploadTimeSeconds: '초',
 
     // Error messages
     errorAccessDenied: '이 리소스에 접근할 권한이 없습니다',

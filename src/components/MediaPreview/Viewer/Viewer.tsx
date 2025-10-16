@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 
-export type ViewerProps = {
+type ViewerProps = {
   className?: string
   media: {
     documentViewerUrl?: null | string

@@ -34,6 +34,9 @@ export const en: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Ready to resume or start over',
     tusUploadStatusPaused: 'Upload paused at {{progress}}%',
     tusUploadStatusUploading: 'Uploading... {{progress}}%',
+    tusUploadTimeHours: 'h',
+
+    tusUploadTimeMinutes: 'm', tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'You don\'t have permission to access this resource',

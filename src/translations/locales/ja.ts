@@ -34,6 +34,9 @@ export const ja: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: '再開または最初からの準備完了',
     tusUploadStatusPaused: 'アップロードが{{progress}}%で一時停止されました',
     tusUploadStatusUploading: 'アップロード中... {{progress}}%',
+    tusUploadTimeHours: '時間',
+    tusUploadTimeMinutes: '分',
+    tusUploadTimeSeconds: '秒',
 
     // Error messages
     errorAccessDenied: 'このリソースにアクセスする権限がありません',

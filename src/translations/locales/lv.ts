@@ -34,6 +34,9 @@ export const lv: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Gatavs turpināt vai sākt no sākuma',
     tusUploadStatusPaused: 'Augšupielāde apturēta {{progress}}%',
     tusUploadStatusUploading: 'Augšupielādē... {{progress}}%',
+    tusUploadTimeHours: 'h',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Jums nav atļaujas piekļūt šim resursam',

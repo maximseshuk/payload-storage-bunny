@@ -34,6 +34,9 @@ export const sl: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Pripravljeno za nadaljevanje ali začetek znova',
     tusUploadStatusPaused: 'Nalaganje pavzirano na {{progress}}%',
     tusUploadStatusUploading: 'Nalagam... {{progress}}%',
+    tusUploadTimeHours: 'h',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Nimate dovoljenja za dostop do tega vira',

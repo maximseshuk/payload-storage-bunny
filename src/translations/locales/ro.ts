@@ -34,6 +34,9 @@ export const ro: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Gata să continue sau să înceapă de la început',
     tusUploadStatusPaused: 'Încărcare întreruptă la {{progress}}%',
     tusUploadStatusUploading: 'Se încarcă... {{progress}}%',
+    tusUploadTimeHours: 'h',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Nu ai permisiunea să accesezi această resursă',

@@ -34,6 +34,9 @@ export const fa: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'آماده ادامه یا شروع دوباره',
     tusUploadStatusPaused: 'آپلود در {{progress}}% متوقف شد',
     tusUploadStatusUploading: 'در حال آپلود... {{progress}}%',
+    tusUploadTimeHours: 'س',
+    tusUploadTimeMinutes: 'د',
+    tusUploadTimeSeconds: 'ث',
 
     // Error messages
     errorAccessDenied: 'شما مجوز دسترسی به این منبع را ندارید',

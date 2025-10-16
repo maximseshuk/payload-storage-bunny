@@ -34,6 +34,9 @@ export const bnBd: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'পুনরায় শুরু বা নতুন করে শুরু করার জন্য প্রস্তুত',
     tusUploadStatusPaused: 'আপলোড {{progress}}% এ বিরতি দেওয়া হয়েছে',
     tusUploadStatusUploading: 'আপলোড হচ্ছে... {{progress}}%',
+    tusUploadTimeHours: 'ঘ',
+    tusUploadTimeMinutes: 'মি',
+    tusUploadTimeSeconds: 'সে',
 
     // Error messages
     errorAccessDenied: 'এই রিসোর্সে অ্যাক্সেস করার অনুমতি আপনার নেই',

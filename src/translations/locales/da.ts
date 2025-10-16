@@ -34,6 +34,9 @@ export const da: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Klar til at genoptage eller starte forfra',
     tusUploadStatusPaused: 'Upload sat på pause ved {{progress}}%',
     tusUploadStatusUploading: 'Uploader... {{progress}}%',
+    tusUploadTimeHours: 't',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Du har ikke tilladelse til at få adgang til denne ressource',

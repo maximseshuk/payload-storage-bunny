@@ -34,6 +34,9 @@ export const sv: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Redo att återuppta eller börja om',
     tusUploadStatusPaused: 'Uppladdning pausad vid {{progress}}%',
     tusUploadStatusUploading: 'Laddar upp... {{progress}}%',
+    tusUploadTimeHours: 't',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Du har inte behörighet att komma åt denna resurs',

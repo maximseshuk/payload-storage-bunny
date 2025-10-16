@@ -34,6 +34,9 @@ export const he: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'מוכן להמשיך או להתחיל מחדש',
     tusUploadStatusPaused: 'ההעלאה הושהתה ב-{{progress}}%',
     tusUploadStatusUploading: 'מעלה... {{progress}}%',
+    tusUploadTimeHours: 'ש',
+    tusUploadTimeMinutes: 'ד',
+    tusUploadTimeSeconds: 'ש',
 
     // Error messages
     errorAccessDenied: 'אין לך הרשאה לגשת למשאב זה',

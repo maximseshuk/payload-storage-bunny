@@ -34,6 +34,9 @@ export const es: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Listo para reanudar o empezar de nuevo',
     tusUploadStatusPaused: 'Subida pausada en {{progress}}%',
     tusUploadStatusUploading: 'Subiendo... {{progress}}%',
+    tusUploadTimeHours: 'h',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'No tienes permiso para acceder a este recurso',

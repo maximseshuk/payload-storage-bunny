@@ -34,6 +34,9 @@ export const rs: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Спремно за наставак или почетак изнова',
     tusUploadStatusPaused: 'Отпремање паузирано на {{progress}}%',
     tusUploadStatusUploading: 'Отпремам... {{progress}}%',
+    tusUploadTimeHours: 'ч',
+    tusUploadTimeMinutes: 'м',
+    tusUploadTimeSeconds: 'с',
 
     // Error messages
     errorAccessDenied: 'Немате дозволу за приступ овом ресурсу',

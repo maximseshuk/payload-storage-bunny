@@ -34,6 +34,9 @@ export const uk: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Готово до продовження або початку спочатку',
     tusUploadStatusPaused: 'Завантаження призупинено на {{progress}}%',
     tusUploadStatusUploading: 'Завантаження... {{progress}}%',
+    tusUploadTimeHours: 'г',
+    tusUploadTimeMinutes: 'хв',
+    tusUploadTimeSeconds: 'с',
 
     // Error messages
     errorAccessDenied: 'У вас немає дозволу на доступ до цього ресурсу',

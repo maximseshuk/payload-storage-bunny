@@ -34,6 +34,9 @@ export const ar: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'جاهز للاستكمال أو البدء من جديد',
     tusUploadStatusPaused: 'التحميل متوقف مؤقتاً عند {{progress}}%',
     tusUploadStatusUploading: 'جاري التحميل... {{progress}}%',
+    tusUploadTimeHours: 'س',
+    tusUploadTimeMinutes: 'د',
+    tusUploadTimeSeconds: 'ث',
 
     // Error messages
     errorAccessDenied: 'ليس لديك صلاحية للوصول إلى هذا المورد',

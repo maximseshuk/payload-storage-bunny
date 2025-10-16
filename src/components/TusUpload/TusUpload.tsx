@@ -9,21 +9,20 @@ import {
   useBulkUpload,
   useConfig,
   useDocumentInfo,
-  useForm,
   useUploadControls,
   useUploadEdits,
 } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
-import { ToggleControl } from './ToggleButton/index.js'
-import { Upload } from './Upload/index.js'
+import { ToggleButton } from './ToggleButton/ToggleButton.js'
+import { clickFileFieldRemoveButton } from './TusUpload.utils.js'
+import { Upload } from './Upload/Upload.js'
 
 export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
   const { onChange, UploadControls } = props
 
   const { collectionSlug: docSlug, initialState } = useDocumentInfo()
   const { getEntityConfig } = useConfig()
-  const { dispatchFields } = useForm()
   const { resetUploadEdits } = useUploadEdits()
   const { setUploadControlFile, setUploadControlFileName, setUploadControlFileUrl } = useUploadControls()
   const bulkUploadContext = useBulkUpload()
@@ -64,10 +63,7 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
 
   const handleDisableTus = useCallback(() => {
     if (isAutoModeEnabled) {
-      const payloadRemoveButton = document.querySelector('.file-field__upload .file-field__remove')
-      if (payloadRemoveButton) {
-        ;(payloadRemoveButton as HTMLButtonElement).click()
-      }
+      void clickFileFieldRemoveButton()
     }
 
     setIsTusMode(false)
@@ -89,12 +85,12 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
         setSelectedFile(file)
         clearUploadControls()
 
-        dispatchFields({ type: 'UPDATE', path: 'file', value: null })
+        void clickFileFieldRemoveButton()
 
         handleEnableTus()
       }
     },
-    [allowedMimeTypes, clearUploadControls, dispatchFields, handleEnableTus, isAutoModeEnabled, isTusMode, onChange],
+    [allowedMimeTypes, clearUploadControls, handleEnableTus, isAutoModeEnabled, isTusMode, onChange],
   )
 
   const combinedUploadControls = useMemo(() => {
@@ -105,7 +101,7 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
     return (
       <>
         {UploadControls}
-        <ToggleControl isEnabled={false} onToggle={handleEnableTus} />
+        <ToggleButton isEnabled={false} onToggle={handleEnableTus} />
       </>
     )
   }, [handleEnableTus, isAutoModeEnabled, isTusEnabled, UploadControls])

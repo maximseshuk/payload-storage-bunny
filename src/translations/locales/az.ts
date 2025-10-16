@@ -34,6 +34,9 @@ export const az: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Davam etmək və ya yenidən başlamaq üçün hazır',
     tusUploadStatusPaused: 'Yükləmə {{progress}}% -də dayandırıldı',
     tusUploadStatusUploading: 'Yüklənir... {{progress}}%',
+    tusUploadTimeHours: 's',
+    tusUploadTimeMinutes: 'd',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Bu resursa giriş icazəniz yoxdur',

@@ -34,6 +34,9 @@ export const lt: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Pasiruošęs tęsti arba pradėti iš naujo',
     tusUploadStatusPaused: 'Įkėlimas pristabdytas {{progress}}%',
     tusUploadStatusUploading: 'Įkeliama... {{progress}}%',
+    tusUploadTimeHours: 'v',
+    tusUploadTimeMinutes: 'm',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Neturite leidimo pasiekti šį išteklių',

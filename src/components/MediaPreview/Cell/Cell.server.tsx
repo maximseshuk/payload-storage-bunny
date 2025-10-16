@@ -3,8 +3,8 @@ import type { DefaultServerCellComponentProps } from 'payload'
 
 import React from 'react'
 
-import { MediaPreviewCellClient } from './index.client.js'
-import './index.scss'
+import { MediaPreviewCellClient } from './Cell.client.js'
+import './Cell.scss'
 
 type Props = {
   contentMode?: MediaPreviewContentMode

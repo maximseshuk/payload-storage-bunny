@@ -6,29 +6,11 @@ import { Modal, useModal, useTranslation } from '@payloadcms/ui'
 import { XIcon } from '@payloadcms/ui/icons/X'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { MediaPreviewViewer } from '../Viewer/index.js'
-import './index.scss'
+import { MediaPreviewViewer } from '../Viewer/Viewer.js'
+import { AUDIO_DIMENSIONS, POPUP_DIMENSIONS, SPACING } from './Modal.constants.js'
+import './Modal.scss'
 
-const POPUP_DIMENSIONS = {
-  MAX_HEIGHT: 290,
-  MAX_WIDTH: 480,
-  MIN_HEIGHT: 200,
-  MIN_WIDTH: 200,
-} as const
-
-const AUDIO_DIMENSIONS = {
-  HEIGHT: 40,
-  WIDTH: 300,
-} as const
-
-const SPACING = {
-  BOTTOM: 4,
-  CARET_SIZE: 10,
-  TOP: 24,
-  VIEWPORT_MARGIN: 16,
-} as const
-
-export type MediaPreviewModalProps = {
+type MediaPreviewModalProps = {
   media: {
     bunnyVideoId?: string
     documentViewerUrl?: null | string

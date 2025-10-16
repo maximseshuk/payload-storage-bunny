@@ -34,6 +34,9 @@ export const tr: PluginDefaultTranslationsObject = {
     tusUploadStatusIdleWithRestore: 'Devam etmeye veya baştan başlamaya hazır',
     tusUploadStatusPaused: 'Yükleme %{{progress}} oranında duraklatıldı',
     tusUploadStatusUploading: 'Yükleniyor... %{{progress}}',
+    tusUploadTimeHours: 's',
+    tusUploadTimeMinutes: 'd',
+    tusUploadTimeSeconds: 's',
 
     // Error messages
     errorAccessDenied: 'Bu kaynağa erişim izniniz yok',
