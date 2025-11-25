@@ -684,8 +684,10 @@ To get your Bunny Storage API key:
 2. Click on your **Storage Zone**
 3. Navigate to **FTP & API Access** section
 4. Copy the **Password** field as your API key
-   > [!IMPORTANT]
-   > Use the full Password, not the Read-only password (it won't work for uploads)
+
+> [!IMPORTANT]
+> Use the full Password, not the Read-only password (it won't work for uploads)
+
 5. Note your **Username** (this is your `zoneName` parameter)
 6. Note the **Hostname** value to determine your `region` (e.g., `ny.storage.bunnycdn.com` = region `ny`)
 
@@ -736,13 +738,9 @@ To get your Stream token security key:
 1. Go to your **Bunny.net** dashboard
 2. Navigate to **Delivery** → **Stream**
 3. Select your **Video Library**
-4. Click on **API** in the sidebar
-5. Find **CDN zone management** section
-6. Click **Manage** button
-7. Click on **Security** in the sidebar
-8. Click on **Token Authentication**
-9. Enable **Token authentication**
-10. Copy the **URL token authentication Key**
+4. Click on **Security** → **General** in the sidebar
+5. Enable **CDN Token Authentication**
+6. Copy the **Token Authentication Key**
 
 ## Storage Regions
 

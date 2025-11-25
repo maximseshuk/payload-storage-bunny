@@ -1,4 +1,5 @@
-import type { BunnyStreamVideoDocumentMeta, NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
+import type { BunnyDataInternal } from '@/types/core.js'
+import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
 import type { CollectionConfig, PayloadRequest } from 'payload'
 
 import { getStreamVideoResolutions } from '@/utils/client/stream.js'
@@ -6,29 +7,30 @@ import { getStreamVideoResolutions } from '@/utils/client/stream.js'
 import { createProxyResponse, maybeCreateRedirect, maybeGenerateSignedUrl } from './helpers.js'
 
 type Args = {
+  bunnyData: BunnyDataInternal
   collection: CollectionConfig
   docId: number | string
   req: PayloadRequest
   signedUrls: false | NormalizedSignedUrlsConfig
   streamConfig: NormalizedStreamConfig
   usePayloadAccessControl: boolean
-  videoId: string
-  videoMeta: BunnyStreamVideoDocumentMeta | null
 }
 
 export const streamStaticHandler = async ({
+  bunnyData,
   collection,
   docId,
   req,
   signedUrls,
   streamConfig,
   usePayloadAccessControl,
-  videoId,
-  videoMeta,
 }: Args): Promise<Response> => {
   if (!streamConfig.mp4Fallback) {
     return new Response('MP4 fallback not configured.', { status: 400 })
   }
+
+  const videoId = bunnyData.stream?.videoId ?? ''
+  const videoResolutions = bunnyData.stream?.resolutions
 
   const context = {
     collection,
@@ -42,9 +44,9 @@ export const streamStaticHandler = async ({
   let availableResolutions: string[] = []
   let metaNeedsUpdate = false
 
-  if (videoMeta?.resolutions?.highest) {
-    const savedResolutionUrl = `https://${streamConfig.hostname}/${videoId}/play_${videoMeta.resolutions.highest}.mp4`
-    const checkContext = { ...context, filename: `${videoId}/play_${videoMeta.resolutions.highest}.mp4` }
+  if (videoResolutions?.highest) {
+    const savedResolutionUrl = `https://${streamConfig.hostname}/${videoId}/play_${videoResolutions.highest}.mp4`
+    const checkContext = { ...context, filename: `${videoId}/play_${videoResolutions.highest}.mp4` }
 
     try {
       const checkUrl = maybeGenerateSignedUrl(savedResolutionUrl, checkContext)
@@ -54,9 +56,9 @@ export const streamStaticHandler = async ({
       })
 
       if (headResponse.ok) {
-        fallbackQuality = videoMeta.resolutions.highest
-        if (videoMeta.resolutions.available && videoMeta.resolutions.available.length > 0) {
-          availableResolutions = videoMeta.resolutions.available
+        fallbackQuality = videoResolutions.highest
+        if (videoResolutions.available && videoResolutions.available.length > 0) {
+          availableResolutions = videoResolutions.available
         }
       } else {
         metaNeedsUpdate = true
@@ -108,8 +110,8 @@ export const streamStaticHandler = async ({
           }
 
           if (fallbackQuality) {
-            metaNeedsUpdate = !videoMeta?.resolutions?.highest ||
-                             videoMeta.resolutions.highest !== fallbackQuality
+            metaNeedsUpdate = !videoResolutions?.highest ||
+                             videoResolutions.highest !== fallbackQuality
           }
         }
       } else {
@@ -126,18 +128,14 @@ export const streamStaticHandler = async ({
 
   if (metaNeedsUpdate && fallbackQuality && docId && collection) {
     try {
-      const updatedMeta: BunnyStreamVideoDocumentMeta = {
-        ...(videoMeta ?? {}),
-        resolutions: {
-          available: availableResolutions.length > 0 ? availableResolutions : undefined,
-          highest: fallbackQuality,
-        },
-      }
       await req.payload.update({
         id: docId,
         collection: collection.slug,
         data: {
-          bunnyVideoResolutions: updatedMeta.resolutions,
+          bunnyVideoResolutions: {
+            available: availableResolutions.length > 0 ? availableResolutions : undefined,
+            highest: fallbackQuality,
+          },
         },
       })
     } catch (err) {

@@ -4,7 +4,7 @@ import type { HandleDelete } from '@payloadcms/plugin-cloud-storage/types'
 import type { TFunction } from '@payloadcms/translations'
 
 import { deleteStorageFile, deleteStreamVideo, purgeCache } from '@/utils/client/index.js'
-import { parseVideoFromDocument } from '@/utils/streamVideo.js'
+import { getBunnyData } from '@/utils/streamVideo.js'
 import { posix } from 'node:path'
 import { APIError } from 'payload'
 
@@ -17,10 +17,10 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     try {
-      const video = parseVideoFromDocument(doc, filename)
+      const bunnyData = getBunnyData(doc, filename)
 
       let fileUrl: null | string = null
-      if (!video && purgeConfig) {
+      if (!bunnyData?.stream && purgeConfig) {
         fileUrl = await getGenerateURL(context)({
           collection,
           data: doc,
@@ -29,8 +29,8 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
         })
       }
 
-      if (streamConfig && video) {
-        await deleteStreamVideo({ streamConfig, videoId: video.videoId })
+      if (streamConfig && bunnyData?.stream) {
+        await deleteStreamVideo({ streamConfig, videoId: bunnyData.stream.videoId })
       } else if (storageConfig) {
         const path = posix.join(doc.prefix || '', filename)
 

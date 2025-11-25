@@ -44,7 +44,7 @@ export const uploadStorageFile = async ({
 }): Promise<void> => {
   try {
     await kyClient.put(`${getStorageUrl(storageConfig.region)}/${storageConfig.zoneName}/${path}`, {
-      body: buffer,
+      body: buffer as unknown as BodyInit,
       headers: {
         'Accept': 'application/json',
         'AccessKey': storageConfig.apiKey,

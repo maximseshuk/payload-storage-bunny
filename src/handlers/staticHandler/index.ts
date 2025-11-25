@@ -1,7 +1,7 @@
 import type { CollectionContext } from '@/types/index.js'
 import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
 
-import { parseVideoFromDocument } from '@/utils/index.js'
+import { getBunnyData } from '@/utils/index.js'
 import { HTTPError } from 'ky'
 
 import { storageStaticHandler } from './storage.js'
@@ -34,9 +34,11 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
           }
         }
 
-        let video = parseVideoFromDocument(doc, filename)
+        let docId = doc?.id
+        let bunnyData = getBunnyData(doc, filename)
+        const docFilename = doc && 'filename' in doc ? (doc.filename as string) : undefined
 
-        if (!video) {
+        if (!bunnyData?.stream || docFilename !== filename) {
           const result = await req.payload.find({
             collection: collection.slug,
             limit: 1,
@@ -47,20 +49,21 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
           })
 
           if (result.docs.length > 0) {
-            video = parseVideoFromDocument(result.docs[0], filename)
+            const foundDoc = result.docs[0]
+            docId = foundDoc.id
+            bunnyData = getBunnyData(foundDoc, filename)
           }
         }
 
-        if (video?.videoId) {
+        if (bunnyData?.stream) {
           return await streamStaticHandler({
+            bunnyData,
             collection,
-            docId: video.docId,
+            docId: docId!,
             req,
             signedUrls: signedUrls || false,
             streamConfig,
             usePayloadAccessControl,
-            videoId: video.videoId,
-            videoMeta: video.videoMeta,
           })
         }
       }

@@ -1,6 +1,7 @@
 'use client'
 
 import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
+import type { BunnyData } from '@/types/index.js'
 
 import { Modal, useModal, useTranslation } from '@payloadcms/ui'
 import { XIcon } from '@payloadcms/ui/icons/X'
@@ -12,7 +13,7 @@ import './Modal.scss'
 
 type MediaPreviewModalProps = {
   media: {
-    bunnyVideoId?: string
+    bunnyData?: BunnyData
     documentViewerUrl?: null | string
     height?: number
     mimeType?: string
@@ -35,7 +36,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
   show,
   triggerRef,
 }) => {
-  const { bunnyVideoId, documentViewerUrl, height, mimeType, streamLibraryId, url, width } = media
+  const { bunnyData, documentViewerUrl, height, mimeType, url, width } = media
   const [position, setPosition] = useState<'bottom' | 'top'>('bottom')
   const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({})
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -55,12 +56,12 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
   const isImage = useMemo(() => mimeType?.startsWith('image/'), [mimeType])
 
   const embedUrl = useMemo<null | string>(() => {
-    if (bunnyVideoId && streamLibraryId) {
+    if (bunnyData && bunnyData.type === 'stream' && bunnyData.stream) {
       const autoplay = mode === 'popup' ? 'true' : 'false'
-      return `https://iframe.mediadelivery.net/embed/${streamLibraryId}/${bunnyVideoId}?autoplay=${autoplay}&preload=true&muted=false`
+      return `https://iframe.mediadelivery.net/embed/${bunnyData.stream.libraryId}/${bunnyData.stream.videoId}?autoplay=${autoplay}&preload=true&muted=false`
     }
     return null
-  }, [bunnyVideoId, streamLibraryId, mode])
+  }, [bunnyData, mode])
 
   const getPopupDimensions = useCallback((): { height: number; width: number } => {
     if (isImage && width && height) {

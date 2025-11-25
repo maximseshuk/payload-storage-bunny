@@ -1,5 +1,5 @@
 import type { NormalizedThumbnailConfig } from '@/types/configNormalized.js'
-import type { CollectionContext } from '@/types/index.js'
+import type { BunnyData, CollectionContext } from '@/types/index.js'
 
 import { applyUrlTransform, generateSignedUrl, isImage } from '@/utils/index.js'
 import { posix } from 'node:path'
@@ -111,14 +111,15 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       return signUrl(transformedUrl, signedUrls, storageConfig.tokenSecurityKey, collection, filename)
     }
 
-    if (streamConfig && doc.bunnyVideoId && typeof doc.bunnyVideoId === 'string') {
+    const bunnyData = doc?.bunnyData as BunnyData | undefined
+    if (streamConfig && bunnyData && bunnyData.type === 'stream' && bunnyData.stream) {
       const isStreamAnimated = thumbnail && typeof thumbnail === 'object' && thumbnail.streamAnimated
       const thumbnailFile = isStreamAnimated ? 'preview.webp' : 'thumbnail.jpg'
-      const filename = `${doc.bunnyVideoId}/${thumbnailFile}`
+      const filename = `${bunnyData.stream.videoId}/${thumbnailFile}`
       const prefix = ''
 
       if (context.usePayloadAccessControl) {
-        const internalUrl = `/api/${collection.slug}/file/bunny:stream:${doc.bunnyVideoId}:${thumbnailFile}`
+        const internalUrl = `/api/${collection.slug}/file/bunny:stream:${bunnyData.stream.videoId}:${thumbnailFile}`
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 

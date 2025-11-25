@@ -53,36 +53,36 @@
   },
   "dependencies": {
     "@payloadcms/plugin-cloud-storage": "^3.53.0",
-    "ky": "1.9.0",
+    "ky": "1.14.0",
     "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@payloadcms/db-mongodb": "^3.57.0",
+    "@payloadcms/db-mongodb": "^3.64.0",
     "@payloadcms/eslint-config": "3.28.0",
-    "@payloadcms/next": "^3.57.0",
+    "@payloadcms/next": "^3.64.0",
     "@payloadcms/plugin-cloud-storage": "^3.57.0",
-    "@payloadcms/translations": "^3.57.0",
-    "@payloadcms/ui": "^3.57.0",
-    "@stylistic/eslint-plugin": "^5.2.3",
+    "@payloadcms/translations": "^3.64.0",
+    "@payloadcms/ui": "^3.64.0",
+    "@stylistic/eslint-plugin": "^5.6.1",
     "@swc-node/register": "^1.11.1",
-    "@swc/cli": "^0.7.8",
-    "@types/node": "^22.18.0",
+    "@swc/cli": "^0.7.9",
+    "@types/node": "^24.10.1",
     "@types/react": "19.1.10",
     "@types/react-dom": "19.1.7",
     "cpy-cli": "^6.0.0",
-    "dotenv-cli": "^10.0.0",
-    "eslint": "^9.34.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.39.1",
     "eslint-plugin-perfectionist": "^4.15.1",
     "next": "15.4.4",
-    "payload": "^3.57.0",
+    "payload": "^3.64.0",
     "prettier": "^3.6.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "rimraf": "6.0.1",
+    "rimraf": "6.1.2",
     "sanitize-filename": "1.6.3",
     "sharp": "0.32.6",
-    "typescript": "5.7.3"
+    "typescript": "5.9.3"
   },
   "peerDependencies": {
     "@payloadcms/translations": "^3.53.0",
@@ -110,6 +110,6 @@
     "registry": "https://registry.npmjs.org/",
     "types": "./dist/index.d.ts"
   },
-  "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a",
+  "packageManager": "pnpm@10.23.0+sha512.21c4e5698002ade97e4efe8b8b4a89a8de3c85a37919f957e7a0f30f38fbc5bbdd05980ffe29179b2fb6e6e691242e098d945d1601772cad0fef5fb6411e2a4b",
   "module": "./dist/index.js"
 }

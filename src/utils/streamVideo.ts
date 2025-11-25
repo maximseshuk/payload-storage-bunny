@@ -1,4 +1,5 @@
-import type { BunnyStreamVideoDocumentMeta, StreamUploadSession, StreamVideoFromDocument } from '@/types/index.js'
+import type { BunnyDataInternal } from '@/types/core.js'
+import type { StreamUploadSession } from '@/types/index.js'
 import type { BasePayload, TypeWithID } from 'payload'
 
 import { streamUploadSessionsCollectionSlug } from '@/collections/StreamUploadSessions.js'
@@ -25,27 +26,27 @@ export const isVideoProcessed = (status: BunnyStreamVideoStatus): boolean => {
   return processedStatuses.includes(status)
 }
 
-export const parseVideoFromDocument = (
-  doc: TypeWithID | undefined,
-  filename: string,
-): StreamVideoFromDocument | undefined => {
-  if (
-    doc &&
-    typeof doc === 'object' &&
-    'id' in doc &&
-    'filename' in doc &&
-    doc.filename === filename &&
-    'bunnyVideoId' in doc &&
-    typeof doc.bunnyVideoId === 'string'
-  ) {
+export const getBunnyData = (doc: TypeWithID | undefined, filename: string): BunnyDataInternal | null => {
+  if (!doc || typeof doc !== 'object') {
+    return null
+  }
+
+  if (filename && 'filename' in doc && doc.filename !== filename) {
+    return null
+  }
+
+  if ('bunnyVideoId' in doc && typeof doc.bunnyVideoId === 'string') {
     return {
-      docId: doc.id,
-      videoId: doc.bunnyVideoId,
-      videoMeta: ('bunnyVideoMeta' in doc ? (doc.bunnyVideoMeta as BunnyStreamVideoDocumentMeta) : null),
+      stream: {
+        resolutions: 'bunnyVideoResolutions' in doc
+          ? (doc.bunnyVideoResolutions as { available?: string[]; highest?: string })
+          : undefined,
+        videoId: doc.bunnyVideoId,
+      },
     }
   }
 
-  return undefined
+  return null
 }
 
 export const createStreamVideoSession = async ({

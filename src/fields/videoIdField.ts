@@ -5,5 +5,6 @@ export const videoIdField = (): TextField => ({
   type: 'text',
   admin: {
     disabled: true,
+    hidden: true,
   },
 })

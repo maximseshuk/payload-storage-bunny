@@ -11,20 +11,6 @@ export enum BunnyStreamVideoStatus {
   UploadFailed = 6,
 }
 
-export interface BunnyStreamVideoDocumentMeta {
-  collectionId?: string
-  resolutions?: {
-    available?: string[]
-    highest?: string
-  }
-}
-
-export interface StreamVideoFromDocument {
-  docId: number | string
-  videoId: string
-  videoMeta: BunnyStreamVideoDocumentMeta | null
-}
-
 export interface BunnyStreamVideoResolutionsResponse {
   data: BunnyStreamVideoResolutions
   message: null | string

@@ -1,4 +1,4 @@
-import type { CollectionContext } from '@/types/index.js'
+import type { BunnyData, CollectionContext } from '@/types/index.js'
 import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
 
 import { applyUrlTransform, generateSignedUrl } from '@/utils/index.js'
@@ -8,8 +8,10 @@ export const getGenerateURL = (context: CollectionContext): GenerateURL => {
   const { collection, signedUrls, storageConfig, streamConfig, urlTransform } = context
 
   return ({ data, filename, prefix = '' }) => {
-    if (streamConfig && data.bunnyVideoId) {
-      let streamUrl = `https://${streamConfig.hostname}/${data.bunnyVideoId}/playlist.m3u8`
+    const bunnyData = data?.bunnyData as BunnyData | undefined
+
+    if (streamConfig && bunnyData && bunnyData.type === 'stream' && bunnyData.stream) {
+      let streamUrl = `https://${streamConfig.hostname}/${bunnyData.stream.videoId}/playlist.m3u8`
 
       if (urlTransform) {
         streamUrl = applyUrlTransform({
@@ -29,7 +31,7 @@ export const getGenerateURL = (context: CollectionContext): GenerateURL => {
 
         if (shouldSign) {
           return generateSignedUrl(streamUrl, streamConfig.tokenSecurityKey, signedUrls, {
-            tokenPath: `/${data.bunnyVideoId}/`,
+            tokenPath: `/${bunnyData.stream.videoId}/`,
           })
         }
       }

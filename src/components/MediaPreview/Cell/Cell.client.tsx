@@ -2,6 +2,7 @@
 
 import type { MediaPreviewContentMode, MediaPreviewMode } from '@/fields/mediaPreviewField.js'
 import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
+import type { BunnyData } from '@/types/index.js'
 
 import { Pill, useTranslation } from '@payloadcms/ui'
 import { EyeIcon } from '@payloadcms/ui/icons/Eye'
@@ -20,11 +21,10 @@ import { MediaPreviewModal } from '../Modal/Modal.js'
 type Props = {
   contentMode?: MediaPreviewContentMode
   media: {
-    bunnyVideoId?: string
+    bunnyData?: BunnyData
     fileSize?: number
     height?: number
     mimeType?: string
-    streamLibraryId?: number
     url?: string
     width?: number
   }
@@ -33,7 +33,7 @@ type Props = {
 }
 
 export const MediaPreviewCellClient: React.FC<Props> = ({ contentMode, media, mode = 'auto', rowId }) => {
-  const { bunnyVideoId, fileSize, height, mimeType, streamLibraryId, url, width } = media
+  const { bunnyData, fileSize, height, mimeType, url, width } = media
   const [isTouchDevice, setIsTouchDevice] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -91,7 +91,7 @@ export const MediaPreviewCellClient: React.FC<Props> = ({ contentMode, media, mo
     [t],
   )
 
-  if (previewType === 'unsupported' || (!bunnyVideoId && !url) || !canPreview) {
+  if (previewType === 'unsupported' || (!bunnyData || bunnyData.type !== 'stream' || !bunnyData.stream || !url) || !canPreview) {
     return <span>—</span>
   }
 
@@ -135,11 +135,10 @@ export const MediaPreviewCellClient: React.FC<Props> = ({ contentMode, media, mo
 
       <MediaPreviewModal
         media={{
-          bunnyVideoId,
+          bunnyData,
           documentViewerUrl,
           height,
           mimeType,
-          streamLibraryId,
           url,
           width,
         }}

@@ -73,11 +73,16 @@ export interface Config {
     mediaProtected: MediaProtected;
     'bunny-stream-upload-sessions': BunnyStreamUploadSession;
     'payload-jobs': PayloadJob;
+    'payload-folders': FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    'payload-folders': {
+      documentsAndFolders: 'payload-folders' | 'mediaBasic';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     mediaBasic: MediaBasicSelect<false> | MediaBasicSelect<true>;
@@ -85,6 +90,7 @@ export interface Config {
     mediaProtected: MediaProtectedSelect<false> | MediaProtectedSelect<true>;
     'bunny-stream-upload-sessions': BunnyStreamUploadSessionsSelect<false> | BunnyStreamUploadSessionsSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
+    'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -163,21 +169,8 @@ export interface User {
 export interface MediaBasic {
   id: string;
   alt: string;
-  bunnyVideoId?: string | null;
-  bunnyVideoMeta?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Select Bunny Stream collection for this video
-   */
-  bunnyCollectionId?: string | null;
   prefix?: string | null;
+  folder?: (string | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -192,13 +185,39 @@ export interface MediaBasic {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-folders".
+ */
+export interface FolderInterface {
+  id: string;
+  name: string;
+  folder?: (string | null) | FolderInterface;
+  documentsAndFolders?: {
+    docs?: (
+      | {
+          relationTo?: 'payload-folders';
+          value: string | FolderInterface;
+        }
+      | {
+          relationTo?: 'mediaBasic';
+          value: string | MediaBasic;
+        }
+    )[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  folderType?: 'mediaBasic'[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "mediaSecure".
  */
 export interface MediaSecure {
   id: string;
   alt: string;
   bunnyVideoId?: string | null;
-  bunnyVideoMeta?:
+  bunnyVideoResolutions?:
     | {
         [k: string]: unknown;
       }
@@ -207,10 +226,15 @@ export interface MediaSecure {
     | number
     | boolean
     | null;
-  /**
-   * Select Bunny Stream collection for this video
-   */
-  bunnyCollectionId?: string | null;
+  bunnyData?: {
+    type: 'stream';
+    stream: {
+      libraryId: number;
+      videoId: string;
+      [k: string]: unknown;
+    };
+    [k: string]: unknown;
+  };
   prefix?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -226,7 +250,7 @@ export interface MediaSecure {
   sizes?: {
     thumbnail?: {
       bunnyVideoId?: string | null;
-      bunnyVideoMeta?:
+      bunnyVideoResolutions?:
         | {
             [k: string]: unknown;
           }
@@ -235,10 +259,15 @@ export interface MediaSecure {
         | number
         | boolean
         | null;
-      /**
-       * Select Bunny Stream collection for this video
-       */
-      bunnyCollectionId?: string | null;
+      bunnyData?: {
+        type: 'stream';
+        stream: {
+          libraryId: number;
+          videoId: string;
+          [k: string]: unknown;
+        };
+        [k: string]: unknown;
+      };
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -248,7 +277,7 @@ export interface MediaSecure {
     };
     preview?: {
       bunnyVideoId?: string | null;
-      bunnyVideoMeta?:
+      bunnyVideoResolutions?:
         | {
             [k: string]: unknown;
           }
@@ -257,10 +286,15 @@ export interface MediaSecure {
         | number
         | boolean
         | null;
-      /**
-       * Select Bunny Stream collection for this video
-       */
-      bunnyCollectionId?: string | null;
+      bunnyData?: {
+        type: 'stream';
+        stream: {
+          libraryId: number;
+          videoId: string;
+          [k: string]: unknown;
+        };
+        [k: string]: unknown;
+      };
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -278,7 +312,7 @@ export interface MediaProtected {
   id: string;
   alt: string;
   bunnyVideoId?: string | null;
-  bunnyVideoMeta?:
+  bunnyVideoResolutions?:
     | {
         [k: string]: unknown;
       }
@@ -287,10 +321,15 @@ export interface MediaProtected {
     | number
     | boolean
     | null;
-  /**
-   * Select Bunny Stream collection for this video
-   */
-  bunnyCollectionId?: string | null;
+  bunnyData?: {
+    type: 'stream';
+    stream: {
+      libraryId: number;
+      videoId: string;
+      [k: string]: unknown;
+    };
+    [k: string]: unknown;
+  };
   prefix?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -446,6 +485,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'payload-jobs';
         value: string | PayloadJob;
+      } | null)
+    | ({
+        relationTo: 'payload-folders';
+        value: string | FolderInterface;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -518,10 +561,8 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MediaBasicSelect<T extends boolean = true> {
   alt?: T;
-  bunnyVideoId?: T;
-  bunnyVideoMeta?: T;
-  bunnyCollectionId?: T;
   prefix?: T;
+  folder?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -541,8 +582,8 @@ export interface MediaBasicSelect<T extends boolean = true> {
 export interface MediaSecureSelect<T extends boolean = true> {
   alt?: T;
   bunnyVideoId?: T;
-  bunnyVideoMeta?: T;
-  bunnyCollectionId?: T;
+  bunnyVideoResolutions?: T;
+  bunnyData?: T;
   prefix?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -562,8 +603,8 @@ export interface MediaSecureSelect<T extends boolean = true> {
           | T
           | {
               bunnyVideoId?: T;
-              bunnyVideoMeta?: T;
-              bunnyCollectionId?: T;
+              bunnyVideoResolutions?: T;
+              bunnyData?: T;
               url?: T;
               width?: T;
               height?: T;
@@ -575,8 +616,8 @@ export interface MediaSecureSelect<T extends boolean = true> {
           | T
           | {
               bunnyVideoId?: T;
-              bunnyVideoMeta?: T;
-              bunnyCollectionId?: T;
+              bunnyVideoResolutions?: T;
+              bunnyData?: T;
               url?: T;
               width?: T;
               height?: T;
@@ -593,8 +634,8 @@ export interface MediaSecureSelect<T extends boolean = true> {
 export interface MediaProtectedSelect<T extends boolean = true> {
   alt?: T;
   bunnyVideoId?: T;
-  bunnyVideoMeta?: T;
-  bunnyCollectionId?: T;
+  bunnyVideoResolutions?: T;
+  bunnyData?: T;
   prefix?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -647,6 +688,18 @@ export interface PayloadJobsSelect<T extends boolean = true> {
   waitUntil?: T;
   processing?: T;
   meta?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-folders_select".
+ */
+export interface PayloadFoldersSelect<T extends boolean = true> {
+  name?: T;
+  folder?: T;
+  documentsAndFolders?: T;
+  folderType?: T;
   updatedAt?: T;
   createdAt?: T;
 }

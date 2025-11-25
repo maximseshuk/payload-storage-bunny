@@ -1,5 +1,6 @@
 import type { MediaPreviewContentMode, MediaPreviewMode } from '@/fields/mediaPreviewField.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
+import type { BunnyData } from '@/types/index.js'
 import type { UIFieldServerProps } from 'payload'
 
 import { getTranslation, type TFunction } from '@payloadcms/translations'
@@ -22,32 +23,21 @@ export const MediaPreview: React.FC<MediaPreviewProps> = (props) => {
     data,
     mode = 'auto',
     path,
-    payload,
     req,
   } = props
 
   const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
-  const bunnyVideoId = data?.bunnyVideoId as string | undefined
+  const bunnyData = data?.bunnyData as BunnyData | undefined
   const fileSize = data?.filesize as number | undefined
   const height = data?.height as number | undefined
   const mimeType = data?.mimeType as string | undefined
   const url = data?.url as string | undefined
   const width = data?.width as number | undefined
 
-  const collectionSlug = req.routeParams?.collection as string | undefined
-
   const previewType = getPreviewType(mimeType)
   if (previewType === 'unsupported') {
     return null
-  }
-
-  let streamLibraryId: number | undefined
-  if (bunnyVideoId && collectionSlug) {
-    const collectionConfig = payload.collections[collectionSlug]?.config
-    streamLibraryId = collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.stream?.libraryId as
-      | number
-      | undefined
   }
 
   let fieldLabel: string | undefined
@@ -64,11 +54,10 @@ export const MediaPreview: React.FC<MediaPreviewProps> = (props) => {
       <MediaPreviewFieldClient
         contentMode={contentMode}
         media={{
-          bunnyVideoId,
+          bunnyData,
           fileSize,
           height,
           mimeType,
-          streamLibraryId,
           url,
           width,
         }}

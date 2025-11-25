@@ -15,9 +15,9 @@ import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
 
 import { getStreamUploadSessionsCollection } from './collections/StreamUploadSessions.js'
 import { getStreamEndpoints } from './endpoints/stream.js'
-import { mediaPreviewField, videoIdField, videoResolutionsField } from './fields/index.js'
+import { dataField, mediaPreviewField, videoIdField, videoResolutionsField } from './fields/index.js'
 import { getAdminThumbnail, getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
-import { getAfterChangeHook, getBeforeValidateHook } from './hooks/index.js'
+import { getAfterChangeHook, getBeforeReadHook, getBeforeValidateHook } from './hooks/index.js'
 import { getStreamCleanupTask } from './tasks/cleanup.js'
 import { translations } from './translations/index.js'
 import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './utils/config/index.js'
@@ -123,6 +123,10 @@ export const bunnyStorage: BunnyStoragePlugin =
                   ...(collection.hooks?.afterChange || []),
                   getAfterChangeHook(collectionContext),
                 ],
+                beforeRead: [
+                  ...(collection.hooks?.beforeRead || []),
+                  getBeforeReadHook(collectionContext),
+                ],
                 beforeValidate: [
                   ...(collection.hooks?.beforeValidate || []),
                   ...(collectionContext.isTusUploadSupported ? [
@@ -201,6 +205,8 @@ const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => 
       if (collectionContext.streamConfig.mp4Fallback) {
         fields.push(videoResolutionsField())
       }
+
+      fields.push(dataField())
     }
 
     return {
