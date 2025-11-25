@@ -5,7 +5,7 @@ import type {
   GeneratedAdapter,
 } from '@payloadcms/plugin-cloud-storage/types'
 import type { AcceptedLanguages } from '@payloadcms/translations'
-import type { Config, Field } from 'payload'
+import type { Config } from 'payload'
 
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
@@ -15,8 +15,8 @@ import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
 
 import { getStreamUploadSessionsCollection } from './collections/StreamUploadSessions.js'
 import { getStreamEndpoints } from './endpoints/stream.js'
-import { dataField, mediaPreviewField, videoIdField, videoResolutionsField } from './fields/index.js'
-import { getAdminThumbnail, getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
+import { getFields, mediaPreviewField } from './fields/index.js'
+import { getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
 import { getAfterChangeHook, getBeforeReadHook, getBeforeValidateHook } from './hooks/index.js'
 import { getStreamCleanupTask } from './tasks/cleanup.js'
 import { translations } from './translations/index.js'
@@ -85,6 +85,8 @@ export const bunnyStorage: BunnyStoragePlugin =
               fields = insertField(fields, position, mediaPreviewField(mediaPreviewConfig))
             }
 
+            fields = getFields(collection, collectionContext, fields)
+
             return {
               ...collection,
               admin: {
@@ -139,9 +141,7 @@ export const bunnyStorage: BunnyStoragePlugin =
               },
               upload: {
                 ...(typeof collection.upload === 'object' ? collection.upload : {}),
-                ...(collectionContext.thumbnail ? {
-                  adminThumbnail: getAdminThumbnail(collectionContext),
-                } : {}),
+                adminThumbnail: undefined,
                 ...(collectionContext.thumbnail?.appendTimestamp ? {
                   cacheTags: false,
                 } : {}),
@@ -198,20 +198,9 @@ const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => 
   return ({ collection, prefix }): GeneratedAdapter => {
     const collectionContext = createCollectionContext(config, collection, prefix)
 
-    const fields: Field[] = []
-    if (collectionContext.streamConfig) {
-      fields.push(videoIdField())
-
-      if (collectionContext.streamConfig.mp4Fallback) {
-        fields.push(videoResolutionsField())
-      }
-
-      fields.push(dataField())
-    }
-
     return {
       name: 'bunny',
-      fields,
+      fields: [],
       generateURL: getGenerateURL(collectionContext),
       handleDelete: getHandleDelete(collectionContext),
       handleUpload: getHandleUpload(collectionContext),

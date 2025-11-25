@@ -1,5 +1,6 @@
 import type { NormalizedThumbnailConfig } from '@/types/configNormalized.js'
 import type { BunnyData, CollectionContext } from '@/types/index.js'
+import type { PayloadRequest } from 'payload'
 
 import { applyUrlTransform, generateSignedUrl, isImage } from '@/utils/index.js'
 import { posix } from 'node:path'
@@ -56,7 +57,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
     return undefined
   }
 
-  return ({ doc }: { doc: Record<string, unknown> }): null | string => {
+  return ({ doc, req: _req }: { doc: Record<string, unknown>; req: PayloadRequest }): null | string => {
     if (
       thumbnail &&
       typeof thumbnail === 'object' &&
@@ -73,7 +74,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
 
         if (context.usePayloadAccessControl) {
-          const internalUrl = `/api/${collection.slug}/file/${sizeFilename}`
+          const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(sizeFilename)}`
           return applyTransform(thumbnail, context, doc, sizeFilename, prefix, internalUrl)
         }
 
@@ -98,7 +99,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
 
       if (context.usePayloadAccessControl) {
-        const internalUrl = `/api/${collection.slug}/file/${filename}`
+        const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(filename)}`
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 
@@ -119,7 +120,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       const prefix = ''
 
       if (context.usePayloadAccessControl) {
-        const internalUrl = `/api/${collection.slug}/file/bunny:stream:${bunnyData.stream.videoId}:${thumbnailFile}`
+        const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(`bunny:stream:${bunnyData.stream.videoId}:${thumbnailFile}`)}`
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 

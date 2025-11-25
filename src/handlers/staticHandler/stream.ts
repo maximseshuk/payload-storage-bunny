@@ -143,7 +143,15 @@ export const streamStaticHandler = async ({
     }
   }
 
-  const mp4Url = `https://${streamConfig.hostname}/${videoId}/play_${fallbackQuality}.mp4`
+  let mp4Url = `https://${streamConfig.hostname}/${videoId}/play_${fallbackQuality}.mp4`
+
+  if (req.url) {
+    const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)
+    if (requestUrl.search) {
+      mp4Url += requestUrl.search
+    }
+  }
+
   const finalContext = { ...context, filename: `${videoId}/play_${fallbackQuality}.mp4` }
 
   const tokenPath = `/${videoId}/`

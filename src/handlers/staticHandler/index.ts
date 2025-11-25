@@ -14,7 +14,6 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
   return async (req, data) => {
     try {
       const { doc, params: { filename } } = data
-
       if (streamConfig) {
         if (filename?.startsWith('bunny:stream:')) {
           const parts = filename.split(':')

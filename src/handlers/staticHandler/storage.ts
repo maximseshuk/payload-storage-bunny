@@ -24,7 +24,15 @@ export const storageStaticHandler = async ({
   storageConfig,
   usePayloadAccessControl,
 }: Args): Promise<Response> => {
-  const baseUrl = `https://${storageConfig.hostname}/${posix.join(prefix || '', filename)}`
+  let baseUrl = `https://${storageConfig.hostname}/${posix.join(prefix || '', filename)}`
+
+  if (req.url) {
+    const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)
+    if (requestUrl.search) {
+      baseUrl += requestUrl.search
+    }
+  }
+
   const context = {
     collection,
     filename,
@@ -38,7 +46,6 @@ export const storageStaticHandler = async ({
     return redirect
   }
 
-  // Proxy the content
   const rangeHeader = req.headers.get('range')
   const requestHeaders = new Headers()
   if (rangeHeader) {

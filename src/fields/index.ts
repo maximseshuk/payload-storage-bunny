@@ -1,4 +1,5 @@
 export { dataField } from './dataField.js'
+export { getFields } from './getFields.js'
 export {
   type MediaPreviewContentMode as ContentMode,
   mediaPreviewField,

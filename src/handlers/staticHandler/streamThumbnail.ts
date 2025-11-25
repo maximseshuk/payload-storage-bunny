@@ -25,7 +25,15 @@ export const streamThumbnailStaticHandler = async ({
   usePayloadAccessControl,
   videoId,
 }: Args): Promise<Response> => {
-  const thumbnailUrl = `https://${streamConfig.hostname}/${videoId}/${thumbnailType}`
+  let thumbnailUrl = `https://${streamConfig.hostname}/${videoId}/${thumbnailType}`
+
+  if (req.url) {
+    const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)
+    if (requestUrl.search) {
+      thumbnailUrl += requestUrl.search
+    }
+  }
+
   const context = {
     collection,
     filename: `${videoId}/${thumbnailType}`,
