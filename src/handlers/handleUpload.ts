@@ -11,7 +11,7 @@ import { APIError } from 'payload'
 import { getGenerateURL } from './generateURL.js'
 
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
-  const { apiKey, prefix, purgeConfig, storageConfig, streamConfig } = context
+  const { apiKey, purgeConfig, storageConfig, streamConfig } = context
 
   return async ({ collection, data, file, req }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
@@ -21,7 +21,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
 
     try {
       const fileName = file.filename
-      const path = posix.join(prefix || '', fileName)
+      const path = posix.join(data.prefix || '', fileName)
       const isVideoFile = !!(
         streamConfig?.mimeTypes?.some(pattern => matchesMimeTypePattern(file.mimeType, pattern))
       )
@@ -53,7 +53,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         data.bunnyVideoId = null
 
         if (purgeConfig && apiKey) {
-          const url = await getGenerateURL(context)({ collection, data, filename: fileName, prefix: prefix || '' })
+          const url = await getGenerateURL(context)({ collection, data, filename: fileName, prefix: data.prefix || '' })
           try {
             await purgeCache({ apiKey, purgeConfig, url })
             req.payload.logger.debug({
