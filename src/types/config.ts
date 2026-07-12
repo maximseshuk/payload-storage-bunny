@@ -1,3 +1,4 @@
+import type { StreamTusAuthRequest } from '@/types/core.js'
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { CollectionConfig, PayloadRequest, Plugin, TaskConfig, UploadCollectionSlug } from 'payload'
@@ -84,8 +85,11 @@ export type StreamTusConfig = {
      *
      * By default, checks if user has admin access and create access to at least one collection
      * configured in the plugin.
+     *
+     * Receives the parsed TUS auth request body as a second argument (e.g. to gate on
+     * `collection`, `filesize`, or `filename` before creating the upload).
      */
-  checkAccess?: (req: PayloadRequest) => boolean | Promise<boolean>
+  checkAccess?: (req: PayloadRequest, body: StreamTusAuthRequest) => boolean | Promise<boolean>
   /**
      * Video and audio file types allowed for TUS uploads. Defaults include:
      * - video/mp4 (mp4, m4p, m4v)
