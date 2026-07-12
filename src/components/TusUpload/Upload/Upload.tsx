@@ -36,7 +36,7 @@ export const Upload: React.FC<UploadProps> = ({
   const processedFileRef = useRef<File | null>(null)
   const uploadStartTimeRef = useRef<null | number>(null)
   const startingBytesRef = useRef<number>(0)
-  const prevUpdateRef = useRef<number | undefined>(undefined)
+  const prevUpdatedAtRef = useRef<null | string>(null)
 
   const { dispatchFields, setBackgroundProcessing } = useForm()
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
@@ -494,7 +494,7 @@ export const Upload: React.FC<UploadProps> = ({
   useEffect(() => {
     const isDocumentSavedAfterUpload =
       mostRecentUpdate &&
-      mostRecentUpdate !== prevUpdateRef.current &&
+      mostRecentUpdate.updatedAt !== prevUpdatedAtRef.current &&
       state.uploadStatus === 'completed' &&
       state.authData
 
@@ -502,7 +502,7 @@ export const Upload: React.FC<UploadProps> = ({
       onDisableTus()
     }
 
-    prevUpdateRef.current = mostRecentUpdate
+    prevUpdatedAtRef.current = mostRecentUpdate?.updatedAt ?? null
   }, [mostRecentUpdate, state.uploadStatus, state.authData, onDisableTus])
 
   const renderUploadControls = () => {

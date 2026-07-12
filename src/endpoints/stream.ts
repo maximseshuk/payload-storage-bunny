@@ -48,7 +48,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
 
           let accessResult = true
           if (stream.tus?.checkAccess) {
-            accessResult = await stream.tus.checkAccess(req)
+            accessResult = await stream.tus.checkAccess(req, body)
           } else {
             const accessResults = await getAccessResults({ req })
             accessResult = false

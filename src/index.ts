@@ -58,6 +58,12 @@ export const bunnyStorage: BunnyStoragePlugin =
               return collection
             }
 
+            if (!collection.upload) {
+              throw new Error(
+                `[@seshuk/payload-storage-bunny] Collection "${collection.slug}" is configured for Bunny storage but is not an upload collection. Add an "upload" config to the collection, or remove it from the plugin's "collections".`,
+              )
+            }
+
             const collectionContext = createCollectionContext(config, collection)
 
             const originalFilesRequiredOnCreate = typeof collection.upload === 'object'
