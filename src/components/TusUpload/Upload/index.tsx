@@ -60,7 +60,7 @@ export const Upload: React.FC<UploadProps> = ({
   const [state, setState] = useState<UploadState>(initialState)
   const inputRef = useRef<HTMLInputElement>(null)
   const tusUploadRef = useRef<null | tus.Upload>(null)
-  const prevUpdateRef = useRef<null | string>(null)
+  const prevUpdatedAtRef = useRef<null | string>(null)
   const processedFileRef = useRef<File | null>(null)
 
   const { dispatchFields, setBackgroundProcessing } = useForm()
@@ -514,8 +514,8 @@ export const Upload: React.FC<UploadProps> = ({
 
   useEffect(() => {
     const shouldCleanup =
-      mostRecentUpdate &&
-      mostRecentUpdate !== prevUpdateRef.current &&
+      mostRecentUpdate?.updatedAt &&
+      mostRecentUpdate.updatedAt !== prevUpdatedAtRef.current &&
       state.uploadStatus === 'completed' &&
       state.selectedFile &&
       state.videoAuthData
@@ -526,7 +526,7 @@ export const Upload: React.FC<UploadProps> = ({
       })
     }
 
-    prevUpdateRef.current = mostRecentUpdate
+    prevUpdatedAtRef.current = mostRecentUpdate?.updatedAt ?? null
   }, [
     mostRecentUpdate,
     state.uploadStatus,
