@@ -30,7 +30,16 @@ export const applyUrlTransform = ({
     })
   }
 
-  const urlObject = new URL(url)
+  let urlObject: URL
+  let isRelative = false
+
+  try {
+    urlObject = new URL(url)
+  } catch {
+    isRelative = true
+    urlObject = new URL(url, 'http://localhost')
+  }
+
   const params = new URLSearchParams(urlObject.search)
 
   if (config.appendTimestamp) {
@@ -47,6 +56,11 @@ export const applyUrlTransform = ({
   }
 
   const queryString = params.toString()
+
+  if (isRelative) {
+    return queryString ? `${urlObject.pathname}?${queryString}` : urlObject.pathname
+  }
+
   return queryString ? `${urlObject.origin}${urlObject.pathname}?${queryString}` : `${urlObject.origin}${urlObject.pathname}`
 }
 
