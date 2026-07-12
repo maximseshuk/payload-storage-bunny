@@ -172,6 +172,8 @@ collections: {
 
 The `prefix` option organizes files in folders within your Bunny Storage. For example, `prefix: 'images'` stores uploads in an "images" folder.
 
+> **Dynamic prefix**: If a collection hook sets `data.prefix` (for example a `beforeOperation` hook in a multi-tenant app), that value takes precedence over the collection's static `prefix` when the file is uploaded. Uploads without a hook-set `data.prefix` are unchanged.
+
 ### Storage Configuration
 
 Connect to Bunny Storage:
@@ -209,7 +211,7 @@ Optional settings for video handling:
 | Option          | Type       | Default           | Description                              |
 | --------------- | ---------- | ----------------- | ---------------------------------------- |
 | `autoMode`      | `boolean`  | `true`            | Auto-enable TUS for supported MIME types |
-| `checkAccess`   | `function` | Built-in check    | Custom authorization function            |
+| `checkAccess`   | `function` | Built-in check    | Custom authorization function `(req, body) => boolean \| Promise<boolean>`. The second argument is the parsed TUS auth request body (`collection`, `filename`, `filetype`, `filesize`), useful for gating uploads before the video is created. |
 | `mimeTypes`     | `string[]` | Video/audio types | Supported MIME types for TUS uploads     |
 | `uploadTimeout` | `number`   | `3600`            | Upload timeout in seconds                |
 
