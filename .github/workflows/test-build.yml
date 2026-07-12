@@ -1,6 +1,10 @@
 name: Test Build 🔧
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
     inputs:
       node_version:
@@ -27,9 +31,9 @@ jobs:
           node-version: ${{ github.event.inputs.node_version || '20' }}
 
       - name: Setup PNPM 📦
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 10
 
       - name: Install dependencies ⚡
         run: pnpm install
