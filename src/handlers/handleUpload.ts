@@ -21,7 +21,8 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
 
     try {
       const fileName = file.filename
-      const path = posix.join(prefix || '', fileName)
+      const uploadPrefix = (data.prefix as string | undefined) ?? prefix ?? ''
+      const path = posix.join(uploadPrefix, fileName)
       const isVideoFile = isStream(file.mimeType)
 
       if (streamConfig?.apiKey && isVideoFile) {
@@ -51,7 +52,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         data.bunnyVideoId = null
 
         if (purgeConfig) {
-          const url = await getGenerateURL(context)({ collection, data, filename: fileName, prefix: prefix || '' })
+          const url = await getGenerateURL(context)({ collection, data, filename: fileName, prefix: uploadPrefix })
           try {
             await purgeCache({ purgeConfig, url })
             req.payload.logger.debug({
