@@ -2,7 +2,6 @@ import type {
   BunnyStorageCollectionConfig,
   BunnyStorageConfig,
   CollectionsConfig,
-  MediaPreviewConfig,
   PurgeConfig,
   SignedUrlsConfig,
   StorageConfig,
@@ -31,7 +30,6 @@ export const createNormalizedConfig = (
     apiKey: options.apiKey,
     collections: new Map(),
     i18n: options.i18n,
-    mediaPreview: normalizeMediaPreviewConfig(options.mediaPreview),
     purge: options.purge ? normalizePurgeConfig(options.purge, options.apiKey) : undefined,
     signedUrls: normalizeSignedUrlsConfig(options.signedUrls),
     storage: options.storage ? normalizeStorageConfig(options.storage) : undefined,
@@ -201,20 +199,6 @@ const normalizeUrlTransformConfig = (
   }
 }
 
-const normalizeMediaPreviewConfig = (
-  value?: boolean | MediaPreviewConfig,
-): MediaPreviewConfig | undefined => {
-  if (!value) {
-    return undefined
-  }
-
-  if (value === true) {
-    return {}
-  }
-
-  return value
-}
-
 const normalizeCollectionsConfig = (
   collections: CollectionsConfig,
   normalizedGlobalConfig: NormalizedBunnyStorageConfig,
@@ -238,7 +222,6 @@ const normalizeCollectionConfig = (
   if (collectionConfig === true) {
     return {
       disablePayloadAccessControl: false,
-      mediaPreview: normalizedGlobalConfig.mediaPreview,
       prefix: '',
       purge: normalizedGlobalConfig.purge,
       signedUrls: normalizedGlobalConfig.signedUrls,
@@ -251,11 +234,6 @@ const normalizeCollectionConfig = (
 
   return {
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
-    mediaPreview: resolveCollectionConfigSetting(
-      collectionConfig.mediaPreview,
-      normalizedGlobalConfig.mediaPreview,
-      normalizeMediaPreviewConfig,
-    ),
     prefix: collectionConfig.prefix ?? '',
     purge: resolveCollectionPurgeConfig(collectionConfig.purge, normalizedGlobalConfig.purge),
     signedUrls: resolveCollectionConfigSetting(

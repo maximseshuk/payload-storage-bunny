@@ -2,15 +2,6 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const bnBd: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // Media Preview
-    mediaPreviewClose: 'বন্ধ করুন',
-    mediaPreviewLabel: 'প্রাকদর্শন',
-    mediaPreviewOpen: 'খুলুন',
-    mediaPreviewTitleAudio: 'অডিও প্রিভিউ',
-    mediaPreviewTitleDocument: 'ডকুমেন্ট প্রিভিউ',
-    mediaPreviewTitleImage: 'ছবি প্রিভিউ',
-    mediaPreviewTitleVideo: 'ভিডিও প্রিভিউ',
-
     // TUS Upload
     tusUploadChecking: 'পূর্ববর্তী আপলোড চেক করা হচ্ছে...',
     tusUploadDisableMode: 'TUS মোড নিষ্ক্রিয় করুন',

@@ -2,15 +2,6 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const my: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // Media Preview
-    mediaPreviewClose: 'ပိတ်မည်',
-    mediaPreviewLabel: 'အစမ်းကြည့်ရှုခြင်း',
-    mediaPreviewOpen: 'ဖွင့်မည်',
-    mediaPreviewTitleAudio: 'အသံ အကြိုကြည့်ရှုခြင်း',
-    mediaPreviewTitleDocument: 'စာရွက်စာတမ်း အကြိုကြည့်ရှုခြင်း',
-    mediaPreviewTitleImage: 'ပုံ အကြိုကြည့်ရှုခြင်း',
-    mediaPreviewTitleVideo: 'ဗီဒီယို အကြိုကြည့်ရှုခြင်း',
-
     // TUS Upload
     tusUploadChecking: 'ယခင်တင်ပြမှုများကို စစ်ဆေးနေသည်...',
     tusUploadDisableMode: 'TUS မုဒ်ကို ပိတ်ပါ',

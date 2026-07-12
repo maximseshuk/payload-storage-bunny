@@ -22,7 +22,6 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
   - [Signed URLs](#signed-urls-configuration)
   - [URL Transform](#url-transform-configuration)
   - [TUS Uploads](#tus-uploads-configuration)
-  - [Media Preview](#media-preview)
   - [Access Control](#access-control-configuration)
 - [CDN Cache Management](#cdn-cache-management)
 - [Getting API Keys](#getting-api-keys)
@@ -41,6 +40,9 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
 - **Access Control** - Use Payload's access rules or direct CDN delivery
 - **Automatic CDN Cache Purging** - Invalidate cache on file upload/delete for instant updates
 - **Per-Collection Configuration** - Override global settings for specific collections
+
+> [!TIP]
+> Looking for media preview functionality (inline previews of images, videos, audio, and documents in the admin panel)? Use the standalone **[@seshuk/payload-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** plugin — it works with any storage adapter, including this one.
 
 > [!TIP]
 > **⚡ Performance**: Set `disablePayloadAccessControl: true` for best performance. This lets users download files directly from Bunny's CDN servers instead of through your Payload server, making content delivery much faster.
@@ -147,7 +149,6 @@ Main plugin configuration options:
 | `thumbnail`    | `boolean \| object` | ❌       | Global thumbnail settings (optional)                            |
 | `signedUrls`   | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                     |
 | `urlTransform` | `object`            | ❌       | Global URL transformation config (optional)                     |
-| `mediaPreview` | `boolean \| object` | ❌       | Global media preview settings for all collections (optional)    |
 | `i18n`         | `object`            | ❌       | Internationalization settings (optional)                        |
 | `experimental` | `object`            | ❌       | Experimental features (optional)                                |
 
@@ -171,7 +172,6 @@ Define which collections will use Bunny Storage:
 | `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                                 |
 | `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                               |
 | `urlTransform`                | `object`            | Global setting  | Override global URL transform config                             |
-| `mediaPreview`                | `boolean \| object` | Global setting  | Override global media preview config (false to disable)          |
 
 **Examples:**
 
@@ -451,114 +451,6 @@ TUS (resumable uploads) enables reliable uploads of large video files by breakin
 
 - **Simple enable:** `tus: true` (uses auto mode by default)
 - **Detailed configuration:** See [Stream Configuration](#stream-configuration) section for all TUS options
-
-### Media Preview
-
-Add preview capability in admin panels to view media files directly in the UI. Works in both table cells and document views. Supports images, videos, audio, and documents.
-
-**Examples:**
-
-Global configuration (all collections):
-
-```typescript
-bunnyStorage({
-  mediaPreview: true, // Enable with defaults for all collections
-  // OR with custom settings
-  mediaPreview: {
-    mode: 'fullscreen',
-    contentMode: {
-      video: 'inline',
-      audio: 'inline',
-    },
-  },
-  collections: {
-    media: true,
-    videos: true,
-  },
-  // ... storage/stream config
-})
-```
-
-Per-collection configuration:
-
-```typescript
-bunnyStorage({
-  collections: {
-    media: {
-      mediaPreview: true, // Enable with defaults
-    },
-    videos: {
-      mediaPreview: {
-        mode: 'fullscreen',
-        contentMode: {
-          video: 'inline',
-          audio: 'inline',
-          image: 'newTab',
-          document: 'newTab',
-        },
-        position: { after: 'filename' },
-      },
-    },
-    documents: {
-      mediaPreview: false, // Disable for this collection
-    },
-  },
-  // ... storage/stream config
-})
-```
-
-Manual field addition:
-
-```typescript
-import { mediaPreviewField } from '@seshuk/payload-storage-bunny'
-
-export const Media: CollectionConfig = {
-  slug: 'media',
-  upload: true,
-  fields: [
-    mediaPreviewField({
-      mode: 'fullscreen',
-      contentMode: {
-        video: 'inline',
-        image: 'newTab',
-      },
-    }),
-  ],
-}
-```
-
-**Configuration options:**
-
-| Option                 | Type            | Default  | Description                                          |
-| ---------------------- | --------------- | -------- | ---------------------------------------------------- |
-| `mode`                 | `string`        | `auto`   | `auto` (smart) or `fullscreen` (always modal)        |
-| `contentMode`          | `object`        | -        | Configure how each file type opens                   |
-| `contentMode.video`    | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
-| `contentMode.audio`    | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
-| `contentMode.image`    | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
-| `contentMode.document` | `string`        | `inline` | `inline` (popup/modal) or `newTab` (new browser tab) |
-| `position`             | `string/object` | `last`   | Where to insert field (see position options below)   |
-| `overrides`            | `object`        | -        | Override field properties                            |
-
-**Mode options:**
-
-- `auto` - Table cells show popup, field shows fullscreen modal, mobile always uses fullscreen
-- `fullscreen` - Always shows fullscreen modal everywhere
-
-**Position options:**
-
-- `'first'` - Insert at the beginning of fields array
-- `'last'` - Insert at the end of fields array (default)
-- `{ after: 'fieldName' }` - Insert after specific field (e.g., `{ after: 'alt' }`)
-- `{ before: 'fieldName' }` - Insert before specific field (e.g., `{ before: 'alt' }`)
-- Supports dot notation for nested fields (e.g., `{ after: 'meta.title' }`)
-
-**Supported file formats:**
-
-- **Videos** - All video formats (MP4, WebM, MOV, AVI, etc.) - Uses Bunny Stream player if configured, otherwise native HTML5
-- **Audio** - All audio formats (MP3, WAV, OGG, FLAC, etc.) - Uses Bunny Stream player if configured, otherwise native HTML5
-- **Images** - All image formats (JPEG, PNG, GIF, WebP, SVG, etc.)
-- **Documents** - PDF, Office files (Word, Excel, PowerPoint), text files (TXT, HTML, CSS, JS, PHP, C, C++), Adobe files (AI, PSD), CAD files (DXF), Pages, PostScript, XPS, and more (max 25MB)
 
 ### Access Control Configuration
 
@@ -849,6 +741,12 @@ export default buildConfig({
 ```
 
 For detailed configuration examples and advanced use cases, see [docs/examples.md](docs/examples.md).
+
+---
+
+## Related Plugins
+
+- **[@seshuk/payload-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — Inline media previews (images, video, audio, documents) in the Payload admin panel. Works with any storage adapter.
 
 ---
 

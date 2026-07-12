@@ -1,4 +1,3 @@
-import type { MediaPreviewProps } from '@/fields/index.js'
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { CollectionConfig, PayloadRequest, Plugin, TaskConfig, UploadCollectionSlug } from 'payload'
@@ -37,12 +36,6 @@ export type UrlTransformConfig =
     transformUrl: UrlTransformFunction
   }
 
-export type InsertPosition =
-  | 'first'
-  | 'last'
-  | { after: string; before?: never }
-  | { after?: never; before: string }
-
 export type ThumbnailConfig = {
   /**
    * Use a specific size from upload collection's sizes instead of original file
@@ -57,39 +50,6 @@ export type ThumbnailConfig = {
    */
   streamAnimated?: boolean
 } & UrlTransformConfig
-
-export type MediaPreviewConfig = {
-  /**
-   * Position where to insert mediaPreviewField.
-   * Supports dot notation for nested fields (e.g., 'meta.title' or 'tabs.0.content').
-   *
-   * @example
-   * ```typescript
-   * mediaPreview: {
-   *   position: 'first'  // Insert at the very beginning
-   * }
-   *
-   * mediaPreview: {
-   *   position: 'last'  // Insert at the end (default)
-   * }
-   *
-   * mediaPreview: {
-   *   position: { after: 'filename' }  // Insert after filename field
-   * }
-   *
-   * mediaPreview: {
-   *   position: { before: 'title' }  // Insert before title field
-   * }
-   *
-   * mediaPreview: {
-   *   position: { after: 'meta.description' }  // Insert in meta group after description
-   * }
-   * ```
-   *
-   * @default 'last'
-   */
-  position?: InsertPosition
-} & MediaPreviewProps
 
 export type PurgeConfig = {
   /**
@@ -279,11 +239,6 @@ export type SignedUrlsConfig = {
 
 export type BunnyStorageCollectionConfig = {
   /**
-   * Override global media preview config for this collection.
-   * Set to false to disable media preview for this collection.
-   */
-  mediaPreview?: boolean | MediaPreviewConfig
-  /**
    * Override global CDN cache purging config for this collection.
    * Set to false to disable cache purging for this collection.
    */
@@ -307,12 +262,6 @@ export type BunnyStorageCollectionConfig = {
    * When disabled, only storage can be used.
    */
   stream?: {
-    /**
-     * Enable media preview in admin panel.
-     * Adds a virtual field showing preview for videos, images, and documents.
-     * @default false
-     */
-    mediaPreview?: boolean
     /**
      * Override allowed MIME types for Bunny Stream uploads in this collection.
      * Replaces the global stream.mimeTypes setting for this collection.
@@ -386,20 +335,11 @@ type BunnyStorageBaseConfig = {
   i18n?: {
     translations: {
       [key in AcceptedLanguages]?: {
-        mediaPreviewClose?: string
-        mediaPreviewOpen?: string
         tusUploadDisableMode?: string
         tusUploadEnableMode?: string
       }
     }
   }
-  /**
-   * Enable media preview in admin panel for uploads.
-   * Supports videos (Bunny Stream and regular files), images, and documents.
-   * Can be overridden per collection.
-   * @default false
-   */
-  mediaPreview?: boolean | MediaPreviewConfig
   /** CDN cache purging configuration */
   purge?: boolean | PurgeConfig
   /** Global signed URLs config (can be overridden per collection) */

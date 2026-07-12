@@ -2,15 +2,6 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const is: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // Media Preview
-    mediaPreviewClose: 'Loka',
-    mediaPreviewLabel: 'Forskoðun',
-    mediaPreviewOpen: 'Opna',
-    mediaPreviewTitleAudio: 'Hljóðforskoðun',
-    mediaPreviewTitleDocument: 'Skjalaforskoðun',
-    mediaPreviewTitleImage: 'Myndaforskoðun',
-    mediaPreviewTitleVideo: 'Myndbandsforskoðun',
-
     // TUS Upload
     tusUploadChecking: 'Athuga fyrri upphal...',
     tusUploadDisableMode: 'Slökkva á TUS stillingu',

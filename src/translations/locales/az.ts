@@ -2,15 +2,6 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const az: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // Media Preview
-    mediaPreviewClose: 'Bağlamaq',
-    mediaPreviewLabel: 'Önizləmə',
-    mediaPreviewOpen: 'Açmaq',
-    mediaPreviewTitleAudio: 'Audio önizləmə',
-    mediaPreviewTitleDocument: 'Sənəd önizləmə',
-    mediaPreviewTitleImage: 'Şəkil önizləmə',
-    mediaPreviewTitleVideo: 'Video önizləmə',
-
     // TUS Upload
     tusUploadChecking: 'Əvvəlki yükləmələr yoxlanılır...',
     tusUploadDisableMode: 'TUS rejimini söndür',

@@ -1,6 +1,5 @@
 export * from './constants.js'
 export * from './file.js'
-export * from './insertField.js'
 export * from './kyClient.js'
 export * from './mimeTypes.js'
 export * from './payload.js'

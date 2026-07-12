@@ -2,7 +2,6 @@ import type { TaskConfig } from 'payload'
 
 import type {
   BunnyStorageConfig,
-  MediaPreviewConfig,
   SignedUrlsConfig,
   StorageConfig,
   StreamConfig,
@@ -13,8 +12,6 @@ import type {
 export type NormalizedStorageConfig = {
   uploadTimeout: number
 } & StorageConfig
-
-export type NormalizedMediaPreviewConfig = MediaPreviewConfig
 
 export type NormalizedStreamConfig = {
   cleanup?: {
@@ -56,7 +53,6 @@ export type NormalizedPurgeConfig = {
 
 export interface NormalizedCollectionConfig {
   disablePayloadAccessControl: boolean
-  mediaPreview?: NormalizedMediaPreviewConfig
   prefix: string
   purge?: NormalizedPurgeConfig
   signedUrls?: NormalizedSignedUrlsConfig
@@ -70,7 +66,6 @@ export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, '
   _original: BunnyStorageConfig
   apiKey?: string
   collections: Map<string, NormalizedCollectionConfig>
-  mediaPreview?: NormalizedMediaPreviewConfig
   purge?: NormalizedPurgeConfig
   signedUrls?: NormalizedSignedUrlsConfig
   storage?: NormalizedStorageConfig

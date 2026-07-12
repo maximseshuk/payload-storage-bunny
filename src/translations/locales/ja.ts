@@ -2,15 +2,6 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const ja: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // Media Preview
-    mediaPreviewClose: '閉じる',
-    mediaPreviewLabel: 'プレビュー',
-    mediaPreviewOpen: '開く',
-    mediaPreviewTitleAudio: 'オーディオプレビュー',
-    mediaPreviewTitleDocument: 'ドキュメントプレビュー',
-    mediaPreviewTitleImage: '画像プレビュー',
-    mediaPreviewTitleVideo: 'ビデオプレビュー',
-
     // TUS Upload
     tusUploadChecking: '過去のアップロードを確認中...',
     tusUploadDisableMode: 'TUSモードを無効にする',

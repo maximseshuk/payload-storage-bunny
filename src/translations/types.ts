@@ -13,15 +13,6 @@ export type PluginDefaultTranslationsObject = {
     errorVideoInErrorState: string
     errorVideoNotFound: string
 
-    // Media Preview
-    mediaPreviewClose: string
-    mediaPreviewLabel: string
-    mediaPreviewOpen: string
-    mediaPreviewTitleAudio: string
-    mediaPreviewTitleDocument: string
-    mediaPreviewTitleImage: string
-    mediaPreviewTitleVideo: string
-
     // TUS Upload
     tusUploadChecking: string
     tusUploadDisableMode: string

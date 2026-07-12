@@ -2,15 +2,6 @@ import type { PluginDefaultTranslationsObject } from '../types.js'
 
 export const ko: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // Media Preview
-    mediaPreviewClose: '닫기',
-    mediaPreviewLabel: '미리보기',
-    mediaPreviewOpen: '열기',
-    mediaPreviewTitleAudio: '오디오 미리보기',
-    mediaPreviewTitleDocument: '문서 미리보기',
-    mediaPreviewTitleImage: '이미지 미리보기',
-    mediaPreviewTitleVideo: '비디오 미리보기',
-
     // TUS Upload
     tusUploadChecking: '이전 업로드 확인 중...',
     tusUploadDisableMode: 'TUS 모드 비활성화',

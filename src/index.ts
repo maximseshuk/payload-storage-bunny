@@ -15,22 +15,12 @@ import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
 
 import { getStreamUploadSessionsCollection } from './collections/StreamUploadSessions.js'
 import { getStreamEndpoints } from './endpoints/stream.js'
-import { getFields, mediaPreviewField } from './fields/index.js'
+import { getFields } from './fields/index.js'
 import { getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
 import { getAfterChangeHook, getBeforeReadHook, getBeforeValidateHook } from './hooks/index.js'
 import { getStreamCleanupTask } from './tasks/cleanup.js'
 import { translations } from './translations/index.js'
 import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './utils/config/index.js'
-import { insertField } from './utils/index.js'
-
-export { mediaPreviewField } from './fields/index.js'
-export type {
-  MediaPreviewContentMode,
-  MediaPreviewContentModeType,
-  MediaPreviewContentType,
-  MediaPreviewMode,
-  MediaPreviewProps,
-} from './fields/mediaPreviewField.js'
 
 export const bunnyStorage: BunnyStoragePlugin =
   (pluginConfig: BunnyStorageConfig) =>
@@ -74,18 +64,7 @@ export const bunnyStorage: BunnyStoragePlugin =
               ? collection.upload.filesRequiredOnCreate ?? true
               : true
 
-            const collectionConfig = config.collections.get(collection.slug)
-            const mediaPreviewConfig = collectionConfig?.mediaPreview ?? config.mediaPreview
-            const shouldAddMediaPreview = mediaPreviewConfig !== undefined
-
-            let fields = collection.fields
-
-            if (shouldAddMediaPreview) {
-              const position = mediaPreviewConfig?.position ?? 'last'
-              fields = insertField(fields, position, mediaPreviewField(mediaPreviewConfig))
-            }
-
-            fields = getFields(collection, collectionContext, fields)
+            const fields = getFields(collection, collectionContext, collection.fields)
 
             return {
               ...collection,
