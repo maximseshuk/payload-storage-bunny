@@ -1,9 +1,10 @@
-import type { NormalizedThumbnailConfig } from '@/types/configNormalized.js'
-import type { BunnyData, CollectionContext } from '@/types/index.js'
+import { posix } from 'node:path'
+
 import type { PayloadRequest } from 'payload'
 
+import type { NormalizedThumbnailConfig } from '@/types/configNormalized.js'
+import type { BunnyData, CollectionContext } from '@/types/index.js'
 import { applyUrlTransform, generateSignedUrl, isImage } from '@/utils/index.js'
-import { posix } from 'node:path'
 
 const createBaseUrl = (hostname: string, prefix: string, filename: string): string => {
   return `https://${hostname}/${posix.join(prefix, filename)}`
@@ -43,9 +44,7 @@ const signUrl = (
     return baseUrl
   }
 
-  const shouldSign = signedUrls.shouldUseSignedUrl
-    ? signedUrls.shouldUseSignedUrl({ collection, filename })
-    : true
+  const shouldSign = signedUrls.shouldUseSignedUrl ? signedUrls.shouldUseSignedUrl({ collection, filename }) : true
 
   return shouldSign ? generateSignedUrl(baseUrl, tokenSecurityKey, signedUrls) : baseUrl
 }
@@ -84,13 +83,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
         const baseUrl = createBaseUrl(storageConfig.hostname, prefix, sizeFilename)
         const transformedUrl = applyTransform(thumbnail, context, doc, sizeFilename, prefix, baseUrl)
-        return signUrl(
-          transformedUrl,
-          signedUrls,
-          storageConfig.tokenSecurityKey,
-          collection,
-          sizeFilename,
-        )
+        return signUrl(transformedUrl, signedUrls, storageConfig.tokenSecurityKey, collection, sizeFilename)
       }
     }
 

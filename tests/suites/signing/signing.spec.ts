@@ -1,10 +1,8 @@
-import {
-  generateSignedToken,
-  generateSignedUrl,
-  generateStreamTusUploadSignature,
-} from '@/utils/signing.js'
 import { createHash } from 'crypto'
+
 import { describe, expect, it } from 'vitest'
+
+import { generateSignedToken, generateSignedUrl, generateStreamTusUploadSignature } from '@/utils/signing.js'
 
 describe('generateSignedToken', () => {
   const securityKey = 'test-security-key'
@@ -78,11 +76,7 @@ describe('generateSignedUrl', () => {
 
   describe('storage URLs (query params)', () => {
     it('adds token and expires to query params', () => {
-      const url = generateSignedUrl(
-        'https://cdn.example.com/path/to/file.jpg',
-        securityKey,
-        baseConfig,
-      )
+      const url = generateSignedUrl('https://cdn.example.com/path/to/file.jpg', securityKey, baseConfig)
 
       expect(url).toContain('token=')
       expect(url).toContain('expires=')
@@ -103,11 +97,7 @@ describe('generateSignedUrl', () => {
 
     it('sets correct expiration timestamp', () => {
       const beforeTime = Math.floor(Date.now() / 1000)
-      const url = generateSignedUrl(
-        'https://cdn.example.com/file.jpg',
-        securityKey,
-        { expiresIn: 7200 },
-      )
+      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, { expiresIn: 7200 })
       const afterTime = Math.floor(Date.now() / 1000)
 
       const expiresMatch = url.match(/expires=(\d+)/)
@@ -121,12 +111,9 @@ describe('generateSignedUrl', () => {
 
   describe('stream URLs (path-based token)', () => {
     it('uses path-based token for stream (with tokenPath)', () => {
-      const url = generateSignedUrl(
-        'https://stream.example.com/abc123/playlist.m3u8',
-        securityKey,
-        baseConfig,
-        { tokenPath: '/abc123/' },
-      )
+      const url = generateSignedUrl('https://stream.example.com/abc123/playlist.m3u8', securityKey, baseConfig, {
+        tokenPath: '/abc123/',
+      })
 
       expect(url).toContain('/bcdn_token=')
       expect(url).toContain('&expires=')
@@ -134,12 +121,9 @@ describe('generateSignedUrl', () => {
     })
 
     it('preserves pathname after token in path-based mode', () => {
-      const url = generateSignedUrl(
-        'https://stream.example.com/video123/playlist.m3u8',
-        securityKey,
-        baseConfig,
-        { tokenPath: '/video123/' },
-      )
+      const url = generateSignedUrl('https://stream.example.com/video123/playlist.m3u8', securityKey, baseConfig, {
+        tokenPath: '/video123/',
+      })
 
       expect(url).toMatch(/\/bcdn_token=.*\/video123\/playlist\.m3u8/)
     })
@@ -147,41 +131,29 @@ describe('generateSignedUrl', () => {
 
   describe('country restrictions', () => {
     it('includes token_countries for allowedCountries', () => {
-      const url = generateSignedUrl(
-        'https://cdn.example.com/file.jpg',
-        securityKey,
-        {
-          ...baseConfig,
-          allowedCountries: ['US', 'CA', 'GB'],
-        },
-      )
+      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {
+        ...baseConfig,
+        allowedCountries: ['US', 'CA', 'GB'],
+      })
 
       expect(url).toContain('token_countries=US%2CCA%2CGB')
     })
 
     it('includes token_countries_blocked for blockedCountries', () => {
-      const url = generateSignedUrl(
-        'https://cdn.example.com/file.jpg',
-        securityKey,
-        {
-          ...baseConfig,
-          blockedCountries: ['RU', 'CN'],
-        },
-      )
+      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {
+        ...baseConfig,
+        blockedCountries: ['RU', 'CN'],
+      })
 
       expect(url).toContain('token_countries_blocked=RU%2CCN')
     })
 
     it('includes both country restrictions when provided', () => {
-      const url = generateSignedUrl(
-        'https://cdn.example.com/file.jpg',
-        securityKey,
-        {
-          ...baseConfig,
-          allowedCountries: ['US'],
-          blockedCountries: ['CN'],
-        },
-      )
+      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {
+        ...baseConfig,
+        allowedCountries: ['US'],
+        blockedCountries: ['CN'],
+      })
 
       expect(url).toContain('token_countries=US')
       expect(url).toContain('token_countries_blocked=CN')
@@ -190,59 +162,45 @@ describe('generateSignedUrl', () => {
 
   describe('error handling', () => {
     it('throws on invalid URL format', () => {
-      expect(() =>
-        generateSignedUrl('not-a-valid-url', securityKey, baseConfig),
-      ).toThrow('Invalid URL format')
+      expect(() => generateSignedUrl('not-a-valid-url', securityKey, baseConfig)).toThrow('Invalid URL format')
     })
 
     it('throws without baseUrl', () => {
-      expect(() =>
-        generateSignedUrl('', securityKey, baseConfig),
-      ).toThrow('Base URL, security key, and configuration are required')
+      expect(() => generateSignedUrl('', securityKey, baseConfig)).toThrow(
+        'Base URL, security key, and configuration are required',
+      )
     })
 
     it('throws without securityKey', () => {
-      expect(() =>
-        generateSignedUrl('https://cdn.example.com/file.jpg', '', baseConfig),
-      ).toThrow('Base URL, security key, and configuration are required')
+      expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', '', baseConfig)).toThrow(
+        'Base URL, security key, and configuration are required',
+      )
     })
 
     it('throws without config', () => {
-      expect(() =>
-        generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, null as any),
-      ).toThrow('Base URL, security key, and configuration are required')
+      expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, null as any)).toThrow(
+        'Base URL, security key, and configuration are required',
+      )
     })
   })
 
   describe('URL construction', () => {
     it('handles URLs with port numbers', () => {
-      const url = generateSignedUrl(
-        'https://cdn.example.com:8443/file.jpg',
-        securityKey,
-        baseConfig,
-      )
+      const url = generateSignedUrl('https://cdn.example.com:8443/file.jpg', securityKey, baseConfig)
 
       expect(url).toContain('cdn.example.com:8443')
       expect(url).toContain('token=')
     })
 
     it('handles URLs with special characters in path', () => {
-      const url = generateSignedUrl(
-        'https://cdn.example.com/path/to/file%20name.jpg',
-        securityKey,
-        baseConfig,
-      )
+      const url = generateSignedUrl('https://cdn.example.com/path/to/file%20name.jpg', securityKey, baseConfig)
 
       expect(url).toContain('/path/to/file%20name.jpg')
       expect(url).toContain('token=')
     })
 
     it('uses default expiresIn (7200s) when not provided', () => {
-      const url = generateSignedUrl(
-        'https://cdn.example.com/file.jpg',
-        securityKey,
-        {},
-      )
+      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {})
 
       const expiresMatch = url.match(/expires=(\d+)/)
       expect(expiresMatch).not.toBeNull()

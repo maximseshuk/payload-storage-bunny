@@ -16,7 +16,10 @@ export default defineConfig({
     },
   ],
   reporter: process.env.CI
-    ? [['list', { printSteps: true }], ['json', { outputFile: `./playwright/reports/${suiteName}.json` }]]
+    ? [
+        ['list', { printSteps: true }],
+        ['json', { outputFile: `./playwright/reports/${suiteName}.json` }],
+      ]
     : [['list', { printSteps: true }]],
   retries: process.env.CI ? 3 : undefined,
   testDir: '.',

@@ -1,9 +1,9 @@
-import type { BunnyStorageConfig } from '@/types/config.js'
 import type { CollectionConfig } from 'payload'
+import { describe, expect, it } from 'vitest'
 
+import type { BunnyStorageConfig } from '@/types/config.js'
 import { createCollectionContext, getNormalizedConfig } from '@/utils/config/context.js'
 import { createNormalizedConfig } from '@/utils/config/normalizer.js'
-import { describe, expect, it } from 'vitest'
 
 const createBaseStorage = () => ({
   apiKey: 'storage-key',
@@ -57,10 +57,7 @@ describe('createCollectionContext', () => {
         collections: { media: { storage: { uploadTimeout: 120000 } } },
         storage: createBaseStorage(),
       }
-      const ctx1 = createCollectionContext(
-        createNormalizedConfig(config1),
-        createMockCollection('media'),
-      )
+      const ctx1 = createCollectionContext(createNormalizedConfig(config1), createMockCollection('media'))
       expect(ctx1.storageConfig?.uploadTimeout).toBe(120000)
 
       const config2: BunnyStorageConfig = {
@@ -68,10 +65,7 @@ describe('createCollectionContext', () => {
         storage: createBaseStorage(),
         stream: createBaseStream(),
       }
-      const ctx2 = createCollectionContext(
-        createNormalizedConfig(config2),
-        createMockCollection('media'),
-      )
+      const ctx2 = createCollectionContext(createNormalizedConfig(config2), createMockCollection('media'))
       expect(ctx2.storageConfig).toBeUndefined()
       expect(ctx2.streamConfig).toBeDefined()
     })
@@ -86,10 +80,7 @@ describe('createCollectionContext', () => {
         },
         stream: { ...createBaseStream(), mp4Fallback: true },
       }
-      const ctx1 = createCollectionContext(
-        createNormalizedConfig(config1),
-        createMockCollection('media'),
-      )
+      const ctx1 = createCollectionContext(createNormalizedConfig(config1), createMockCollection('media'))
       expect(ctx1.streamConfig?.mp4Fallback).toBe(false)
       expect(ctx1.streamConfig?.thumbnailTime).toBe(5000)
 
@@ -98,10 +89,7 @@ describe('createCollectionContext', () => {
         storage: createBaseStorage(),
         stream: createBaseStream(),
       }
-      const ctx2 = createCollectionContext(
-        createNormalizedConfig(config2),
-        createMockCollection('media'),
-      )
+      const ctx2 = createCollectionContext(createNormalizedConfig(config2), createMockCollection('media'))
       expect(ctx2.streamConfig).toBeUndefined()
       expect(ctx2.storageConfig).toBeDefined()
     })
@@ -112,10 +100,7 @@ describe('createCollectionContext', () => {
         signedUrls: { expiresIn: 3600 },
         storage: createBaseStorage(),
       }
-      const ctx1 = createCollectionContext(
-        createNormalizedConfig(config1),
-        createMockCollection('media'),
-      )
+      const ctx1 = createCollectionContext(createNormalizedConfig(config1), createMockCollection('media'))
       expect(ctx1.signedUrls?.expiresIn).toBe(7200)
 
       const config2: BunnyStorageConfig = {
@@ -123,10 +108,7 @@ describe('createCollectionContext', () => {
         signedUrls: { expiresIn: 3600 },
         storage: createBaseStorage(),
       }
-      const ctx2 = createCollectionContext(
-        createNormalizedConfig(config2),
-        createMockCollection('media'),
-      )
+      const ctx2 = createCollectionContext(createNormalizedConfig(config2), createMockCollection('media'))
       expect(ctx2.signedUrls).toBeUndefined()
 
       const config3: BunnyStorageConfig = {
@@ -135,10 +117,7 @@ describe('createCollectionContext', () => {
         purge: { async: false },
         storage: createBaseStorage(),
       }
-      const ctx3 = createCollectionContext(
-        createNormalizedConfig(config3),
-        createMockCollection('media'),
-      )
+      const ctx3 = createCollectionContext(createNormalizedConfig(config3), createMockCollection('media'))
       expect(ctx3.purgeConfig?.async).toBe(true)
 
       const config4: BunnyStorageConfig = {
@@ -147,10 +126,7 @@ describe('createCollectionContext', () => {
         purge: { async: false },
         storage: createBaseStorage(),
       }
-      const ctx4 = createCollectionContext(
-        createNormalizedConfig(config4),
-        createMockCollection('media'),
-      )
+      const ctx4 = createCollectionContext(createNormalizedConfig(config4), createMockCollection('media'))
       expect(ctx4.purgeConfig).toBeUndefined()
     })
   })
@@ -175,20 +151,14 @@ describe('createCollectionContext', () => {
         collections: { media: { disablePayloadAccessControl: true } },
         storage: createBaseStorage(),
       }
-      const ctx1 = createCollectionContext(
-        createNormalizedConfig(config1),
-        createMockCollection('media'),
-      )
+      const ctx1 = createCollectionContext(createNormalizedConfig(config1), createMockCollection('media'))
       expect(ctx1.usePayloadAccessControl).toBe(false)
 
       const config2: BunnyStorageConfig = {
         collections: { media: true },
         storage: createBaseStorage(),
       }
-      const ctx2 = createCollectionContext(
-        createNormalizedConfig(config2),
-        createMockCollection('media'),
-      )
+      const ctx2 = createCollectionContext(createNormalizedConfig(config2), createMockCollection('media'))
       expect(ctx2.usePayloadAccessControl).toBe(true)
     })
   })
@@ -221,10 +191,7 @@ describe('createCollectionContext', () => {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: { ...createBaseStream(), tus: true },
       }
-      const ctx2 = createCollectionContext(
-        createNormalizedConfig(config2),
-        createMockCollection('media'),
-      )
+      const ctx2 = createCollectionContext(createNormalizedConfig(config2), createMockCollection('media'))
       expect(ctx2.isTusUploadSupported).toBe(false)
     })
   })

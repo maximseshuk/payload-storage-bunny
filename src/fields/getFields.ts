@@ -1,8 +1,8 @@
-import type { CollectionContext } from '@/types/index.js'
 import type { CollectionConfig, Field, GroupField, TextField } from 'payload'
 
 import { dataField, videoIdField, videoResolutionsField } from '@/fields/index.js'
 import { getThumbnailURLAfterReadFieldHook, getUrlAfterReadFieldHook } from '@/hooks/index.js'
+import type { CollectionContext } from '@/types/index.js'
 
 const getBunnyFields = (collectionContext: CollectionContext): Field[] => {
   if (!collectionContext.streamConfig) {
@@ -74,11 +74,11 @@ export const getFields = (
 
   const urlField: TextField = {
     ...baseURLField,
-    ...(existingURLField || {}),
+    ...existingURLField,
     hooks: {
       afterRead: [
         getUrlAfterReadFieldHook({ context: collectionContext }),
-        ...(existingURLField && 'hooks' in existingURLField && existingURLField.hooks?.afterRead || []),
+        ...((existingURLField && 'hooks' in existingURLField && existingURLField.hooks?.afterRead) || []),
       ],
     },
   } as TextField
@@ -93,7 +93,10 @@ export const getFields = (
     hooks: {
       afterRead: [
         getThumbnailURLAfterReadFieldHook({ context: collectionContext }),
-        ...(existingThumbnailURLField && 'hooks' in existingThumbnailURLField && existingThumbnailURLField.hooks?.afterRead || []),
+        ...((existingThumbnailURLField &&
+          'hooks' in existingThumbnailURLField &&
+          existingThumbnailURLField.hooks?.afterRead) ||
+          []),
       ],
     },
     label: 'Thumbnail URL',
@@ -140,7 +143,7 @@ export const getFields = (
           fields: [
             ...getBunnyFields(collectionContext),
             {
-              ...(existingSizeURLField || {}),
+              ...existingSizeURLField,
               ...baseURLField,
               hooks: {
                 afterRead: [

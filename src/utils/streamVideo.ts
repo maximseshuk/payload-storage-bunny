@@ -1,8 +1,8 @@
-import type { BunnyDataInternal } from '@/types/core.js'
-import type { StreamUploadSession } from '@/types/index.js'
 import type { BasePayload, TypeWithID } from 'payload'
 
 import { streamUploadSessionsCollectionSlug } from '@/collections/StreamUploadSessions.js'
+import type { BunnyDataInternal } from '@/types/core.js'
+import type { StreamUploadSession } from '@/types/index.js'
 import { BunnyStreamVideoStatus } from '@/types/index.js'
 
 export const canUploadToVideo = (status: BunnyStreamVideoStatus): boolean => {
@@ -38,9 +38,10 @@ export const getBunnyData = (doc: TypeWithID | undefined, filename: string): Bun
   if ('bunnyVideoId' in doc && typeof doc.bunnyVideoId === 'string') {
     return {
       stream: {
-        resolutions: 'bunnyVideoResolutions' in doc
-          ? (doc.bunnyVideoResolutions as { available?: string[]; highest?: string })
-          : undefined,
+        resolutions:
+          'bunnyVideoResolutions' in doc
+            ? (doc.bunnyVideoResolutions as { available?: string[]; highest?: string })
+            : undefined,
         videoId: doc.bunnyVideoId,
       },
     }
@@ -58,13 +59,13 @@ export const createStreamVideoSession = async ({
   payload: BasePayload
   videoId: string
 }): Promise<StreamUploadSession> => {
-  return await payload.create({
+  return (await payload.create({
     collection: streamUploadSessionsCollectionSlug,
     data: {
       libraryId: libraryId.toString(),
       videoId,
     },
-  }) as unknown as StreamUploadSession
+  })) as unknown as StreamUploadSession
 }
 
 export const deleteStreamVideoSession = async ({

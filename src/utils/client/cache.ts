@@ -19,7 +19,7 @@ export const purgeCache = async ({
   try {
     await kyClient.post(`${BUNNY_API.BASE_URL}/purge`, {
       headers: {
-        'AccessKey': apiKey,
+        AccessKey: apiKey,
       },
       searchParams: {
         async,
@@ -30,12 +30,12 @@ export const purgeCache = async ({
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 401) {
-        throw new Error('Bunny.net: Invalid API key')
+        throw new Error('Bunny.net: Invalid API key', { cause: err })
       } else if (err.response.status === 500) {
-        throw new Error('Bunny.net: Server error')
+        throw new Error('Bunny.net: Server error', { cause: err })
       }
     }
 
-    throw new Error(`Unable to purge cache: ${url}`)
+    throw new Error(`Unable to purge cache: ${url}`, { cause: err })
   }
 }

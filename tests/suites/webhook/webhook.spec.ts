@@ -1,6 +1,6 @@
-import type { Payload } from 'payload'
-
 import path from 'node:path'
+
+import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/bunnyStream.js'
@@ -40,32 +40,26 @@ describe('Stream Webhook', () => {
     const baseBody = { Status: 3, VideoGuid: 'test-guid', VideoLibraryId: libraryId }
 
     it('should reject without secret or with wrong secret', async () => {
-      const noSecret = await callWebhook(
-        'http://localhost/api/storage-bunny/stream/webhook',
-        baseBody,
-      )
+      const noSecret = await callWebhook('http://localhost/api/storage-bunny/stream/webhook', baseBody)
       expect(noSecret.status).toBe(401)
 
-      const wrongSecret = await callWebhook(
-        'http://localhost/api/storage-bunny/stream/webhook?secret=wrong',
-        baseBody,
-      )
+      const wrongSecret = await callWebhook('http://localhost/api/storage-bunny/stream/webhook?secret=wrong', baseBody)
       expect(wrongSecret.status).toBe(401)
     })
 
     it('should reject with wrong library ID', async () => {
-      const response = await callWebhook(
-        `http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`,
-        { ...baseBody, VideoLibraryId: 99999 },
-      )
+      const response = await callWebhook(`http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`, {
+        ...baseBody,
+        VideoLibraryId: 99999,
+      })
       expect(response.status).toBe(403)
     })
 
     it('should accept with correct secret and library ID', async () => {
-      const response = await callWebhook(
-        `http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`,
-        { ...baseBody, VideoGuid: 'non-existent-guid' },
-      )
+      const response = await callWebhook(`http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`, {
+        ...baseBody,
+        VideoGuid: 'non-existent-guid',
+      })
       expect(response.status).toBe(200)
     })
   })
@@ -84,10 +78,11 @@ describe('Stream Webhook', () => {
       const videoId = upload.bunnyVideoId as string
       await waitForVideoProcessed(videoId)
 
-      const response = await callWebhook(
-        `http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`,
-        { Status: 3, VideoGuid: videoId, VideoLibraryId: libraryId },
-      )
+      const response = await callWebhook(`http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`, {
+        Status: 3,
+        VideoGuid: videoId,
+        VideoLibraryId: libraryId,
+      })
       expect(response.status).toBe(200)
 
       const updatedDoc = await payload.findByID({

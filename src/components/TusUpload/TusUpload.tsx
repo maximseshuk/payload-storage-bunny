@@ -1,9 +1,5 @@
 'use client'
 
-import type { UploadProps as PayloadUploadProps } from '@payloadcms/ui/elements/Upload'
-import type { ClientCollectionConfig } from 'payload'
-
-import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 import {
   Upload as PayloadUpload,
   useBulkUpload,
@@ -12,7 +8,11 @@ import {
   useUploadControls,
   useUploadEdits,
 } from '@payloadcms/ui'
+import type { UploadProps as PayloadUploadProps } from '@payloadcms/ui/elements/Upload'
+import type { ClientCollectionConfig } from 'payload'
 import React, { useCallback, useMemo, useState } from 'react'
+
+import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 
 import { ToggleButton } from './ToggleButton/ToggleButton.js'
 import { clickFileFieldRemoveButton } from './TusUpload.utils.js'

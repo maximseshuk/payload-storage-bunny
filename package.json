@@ -2,56 +2,74 @@
   "name": "@seshuk/payload-storage-bunny",
   "version": "2.1.1",
   "description": "Payload storage adapter for Bunny.net",
-  "author": "Maxim Seshuk",
+  "keywords": [
+    "bunny",
+    "bunny.net",
+    "bunnycdn",
+    "cloud",
+    "cms",
+    "payload",
+    "payloadcms",
+    "plugin",
+    "storage",
+    "tus",
+    "typescript"
+  ],
   "license": "MIT",
+  "author": "Maxim Seshuk",
   "repository": {
     "type": "git",
     "url": "https://github.com/maximseshuk/payload-storage-bunny.git"
   },
-  "keywords": [
-    "payload",
-    "payloadcms",
-    "cms",
-    "plugin",
-    "typescript",
-    "bunny",
-    "bunnycdn",
-    "bunny.net",
-    "cloud",
-    "storage",
-    "tus"
+  "files": [
+    "dist"
   ],
   "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
     "./client": "./dist/exports/client.js",
-    "./rsc": "./dist/exports/rsc.js",
     "./*": "./*"
   },
-  "files": [
-    "dist"
-  ],
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./client": {
+        "import": "./dist/exports/client.js",
+        "types": "./dist/exports/client.d.ts",
+        "default": "./dist/exports/client.js"
+      }
+    },
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
+    "build": "pnpm clean && pnpm copyfiles && pnpm build:types && pnpm build:swc",
+    "build:swc": "swc ./src -d ./dist --config-file .swcrc --strip-leading-paths",
+    "build:types": "tsc --project tsconfig.build.json",
     "clean": "rimraf {dist,*.tsbuildinfo}",
     "copyfiles": "cpy 'src/**/*.scss' dist --parents",
-    "build:types": "tsc --project tsconfig.build.json",
-    "build:swc": "swc ./src -d ./dist --config-file .swcrc --strip-leading-paths",
-    "build": "pnpm clean && pnpm copyfiles && pnpm build:types && pnpm build:swc",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint",
-    "lint:fix": "eslint ./src --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "runts": "dotenv -e .env -v NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" -- node --no-deprecation --no-experimental-strip-types --import @swc-node/register/esm-register",
     "dev": "dotenv -e .env -v PAYLOAD_DROP_DATABASE=false -- pnpm runts tests/dev.ts dev",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "prepublishOnly": "pnpm clean && pnpm build",
+    "runts": "dotenv -e .env -v NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" -- node --no-deprecation --no-experimental-strip-types --import @swc-node/register/esm-register",
     "test": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.config.ts",
-    "test:watch": "dotenv -e .env -v NODE_ENV=development -- vitest -c tests/vitest.config.ts",
     "test:coverage": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.config.ts --coverage",
     "test:e2e": "dotenv -e .env -- pnpm runts tests/runE2E.ts",
     "test:e2e:ui": "dotenv -e .env -v UI_MODE=1 -- pnpm runts tests/runE2E.ts",
-    "prepublishOnly": "pnpm clean && pnpm build"
+    "test:watch": "dotenv -e .env -v NODE_ENV=development -- vitest -c tests/vitest.config.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@payloadcms/plugin-cloud-storage": "^3.53.0",
@@ -59,16 +77,13 @@
     "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.3",
     "@next/env": "^15.4.8",
     "@payloadcms/db-mongodb": "^3.66.0",
-    "@payloadcms/eslint-config": "3.28.0",
     "@payloadcms/next": "^3.66.0",
     "@payloadcms/plugin-cloud-storage": "^3.66.0",
     "@payloadcms/translations": "^3.66.0",
     "@payloadcms/ui": "^3.66.0",
     "@playwright/test": "^1.57.0",
-    "@stylistic/eslint-plugin": "^5.6.1",
     "@swc-node/register": "^1.11.1",
     "@swc/cli": "^0.7.9",
     "@types/node": "^24.10.1",
@@ -79,12 +94,11 @@
     "cpy-cli": "^6.0.0",
     "dotenv": "^17.2.3",
     "dotenv-cli": "^11.0.0",
-    "eslint": "^9.39.1",
-    "eslint-plugin-perfectionist": "^4.15.1",
     "mongodb-memory-server": "^10.4.0",
     "next": "15.4.8",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
     "payload": "^3.66.0",
-    "prettier": "^3.7.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "rimraf": "6.1.2",
@@ -101,24 +115,5 @@
   "engines": {
     "node": "^18.20.2 || >=20.9.0"
   },
-  "publishConfig": {
-    "access": "public",
-    "exports": {
-      ".": {
-        "import": "./dist/index.js",
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./client": {
-        "import": "./dist/exports/client.js",
-        "types": "./dist/exports/client.d.ts",
-        "default": "./dist/exports/client.js"
-      }
-    },
-    "main": "./dist/index.js",
-    "registry": "https://registry.npmjs.org/",
-    "types": "./dist/index.d.ts"
-  },
-  "packageManager": "pnpm@11.12.0",
-  "module": "./dist/index.js"
+  "packageManager": "pnpm@11.12.0"
 }

@@ -27,7 +27,8 @@ export const ru: PluginDefaultTranslationsObject = {
     tusUploadStatusUploading: 'Загрузка... {{progress}}%',
     tusUploadTimeHours: 'ч',
 
-    tusUploadTimeMinutes: 'м', tusUploadTimeSeconds: 'с',
+    tusUploadTimeMinutes: 'м',
+    tusUploadTimeSeconds: 'с',
 
     // Error messages
     errorAccessDenied: 'У вас нет разрешения на доступ к этому ресурсу',

@@ -1,8 +1,9 @@
-import type { BunnyData, CollectionContext } from '@/types/index.js'
+import { posix } from 'node:path'
+
 import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
 
+import type { BunnyData, CollectionContext } from '@/types/index.js'
 import { applyUrlTransform, generateSignedUrl } from '@/utils/index.js'
-import { posix } from 'node:path'
 
 export const getGenerateURL = (context: CollectionContext): GenerateURL => {
   const { collection, signedUrls, storageConfig, streamConfig, urlTransform } = context
@@ -57,9 +58,7 @@ export const getGenerateURL = (context: CollectionContext): GenerateURL => {
     }
 
     if (signedUrls && typeof signedUrls === 'object' && storageConfig.tokenSecurityKey) {
-      const shouldSign = signedUrls.shouldUseSignedUrl
-        ? signedUrls.shouldUseSignedUrl({ collection, filename })
-        : true
+      const shouldSign = signedUrls.shouldUseSignedUrl ? signedUrls.shouldUseSignedUrl({ collection, filename }) : true
 
       if (shouldSign) {
         return generateSignedUrl(baseUrl, storageConfig.tokenSecurityKey, signedUrls)

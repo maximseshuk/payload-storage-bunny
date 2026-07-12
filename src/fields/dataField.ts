@@ -1,5 +1,6 @@
-import type { BunnyData, CollectionContext } from '@/types/index.js'
 import type { JSONField } from 'payload'
+
+import type { BunnyData, CollectionContext } from '@/types/index.js'
 
 export const dataField = (context: CollectionContext): JSONField => {
   return {

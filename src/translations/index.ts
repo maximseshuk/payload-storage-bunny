@@ -1,7 +1,5 @@
 import type { AcceptedLanguages, DefaultTranslationKeys, NestedKeysStripped, TFunction } from '@payloadcms/translations'
 
-import type { PluginDefaultTranslationsObject } from './types.js'
-
 import { ar } from './locales/ar.js'
 import { az } from './locales/az.js'
 import { bg } from './locales/bg.js'
@@ -46,6 +44,7 @@ import { uk } from './locales/uk.js'
 import { vi } from './locales/vi.js'
 import { zh } from './locales/zh.js'
 import { zhTw } from './locales/zhTw.js'
+import type { PluginDefaultTranslationsObject } from './types.js'
 
 export const translations: {
   [key in AcceptedLanguages]?: PluginDefaultTranslationsObject

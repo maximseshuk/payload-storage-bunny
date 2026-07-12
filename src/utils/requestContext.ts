@@ -1,5 +1,6 @@
-import type { BunnyDataInternal } from '@/types/index.js'
 import type { RequestContext } from 'payload'
+
+import type { BunnyDataInternal } from '@/types/index.js'
 
 type BunnyDataInput = {
   stream?: Partial<NonNullable<BunnyDataInternal['stream']>>

@@ -37,8 +37,7 @@ export default buildConfigWithDefaults({
           },
           urlTransform: {
             transformUrl: ({ baseUrl, data }) => {
-              const isVideo =
-                typeof data?.mimeType === 'string' && data.mimeType.startsWith('video/')
+              const isVideo = typeof data?.mimeType === 'string' && data.mimeType.startsWith('video/')
               const quality = isVideo ? 'hd' : 'original'
               const sessionId = Math.random().toString(36).substr(2, 9)
               return `${baseUrl}?quality=${quality}&session=${sessionId}&secure=true`

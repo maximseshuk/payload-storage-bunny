@@ -1,9 +1,9 @@
-import type { SanitizedConfig } from 'payload'
-
-import nextEnv from '@next/env'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+
+import nextEnv from '@next/env'
+import type { SanitizedConfig } from 'payload'
 import { generateImportMap } from 'payload'
 
 import { log } from './log.js'

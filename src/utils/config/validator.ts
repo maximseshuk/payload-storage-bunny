@@ -53,12 +53,9 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
       const effectiveMp4Fallback = collection.stream?.mp4Fallback ?? config.stream.mp4Fallback
 
       const hasSignedUrlsWithRedirect =
-        collection.signedUrls &&
-        collection.signedUrls.staticHandler?.useRedirect === true
+        collection.signedUrls && collection.signedUrls.staticHandler?.useRedirect === true
 
-      const hasValidAlternative =
-        effectiveMp4Fallback ||
-        hasSignedUrlsWithRedirect
+      const hasValidAlternative = effectiveMp4Fallback || hasSignedUrlsWithRedirect
 
       if (!hasValidAlternative) {
         collectionsWithIssues.push(slug)
@@ -68,8 +65,8 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     if (collectionsWithIssues.length > 0) {
       errors.push(
         `collections [${collectionsWithIssues.join(', ')}] with \`disablePayloadAccessControl: false\` require: ` +
-        '1) `mp4Fallback` to be enabled, or ' +
-        '2) signed URLs with `staticHandler.useRedirect` enabled (globally or per collection)',
+          '1) `mp4Fallback` to be enabled, or ' +
+          '2) signed URLs with `staticHandler.useRedirect` enabled (globally or per collection)',
       )
     }
   }

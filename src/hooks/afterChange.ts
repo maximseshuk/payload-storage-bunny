@@ -1,7 +1,7 @@
-import type { CollectionContext } from '@/types/index.js'
 import type { CollectionAfterChangeHook, FileData, JsonObject, TypeWithID } from 'payload'
 
 import { getHandleDelete } from '@/handlers/index.js'
+import type { CollectionContext } from '@/types/index.js'
 import { deleteStreamVideoSession } from '@/utils/index.js'
 
 type Data = FileData & JsonObject & TypeWithID
@@ -19,10 +19,7 @@ export const getAfterChangeHook = (context: CollectionContext): CollectionAfterC
     if (context.isTusUploadSupported) {
       const oldDoc = req.context?.oldDoc
 
-      if (!oldDoc ||
-          typeof oldDoc !== 'object' ||
-          !('filename' in oldDoc) ||
-          typeof oldDoc.filename !== 'string') {
+      if (!oldDoc || typeof oldDoc !== 'object' || !('filename' in oldDoc) || typeof oldDoc.filename !== 'string') {
         return
       }
 

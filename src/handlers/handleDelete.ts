@@ -1,12 +1,13 @@
-import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
-import type { CollectionContext } from '@/types/index.js'
+import { posix } from 'node:path'
+
 import type { HandleDelete } from '@payloadcms/plugin-cloud-storage/types'
 import type { TFunction } from '@payloadcms/translations'
+import { APIError } from 'payload'
 
+import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
+import type { CollectionContext } from '@/types/index.js'
 import { deleteStorageFile, deleteStreamVideo, purgeCache } from '@/utils/client/index.js'
 import { getBunnyData } from '@/utils/streamVideo.js'
-import { posix } from 'node:path'
-import { APIError } from 'payload'
 
 import { getGenerateURL } from './generateURL.js'
 
@@ -65,7 +66,12 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
         ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 
-      throw new APIError(reqT('@seshuk/payload-storage-bunny:errorDeleteFileFailed', { filename }), 500, undefined, true)
+      throw new APIError(
+        reqT('@seshuk/payload-storage-bunny:errorDeleteFileFailed', { filename }),
+        500,
+        undefined,
+        true,
+      )
     }
   }
 }

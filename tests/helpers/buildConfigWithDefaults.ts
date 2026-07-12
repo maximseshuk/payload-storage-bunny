@@ -1,7 +1,6 @@
-import type { CollectionConfig, Config, SanitizedConfig } from 'payload'
-
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { en } from '@payloadcms/translations/languages/en'
+import type { CollectionConfig, Config, SanitizedConfig } from 'payload'
 import { buildConfig } from 'payload'
 import { de } from 'payload/i18n/de'
 import { ru } from 'payload/i18n/ru'
@@ -29,17 +28,17 @@ export const buildConfigWithDefaults = async (config?: Partial<Config>): Promise
         password: devUser.password,
       },
     },
-    collections: [
-      Users,
-      ...(config?.collections || []),
-    ],
+    collections: [Users, ...(config?.collections || [])],
     db: mongooseAdapter({
       collation: {
         strength: 1,
       },
       ensureIndexes: true,
       mongoMemoryServer: (global as any)._mongoMemoryServer,
-      url: process.env.MONGODB_MEMORY_SERVER_URI || process.env.DATABASE_URI || 'mongodb://127.0.0.1/payload-storage-bunny',
+      url:
+        process.env.MONGODB_MEMORY_SERVER_URI ||
+        process.env.DATABASE_URI ||
+        'mongodb://127.0.0.1/payload-storage-bunny',
     }),
     i18n: {
       supportedLanguages: {

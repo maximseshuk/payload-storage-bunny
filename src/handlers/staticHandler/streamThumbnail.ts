@@ -1,8 +1,8 @@
-import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
+import { HTTPError } from 'ky'
 import type { CollectionConfig, PayloadRequest } from 'payload'
 
+import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
 import { kyClient } from '@/utils/index.js'
-import { HTTPError } from 'ky'
 
 import { copyHeaders, maybeCreateRedirect, maybeGenerateSignedUrl } from './helpers.js'
 

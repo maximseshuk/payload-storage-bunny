@@ -35,7 +35,9 @@ export const waitForServer = async (port: number, timeout = 60000): Promise<bool
       if (response.ok) {
         return true
       }
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
   return false

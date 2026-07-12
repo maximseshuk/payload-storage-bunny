@@ -2,10 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 export const createMediaCollection = (
   config: {
-    upload?: Omit<
-      NonNullable<CollectionConfig['upload']>,
-      'disableLocalStorage' | 'skipSafeFetch'
-    >
+    upload?: Omit<NonNullable<CollectionConfig['upload']>, 'disableLocalStorage' | 'skipSafeFetch'>
   } & Omit<CollectionConfig, 'fields' | 'upload'> &
     Partial<Pick<CollectionConfig, 'fields'>>,
 ): CollectionConfig => {

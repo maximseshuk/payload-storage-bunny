@@ -1,9 +1,9 @@
-import type { CollectionContext } from '@/types/index.js'
 import type { CollectionBeforeValidateHook, JsonObject, TypeWithID } from 'payload'
+import { MissingFile } from 'payload'
 
+import type { CollectionContext } from '@/types/index.js'
 import { getStreamVideo } from '@/utils/client/index.js'
 import { getSafeFileName, isVideoProcessed } from '@/utils/index.js'
-import { MissingFile } from 'payload'
 
 type Args = {
   context: CollectionContext

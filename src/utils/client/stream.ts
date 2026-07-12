@@ -1,11 +1,11 @@
+import { HTTPError } from 'ky'
+
 import type {
   BunnyStreamCredentials,
   BunnyStreamListVideosResponse,
   BunnyStreamVideo,
   BunnyStreamVideoResolutionsResponse,
 } from '@/types/index.js'
-
-import { HTTPError } from 'ky'
 
 import { BUNNY_API, TIMEOUTS } from '../constants.js'
 import { kyClient } from '../kyClient.js'
@@ -18,31 +18,28 @@ export const getStreamVideo = async ({
   videoId,
 }: { videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideo> => {
   try {
-    const response = await kyClient.get(
-      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-          'AccessKey': apiKey,
-        },
-        timeout: TIMEOUTS.DEFAULT,
+    const response = await kyClient.get(`${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`, {
+      headers: {
+        Accept: 'application/json',
+        AccessKey: apiKey,
       },
-    )
+      timeout: TIMEOUTS.DEFAULT,
+    })
 
     const videoData = await response.json<BunnyStreamVideo>()
     return videoData
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 401) {
-        throw new Error('Bunny Stream: Invalid API key')
+        throw new Error('Bunny Stream: Invalid API key', { cause: err })
       } else if (err.response.status === 404) {
-        throw new Error(`Bunny Stream: Video not found: ${videoId}`)
+        throw new Error(`Bunny Stream: Video not found: ${videoId}`, { cause: err })
       } else if (err.response.status === 500) {
-        throw new Error('Bunny Stream: Server error')
+        throw new Error('Bunny Stream: Server error', { cause: err })
       }
     }
 
-    throw new Error(`Unable to get video: ${videoId}`)
+    throw new Error(`Unable to get video: ${videoId}`, { cause: err })
   }
 }
 
@@ -64,32 +61,31 @@ export const createStreamVideo = async ({
   }
 
   try {
-    const response = await kyClient.post(
-      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos`,
-      {
+    const response = await kyClient
+      .post(`${BUNNY_API.STREAM_URL}/library/${libraryId}/videos`, {
         headers: {
-          'Accept': 'application/json',
-          'AccessKey': apiKey,
+          Accept: 'application/json',
+          AccessKey: apiKey,
           'Content-Type': 'application/json',
         },
         json: data,
         timeout: TIMEOUTS.DEFAULT,
-      },
-    ).json<BunnyStreamVideo>()
+      })
+      .json<BunnyStreamVideo>()
 
     return response
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 400) {
-        throw new Error('Bunny Stream: Invalid request')
+        throw new Error('Bunny Stream: Invalid request', { cause: err })
       } else if (err.response.status === 401) {
-        throw new Error('Bunny Stream: Invalid API key')
+        throw new Error('Bunny Stream: Invalid API key', { cause: err })
       } else if (err.response.status === 500) {
-        throw new Error('Bunny Stream: Server error')
+        throw new Error('Bunny Stream: Server error', { cause: err })
       }
     }
 
-    throw new Error(`Unable to create video: ${title}`)
+    throw new Error(`Unable to create video: ${title}`, { cause: err })
   }
 }
 
@@ -99,27 +95,24 @@ export const deleteStreamVideo = async ({
   videoId,
 }: { videoId: string } & BunnyStreamCredentials): Promise<void> => {
   try {
-    await kyClient.delete(
-      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-          'AccessKey': apiKey,
-        },
-        throwHttpErrors: (status) => status !== 404,
-        timeout: TIMEOUTS.DEFAULT,
+    await kyClient.delete(`${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`, {
+      headers: {
+        Accept: 'application/json',
+        AccessKey: apiKey,
       },
-    )
+      throwHttpErrors: (status) => status !== 404,
+      timeout: TIMEOUTS.DEFAULT,
+    })
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 401) {
-        throw new Error('Bunny Stream: Invalid API key')
+        throw new Error('Bunny Stream: Invalid API key', { cause: err })
       } else if (err.response.status === 500) {
-        throw new Error('Bunny Stream: Server error')
+        throw new Error('Bunny Stream: Server error', { cause: err })
       }
     }
 
-    throw new Error(`Unable to delete video: ${videoId}`)
+    throw new Error(`Unable to delete video: ${videoId}`, { cause: err })
   }
 }
 
@@ -135,31 +128,28 @@ export const uploadStreamVideo = async ({
   videoId: string
 } & BunnyStreamCredentials): Promise<void> => {
   try {
-    await kyClient.put(
-      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
-      {
-        body: buffer as unknown as BodyInit,
-        headers: {
-          'Accept': 'application/json',
-          'AccessKey': apiKey,
-        },
-        timeout: timeout ?? TIMEOUTS.STREAM_UPLOAD,
+    await kyClient.put(`${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`, {
+      body: buffer as unknown as BodyInit,
+      headers: {
+        Accept: 'application/json',
+        AccessKey: apiKey,
       },
-    )
+      timeout: timeout ?? TIMEOUTS.STREAM_UPLOAD,
+    })
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 400) {
-        throw new Error('Bunny Stream: Video already uploaded')
+        throw new Error('Bunny Stream: Video already uploaded', { cause: err })
       } else if (err.response.status === 401) {
-        throw new Error('Bunny Stream: Invalid API key')
+        throw new Error('Bunny Stream: Invalid API key', { cause: err })
       } else if (err.response.status === 404) {
-        throw new Error(`Bunny Stream: Video not found: ${videoId}`)
+        throw new Error(`Bunny Stream: Video not found: ${videoId}`, { cause: err })
       } else if (err.response.status === 500) {
-        throw new Error('Bunny Stream: Server error')
+        throw new Error('Bunny Stream: Server error', { cause: err })
       }
     }
 
-    throw new Error(`Unable to upload video: ${videoId}`)
+    throw new Error(`Unable to upload video: ${videoId}`, { cause: err })
   }
 }
 
@@ -179,8 +169,8 @@ export const listStreamVideos = async ({
 
     const response = await kyClient.get(url.toString(), {
       headers: {
-        'Accept': 'application/json',
-        'AccessKey': apiKey,
+        Accept: 'application/json',
+        AccessKey: apiKey,
       },
       timeout: TIMEOUTS.DEFAULT,
     })
@@ -189,13 +179,13 @@ export const listStreamVideos = async ({
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 401) {
-        throw new Error('Bunny Stream: Invalid API key')
+        throw new Error('Bunny Stream: Invalid API key', { cause: err })
       } else if (err.response.status === 500) {
-        throw new Error('Bunny Stream: Server error')
+        throw new Error('Bunny Stream: Server error', { cause: err })
       }
     }
 
-    throw new Error('Unable to list videos')
+    throw new Error('Unable to list videos', { cause: err })
   }
 }
 
@@ -205,29 +195,26 @@ export const getStreamVideoResolutions = async ({
   videoId,
 }: { videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideoResolutionsResponse> => {
   try {
-    const response = await kyClient.get(
-      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}/resolutions`,
-      {
-        headers: {
-          'Accept': 'application/json',
-          'AccessKey': apiKey,
-        },
-        timeout: TIMEOUTS.DEFAULT,
+    const response = await kyClient.get(`${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}/resolutions`, {
+      headers: {
+        Accept: 'application/json',
+        AccessKey: apiKey,
       },
-    )
+      timeout: TIMEOUTS.DEFAULT,
+    })
 
     return await response.json<BunnyStreamVideoResolutionsResponse>()
   } catch (err) {
     if (err instanceof HTTPError) {
       if (err.response.status === 401) {
-        throw new Error('Bunny Stream: Invalid API key')
+        throw new Error('Bunny Stream: Invalid API key', { cause: err })
       } else if (err.response.status === 404) {
-        throw new Error(`Bunny Stream: Video with ID ${videoId} not found`)
+        throw new Error(`Bunny Stream: Video with ID ${videoId} not found`, { cause: err })
       } else if (err.response.status === 500) {
-        throw new Error('Bunny Stream: Server error')
+        throw new Error('Bunny Stream: Server error', { cause: err })
       }
     }
 
-    throw new Error(`Unable to get video resolutions: ${videoId}`)
+    throw new Error(`Unable to get video resolutions: ${videoId}`, { cause: err })
   }
 }

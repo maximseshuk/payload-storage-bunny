@@ -1,7 +1,7 @@
-import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
-
 import { Button, useTranslation } from '@payloadcms/ui'
 import React, { Fragment } from 'react'
+
+import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
 
 import './ToggleButton.scss'
 

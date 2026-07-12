@@ -1,6 +1,7 @@
-import { expect, test } from '@playwright/test'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { expect, test } from '@playwright/test'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/bunnyStream.js'
 import { deleteDocAndAssert, saveDocAndAssert } from '../../helpers/e2e.js'
@@ -62,10 +63,7 @@ test.describe('Stream - TUS Manual Mode Upload', () => {
     await enableTusButton.click()
 
     const fileChooserPromise = page.waitForEvent('filechooser')
-    await page
-      .locator('.storage-bunny-tus-upload__dropzoneButtons')
-      .getByText('Select a file')
-      .click()
+    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
     const fileChooser = await fileChooserPromise
     await fileChooser.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
 
@@ -100,10 +98,7 @@ test.describe('Stream - TUS Resume Upload', () => {
     await enableTusButton1.click()
 
     const fileChooserPromise1 = page.waitForEvent('filechooser')
-    await page
-      .locator('.storage-bunny-tus-upload__dropzoneButtons')
-      .getByText('Select a file')
-      .click()
+    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
     const fileChooser1 = await fileChooserPromise1
     await fileChooser1.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
 
@@ -130,10 +125,7 @@ test.describe('Stream - TUS Resume Upload', () => {
     await enableTusButton2.click()
 
     const fileChooserPromise2 = page.waitForEvent('filechooser')
-    await page
-      .locator('.storage-bunny-tus-upload__dropzoneButtons')
-      .getByText('Select a file')
-      .click()
+    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
     const fileChooser2 = await fileChooserPromise2
     await fileChooser2.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
 
@@ -179,10 +171,7 @@ test.describe('Stream - TUS File Replacement', () => {
     await enableTusButton.click()
 
     const fileChooserPromise1 = page.waitForEvent('filechooser')
-    await page
-      .locator('.storage-bunny-tus-upload__dropzoneButtons')
-      .getByText('Select a file')
-      .click()
+    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
     const fileChooser1 = await fileChooserPromise1
     await fileChooser1.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
 
@@ -204,10 +193,7 @@ test.describe('Stream - TUS File Replacement', () => {
     await expect(page.locator('.storage-bunny-tus-upload__dropzoneButtons')).toBeVisible()
 
     const fileChooserPromise2 = page.waitForEvent('filechooser')
-    await page
-      .locator('.storage-bunny-tus-upload__dropzoneButtons')
-      .getByText('Select a file')
-      .click()
+    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
     const fileChooser2 = await fileChooserPromise2
     await fileChooser2.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
 
@@ -265,10 +251,7 @@ test.describe('Stream - MP4 Fallback', () => {
     await enableTusButton.click()
 
     const fileChooserPromise = page.waitForEvent('filechooser')
-    await page
-      .locator('.storage-bunny-tus-upload__dropzoneButtons')
-      .getByText('Select a file')
-      .click()
+    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
     const fileChooser = await fileChooserPromise
     await fileChooser.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
 

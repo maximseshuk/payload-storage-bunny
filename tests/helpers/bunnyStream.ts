@@ -1,9 +1,5 @@
 import { type BunnyStreamCredentials, BunnyStreamVideoStatus } from '@/types/client.js'
-import {
-  deleteStreamVideo,
-  getStreamVideo,
-  listStreamVideos,
-} from '@/utils/client/stream.js'
+import { deleteStreamVideo, getStreamVideo, listStreamVideos } from '@/utils/client/stream.js'
 
 import { log } from './log.js'
 
@@ -42,10 +38,7 @@ export const waitForVideoProcessed = async (
         return true
       }
 
-      if (
-        video.status === BunnyStreamVideoStatus.Error ||
-        video.status === BunnyStreamVideoStatus.UploadFailed
-      ) {
+      if (video.status === BunnyStreamVideoStatus.Error || video.status === BunnyStreamVideoStatus.UploadFailed) {
         log.error(`Video ${videoId} failed with status: ${video.status}`)
         return false
       }
@@ -107,6 +100,8 @@ export const cleanupStreamVideos = async (
       }
     }
   } catch (err) {
-    log.error(`Failed to cleanup videos for "${patternList.join(', ')}": ${err instanceof Error ? err.message : String(err)}`)
+    log.error(
+      `Failed to cleanup videos for "${patternList.join(', ')}": ${err instanceof Error ? err.message : String(err)}`,
+    )
   }
 }

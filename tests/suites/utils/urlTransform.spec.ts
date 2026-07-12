@@ -1,8 +1,8 @@
-import type { NormalizedUrlTransformConfig } from '@/types/configNormalized.js'
 import type { CollectionConfig } from 'payload'
-
-import { applyUrlTransform } from '@/utils/urlTransform.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { NormalizedUrlTransformConfig } from '@/types/configNormalized.js'
+import { applyUrlTransform } from '@/utils/urlTransform.js'
 
 const createMockCollection = (): CollectionConfig => ({
   slug: 'media',
@@ -69,9 +69,7 @@ describe('applyUrlTransform', () => {
         data,
       })
 
-      expect(transformUrl).toHaveBeenCalledWith(
-        expect.objectContaining({ data }),
-      )
+      expect(transformUrl).toHaveBeenCalledWith(expect.objectContaining({ data }))
     })
   })
 

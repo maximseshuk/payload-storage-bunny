@@ -1,7 +1,8 @@
-import type { NormalizedSignedUrlsConfig, NormalizedStorageConfig } from '@/types/index.js'
+import { posix } from 'node:path'
+
 import type { CollectionConfig, PayloadRequest } from 'payload'
 
-import { posix } from 'node:path'
+import type { NormalizedSignedUrlsConfig, NormalizedStorageConfig } from '@/types/index.js'
 
 import { copyHeaders, createProxyResponse, maybeCreateRedirect, maybeGenerateSignedUrl } from './helpers.js'
 

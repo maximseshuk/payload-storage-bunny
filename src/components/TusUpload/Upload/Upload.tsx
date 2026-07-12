@@ -1,19 +1,18 @@
 'use client'
 
-import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
-import type { StreamTusAuthResponse } from '@/types/index.js'
-
-import { TUS_MIME_TYPES } from '@/utils/constants.js'
-import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 import { Button, Dropzone, useConfig, useDocumentEvents, useForm, useTranslation } from '@payloadcms/ui'
 import ky from 'ky'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as tus from 'tus-js-client'
 
-import type { UploadState } from './Upload.types.js'
+import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
+import type { StreamTusAuthResponse } from '@/types/index.js'
+import { TUS_MIME_TYPES } from '@/utils/constants.js'
+import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 
 import { ToggleButton } from '../ToggleButton/ToggleButton.js'
 import { BASE_CLASS, INITIAL_STATE, TUS_ENDPOINT, TUS_RETRY_DELAYS } from './Upload.constants.js'
+import type { UploadState } from './Upload.types.js'
 import './Upload.scss'
 import { cleanupTusLocalStorage, findPreviousTusUploads } from './Upload.utils.js'
 
@@ -598,11 +597,11 @@ export const Upload: React.FC<UploadProps> = ({
         uploadProgress >= 99
           ? t('@seshuk/payload-storage-bunny:tusUploadStatusFinalizing')
           : (() => {
-            const baseText = t('@seshuk/payload-storage-bunny:tusUploadStatusUploading', {
-              progress: uploadProgress.toFixed(1),
-            })
-            return `${baseText}${estimatedTimeRemaining ? ` (~${formatTimeRemaining(estimatedTimeRemaining)})` : ''}`
-          })(),
+              const baseText = t('@seshuk/payload-storage-bunny:tusUploadStatusUploading', {
+                progress: uploadProgress.toFixed(1),
+              })
+              return `${baseText}${estimatedTimeRemaining ? ` (~${formatTimeRemaining(estimatedTimeRemaining)})` : ''}`
+            })(),
     }
 
     return statusTextMap[uploadStatus as keyof typeof statusTextMap] || null
@@ -620,7 +619,6 @@ export const Upload: React.FC<UploadProps> = ({
                 </Button>
                 <input
                   accept={acceptMimeTypes}
-                  aria-hidden="true"
                   className={`${BASE_CLASS}__hidden-input`}
                   hidden
                   onChange={(e) => {

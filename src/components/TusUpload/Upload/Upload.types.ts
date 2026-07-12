@@ -1,5 +1,6 @@
-import type { StreamTusAuthResponse } from '@/types/index.js'
 import type * as tus from 'tus-js-client'
+
+import type { StreamTusAuthResponse } from '@/types/index.js'
 
 export type UploadStatus = 'checking' | 'completed' | 'error' | 'idle' | 'paused' | 'preparing' | 'uploading'
 

@@ -1,8 +1,8 @@
+import { type CollectionConfig, NotFound, type PayloadRequest } from 'payload'
+
 import type { BunnyDataInternal } from '@/types/core.js'
 import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
-
 import { getStreamVideoResolutions } from '@/utils/client/stream.js'
-import { type CollectionConfig, NotFound, type PayloadRequest } from 'payload'
 
 import { createProxyResponse, maybeCreateRedirect, maybeGenerateSignedUrl } from './helpers.js'
 
@@ -51,7 +51,7 @@ export const streamStaticHandler = async ({
     try {
       const checkUrl = maybeGenerateSignedUrl(savedResolutionUrl, checkContext)
       const headResponse = await fetch(checkUrl, {
-        headers: { 'Accept': 'video/mp4' },
+        headers: { Accept: 'video/mp4' },
         method: 'HEAD',
       })
 
@@ -84,13 +84,14 @@ export const streamStaticHandler = async ({
         resolutionsData.data.mp4Resolutions &&
         resolutionsData.data.mp4Resolutions.length > 0
       ) {
-        availableResolutions = resolutionsData.data.mp4Resolutions
-          ?.map((r) => r.resolution)
-          .filter((resolution): resolution is string => Boolean(resolution)) || []
+        availableResolutions =
+          resolutionsData.data.mp4Resolutions
+            ?.map((r) => r.resolution)
+            .filter((resolution): resolution is string => Boolean(resolution)) || []
 
         if (availableResolutions.length > 0) {
-          const sortedResolutions = [...availableResolutions].sort((a, b) =>
-            parseInt(b.replace('p', '')) - parseInt(a.replace('p', '')),
+          const sortedResolutions = [...availableResolutions].toSorted(
+            (a, b) => parseInt(b.replace('p', '')) - parseInt(a.replace('p', '')),
           )
 
           for (const resolution of sortedResolutions) {
@@ -100,7 +101,7 @@ export const streamStaticHandler = async ({
 
             try {
               const headResponse = await fetch(checkUrl, {
-                headers: { 'Accept': 'video/mp4' },
+                headers: { Accept: 'video/mp4' },
                 method: 'HEAD',
               })
 
@@ -114,8 +115,7 @@ export const streamStaticHandler = async ({
           }
 
           if (fallbackQuality) {
-            metaNeedsUpdate = !videoResolutions?.highest ||
-                             videoResolutions.highest !== fallbackQuality
+            metaNeedsUpdate = !videoResolutions?.highest || videoResolutions.highest !== fallbackQuality
           }
         }
       } else {
@@ -188,8 +188,6 @@ export const streamStaticHandler = async ({
   }
 
   return createProxyResponse(response, {
-    additionalHeaders: !response.headers.has('content-type')
-      ? { 'content-type': 'video/mp4' }
-      : undefined,
+    additionalHeaders: !response.headers.has('content-type') ? { 'content-type': 'video/mp4' } : undefined,
   })
 }

@@ -30,50 +30,60 @@ export interface BunnyStreamVideoResolutions {
   configuredResolutions: null | string[]
   hasBothOldAndNewResolutionFormat: boolean
   hasOriginal: boolean
-  mp4Resolutions: {
-    path: null | string
-    resolution: null | string
-  }[] | null
-  oldResolutions: {
-    checksum: null | string
-    contentType: null | string
-    dateCreated: string
-    guid: null | string
-    isDirectory: boolean
-    lastChanged: string
-    length: number
-    objectName: null | string
-    path: null | string
-    replicatedZones: null | string
-    serverId: number
-    storageZoneId: number
-    storageZoneName: null | string
-    userId: null | string
-  }[] | null
-  playlistResolutions: {
-    path: null | string
-    resolution: null | string
-  }[] | null
-  storageObjects: {
-    checksum: null | string
-    contentType: null | string
-    dateCreated: string
-    guid: null | string
-    isDirectory: boolean
-    lastChanged: string
-    length: number
-    objectName: null | string
-    path: null | string
-    replicatedZones: null | string
-    serverId: number
-    storageZoneId: number
-    storageZoneName: null | string
-    userId: null | string
-  }[] | null
-  storageResolutions: {
-    path: null | string
-    resolution: null | string
-  }[] | null
+  mp4Resolutions:
+    | {
+        path: null | string
+        resolution: null | string
+      }[]
+    | null
+  oldResolutions:
+    | {
+        checksum: null | string
+        contentType: null | string
+        dateCreated: string
+        guid: null | string
+        isDirectory: boolean
+        lastChanged: string
+        length: number
+        objectName: null | string
+        path: null | string
+        replicatedZones: null | string
+        serverId: number
+        storageZoneId: number
+        storageZoneName: null | string
+        userId: null | string
+      }[]
+    | null
+  playlistResolutions:
+    | {
+        path: null | string
+        resolution: null | string
+      }[]
+    | null
+  storageObjects:
+    | {
+        checksum: null | string
+        contentType: null | string
+        dateCreated: string
+        guid: null | string
+        isDirectory: boolean
+        lastChanged: string
+        length: number
+        objectName: null | string
+        path: null | string
+        replicatedZones: null | string
+        serverId: number
+        storageZoneId: number
+        storageZoneName: null | string
+        userId: null | string
+      }[]
+    | null
+  storageResolutions:
+    | {
+        path: null | string
+        resolution: null | string
+      }[]
+    | null
   videoId: null | string
   videoLibraryId: number
 }
@@ -81,17 +91,21 @@ export interface BunnyStreamVideoResolutions {
 export interface BunnyStreamVideo {
   availableResolutions: null | string
   averageWatchTime: number
-  captions: {
-    label: null | string
-    srclang: null | string
-    version: number
-  }[] | null
+  captions:
+    | {
+        label: null | string
+        srclang: null | string
+        version: number
+      }[]
+    | null
   category: null | string
-  chapters: {
-    end: number
-    start: number
-    title: string
-  }[] | null
+  chapters:
+    | {
+        end: number
+        start: number
+        title: string
+      }[]
+    | null
   collectionId: null | string
   dateUploaded: string
   description: null | string
@@ -103,14 +117,18 @@ export interface BunnyStreamVideo {
   isPublic: boolean
   jitEncodingEnabled: boolean | null
   length: number
-  metaTags: {
-    property: null | string
-    value: null | string
-  }[] | null
-  moments: {
-    label: string
-    timestamp: number
-  }[] | null
+  metaTags:
+    | {
+        property: null | string
+        value: null | string
+      }[]
+    | null
+  moments:
+    | {
+        label: string
+        timestamp: number
+      }[]
+    | null
   outputCodecs: null | string
   rotation: null | number
   status: BunnyStreamVideoStatus
@@ -119,13 +137,15 @@ export interface BunnyStreamVideo {
   thumbnailFileName: null | string
   title: null | string
   totalWatchTime: number
-  transcodingMessages: {
-    issueCode: number
-    level: number
-    message: null | string
-    timeStamp: string
-    value: null | string
-  }[] | null
+  transcodingMessages:
+    | {
+        issueCode: number
+        level: number
+        message: null | string
+        timeStamp: string
+        value: null | string
+      }[]
+    | null
   videoLibraryId: number
   views: number
   width: number

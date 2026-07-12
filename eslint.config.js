@@ -2,10 +2,7 @@ import payloadEsLintConfig from '@payloadcms/eslint-config'
 import pluginStylistic from '@stylistic/eslint-plugin'
 
 const GLOB_ALL_JS_TS = ['**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx', '**/*.mjs', '**/*.cjs']
-const GLOB_EXCLUDE = [
-  '**/node_modules',
-  '**/pnpm-lock.yaml',
-]
+const GLOB_EXCLUDE = ['**/node_modules', '**/pnpm-lock.yaml']
 
 const stylisticConfig = {
   files: GLOB_ALL_JS_TS,

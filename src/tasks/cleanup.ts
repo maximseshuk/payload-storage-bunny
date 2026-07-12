@@ -1,12 +1,13 @@
 import type { TaskConfig } from 'payload'
 
-import type { NormalizedStreamConfig } from '../types/index.js'
-
 import { streamUploadSessionsCollectionSlug } from '../collections/StreamUploadSessions.js'
 import { BunnyStreamVideoStatus } from '../types/client.js'
+import type { NormalizedStreamConfig } from '../types/index.js'
 import { deleteStreamVideo, getStreamVideo } from '../utils/client/stream.js'
 
-export const getStreamCleanupTask = (streamConfig: NormalizedStreamConfig): TaskConfig<'StorageBunnyStreamCleanup'> | undefined => {
+export const getStreamCleanupTask = (
+  streamConfig: NormalizedStreamConfig,
+): TaskConfig<'StorageBunnyStreamCleanup'> | undefined => {
   if (!streamConfig.cleanup) {
     return undefined
   }
@@ -103,7 +104,9 @@ export const getStreamCleanupTask = (streamConfig: NormalizedStreamConfig): Task
       }
 
       if (errorCount > 0) {
-        req.payload.logger.error(`Bunny Cleanup: completed with errors: ${deletedCount} videos deleted, ${errorCount} errors`)
+        req.payload.logger.error(
+          `Bunny Cleanup: completed with errors: ${deletedCount} videos deleted, ${errorCount} errors`,
+        )
       }
 
       return {
@@ -111,8 +114,6 @@ export const getStreamCleanupTask = (streamConfig: NormalizedStreamConfig): Task
         state: 'succeeded',
       }
     },
-    schedule: [
-      schedule,
-    ],
+    schedule: [schedule],
   }
 }

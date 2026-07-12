@@ -1,8 +1,8 @@
-import type { CollectionContext } from '@/types/index.js'
 import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
-
-import { getBunnyData } from '@/utils/index.js'
 import { HTTPError } from 'ky'
+
+import type { CollectionContext } from '@/types/index.js'
+import { getBunnyData } from '@/utils/index.js'
 
 import { storageStaticHandler } from './storage.js'
 import { streamStaticHandler } from './stream.js'
@@ -13,7 +13,10 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
 
   return async (req, data) => {
     try {
-      const { doc, params: { filename } } = data
+      const {
+        doc,
+        params: { filename },
+      } = data
       if (streamConfig) {
         if (filename?.startsWith('bunny:stream:')) {
           const parts = filename.split(':')

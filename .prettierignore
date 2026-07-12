@@ -1,8 +1,0 @@
-**/.git
-**/.next
-**/dist
-**/node_modules
-**/*.ts
-**/*.yaml
-.tmp
-dev/app/(payload)/**

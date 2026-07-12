@@ -1,8 +1,8 @@
-import type { BunnyStorageConfig } from '@/types/config.js'
+import { describe, expect, it } from 'vitest'
 
+import type { BunnyStorageConfig } from '@/types/config.js'
 import { createNormalizedConfig } from '@/utils/config/normalizer.js'
 import { validateNormalizedConfig } from '@/utils/config/validator.js'
-import { describe, expect, it } from 'vitest'
 
 const createBaseStorage = () => ({
   apiKey: 'storage-key',
@@ -31,9 +31,7 @@ describe('Config Validator', () => {
         collections: { media: true },
       } as unknown as BunnyStorageConfig
 
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'either `storage` or `stream` configuration must be provided',
-      )
+      expect(() => normalizeAndValidate(config)).toThrow('either `storage` or `stream` configuration must be provided')
     })
 
     it('throws if collection has no service (storage=false, stream=false)', () => {
@@ -48,9 +46,7 @@ describe('Config Validator', () => {
         stream: createBaseStream(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'collections [media] must have at least one service enabled',
-      )
+      expect(() => normalizeAndValidate(config)).toThrow('collections [media] must have at least one service enabled')
     })
 
     it('passes valid config with storage only', () => {
@@ -98,9 +94,7 @@ describe('Config Validator', () => {
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
-        '`purge` requires global `apiKey` to be provided',
-      )
+      expect(() => normalizeAndValidate(config)).toThrow('`purge` requires global `apiKey` to be provided')
     })
 
     it('passes when purge enabled with global apiKey', () => {
@@ -135,9 +129,7 @@ describe('Config Validator', () => {
         },
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'storage `hostname` cannot include "storage.bunnycdn.com"',
-      )
+      expect(() => normalizeAndValidate(config)).toThrow('storage `hostname` cannot include "storage.bunnycdn.com"')
     })
 
     it('throws if storage hostname contains storage.bunnycdn.com anywhere', () => {
@@ -149,9 +141,7 @@ describe('Config Validator', () => {
         },
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'storage `hostname` cannot include "storage.bunnycdn.com"',
-      )
+      expect(() => normalizeAndValidate(config)).toThrow('storage `hostname` cannot include "storage.bunnycdn.com"')
     })
 
     it('passes with valid CDN hostname', () => {
@@ -331,9 +321,7 @@ describe('Config Validator', () => {
         collections: { media: true },
       } as unknown as BunnyStorageConfig
 
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'https://github.com/maximseshuk/payload-storage-bunny',
-      )
+      expect(() => normalizeAndValidate(config)).toThrow('https://github.com/maximseshuk/payload-storage-bunny')
     })
 
     it('combines multiple errors with semicolons', () => {

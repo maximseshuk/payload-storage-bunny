@@ -1,5 +1,6 @@
-import type { NormalizedUrlTransformConfig } from '@/types/index.js'
 import type { CollectionConfig } from 'payload'
+
+import type { NormalizedUrlTransformConfig } from '@/types/index.js'
 
 export const applyUrlTransform = ({
   collection,
@@ -61,6 +62,7 @@ export const applyUrlTransform = ({
     return queryString ? `${urlObject.pathname}?${queryString}` : urlObject.pathname
   }
 
-  return queryString ? `${urlObject.origin}${urlObject.pathname}?${queryString}` : `${urlObject.origin}${urlObject.pathname}`
+  return queryString
+    ? `${urlObject.origin}${urlObject.pathname}?${queryString}`
+    : `${urlObject.origin}${urlObject.pathname}`
 }
-

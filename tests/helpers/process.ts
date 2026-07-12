@@ -14,7 +14,9 @@ export const killProcessGroup = async (proc: ChildProcess): Promise<void> => {
     const timeout = setTimeout(() => {
       try {
         process.kill(-pid, 'SIGKILL')
-      } catch { /* empty */ }
+      } catch {
+        /* empty */
+      }
       resolve()
     }, 10000)
 

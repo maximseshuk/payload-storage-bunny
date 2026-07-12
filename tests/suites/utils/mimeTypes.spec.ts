@@ -1,9 +1,6 @@
-import {
-  intersectMimeTypes,
-  isImage,
-  matchesMimeTypePattern,
-} from '@/utils/mimeTypes.js'
 import { describe, expect, it } from 'vitest'
+
+import { intersectMimeTypes, isImage, matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 
 describe('isImage', () => {
   it('returns true for image/* types', () => {
@@ -56,10 +53,7 @@ describe('intersectMimeTypes', () => {
   })
 
   it('returns intersection with exact matches', () => {
-    const result = intersectMimeTypes(
-      ['video/mp4', 'video/webm', 'audio/mpeg'],
-      ['video/mp4', 'image/jpeg'],
-    )
+    const result = intersectMimeTypes(['video/mp4', 'video/webm', 'audio/mpeg'], ['video/mp4', 'image/jpeg'])
 
     expect(result).toContain('video/mp4')
     expect(result).not.toContain('video/webm')

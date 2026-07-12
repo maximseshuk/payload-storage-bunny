@@ -1,6 +1,5 @@
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
 import type { AcceptedLanguages } from '@payloadcms/translations'
-import type { KyInstance } from 'ky'
 import type { CollectionConfig, PayloadRequest, Plugin, TaskConfig, UploadCollectionSlug } from 'payload'
 
 import type { StreamTusAuthRequest } from './core.js'
@@ -20,24 +19,24 @@ export type UrlTransformFunction = (args: {
 
 export type UrlTransformConfig =
   | {
-    /**
-     * Append timestamp to the URL
-     * @default false (true for admin thumbnails)
-     */
-    appendTimestamp?: boolean
-    /**
-     * Static query parameters to append to the URL
-     * Works together with appendTimestamp
-     */
-    queryParams?: Record<string, string>
-    transformUrl?: never
-  }
+      /**
+       * Append timestamp to the URL
+       * @default false (true for admin thumbnails)
+       */
+      appendTimestamp?: boolean
+      /**
+       * Static query parameters to append to the URL
+       * Works together with appendTimestamp
+       */
+      queryParams?: Record<string, string>
+      transformUrl?: never
+    }
   | {
-    /**
-     * Custom transform function for complete URL control
-     */
-    transformUrl: UrlTransformFunction
-  }
+      /**
+       * Custom transform function for complete URL control
+       */
+      transformUrl: UrlTransformFunction
+    }
 
 export type ThumbnailConfig = {
   /**
@@ -93,25 +92,25 @@ export type StreamTusConfig = {
    */
   autoMode?: boolean
   /**
-     * Custom authorization check for TUS API endpoints.
-     *
-     * By default, checks if user has admin access and create access to at least one collection
-     * configured in the plugin.
-     *
-     * Receives the parsed TUS auth request body as a second argument (e.g. to gate on
-     * `collection`, `filesize`, or `filename` before creating the upload).
-     */
+   * Custom authorization check for TUS API endpoints.
+   *
+   * By default, checks if user has admin access and create access to at least one collection
+   * configured in the plugin.
+   *
+   * Receives the parsed TUS auth request body as a second argument (e.g. to gate on
+   * `collection`, `filesize`, or `filename` before creating the upload).
+   */
   checkAccess?: (req: PayloadRequest, body: StreamTusAuthRequest) => boolean | Promise<boolean>
   /**
-     * @deprecated Use stream.mimeTypes instead. This option will be removed in v2.3.0.
-     * Video and audio file types allowed for TUS uploads.
-     * Moved to stream.mimeTypes for better organization.
-     */
+   * @deprecated Use stream.mimeTypes instead. This option will be removed in v2.3.0.
+   * Video and audio file types allowed for TUS uploads.
+   * Moved to stream.mimeTypes for better organization.
+   */
   mimeTypes?: string[]
   /**
-     * Time in seconds for TUS upload session to expire
-     * @default 3600
-     */
+   * Time in seconds for TUS upload session to expire
+   * @default 3600
+   */
   uploadTimeout?: number
 }
 
@@ -121,18 +120,20 @@ export type StreamConfig = {
   /**
    * Automatic cleanup of incomplete uploads that failed or were abandoned
    */
-  cleanup?: {
-    /**
-     * Time in seconds after which incomplete uploads are considered dead
-     * @default 86400
-     */
-    maxAge?: number
-    /**
-     * Cron schedule configuration for cleanup task
-     * @default { cron: '0 2 * * *', queue: 'storage-bunny' }
-     */
-    schedule?: Exclude<TaskConfig['schedule'], undefined>[0]
-  } | boolean
+  cleanup?:
+    | {
+        /**
+         * Time in seconds after which incomplete uploads are considered dead
+         * @default 86400
+         */
+        maxAge?: number
+        /**
+         * Cron schedule configuration for cleanup task
+         * @default { cron: '0 2 * * *', queue: 'storage-bunny' }
+         */
+        schedule?: Exclude<TaskConfig['schedule'], undefined>[0]
+      }
+    | boolean
   /** Stream CDN domain (e.g., 'vz-example-123.b-cdn.net') */
   hostname: string
   /** Video library ID from your Bunny Stream settings */
@@ -232,10 +233,7 @@ export type SignedUrlsConfig = {
    */
   expiresIn?: number
   /** Custom function to determine if a file should use signed URLs */
-  shouldUseSignedUrl?(args: {
-    collection: CollectionConfig
-    filename: string
-  }): boolean
+  shouldUseSignedUrl?(args: { collection: CollectionConfig; filename: string }): boolean
   /**
    * Static handler behavior when Payload access control is enabled
    * Has no effect when disablePayloadAccessControl is true
@@ -256,53 +254,57 @@ export type BunnyStorageCollectionConfig = {
    * Set to false to disable Bunny Storage uploads for this collection.
    * When disabled, only stream can be used.
    */
-  storage?: {
-    /**
-     * Override upload timeout in milliseconds for this collection
-     */
-    uploadTimeout?: number
-  } | false
+  storage?:
+    | {
+        /**
+         * Override upload timeout in milliseconds for this collection
+         */
+        uploadTimeout?: number
+      }
+    | false
   /**
    * Stream settings for this collection.
    * Set to false to disable Bunny Stream uploads for this collection.
    * When disabled, only storage can be used.
    */
-  stream?: {
-    /**
-     * Override allowed MIME types for Bunny Stream uploads in this collection.
-     * Replaces the global stream.mimeTypes setting for this collection.
-     */
-    mimeTypes?: string[]
-    /**
-     * Override MP4 fallback setting for this collection
-     */
-    mp4Fallback?: boolean
-    /**
-     * Override default thumbnail time in milliseconds for Bunny Stream videos.
-     * Specifies which moment in the video to capture as thumbnail.
-     * Use with thumbnail: true to display the thumbnail in admin and API responses.
-     */
-    thumbnailTime?: number
-    /**
-     * Override TUS resumable uploads config for this collection
-     */
-    tus?: {
-      /**
-       * Override automatic TUS mode enablement for this collection.
-       * When true, TUS auto-enables for supported video MIME types.
-       * When false, user must manually click "Enable tus mode" button.
-       */
-      autoMode?: boolean
-      /**
-       * Override TUS upload timeout in seconds for this collection
-       */
-      uploadTimeout?: number
-    }
-    /**
-     * Override upload timeout in milliseconds for this collection
-     */
-    uploadTimeout?: number
-  } | false
+  stream?:
+    | {
+        /**
+         * Override allowed MIME types for Bunny Stream uploads in this collection.
+         * Replaces the global stream.mimeTypes setting for this collection.
+         */
+        mimeTypes?: string[]
+        /**
+         * Override MP4 fallback setting for this collection
+         */
+        mp4Fallback?: boolean
+        /**
+         * Override default thumbnail time in milliseconds for Bunny Stream videos.
+         * Specifies which moment in the video to capture as thumbnail.
+         * Use with thumbnail: true to display the thumbnail in admin and API responses.
+         */
+        thumbnailTime?: number
+        /**
+         * Override TUS resumable uploads config for this collection
+         */
+        tus?: {
+          /**
+           * Override automatic TUS mode enablement for this collection.
+           * When true, TUS auto-enables for supported video MIME types.
+           * When false, user must manually click "Enable tus mode" button.
+           */
+          autoMode?: boolean
+          /**
+           * Override TUS upload timeout in seconds for this collection
+           */
+          uploadTimeout?: number
+        }
+        /**
+         * Override upload timeout in milliseconds for this collection
+         */
+        uploadTimeout?: number
+      }
+    | false
   /**
    * Enable thumbnail display in admin panel and thumbnailURL field in API responses.
    *
@@ -321,13 +323,7 @@ export type BunnyStorageCollectionConfig = {
 } & Omit<CollectionOptions, 'adapter'>
 
 /** Configuration for which collections use Bunny Storage */
-export type CollectionsConfig = Partial<
-  Record<
-    UploadCollectionSlug,
-    | BunnyStorageCollectionConfig
-    | true
-  >
->
+export type CollectionsConfig = Partial<Record<UploadCollectionSlug, BunnyStorageCollectionConfig | true>>
 
 type BunnyStorageBaseConfig = {
   /**
@@ -376,17 +372,18 @@ type BunnyStorageBaseConfig = {
 
 export type BunnyStorageConfig = (
   | {
-    /** Bunny Storage configuration */
-    storage: StorageConfig
-    /** Bunny Stream configuration */
-    stream?: StreamConfig
-  }
+      /** Bunny Storage configuration */
+      storage: StorageConfig
+      /** Bunny Stream configuration */
+      stream?: StreamConfig
+    }
   | {
-    /** Bunny Storage configuration */
-    storage?: StorageConfig
-    /** Bunny Stream configuration */
-    stream: StreamConfig
-  }
-) & BunnyStorageBaseConfig
+      /** Bunny Storage configuration */
+      storage?: StorageConfig
+      /** Bunny Stream configuration */
+      stream: StreamConfig
+    }
+) &
+  BunnyStorageBaseConfig
 
 export type BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => Plugin

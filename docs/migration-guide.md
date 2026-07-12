@@ -73,37 +73,21 @@ npm install @seshuk/payload-storage-bunny@latest
 ```typescript
 // Before
 bunnyStorage({
-  collections: {
-    /* ... */
-  },
+  collections: {/* ... */},
   options: {
     // ❌ Remove this
-    storage: {
-      /* ... */
-    },
-    stream: {
-      /* ... */
-    },
-    purge: {
-      /* ... */
-    },
+    storage: {/* ... */},
+    stream: {/* ... */},
+    purge: {/* ... */},
   },
 })
 
 // After
 bunnyStorage({
-  collections: {
-    /* ... */
-  },
-  storage: {
-    /* ... */
-  }, // ✅ Move to top level
-  stream: {
-    /* ... */
-  },
-  purge: {
-    /* ... */
-  },
+  collections: {/* ... */},
+  storage: {/* ... */}, // ✅ Move to top level
+  stream: {/* ... */},
+  purge: {/* ... */},
 })
 ```
 

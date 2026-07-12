@@ -1,6 +1,6 @@
-import type { SignedUrlsConfig } from '@/types/index.js'
-
 import { createHash } from 'crypto'
+
+import type { SignedUrlsConfig } from '@/types/index.js'
 
 const formatQueryParams = (params: Record<string, string>): string => {
   const entries = Object.entries(params)
@@ -10,7 +10,7 @@ const formatQueryParams = (params: Record<string, string>): string => {
   }
 
   return entries
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .toSorted((a, b) => a[0].localeCompare(b[0]))
     .map(([k, v]) => `${k}=${v}`)
     .join('&')
 }
@@ -37,11 +37,16 @@ export const generateSignedToken = (
 
   token = token.replace(/[\n+/=]/g, (char) => {
     switch (char) {
-      case '\n': return ''
-      case '+': return '-'
-      case '/': return '_'
-      case '=': return ''
-      default: return char
+      case '\n':
+        return ''
+      case '+':
+        return '-'
+      case '/':
+        return '_'
+      case '=':
+        return ''
+      default:
+        return char
     }
   })
 
@@ -93,26 +98,16 @@ export const generateSignedUrl = (
 
   Object.assign(allQueryParams, signedQueryParams)
 
-  const formattedQueryParams = Object.keys(allQueryParams).length > 0
-    ? formatQueryParams(allQueryParams)
-    : ''
+  const formattedQueryParams = Object.keys(allQueryParams).length > 0 ? formatQueryParams(allQueryParams) : ''
 
   const signedUrlPath = options?.tokenPath || decodeURIComponent(url.pathname)
 
-  const token = generateSignedToken(
-    securityKey,
-    signedUrlPath,
-    expiration,
-    formattedQueryParams,
-  )
+  const token = generateSignedToken(securityKey, signedUrlPath, expiration, formattedQueryParams)
 
   const usePathBased = !!options?.tokenPath
 
   if (usePathBased) {
-    const parts: string[] = [
-      url.protocol, '//', url.host, '/',
-      'bcdn_token=', token,
-    ]
+    const parts: string[] = [url.protocol, '//', url.host, '/', 'bcdn_token=', token]
 
     if (Object.keys(signedQueryParams).length > 0) {
       for (const [key, value] of Object.entries(signedQueryParams)) {

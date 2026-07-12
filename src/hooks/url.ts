@@ -1,6 +1,6 @@
-import type { CollectionContext } from '@/types/index.js'
 import type { FieldHook } from 'payload'
 
+import type { CollectionContext } from '@/types/index.js'
 import { applyUrlTransform } from '@/utils/index.js'
 
 type Args = {

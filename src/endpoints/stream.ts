@@ -1,21 +1,18 @@
+import type { Endpoint } from 'payload'
+import { APIError, getAccessResults } from 'payload'
+
 import type { PluginStorageBunnyTFunction } from '@/translations/index.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 import type { StreamTusAuthRequest, StreamTusAuthResponse } from '@/types/index.js'
-import type { Endpoint } from 'payload'
-
-import {
-  createStreamVideo,
-  getStreamVideo,
-  getStreamVideoResolutions,
-} from '@/utils/client/index.js'
+import { createStreamVideo, getStreamVideo, getStreamVideoResolutions } from '@/utils/client/index.js'
 import { createCollectionContext } from '@/utils/config/context.js'
 import {
   canUploadToVideo,
   createStreamVideoSession,
   generateStreamTusUploadSignature,
-  isVideoInErrorState, isVideoProcessed,
+  isVideoInErrorState,
+  isVideoProcessed,
 } from '@/utils/index.js'
-import { APIError, getAccessResults } from 'payload'
 
 export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoint[] {
   const { stream } = config
@@ -150,7 +147,6 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             thumbnailTime: collectionStreamConfig.thumbnailTime,
             videoId,
           } as StreamTusAuthResponse)
-
         } catch (err) {
           if (err instanceof APIError) {
             throw err
@@ -220,13 +216,14 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                   })
 
                   if (resolutionsData.success && resolutionsData.data.mp4Resolutions) {
-                    const availableResolutions = resolutionsData.data.mp4Resolutions
-                      ?.map((r) => r.resolution)
-                      .filter((resolution): resolution is string => Boolean(resolution)) || []
+                    const availableResolutions =
+                      resolutionsData.data.mp4Resolutions
+                        ?.map((r) => r.resolution)
+                        .filter((resolution): resolution is string => Boolean(resolution)) || []
 
                     if (availableResolutions.length > 0) {
-                      const sortedResolutions = [...availableResolutions].sort((a, b) =>
-                        parseInt(b.replace('p', '')) - parseInt(a.replace('p', '')),
+                      const sortedResolutions = [...availableResolutions].toSorted(
+                        (a, b) => parseInt(b.replace('p', '')) - parseInt(a.replace('p', '')),
                       )
 
                       await req.payload.update({

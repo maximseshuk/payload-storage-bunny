@@ -1,7 +1,7 @@
-import type { BunnyStorageConfig } from '@/types/config.js'
-
-import { createNormalizedConfig } from '@/utils/config/normalizer.js'
 import { describe, expect, it } from 'vitest'
+
+import type { BunnyStorageConfig } from '@/types/config.js'
+import { createNormalizedConfig } from '@/utils/config/normalizer.js'
 
 const createBaseStorage = () => ({
   apiKey: 'storage-key',
@@ -189,9 +189,11 @@ describe('Config Normalizer', () => {
   describe('signedUrls', () => {
     it('should inherit and overrides expiresIn', () => {
       const configs: Array<{
-        collection: {
-          signedUrls: { expiresIn: number }
-        } | true
+        collection:
+          | {
+              signedUrls: { expiresIn: number }
+            }
+          | true
         expected: number
       }> = [
         { collection: true, expected: 3600 },
@@ -239,9 +241,11 @@ describe('Config Normalizer', () => {
   describe('purge', () => {
     it('should inherit and overrides async', () => {
       const configs: Array<{
-        collection: {
-          purge: { async: boolean }
-        } | true
+        collection:
+          | {
+              purge: { async: boolean }
+            }
+          | true
         expected: boolean
       }> = [
         { collection: true, expected: false },
@@ -331,9 +335,11 @@ describe('Config Normalizer', () => {
   describe('storage', () => {
     it('should inherit and overrides uploadTimeout', () => {
       const configs: Array<{
-        collection: {
-          storage: { uploadTimeout: number }
-        } | true
+        collection:
+          | {
+              storage: { uploadTimeout: number }
+            }
+          | true
         expected: number
       }> = [
         { collection: true, expected: 60000 },

@@ -1,12 +1,13 @@
-import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
-import type { CollectionContext } from '@/types/index.js'
+import { posix } from 'node:path'
+
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
 import type { TFunction } from '@payloadcms/translations'
+import { APIError } from 'payload'
 
+import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
+import type { CollectionContext } from '@/types/index.js'
 import { createStreamVideo, purgeCache, uploadStorageFile, uploadStreamVideo } from '@/utils/client/index.js'
 import { createStreamVideoSession, matchesMimeTypePattern } from '@/utils/index.js'
-import { posix } from 'node:path'
-import { APIError } from 'payload'
 
 import { getGenerateURL } from './generateURL.js'
 
@@ -23,9 +24,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
       const fileName = file.filename
       const uploadPrefix = (data.prefix as string | undefined) ?? prefix ?? ''
       const path = posix.join(uploadPrefix, fileName)
-      const isVideoFile = !!(
-        streamConfig?.mimeTypes?.some(pattern => matchesMimeTypePattern(file.mimeType, pattern))
-      )
+      const isVideoFile = !!streamConfig?.mimeTypes?.some((pattern) => matchesMimeTypePattern(file.mimeType, pattern))
 
       if (streamConfig?.apiKey && isVideoFile) {
         const video = await createStreamVideo({
@@ -95,7 +94,12 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 
-      throw new APIError(reqT('@seshuk/payload-storage-bunny:errorUploadFileFailed', { filename: file.filename }), 500, undefined, true)
+      throw new APIError(
+        reqT('@seshuk/payload-storage-bunny:errorUploadFileFailed', { filename: file.filename }),
+        500,
+        undefined,
+        true,
+      )
     }
   }
 }

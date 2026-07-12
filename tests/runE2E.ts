@@ -1,9 +1,9 @@
 import type { ChildProcess } from 'node:child_process'
-
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import { log } from './helpers/log.js'
 import { killProcessGroup } from './helpers/process.js'
 import { findAvailablePort, waitForServer } from './helpers/server.js'

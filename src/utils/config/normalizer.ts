@@ -22,9 +22,7 @@ import type {
 
 import { CONFIG_DEFAULTS } from './defaults.js'
 
-export const createNormalizedConfig = (
-  options: BunnyStorageConfig,
-): NormalizedBunnyStorageConfig => {
+export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedBunnyStorageConfig => {
   const normalized: NormalizedBunnyStorageConfig = {
     _original: options,
     apiKey: options.apiKey,
@@ -119,9 +117,7 @@ const normalizePurgeConfig = (
   }
 }
 
-const normalizeSignedUrlsConfig = (
-  value?: boolean | SignedUrlsConfig,
-): NormalizedSignedUrlsConfig | undefined => {
+const normalizeSignedUrlsConfig = (value?: boolean | SignedUrlsConfig): NormalizedSignedUrlsConfig | undefined => {
   if (!value) {
     return undefined
   }
@@ -154,11 +150,7 @@ const normalizeThumbnailConfig = (
   value?: boolean | ThumbnailConfig,
   globalConfig?: NormalizedThumbnailConfig,
 ): NormalizedThumbnailConfig | undefined => {
-  const baseConfig = normalizeUrlTransformConfig(
-    value,
-    globalConfig ?? CONFIG_DEFAULTS.thumbnail,
-    globalConfig,
-  )
+  const baseConfig = normalizeUrlTransformConfig(value, globalConfig ?? CONFIG_DEFAULTS.thumbnail, globalConfig)
 
   if (!baseConfig) {
     return undefined
@@ -166,12 +158,11 @@ const normalizeThumbnailConfig = (
 
   return {
     ...baseConfig,
-    sizeName: typeof value === 'object' && value && 'sizeName' in value
-      ? value.sizeName
-      : globalConfig?.sizeName,
-    streamAnimated: typeof value === 'object' && value && 'streamAnimated' in value
-      ? value.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated
-      : globalConfig?.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated,
+    sizeName: typeof value === 'object' && value && 'sizeName' in value ? value.sizeName : globalConfig?.sizeName,
+    streamAnimated:
+      typeof value === 'object' && value && 'streamAnimated' in value
+        ? (value.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated)
+        : (globalConfig?.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated),
   }
 }
 
@@ -252,10 +243,8 @@ const normalizeCollectionConfig = (
     ),
     storage: resolveCollectionStorageConfig(collectionConfig.storage, normalizedGlobalConfig.storage),
     stream: resolveCollectionStreamConfig(collectionConfig.stream, normalizedGlobalConfig.stream),
-    thumbnail: resolveCollectionConfigSetting(
-      collectionConfig.thumbnail,
-      normalizedGlobalConfig.thumbnail,
-      (value) => normalizeThumbnailConfig(value, normalizedGlobalConfig.thumbnail),
+    thumbnail: resolveCollectionConfigSetting(collectionConfig.thumbnail, normalizedGlobalConfig.thumbnail, (value) =>
+      normalizeThumbnailConfig(value, normalizedGlobalConfig.thumbnail),
     ),
     urlTransform: resolveCollectionConfigSetting(
       collectionConfig.urlTransform,

@@ -1,9 +1,10 @@
-import nextEnv from '@next/env'
-import next from 'next'
 import fs from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath, parse } from 'node:url'
+
+import nextEnv from '@next/env'
+import next from 'next'
 
 import { getSuiteDir } from './helpers/getSuiteDir.js'
 import { initDev } from './helpers/initDev.js'
@@ -23,8 +24,7 @@ if (!suite) {
   process.exit(1)
 }
 
-const shouldStartMemoryDB =
-  process.argv.includes('--start-memory-db') || process.env.START_MEMORY_DB === 'true'
+const shouldStartMemoryDB = process.argv.includes('--start-memory-db') || process.env.START_MEMORY_DB === 'true'
 
 const enableTurbo = !process.argv.includes('--no-turbo')
 
@@ -36,7 +36,9 @@ const setupSuite = (suiteName: string) => {
   try {
     fs.lstatSync(symlinkPath)
     fs.unlinkSync(symlinkPath)
-  } catch { /* empty */ }
+  } catch {
+    /* empty */
+  }
 
   fs.symlinkSync(path.relative(__dirname, targetPath), symlinkPath)
   log.info(`Linked config → ${path.relative(__dirname, targetPath)}`)

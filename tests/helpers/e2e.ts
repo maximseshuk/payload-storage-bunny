@@ -1,5 +1,4 @@
 import type { Page } from '@playwright/test'
-
 import { expect } from '@playwright/test'
 
 const POLL_TOPASS_TIMEOUT = 10000
@@ -15,12 +14,7 @@ export const saveDocAndAssert = async (
   page: Page,
   options: {
     expectation?: 'error' | 'success'
-    selector?:
-      | '#action-publish'
-      | '#action-save'
-      | '#action-save-draft'
-      | '#publish-locale'
-      | string
+    selector?: '#action-publish' | '#action-save' | '#action-save-draft' | '#publish-locale' | string
     timeout?: number
   } = {},
 ): Promise<void> => {

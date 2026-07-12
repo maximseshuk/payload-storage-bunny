@@ -1,5 +1,4 @@
 import type { PayloadRequest } from 'payload'
-
 import sanitize from 'sanitize-filename'
 
 import { fileExists } from './file.js'

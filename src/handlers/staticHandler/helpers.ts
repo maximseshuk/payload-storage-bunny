@@ -1,6 +1,6 @@
-import type { NormalizedSignedUrlsConfig } from '@/types/index.js'
 import type { CollectionConfig } from 'payload'
 
+import type { NormalizedSignedUrlsConfig } from '@/types/index.js'
 import { generateSignedUrl } from '@/utils/index.js'
 
 type SignedUrlContext = {
@@ -21,9 +21,7 @@ export function maybeGenerateSignedUrl(
     return baseUrl
   }
 
-  const shouldSign = signedUrls.shouldUseSignedUrl
-    ? signedUrls.shouldUseSignedUrl({ collection, filename })
-    : true
+  const shouldSign = signedUrls.shouldUseSignedUrl ? signedUrls.shouldUseSignedUrl({ collection, filename }) : true
 
   if (!shouldSign) {
     return baseUrl
@@ -65,7 +63,7 @@ export function maybeCreateRedirect(
   return new Response(null, {
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Location': signedUrl,
+      Location: signedUrl,
     },
     status: signedUrls.staticHandler.redirectStatus,
   })

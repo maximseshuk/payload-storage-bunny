@@ -207,15 +207,9 @@ export const bunnyStorage = (pluginConfig) => (incomingConfig) => {
   // 3. Extend Payload config
   const finalConfig = {
     ...incomingConfig,
-    collections: [
-      /* add hooks */
-    ],
-    endpoints: [
-      /* TUS auth */
-    ],
-    tasks: [
-      /* cleanup */
-    ],
+    collections: [/* add hooks */],
+    endpoints: [/* TUS auth */],
+    tasks: [/* cleanup */],
   }
 
   // 4. Pass to @payloadcms/plugin-cloud-storage

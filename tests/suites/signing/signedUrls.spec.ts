@@ -1,6 +1,6 @@
-import type { Payload } from 'payload'
-
 import path from 'node:path'
+
+import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/bunnyStream.js'
