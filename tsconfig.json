@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "lib": ["DOM", "DOM.Iterable", "ES2023"],
     "rootDir": "./",
     "allowJs": true,
@@ -24,8 +23,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@seshuk/payload-storage-bunny": ["./src/index.ts"],
-      "@seshuk/payload-storage-bunny/client": ["./src/exports/client.ts"],
-      "@seshuk/payload-storage-bunny/rsc": ["./src/exports/rsc.ts"]
+      "@seshuk/payload-storage-bunny/client": ["./src/exports/client.ts"]
     }
   },
   "include": ["./src/**/*.ts", "./src/**/*.tsx", "./tests/**/*.ts", "./tests/next-env.d.ts"],

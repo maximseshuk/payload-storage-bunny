@@ -24,7 +24,6 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
       "@payload-config": ["./payload.config.ts"],
       "@/*": ["../src/*"],
