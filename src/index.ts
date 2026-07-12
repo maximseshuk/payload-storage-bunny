@@ -57,6 +57,12 @@ export const bunnyStorage: BunnyStoragePlugin =
               return collection
             }
 
+            if (!collection.upload) {
+              throw new Error(
+                `Collection "${collection.slug}" is not an upload collection. Only collections with upload enabled can be used with this plugin.`,
+              )
+            }
+
             const collectionContext = createCollectionContext(config, collection)
 
             const originalFilesRequiredOnCreate = typeof collection.upload === 'object'
