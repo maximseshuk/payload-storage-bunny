@@ -311,7 +311,7 @@ export type BunnyStorageCollectionConfig = {
    * For Bunny Stream videos: combines with stream.thumbnailTime to show video thumbnails.
    * For images: can specify sizeName to use a particular image size as thumbnail.
    *
-   * Uses Payload's adminThumbnail mechanism internally.
+   * The plugin serves this through a hidden `thumbnailURL` field populated on read.
    */
   thumbnail?: boolean | ThumbnailConfig
   /**
@@ -360,7 +360,7 @@ type BunnyStorageBaseConfig = {
    * For Bunny Stream videos: works with stream.thumbnailTime setting.
    * For images: can specify sizeName to use a particular image size.
    *
-   * Uses Payload's adminThumbnail mechanism internally.
+   * The plugin serves this through a hidden `thumbnailURL` field populated on read.
    */
   thumbnail?: boolean | ThumbnailConfig
   /**
