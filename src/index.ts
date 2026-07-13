@@ -8,17 +8,17 @@ import type {
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { Config } from 'payload'
 
-import { getStreamUploadSessionsCollection } from './collections/StreamUploadSessions.js'
-import { getStreamEndpoints } from './endpoints/stream.js'
-import { getFields } from './fields/index.js'
-import { getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
-import { getAfterChangeHook, getBeforeValidateHook } from './hooks/index.js'
-import { getStreamCleanupTask } from './tasks/cleanup.js'
+import { getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './adapter/index.js'
+import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './config/index.js'
+import { getFields } from './fields/getFields.js'
+import { getStreamCleanupTask } from './stream/cleanupTask.js'
+import { getStreamEndpoints } from './stream/endpoints.js'
+import { getAfterChangeHook, getBeforeValidateHook } from './stream/hooks.js'
+import { getStreamUploadSessionsCollection } from './stream/sessionsCollection.js'
 import { translations } from './translations/index.js'
 import type { PluginDefaultTranslationsObject } from './translations/types.js'
 import type { NormalizedBunnyStorageConfig } from './types/configNormalized.js'
 import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
-import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './utils/config/index.js'
 
 export const bunnyStorage: BunnyStoragePlugin =
   (pluginConfig: BunnyStorageConfig) =>

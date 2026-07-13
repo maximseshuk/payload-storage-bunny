@@ -2,7 +2,8 @@ import { createHash } from 'crypto'
 
 import { describe, expect, it } from 'vitest'
 
-import { generateSignedToken, generateSignedUrl, generateStreamTusUploadSignature } from '@/utils/signing.js'
+import { generateSignedToken, generateSignedUrl } from '@/cdn/tokenAuth.js'
+import { generateStreamTusUploadSignature } from '@/stream/tusSignature.js'
 
 describe('generateSignedToken', () => {
   const securityKey = 'test-security-key'

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { createNormalizedConfig } from '@/config/normalizer.js'
 import type { BunnyStorageConfig } from '@/types/config.js'
-import { createNormalizedConfig } from '@/utils/config/normalizer.js'
 
 const createBaseStorage = () => ({
   apiKey: 'storage-key',

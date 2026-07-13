@@ -1,5 +1,5 @@
-import { type BunnyStreamCredentials, BunnyStreamVideoStatus } from '@/types/client.js'
-import { deleteStreamVideo, getStreamVideo, listStreamVideos } from '@/utils/client/stream.js'
+import { deleteStreamVideo, getStreamVideo, listStreamVideos } from '@/stream/api.js'
+import { type BunnyStreamCredentials, BunnyStreamVideoStatus } from '@/stream/api.js'
 
 import { log } from './log.js'
 

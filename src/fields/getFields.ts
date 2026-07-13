@@ -1,7 +1,9 @@
 import type { CollectionConfig, Field, GroupField, TextField } from 'payload'
 
-import { dataField, videoIdField, videoResolutionsField } from '@/fields/index.js'
-import { getThumbnailURLAfterReadFieldHook, getUrlAfterReadFieldHook } from '@/hooks/index.js'
+import { dataField } from '@/fields/dataField.js'
+import { getThumbnailURLAfterReadFieldHook, getUrlAfterReadFieldHook } from '@/fields/hooks.js'
+import { videoIdField } from '@/fields/videoIdField.js'
+import { videoResolutionsField } from '@/fields/videoResolutionsField.js'
 import type { CollectionContext } from '@/types/index.js'
 
 const getBunnyFields = (collectionContext: CollectionContext): Field[] => {

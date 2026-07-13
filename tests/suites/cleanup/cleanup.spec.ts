@@ -1,8 +1,8 @@
 import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { streamUploadSessionsCollectionSlug } from '@/collections/StreamUploadSessions.js'
-import { createStreamVideo, deleteStreamVideo, getStreamVideo } from '@/utils/client/stream.js'
+import { createStreamVideo, deleteStreamVideo, getStreamVideo } from '@/stream/api.js'
+import { streamUploadSessionsCollectionSlug } from '@/stream/sessionsCollection.js'
 
 import { hasBunnyCredentials } from '../../helpers/credentials.js'
 import { getPayload } from '../../helpers/getPayload.js'

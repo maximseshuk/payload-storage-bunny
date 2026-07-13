@@ -1,9 +1,9 @@
 import type { CollectionConfig } from 'payload'
 import { describe, expect, it } from 'vitest'
 
+import { createCollectionContext, getNormalizedConfig } from '@/config/context.js'
+import { createNormalizedConfig } from '@/config/normalizer.js'
 import type { BunnyStorageConfig } from '@/types/config.js'
-import { createCollectionContext, getNormalizedConfig } from '@/utils/config/context.js'
-import { createNormalizedConfig } from '@/utils/config/normalizer.js'
 
 const createBaseStorage = () => ({
   apiKey: 'storage-key',

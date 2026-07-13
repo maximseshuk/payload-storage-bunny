@@ -1,5 +1,0 @@
-export * from './adminThumbnail.js'
-export * from './generateURL.js'
-export * from './handleDelete.js'
-export * from './handleUpload.js'
-export * from './staticHandler/index.js'
