@@ -368,6 +368,18 @@ describe('Config Normalizer', () => {
       const normalized = createNormalizedConfig(config)
       expect(normalized.collections.get('media')?.storage).toBeUndefined()
     })
+
+    it('should carry the s3 config through to collections', () => {
+      const config: BunnyStorageConfig = {
+        apiKey: 'test-api-key',
+        collections: { media: { storage: { uploadTimeout: 90000 } } },
+        storage: { ...createBaseStorage(), s3: { region: 'de' } },
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.storage?.s3).toEqual({ region: 'de' })
+      expect(normalized.collections.get('media')?.storage?.s3).toEqual({ region: 'de' })
+    })
   })
 
   describe('collection properties', () => {

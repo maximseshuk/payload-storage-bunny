@@ -36,6 +36,10 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     if (config.signedUrls && !config.storage.tokenSecurityKey) {
       errors.push('storage `tokenSecurityKey` is required when signed URLs are enabled')
     }
+
+    if (config.storage.s3 && !config.storage.s3.region) {
+      errors.push('storage `s3.region` is required when S3 mode is enabled')
+    }
   }
 
   if (config.signedUrls && config.stream && !config.stream.tokenSecurityKey) {

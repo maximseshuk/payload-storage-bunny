@@ -7,6 +7,7 @@ import { APIError } from 'payload'
 import { purgeCache } from '@/cdn/purge.js'
 import { setStoredVideoId } from '@/fields/bunnyGroupField.js'
 import { uploadStorageFile } from '@/storage/api.js'
+import { uploadStorageFileS3 } from '@/storage/s3.js'
 import { createStreamVideo, uploadStreamVideo } from '@/stream/api.js'
 import { createStreamVideoSession } from '@/stream/sessionsCollection.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
@@ -54,15 +55,27 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
 
         setStoredVideoId(data, video.guid)
       } else if (storageConfig) {
-        await uploadStorageFile({
-          apiKey: storageConfig.apiKey,
-          buffer: file.buffer,
-          mimeType: file.mimeType,
-          path,
-          region: storageConfig.region,
-          timeout: storageConfig.uploadTimeout,
-          zoneName: storageConfig.zoneName,
-        })
+        if (storageConfig.s3) {
+          await uploadStorageFileS3({
+            apiKey: storageConfig.apiKey,
+            buffer: file.buffer,
+            mimeType: file.mimeType,
+            path,
+            s3: storageConfig.s3,
+            timeout: storageConfig.uploadTimeout,
+            zoneName: storageConfig.zoneName,
+          })
+        } else {
+          await uploadStorageFile({
+            apiKey: storageConfig.apiKey,
+            buffer: file.buffer,
+            mimeType: file.mimeType,
+            path,
+            region: storageConfig.region,
+            timeout: storageConfig.uploadTimeout,
+            zoneName: storageConfig.zoneName,
+          })
+        }
 
         setStoredVideoId(data, null)
 

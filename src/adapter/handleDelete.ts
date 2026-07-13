@@ -7,6 +7,7 @@ import { APIError } from 'payload'
 import { purgeCache } from '@/cdn/purge.js'
 import { getBunnyData } from '@/fields/bunnyGroupField.js'
 import { deleteStorageFile } from '@/storage/api.js'
+import { deleteStorageFileS3 } from '@/storage/s3.js'
 import { deleteStreamVideo } from '@/stream/api.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
 import type { CollectionContext } from '@/types/index.js'
@@ -41,12 +42,21 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
       } else if (storageConfig) {
         const path = posix.join(doc.prefix || '', filename)
 
-        await deleteStorageFile({
-          apiKey: storageConfig.apiKey,
-          path,
-          region: storageConfig.region,
-          zoneName: storageConfig.zoneName,
-        })
+        if (storageConfig.s3) {
+          await deleteStorageFileS3({
+            apiKey: storageConfig.apiKey,
+            path,
+            s3: storageConfig.s3,
+            zoneName: storageConfig.zoneName,
+          })
+        } else {
+          await deleteStorageFile({
+            apiKey: storageConfig.apiKey,
+            path,
+            region: storageConfig.region,
+            zoneName: storageConfig.zoneName,
+          })
+        }
 
         if (purgeConfig && apiKey && fileUrl) {
           await purgeCache({ apiKey, async: purgeConfig.async, url: fileUrl })

@@ -66,6 +66,15 @@ export type PurgeConfig = {
   async?: boolean
 }
 
+export type StorageS3Config = {
+  /**
+   * S3 region code of your storage zone — the region the zone was created in.
+   * The endpoint becomes `https://{region}-s3.storage.bunnycdn.com`.
+   * @example 'de'
+   */
+  region: 'de' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | ({} & string)
+}
+
 export type StorageConfig = {
   /** Bunny Storage API key */
   apiKey: string
@@ -73,6 +82,17 @@ export type StorageConfig = {
   hostname: string
   /** Storage region code (optional, defaults to primary region) */
   region?: 'br' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | ({} & string)
+  /**
+   * Enable S3-compatible access for this storage zone.
+   *
+   * The zone must have been created with S3 compatibility enabled — it cannot be
+   * turned on for an existing zone. When set, the plugin uploads and deletes files
+   * through Bunny's S3 endpoint (SigV4) instead of the native Storage API.
+   *
+   * Credentials are reused from this config: the S3 access key is `zoneName` and the
+   * secret is `apiKey` (your storage zone password). No extra secrets are needed.
+   */
+  s3?: StorageS3Config
   /** Security key for signing storage URLs. Used to generate signed URLs for secure file access */
   tokenSecurityKey?: string
   /**

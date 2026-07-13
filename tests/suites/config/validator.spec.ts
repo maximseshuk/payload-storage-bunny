@@ -157,6 +157,32 @@ describe('Config Validator', () => {
     })
   })
 
+  describe('storage S3 validation', () => {
+    it('throws if s3 is enabled without a region', () => {
+      const config = {
+        collections: { media: true },
+        storage: {
+          ...createBaseStorage(),
+          s3: { region: '' },
+        },
+      } as unknown as BunnyStorageConfig
+
+      expect(() => normalizeAndValidate(config)).toThrow('storage `s3.region` is required when S3 mode is enabled')
+    })
+
+    it('passes with a valid s3 region', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: true },
+        storage: {
+          ...createBaseStorage(),
+          s3: { region: 'de' },
+        },
+      }
+
+      expect(() => normalizeAndValidate(config)).not.toThrow()
+    })
+  })
+
   describe('signed URLs validation', () => {
     it('throws if signedUrls enabled without storage.tokenSecurityKey', () => {
       const config: BunnyStorageConfig = {

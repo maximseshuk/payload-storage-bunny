@@ -81,6 +81,7 @@
   "dependencies": {
     "@payloadcms/plugin-cloud-storage": "^3.66.0",
     "ky": "2.0.2",
+    "s3mini": "0.9.5",
     "tus-js-client": "^4.3.1"
   },
   "devDependencies": {

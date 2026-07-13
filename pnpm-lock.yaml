@@ -14,6 +14,9 @@ importers:
       ky:
         specifier: 2.0.2
         version: 2.0.2
+      s3mini:
+        specifier: 0.9.5
+        version: 0.9.5
       tus-js-client:
         specifier: ^4.3.1
         version: 4.3.1
@@ -3799,6 +3802,10 @@ packages:
 
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
+
+  s3mini@0.9.5:
+    resolution: {integrity: sha512-TQ6RXz4eFzCAappzwHSfjgZ4YZMrJ/+mtVcSlc7tkL1wrPf/INZ3eOcVPJk65MAYZf7ueMbHCYjYmzkdkCAPSg==}
+    engines: {node: '>=20'}
 
   safe-buffer@5.2.1:
     resolution: {integrity: sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==}
@@ -7648,6 +7655,8 @@ snapshots:
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
+
+  s3mini@0.9.5: {}
 
   safe-buffer@5.2.1: {}
 
