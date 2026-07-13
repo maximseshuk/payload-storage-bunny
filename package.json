@@ -31,6 +31,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./client": "./dist/exports/client.js",
+    "./migrations": "./dist/migrations/index.js",
     "./*": "./*"
   },
   "publishConfig": {
@@ -46,6 +47,11 @@
         "import": "./dist/exports/client.js",
         "types": "./dist/exports/client.d.ts",
         "default": "./dist/exports/client.js"
+      },
+      "./migrations": {
+        "import": "./dist/migrations/index.js",
+        "types": "./dist/migrations/index.d.ts",
+        "default": "./dist/migrations/index.js"
       }
     },
     "access": "public",
@@ -80,6 +86,7 @@
   "devDependencies": {
     "@next/env": "^16.2.10",
     "@payloadcms/db-mongodb": "^3.86.0",
+    "@payloadcms/db-sqlite": "3.86.0",
     "@payloadcms/next": "^3.86.0",
     "@payloadcms/translations": "^3.86.0",
     "@payloadcms/ui": "^3.86.0",
@@ -94,6 +101,7 @@
     "cpy-cli": "^7.0.0",
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
+    "drizzle-orm": "^0.45.2",
     "mongodb-memory-server": "^11.2.0",
     "next": "16.2.10",
     "oxfmt": "^0.58.0",
