@@ -84,8 +84,11 @@
     "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.4",
+    "@electric-sql/pglite-socket": "0.2.7",
     "@next/env": "^16.2.10",
     "@payloadcms/db-mongodb": "^3.86.0",
+    "@payloadcms/db-postgres": "3.86.0",
     "@payloadcms/db-sqlite": "3.86.0",
     "@payloadcms/next": "^3.86.0",
     "@payloadcms/translations": "^3.86.0",
@@ -107,6 +110,7 @@
     "oxfmt": "^0.58.0",
     "oxlint": "^1.73.0",
     "payload": "^3.86.0",
+    "pg": "8.20.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "rimraf": "6.1.3",
