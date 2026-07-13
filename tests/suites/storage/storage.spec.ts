@@ -3,9 +3,10 @@ import path from 'node:path'
 import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { hasBunnyCredentials } from '../../helpers/credentials.js'
 import { getPayload } from '../../helpers/getPayload.js'
 
-describe('Storage - Upload and Delete', () => {
+describe.skipIf(!hasBunnyCredentials())('Storage - Upload and Delete', () => {
   let payload: Payload
 
   beforeAll(async () => {

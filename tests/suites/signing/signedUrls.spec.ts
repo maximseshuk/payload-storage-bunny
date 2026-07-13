@@ -4,9 +4,10 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/bunnyStream.js'
+import { hasSignedBunnyCredentials } from '../../helpers/credentials.js'
 import { getPayload } from '../../helpers/getPayload.js'
 
-describe('Signed URLs', () => {
+describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
   let payload: Payload
 
   beforeAll(async () => {

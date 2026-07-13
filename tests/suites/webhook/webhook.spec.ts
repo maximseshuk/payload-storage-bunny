@@ -4,11 +4,12 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/bunnyStream.js'
+import { hasBunnyCredentials } from '../../helpers/credentials.js'
 import { getPayload } from '../../helpers/getPayload.js'
 
 const WEBHOOK_SECRET = 'test-webhook-secret'
 
-describe('Stream Webhook', () => {
+describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
   let payload: Payload
 
   beforeAll(async () => {

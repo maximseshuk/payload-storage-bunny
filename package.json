@@ -68,6 +68,7 @@
     "test:coverage": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.config.ts --coverage",
     "test:e2e": "dotenv -e .env -- pnpm runts tests/runE2E.ts",
     "test:e2e:ui": "dotenv -e .env -v UI_MODE=1 -- pnpm runts tests/runE2E.ts",
+    "test:unit": "vitest run -c tests/vitest.config.ts",
     "test:watch": "dotenv -e .env -v NODE_ENV=development -- vitest -c tests/vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -5,9 +5,10 @@ import { getFileByPath, type Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos } from '../../helpers/bunnyStream.js'
+import { hasBunnyCredentials } from '../../helpers/credentials.js'
 import { getPayload } from '../../helpers/getPayload.js'
 
-describe('Thumbnail', () => {
+describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
   let payload: Payload
 
   beforeAll(async () => {
