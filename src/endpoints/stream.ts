@@ -81,7 +81,11 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
 
           if (videoId) {
             try {
-              videoData = await getStreamVideo({ streamConfig: stream, videoId })
+              videoData = await getStreamVideo({
+                apiKey: stream.apiKey,
+                libraryId: stream.libraryId,
+                videoId,
+              })
               const videoStatus = videoData.status
 
               if (isVideoInErrorState(videoStatus)) {
@@ -112,7 +116,8 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             }
 
             const newVideo = await createStreamVideo({
-              streamConfig: collectionStreamConfig,
+              apiKey: collectionStreamConfig.apiKey,
+              libraryId: collectionStreamConfig.libraryId,
               thumbnailTime: collectionStreamConfig.thumbnailTime,
               title,
             })
@@ -209,7 +214,8 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                   const doc = docs.docs[0]
 
                   const resolutionsData = await getStreamVideoResolutions({
-                    streamConfig: collectionContext.streamConfig,
+                    apiKey: collectionContext.streamConfig.apiKey,
+                    libraryId: collectionContext.streamConfig.libraryId,
                     videoId: VideoGuid,
                   })
 

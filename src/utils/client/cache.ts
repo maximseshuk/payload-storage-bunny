@@ -1,5 +1,3 @@
-import type { NormalizedPurgeConfig } from '@/types/index.js'
-
 import { HTTPError } from 'ky'
 
 import { BUNNY_API, TIMEOUTS } from '../constants.js'
@@ -7,17 +5,13 @@ import { kyClient } from '../kyClient.js'
 
 export const purgeCache = async ({
   apiKey,
-  purgeConfig,
+  async = false,
   url,
 }: {
   apiKey: string
-  purgeConfig: NormalizedPurgeConfig
+  async?: boolean
   url: string
 }): Promise<void> => {
-  if (!purgeConfig) {
-    throw new Error('Purge configuration is required')
-  }
-
   if (!apiKey) {
     throw new Error('API key is required for cache purging')
   }
@@ -28,7 +22,7 @@ export const purgeCache = async ({
         'AccessKey': apiKey,
       },
       searchParams: {
-        async: purgeConfig.async || false,
+        async,
         url,
       },
       timeout: TIMEOUTS.DEFAULT,

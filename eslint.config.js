@@ -3,12 +3,8 @@ import pluginStylistic from '@stylistic/eslint-plugin'
 
 const GLOB_ALL_JS_TS = ['**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx', '**/*.mjs', '**/*.cjs']
 const GLOB_EXCLUDE = [
-  'dev/app/(payload)/**/*.{ts,tsx,js,jsx}',
-  'dev/payload-types.ts',
   '**/node_modules',
   '**/pnpm-lock.yaml',
-  'dev/**/.next',
-  'dev/next-env.d.ts',
 ]
 
 const stylisticConfig = {
@@ -87,6 +83,13 @@ const stylisticConfig = {
         overrides: { arrow: { after: true, before: true } },
       },
     ],
+    '@stylistic/arrow-spacing': [
+      'error',
+      {
+        after: true,
+        before: true,
+      },
+    ],
     '@typescript-eslint/no-redundant-type-constituents': 'off',
     'eol-last': ['error', 'always'],
     'no-multi-spaces': 'error',
@@ -131,6 +134,18 @@ export default [
   {
     rules: {
       'no-restricted-exports': 'off',
+    },
+  },
+  {
+    files: ['tests/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        project: './tsconfig.test.json',
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      'no-console': 'off',
     },
   },
   {

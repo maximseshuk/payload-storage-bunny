@@ -7,15 +7,15 @@ import { TUS_MIME_TYPES } from '@/utils/constants.js'
 import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 import { Button, Dropzone, useConfig, useDocumentEvents, useForm, useTranslation } from '@payloadcms/ui'
 import ky from 'ky'
-import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as tus from 'tus-js-client'
 
 import type { UploadState } from './Upload.types.js'
 
 import { ToggleButton } from '../ToggleButton/ToggleButton.js'
 import { BASE_CLASS, INITIAL_STATE, TUS_ENDPOINT, TUS_RETRY_DELAYS } from './Upload.constants.js'
-import { cleanupTusLocalStorage, findPreviousTusUploads } from './Upload.utils.js'
 import './Upload.scss'
+import { cleanupTusLocalStorage, findPreviousTusUploads } from './Upload.utils.js'
 
 type UploadProps = {
   collectionSlug: string

@@ -2,6 +2,7 @@ export const BUNNY_API = {
   BASE_URL: 'https://api.bunny.net',
   STORAGE_HOSTNAME: 'storage.bunnycdn.com',
   STREAM_URL: 'https://video.bunnycdn.com',
+  TUS_ENDPOINT: 'https://video.bunnycdn.com/tusupload',
 } as const
 
 export const getStorageUrl = (region?: string): string => {

@@ -30,17 +30,23 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
       }
 
       if (streamConfig && bunnyData?.stream) {
-        await deleteStreamVideo({ streamConfig, videoId: bunnyData.stream.videoId })
+        await deleteStreamVideo({
+          apiKey: streamConfig.apiKey,
+          libraryId: streamConfig.libraryId,
+          videoId: bunnyData.stream.videoId,
+        })
       } else if (storageConfig) {
         const path = posix.join(doc.prefix || '', filename)
 
         await deleteStorageFile({
+          apiKey: storageConfig.apiKey,
           path,
-          storageConfig,
+          region: storageConfig.region,
+          zoneName: storageConfig.zoneName,
         })
 
         if (purgeConfig && apiKey && fileUrl) {
-          await purgeCache({ apiKey, purgeConfig, url: fileUrl })
+          await purgeCache({ apiKey, async: purgeConfig.async, url: fileUrl })
           req.payload.logger.debug({
             action: 'Cache purged after delete',
             url: fileUrl,

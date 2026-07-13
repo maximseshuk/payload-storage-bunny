@@ -1,12 +1,32 @@
+import type { BunnyData, CollectionContext } from '@/types/index.js'
 import type { JSONField } from 'payload'
 
-export const dataField = (): JSONField => {
+export const dataField = (context: CollectionContext): JSONField => {
   return {
     name: 'bunnyData',
     type: 'json',
     admin: {
       disabled: true,
       hidden: true,
+    },
+    hooks: {
+      afterRead: [
+        ({ context: requestContext }) => {
+          const videoId = requestContext.bunnyData?.stream?.videoId
+          if (!videoId || !context.streamConfig) {
+            return null
+          }
+          const bunnyData: BunnyData = {
+            type: 'stream',
+            stream: {
+              libraryId: context.streamConfig.libraryId,
+              videoId,
+            },
+          }
+
+          return bunnyData
+        },
+      ],
     },
     typescriptSchema: [
       () => ({

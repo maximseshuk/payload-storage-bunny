@@ -1,5 +1,6 @@
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
 import type { AcceptedLanguages } from '@payloadcms/translations'
+import type { KyInstance } from 'ky'
 import type { CollectionConfig, PayloadRequest, Plugin, TaskConfig, UploadCollectionSlug } from 'payload'
 
 import type { StreamTusAuthRequest } from './core.js'
@@ -287,6 +288,12 @@ export type BunnyStorageCollectionConfig = {
      */
     tus?: {
       /**
+       * Override automatic TUS mode enablement for this collection.
+       * When true, TUS auto-enables for supported video MIME types.
+       * When false, user must manually click "Enable tus mode" button.
+       */
+      autoMode?: boolean
+      /**
        * Override TUS upload timeout in seconds for this collection
        */
       uploadTimeout?: number
@@ -307,9 +314,10 @@ export type BunnyStorageCollectionConfig = {
   thumbnail?: boolean | ThumbnailConfig
   /**
    * Override global URL transformation config for this collection
+   * Set to false to disable URL transformation for this collection.
    * @note Does not work when `disablePayloadAccessControl` is true
    */
-  urlTransform?: UrlTransformConfig
+  urlTransform?: boolean | UrlTransformConfig
 } & Omit<CollectionOptions, 'adapter'>
 
 /** Configuration for which collections use Bunny Storage */
@@ -363,7 +371,7 @@ type BunnyStorageBaseConfig = {
    * Global URL transformation config for all collections (can be overridden per collection)
    * @note Does not work when `disablePayloadAccessControl` is true for the collection
    */
-  urlTransform?: UrlTransformConfig
+  urlTransform?: boolean | UrlTransformConfig
 }
 
 export type BunnyStorageConfig = (

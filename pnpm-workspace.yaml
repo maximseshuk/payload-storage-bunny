@@ -1,0 +1,6 @@
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  mongodb-memory-server: true
+  oxc-resolver: true
+  sharp: true

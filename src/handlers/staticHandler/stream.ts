@@ -1,8 +1,8 @@
 import type { BunnyDataInternal } from '@/types/core.js'
 import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
-import type { CollectionConfig, PayloadRequest } from 'payload'
 
 import { getStreamVideoResolutions } from '@/utils/client/stream.js'
+import { type CollectionConfig, NotFound, type PayloadRequest } from 'payload'
 
 import { createProxyResponse, maybeCreateRedirect, maybeGenerateSignedUrl } from './helpers.js'
 
@@ -73,7 +73,11 @@ export const streamStaticHandler = async ({
 
   if (!fallbackQuality) {
     try {
-      const resolutionsData = await getStreamVideoResolutions({ streamConfig, videoId })
+      const resolutionsData = await getStreamVideoResolutions({
+        apiKey: streamConfig.apiKey,
+        libraryId: streamConfig.libraryId,
+        videoId,
+      })
 
       if (
         resolutionsData.success &&
@@ -115,10 +119,10 @@ export const streamStaticHandler = async ({
           }
         }
       } else {
-        req.payload.logger.error('No MP4 resolutions available from Bunny API')
+        req.payload.logger.debug('No MP4 resolutions available from Bunny API (video may still be processing)')
       }
     } catch (err) {
-      req.payload.logger.error({ err, msg: 'Error fetching available resolutions' })
+      req.payload.logger.debug({ err, msg: 'Error fetching available resolutions (video may still be processing)' })
     }
   }
 
@@ -139,7 +143,9 @@ export const streamStaticHandler = async ({
         },
       })
     } catch (err) {
-      req.payload.logger.error({ err, msg: 'Failed to update bunnyVideoResolutions' })
+      if (!(err instanceof NotFound)) {
+        req.payload.logger.error({ err, msg: 'Failed to update bunnyVideoResolutions' })
+      }
     }
   }
 

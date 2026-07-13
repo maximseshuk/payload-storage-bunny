@@ -15,7 +15,7 @@ const getBunnyFields = (collectionContext: CollectionContext): Field[] => {
     fields.push(videoResolutionsField())
   }
 
-  fields.push(dataField())
+  fields.push(dataField(collectionContext))
 
   return fields
 }

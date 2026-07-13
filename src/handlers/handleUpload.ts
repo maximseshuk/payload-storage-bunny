@@ -28,7 +28,12 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
       )
 
       if (streamConfig?.apiKey && isVideoFile) {
-        const video = await createStreamVideo({ streamConfig, title: fileName })
+        const video = await createStreamVideo({
+          apiKey: streamConfig.apiKey,
+          libraryId: streamConfig.libraryId,
+          thumbnailTime: streamConfig.thumbnailTime,
+          title: fileName,
+        })
         if (streamConfig.cleanup) {
           await createStreamVideoSession({
             libraryId: video.videoLibraryId,
@@ -37,18 +42,23 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           })
         }
         await uploadStreamVideo({
+          apiKey: streamConfig.apiKey,
           buffer: file.buffer,
-          streamConfig,
+          libraryId: streamConfig.libraryId,
+          timeout: streamConfig.uploadTimeout,
           videoId: video.guid,
         })
 
         data.bunnyVideoId = video.guid
       } else if (storageConfig) {
         await uploadStorageFile({
+          apiKey: storageConfig.apiKey,
           buffer: file.buffer,
           mimeType: file.mimeType,
           path,
-          storageConfig,
+          region: storageConfig.region,
+          timeout: storageConfig.uploadTimeout,
+          zoneName: storageConfig.zoneName,
         })
 
         data.bunnyVideoId = null
@@ -56,7 +66,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         if (purgeConfig && apiKey) {
           const url = await getGenerateURL(context)({ collection, data, filename: fileName, prefix: uploadPrefix })
           try {
-            await purgeCache({ apiKey, purgeConfig, url })
+            await purgeCache({ apiKey, async: purgeConfig.async, url })
             req.payload.logger.debug({
               action: 'Cache purged after upload',
               url,

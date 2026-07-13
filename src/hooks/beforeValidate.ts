@@ -30,7 +30,8 @@ export const getBeforeValidateHook = ({ context, filesRequiredOnCreate }: Args):
       }
 
       const videoData = await getStreamVideo({
-        streamConfig: context.streamConfig,
+        apiKey: context.streamConfig.apiKey,
+        libraryId: context.streamConfig.libraryId,
         videoId,
       })
 

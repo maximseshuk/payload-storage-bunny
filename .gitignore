@@ -1,22 +1,38 @@
-# Dependencies
-/node_modules
+# deps
+node_modules/
 
-# Build output
-/dist
+# build
+dist/
+out/
 
-# TypeScript
-*.tsbuildinfo
-
-# Environment files
+# env
 .env
-.env*.local
+.env*
+!.env.example
 
-# Logs
-pnpm-debug.log*
-
-# OS files
+# os
 .DS_Store
 
-# Next.js
+# logs
+*.log
+pnpm-debug.log*
+
+# next
 .next/
-/out/
+
+# ts
+*.tsbuildinfo
+
+# tests
+tests/.next/
+tests/app/(payload)/admin/importMap.js
+tests/next-env.d.ts
+tests/node_modules/
+tests/payload.config.ts
+tests/playwright/
+tests/**/*.d.ts
+
+# devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml

@@ -1,3 +1,10 @@
+// Storage
+export type BunnyStorageCredentials = {
+  apiKey: string
+  region?: string
+  zoneName: string
+}
+
 // Stream
 export enum BunnyStreamVideoStatus {
   Created = 0,
@@ -122,4 +129,16 @@ export interface BunnyStreamVideo {
   videoLibraryId: number
   views: number
   width: number
+}
+
+export type BunnyStreamCredentials = {
+  apiKey: string
+  libraryId: number | string
+}
+
+export interface BunnyStreamListVideosResponse {
+  currentPage: number
+  items: BunnyStreamVideo[]
+  itemsPerPage: number
+  totalItems: number
 }

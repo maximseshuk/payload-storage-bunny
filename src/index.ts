@@ -112,7 +112,7 @@ export const bunnyStorage: BunnyStoragePlugin =
                 ],
                 beforeRead: [
                   ...(collection.hooks?.beforeRead || []),
-                  getBeforeReadHook(collectionContext),
+                  getBeforeReadHook(),
                 ],
                 beforeValidate: [
                   ...(collection.hooks?.beforeValidate || []),

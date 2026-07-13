@@ -1,7 +1,8 @@
 import type {
+  BunnyStreamCredentials,
+  BunnyStreamListVideosResponse,
   BunnyStreamVideo,
   BunnyStreamVideoResolutionsResponse,
-  NormalizedStreamConfig,
 } from '@/types/index.js'
 
 import { HTTPError } from 'ky'
@@ -9,24 +10,20 @@ import { HTTPError } from 'ky'
 import { BUNNY_API, TIMEOUTS } from '../constants.js'
 import { kyClient } from '../kyClient.js'
 
-export const getStreamVideo = async ({
-  streamConfig,
-  videoId,
-}: {
-  streamConfig: NormalizedStreamConfig
-  videoId: string
-}): Promise<BunnyStreamVideo> => {
-  if (!streamConfig) {
-    throw new Error('Stream configuration is required')
-  }
+export type { BunnyStreamCredentials, BunnyStreamListVideosResponse }
 
+export const getStreamVideo = async ({
+  apiKey,
+  libraryId,
+  videoId,
+}: { videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideo> => {
   try {
     const response = await kyClient.get(
-      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`,
+      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
       {
         headers: {
           'Accept': 'application/json',
-          'AccessKey': streamConfig.apiKey,
+          'AccessKey': apiKey,
         },
         timeout: TIMEOUTS.DEFAULT,
       },
@@ -50,35 +47,29 @@ export const getStreamVideo = async ({
 }
 
 export const createStreamVideo = async ({
-  streamConfig,
+  apiKey,
+  libraryId,
   thumbnailTime,
   title,
 }: {
-  streamConfig: NormalizedStreamConfig
-  thumbnailTime?: number
+  thumbnailTime?: null | number
   title: string
-}): Promise<BunnyStreamVideo> => {
-  if (!streamConfig) {
-    throw new Error('Stream configuration is required')
-  }
-
+} & BunnyStreamCredentials): Promise<BunnyStreamVideo> => {
   const data: {
     thumbnailTime?: null | number
     title: string
   } = {
+    thumbnailTime: typeof thumbnailTime === 'number' ? thumbnailTime : null,
     title: title.trim(),
   }
 
-  const finalThumbnailTime = thumbnailTime ?? streamConfig.thumbnailTime
-  data.thumbnailTime = typeof finalThumbnailTime === 'number' ? finalThumbnailTime : null
-
   try {
     const response = await kyClient.post(
-      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos`,
+      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos`,
       {
         headers: {
           'Accept': 'application/json',
-          'AccessKey': streamConfig.apiKey,
+          'AccessKey': apiKey,
           'Content-Type': 'application/json',
         },
         json: data,
@@ -103,24 +94,19 @@ export const createStreamVideo = async ({
 }
 
 export const deleteStreamVideo = async ({
-  streamConfig,
+  apiKey,
+  libraryId,
   videoId,
-}: {
-  streamConfig: NormalizedStreamConfig
-  videoId: string
-}): Promise<void> => {
-  if (!streamConfig) {
-    throw new Error('Stream configuration is required')
-  }
-
+}: { videoId: string } & BunnyStreamCredentials): Promise<void> => {
   try {
     await kyClient.delete(
-      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`,
+      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
       {
         headers: {
           'Accept': 'application/json',
-          'AccessKey': streamConfig.apiKey,
+          'AccessKey': apiKey,
         },
+        throwHttpErrors: (status) => status !== 404,
         timeout: TIMEOUTS.DEFAULT,
       },
     )
@@ -128,8 +114,6 @@ export const deleteStreamVideo = async ({
     if (err instanceof HTTPError) {
       if (err.response.status === 401) {
         throw new Error('Bunny Stream: Invalid API key')
-      } else if (err.response.status === 404) {
-        throw new Error(`Bunny Stream: Video not found: ${videoId}`)
       } else if (err.response.status === 500) {
         throw new Error('Bunny Stream: Server error')
       }
@@ -140,28 +124,26 @@ export const deleteStreamVideo = async ({
 }
 
 export const uploadStreamVideo = async ({
+  apiKey,
   buffer,
-  streamConfig,
+  libraryId,
+  timeout,
   videoId,
 }: {
   buffer: Buffer
-  streamConfig: NormalizedStreamConfig
+  timeout?: number
   videoId: string
-}): Promise<void> => {
-  if (!streamConfig) {
-    throw new Error('Stream configuration is required')
-  }
-
+} & BunnyStreamCredentials): Promise<void> => {
   try {
     await kyClient.put(
-      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}`,
+      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
       {
         body: buffer as unknown as BodyInit,
         headers: {
           'Accept': 'application/json',
-          'AccessKey': streamConfig.apiKey,
+          'AccessKey': apiKey,
         },
-        timeout: streamConfig.uploadTimeout || TIMEOUTS.STREAM_UPLOAD,
+        timeout: timeout ?? TIMEOUTS.STREAM_UPLOAD,
       },
     )
   } catch (err) {
@@ -181,24 +163,54 @@ export const uploadStreamVideo = async ({
   }
 }
 
-export const getStreamVideoResolutions = async ({
-  streamConfig,
-  videoId,
+export const listStreamVideos = async ({
+  apiKey,
+  itemsPerPage = 100,
+  libraryId,
+  page = 1,
 }: {
-  streamConfig: NormalizedStreamConfig
-  videoId: string
-}): Promise<BunnyStreamVideoResolutionsResponse> => {
-  if (!streamConfig) {
-    throw new Error('Stream configuration is required')
-  }
+  itemsPerPage?: number
+  page?: number
+} & BunnyStreamCredentials): Promise<BunnyStreamListVideosResponse> => {
+  try {
+    const url = new URL(`${BUNNY_API.STREAM_URL}/library/${libraryId}/videos`)
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('itemsPerPage', String(itemsPerPage))
 
+    const response = await kyClient.get(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'AccessKey': apiKey,
+      },
+      timeout: TIMEOUTS.DEFAULT,
+    })
+
+    return await response.json<BunnyStreamListVideosResponse>()
+  } catch (err) {
+    if (err instanceof HTTPError) {
+      if (err.response.status === 401) {
+        throw new Error('Bunny Stream: Invalid API key')
+      } else if (err.response.status === 500) {
+        throw new Error('Bunny Stream: Server error')
+      }
+    }
+
+    throw new Error('Unable to list videos')
+  }
+}
+
+export const getStreamVideoResolutions = async ({
+  apiKey,
+  libraryId,
+  videoId,
+}: { videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideoResolutionsResponse> => {
   try {
     const response = await kyClient.get(
-      `${BUNNY_API.STREAM_URL}/library/${streamConfig.libraryId}/videos/${videoId}/resolutions`,
+      `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}/resolutions`,
       {
         headers: {
           'Accept': 'application/json',
-          'AccessKey': streamConfig.apiKey,
+          'AccessKey': apiKey,
         },
         timeout: TIMEOUTS.DEFAULT,
       },

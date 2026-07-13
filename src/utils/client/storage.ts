@@ -1,22 +1,23 @@
-import type { NormalizedStorageConfig } from '@/types/index.js'
+import type { BunnyStorageCredentials } from '@/types/index.js'
 
 import { HTTPError } from 'ky'
 
 import { getStorageUrl, TIMEOUTS } from '../constants.js'
 import { kyClient } from '../kyClient.js'
 
+export type { BunnyStorageCredentials }
+
 export const deleteStorageFile = async ({
+  apiKey,
   path,
-  storageConfig,
-}: {
-  path: string
-  storageConfig: NormalizedStorageConfig
-}): Promise<void> => {
+  region,
+  zoneName,
+}: { path: string } & BunnyStorageCredentials): Promise<void> => {
   try {
-    await kyClient.delete(`${getStorageUrl(storageConfig.region)}/${storageConfig.zoneName}/${path}`, {
+    await kyClient.delete(`${getStorageUrl(region)}/${zoneName}/${path}`, {
       headers: {
         'Accept': 'application/json',
-        'AccessKey': storageConfig.apiKey,
+        'AccessKey': apiKey,
       },
       timeout: TIMEOUTS.DEFAULT,
     })
@@ -32,25 +33,28 @@ export const deleteStorageFile = async ({
 }
 
 export const uploadStorageFile = async ({
+  apiKey,
   buffer,
   mimeType,
   path,
-  storageConfig,
+  region,
+  timeout,
+  zoneName,
 }: {
   buffer: Buffer
   mimeType: string
   path: string
-  storageConfig: NormalizedStorageConfig
-}): Promise<void> => {
+  timeout?: number
+} & BunnyStorageCredentials): Promise<void> => {
   try {
-    await kyClient.put(`${getStorageUrl(storageConfig.region)}/${storageConfig.zoneName}/${path}`, {
+    await kyClient.put(`${getStorageUrl(region)}/${zoneName}/${path}`, {
       body: buffer as unknown as BodyInit,
       headers: {
         'Accept': 'application/json',
-        'AccessKey': storageConfig.apiKey,
+        'AccessKey': apiKey,
         'Content-Type': mimeType,
       },
-      timeout: storageConfig.uploadTimeout,
+      timeout: timeout ?? TIMEOUTS.DEFAULT,
     })
   } catch (err) {
     if (err instanceof HTTPError) {

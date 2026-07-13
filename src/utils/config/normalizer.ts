@@ -64,6 +64,7 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
     thumbnailTime: stream.thumbnailTime,
     tokenSecurityKey: stream.tokenSecurityKey,
     uploadTimeout: stream.uploadTimeout ?? CONFIG_DEFAULTS.stream.uploadTimeout,
+    webhook: stream.webhook,
   }
 
   if (stream.cleanup === true) {
@@ -151,8 +152,13 @@ const normalizeSignedUrlsConfig = (
 
 const normalizeThumbnailConfig = (
   value?: boolean | ThumbnailConfig,
+  globalConfig?: NormalizedThumbnailConfig,
 ): NormalizedThumbnailConfig | undefined => {
-  const baseConfig = normalizeUrlTransformConfig(value, CONFIG_DEFAULTS.thumbnail)
+  const baseConfig = normalizeUrlTransformConfig(
+    value,
+    globalConfig ?? CONFIG_DEFAULTS.thumbnail,
+    globalConfig,
+  )
 
   if (!baseConfig) {
     return undefined
@@ -160,16 +166,19 @@ const normalizeThumbnailConfig = (
 
   return {
     ...baseConfig,
-    sizeName: typeof value === 'object' && value && 'sizeName' in value ? value.sizeName : undefined,
+    sizeName: typeof value === 'object' && value && 'sizeName' in value
+      ? value.sizeName
+      : globalConfig?.sizeName,
     streamAnimated: typeof value === 'object' && value && 'streamAnimated' in value
       ? value.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated
-      : CONFIG_DEFAULTS.thumbnail.streamAnimated,
+      : globalConfig?.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated,
   }
 }
 
 const normalizeUrlTransformConfig = (
   value?: boolean | UrlTransformConfig,
   defaults?: { appendTimestamp: boolean; queryParams: Record<string, string> },
+  globalConfig?: NormalizedUrlTransformConfig,
 ): NormalizedUrlTransformConfig | undefined => {
   if (!value) {
     return undefined
@@ -193,8 +202,8 @@ const normalizeUrlTransformConfig = (
   }
 
   return {
-    appendTimestamp: value.appendTimestamp ?? defaultConfig.appendTimestamp,
-    queryParams: value.queryParams ?? defaultConfig.queryParams,
+    appendTimestamp: value.appendTimestamp ?? globalConfig?.appendTimestamp ?? defaultConfig.appendTimestamp,
+    queryParams: value.queryParams ?? globalConfig?.queryParams ?? defaultConfig.queryParams,
     transformUrl: undefined,
   }
 }
@@ -246,12 +255,12 @@ const normalizeCollectionConfig = (
     thumbnail: resolveCollectionConfigSetting(
       collectionConfig.thumbnail,
       normalizedGlobalConfig.thumbnail,
-      normalizeThumbnailConfig,
+      (value) => normalizeThumbnailConfig(value, normalizedGlobalConfig.thumbnail),
     ),
     urlTransform: resolveCollectionConfigSetting(
       collectionConfig.urlTransform,
       normalizedGlobalConfig.urlTransform,
-      normalizeUrlTransformConfig,
+      (value) => normalizeUrlTransformConfig(value, undefined, normalizedGlobalConfig.urlTransform),
     ),
   }
 }
@@ -311,10 +320,19 @@ const resolveCollectionStreamConfig = (
     streamConfig.thumbnailTime = collectionOverride.thumbnailTime
   }
 
-  if (collectionOverride.tus?.uploadTimeout !== undefined && streamConfig.tus) {
-    streamConfig.tus = {
-      ...streamConfig.tus,
-      uploadTimeout: collectionOverride.tus.uploadTimeout,
+  if (collectionOverride.tus && streamConfig.tus) {
+    if (collectionOverride.tus.uploadTimeout !== undefined) {
+      streamConfig.tus = {
+        ...streamConfig.tus,
+        uploadTimeout: collectionOverride.tus.uploadTimeout,
+      }
+    }
+
+    if (collectionOverride.tus.autoMode !== undefined) {
+      streamConfig.tus = {
+        ...streamConfig.tus,
+        autoMode: collectionOverride.tus.autoMode,
+      }
     }
   }
 
@@ -356,8 +374,12 @@ const resolveCollectionConfigSetting = <T, R>(
     return undefined
   }
 
-  if (collectionValue === true || collectionValue === undefined) {
+  if (collectionValue === undefined) {
     return globalValue
+  }
+
+  if (collectionValue === true) {
+    return globalValue ?? normalizer(true)
   }
 
   return normalizer(collectionValue)

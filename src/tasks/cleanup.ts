@@ -22,6 +22,7 @@ export const getStreamCleanupTask = (streamConfig: NormalizedStreamConfig): Task
       const incompleteSessions = await req.payload.find({
         collection: streamUploadSessionsCollectionSlug,
         limit: 100,
+        overrideAccess: true,
         req,
         where: {
           createdAt: {
@@ -40,6 +41,8 @@ export const getStreamCleanupTask = (streamConfig: NormalizedStreamConfig): Task
         }
       }
 
+      req.payload.logger.debug(`Bunny Cleanup: found ${incompleteSessions.totalDocs} stale sessions`)
+
       let deletedCount = 0
       let errorCount = 0
 
@@ -48,7 +51,8 @@ export const getStreamCleanupTask = (streamConfig: NormalizedStreamConfig): Task
 
         try {
           const video = await getStreamVideo({
-            streamConfig,
+            apiKey: streamConfig.apiKey,
+            libraryId: streamConfig.libraryId,
             videoId,
           })
 
@@ -58,8 +62,10 @@ export const getStreamCleanupTask = (streamConfig: NormalizedStreamConfig): Task
             video.status === BunnyStreamVideoStatus.UploadFailed ||
             video.status === BunnyStreamVideoStatus.Error
           ) {
+            req.payload.logger.debug(`Bunny Cleanup: deleting orphan video ${videoId}`)
             await deleteStreamVideo({
-              streamConfig,
+              apiKey: streamConfig.apiKey,
+              libraryId: streamConfig.libraryId,
               videoId,
             })
 
