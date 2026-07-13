@@ -75,9 +75,3 @@ export type BunnyDataInternal = {
     videoId: string
   }
 }
-
-declare module 'payload' {
-  interface RequestContext {
-    bunnyData?: BunnyDataInternal
-  }
-}

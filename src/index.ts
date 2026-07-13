@@ -12,7 +12,7 @@ import { getStreamUploadSessionsCollection } from './collections/StreamUploadSes
 import { getStreamEndpoints } from './endpoints/stream.js'
 import { getFields } from './fields/index.js'
 import { getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './handlers/index.js'
-import { getAfterChangeHook, getBeforeReadHook, getBeforeValidateHook } from './hooks/index.js'
+import { getAfterChangeHook, getBeforeValidateHook } from './hooks/index.js'
 import { getStreamCleanupTask } from './tasks/cleanup.js'
 import { translations } from './translations/index.js'
 import type { PluginDefaultTranslationsObject } from './translations/types.js'
@@ -110,7 +110,6 @@ export const bunnyStorage: BunnyStoragePlugin =
             hooks: {
               ...(collection.hooks || {}),
               afterChange: [...(collection.hooks?.afterChange || []), getAfterChangeHook(collectionContext)],
-              beforeRead: [...(collection.hooks?.beforeRead || []), getBeforeReadHook()],
               beforeValidate: [
                 ...(collection.hooks?.beforeValidate || []),
                 ...(collectionContext.isTusUploadSupported

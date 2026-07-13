@@ -12,8 +12,8 @@ export const dataField = (context: CollectionContext): JSONField => {
     },
     hooks: {
       afterRead: [
-        ({ context: requestContext }) => {
-          const videoId = requestContext.bunnyData?.stream?.videoId
+        ({ siblingData }) => {
+          const videoId = (siblingData as { bunnyVideoId?: string })?.bunnyVideoId
           if (!videoId || !context.streamConfig) {
             return null
           }
