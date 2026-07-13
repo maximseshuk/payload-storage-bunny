@@ -72,6 +72,7 @@ export const buildConfigWithDefaults = async (config?: Partial<Config>): Promise
     sharp,
     telemetry: false,
     typescript: {
+      autoGenerate: false,
       declare: {
         ignoreTSError: true,
         ...(config?.typescript?.declare || {}),
