@@ -13,7 +13,7 @@ import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js
 import type { CollectionContext } from '@/types/index.js'
 import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 
-import { getGenerateURL } from './generateUrl.js'
+import { getGenerateUrl } from './generateUrl.js'
 
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
   const { apiKey, prefix, purgeConfig, storageConfig, streamConfig } = context
@@ -67,7 +67,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         setStoredVideoId(data, null)
 
         if (purgeConfig && apiKey) {
-          const url = await getGenerateURL(context)({ collection, data, filename: fileName, prefix: uploadPrefix })
+          const url = await getGenerateUrl(context)({ collection, data, filename: fileName, prefix: uploadPrefix })
           try {
             await purgeCache({ apiKey, async: purgeConfig.async, url })
             req.payload.logger.debug({

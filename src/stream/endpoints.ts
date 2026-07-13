@@ -2,10 +2,17 @@ import type { Endpoint } from 'payload'
 import { APIError, getAccessResults } from 'payload'
 
 import { createCollectionContext } from '@/config/context.js'
-import { createStreamVideo, getStreamVideo, getStreamVideoResolutions } from '@/stream/api.js'
+import {
+  canUploadToVideo,
+  createStreamVideo,
+  getStreamVideo,
+  getStreamVideoResolutions,
+  isVideoInErrorState,
+  isVideoProcessed,
+  parseMp4Resolutions,
+} from '@/stream/api.js'
 import { createStreamVideoSession } from '@/stream/sessionsCollection.js'
 import { generateStreamTusUploadSignature } from '@/stream/tusSignature.js'
-import { canUploadToVideo, isVideoInErrorState, isVideoProcessed } from '@/stream/video.js'
 import type { PluginStorageBunnyTFunction } from '@/translations/index.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 import type { StreamTusAuthRequest, StreamTusAuthResponse } from '@/types/index.js'
@@ -212,16 +219,9 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                   })
 
                   if (resolutionsData.success && resolutionsData.data.mp4Resolutions) {
-                    const availableResolutions =
-                      resolutionsData.data.mp4Resolutions
-                        ?.map((r) => r.resolution)
-                        .filter((resolution): resolution is string => Boolean(resolution)) || []
+                    const { available, sorted } = parseMp4Resolutions(resolutionsData.data)
 
-                    if (availableResolutions.length > 0) {
-                      const sortedResolutions = [...availableResolutions].toSorted(
-                        (a, b) => parseInt(b.replace('p', '')) - parseInt(a.replace('p', '')),
-                      )
-
+                    if (available.length > 0) {
                       await req.payload.update({
                         id: doc.id,
                         collection: collectionSlug,
@@ -229,8 +229,8 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                           bunnyData: {
                             stream: {
                               resolutions: {
-                                available: availableResolutions,
-                                highest: sortedResolutions[0],
+                                available,
+                                highest: sorted[0],
                               },
                             },
                           },
@@ -239,7 +239,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
 
                       req.payload.logger.debug({
                         msg: 'Webhook: Updated video resolutions',
-                        resolutions: availableResolutions,
+                        resolutions: available,
                         videoId: VideoGuid,
                       })
                     }

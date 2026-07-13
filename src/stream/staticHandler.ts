@@ -1,7 +1,7 @@
 import { type CollectionConfig, NotFound, type PayloadRequest } from 'payload'
 
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
-import { getStreamVideoResolutions } from '@/stream/api.js'
+import { getStreamVideoResolutions, parseMp4Resolutions } from '@/stream/api.js'
 import type { BunnyDataInternal } from '@/types/core.js'
 import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
 import { createProxyResponse } from '@/utils/http.js'
@@ -84,17 +84,11 @@ export const streamStaticHandler = async ({
         resolutionsData.data.mp4Resolutions &&
         resolutionsData.data.mp4Resolutions.length > 0
       ) {
-        availableResolutions =
-          resolutionsData.data.mp4Resolutions
-            ?.map((r) => r.resolution)
-            .filter((resolution): resolution is string => Boolean(resolution)) || []
+        const { available, sorted } = parseMp4Resolutions(resolutionsData.data)
+        availableResolutions = available
 
-        if (availableResolutions.length > 0) {
-          const sortedResolutions = [...availableResolutions].toSorted(
-            (a, b) => parseInt(b.replace('p', '')) - parseInt(a.replace('p', '')),
-          )
-
-          for (const resolution of sortedResolutions) {
+        if (available.length > 0) {
+          for (const resolution of sorted) {
             const baseCheckUrl = `https://${streamConfig.hostname}/${videoId}/play_${resolution}.mp4`
             const checkContext = { ...context, filename: `${videoId}/play_${resolution}.mp4` }
             const checkUrl = maybeGenerateSignedUrl(baseCheckUrl, checkContext)

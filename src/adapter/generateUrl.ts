@@ -7,7 +7,7 @@ import { readStoredVideo } from '@/fields/bunnyGroupField.js'
 import type { CollectionContext } from '@/types/index.js'
 import { applyUrlTransform } from '@/utils/urlTransform.js'
 
-export const getGenerateURL = (context: CollectionContext): GenerateURL => {
+export const getGenerateUrl = (context: CollectionContext): GenerateURL => {
   const { collection, signedUrls, storageConfig, streamConfig, urlTransform } = context
 
   return ({ data, filename, prefix = '' }) => {

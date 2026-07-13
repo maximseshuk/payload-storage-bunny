@@ -8,7 +8,7 @@ import type {
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { Config } from 'payload'
 
-import { getGenerateURL, getHandleDelete, getHandleUpload, getStaticHandler } from './adapter/index.js'
+import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './adapter/index.js'
 import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './config/index.js'
 import { getFields } from './fields/getFields.js'
 import { getStreamCleanupTask } from './stream/cleanupTask.js'
@@ -187,7 +187,7 @@ const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => 
     return {
       name: 'bunny',
       fields: [],
-      generateURL: getGenerateURL(collectionContext),
+      generateURL: getGenerateUrl(collectionContext),
       handleDelete: getHandleDelete(collectionContext),
       handleUpload: getHandleUpload(collectionContext),
       staticHandler: getStaticHandler(collectionContext),

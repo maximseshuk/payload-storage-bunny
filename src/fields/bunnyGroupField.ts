@@ -1,6 +1,6 @@
-import type { Field, GroupField } from 'payload'
+import type { Field, GroupField, TypeWithID } from 'payload'
 
-import type { CollectionContext } from '@/types/index.js'
+import type { BunnyDataInternal, CollectionContext } from '@/types/index.js'
 
 type StoredResolutions = {
   available?: string[]
@@ -116,4 +116,26 @@ export const setStoredVideoId = (data: Record<string, unknown>, videoId: null | 
   stream.videoId = videoId
   bunnyData.stream = stream
   data.bunnyData = bunnyData
+}
+
+export const getBunnyData = (doc: TypeWithID | undefined, filename: string): BunnyDataInternal | null => {
+  if (!doc || typeof doc !== 'object') {
+    return null
+  }
+
+  if (filename && 'filename' in doc && doc.filename !== filename) {
+    return null
+  }
+
+  const stored = readStoredVideo(doc)
+  if (!stored?.videoId || typeof stored.videoId !== 'string') {
+    return null
+  }
+
+  return {
+    stream: {
+      resolutions: stored.resolutions,
+      videoId: stored.videoId,
+    },
+  }
 }

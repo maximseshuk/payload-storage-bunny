@@ -66,7 +66,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
   })
 
   describe('Video Resolution Update', () => {
-    it('should update bunnyVideoResolutions on webhook', async () => {
+    it('should update bunnyData.stream.resolutions on webhook', async () => {
       const libraryId = parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0')
 
       const upload = await payload.create({
@@ -74,9 +74,9 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
         data: { alt: 'Webhook test video' },
         filePath: path.resolve(import.meta.dirname, '../../fixtures/test-video.mp4'),
       })
-      expect(upload.bunnyVideoId).toBeTruthy()
+      expect((upload.bunnyData as any)?.stream?.videoId).toBeTruthy()
 
-      const videoId = upload.bunnyVideoId as string
+      const videoId = (upload.bunnyData as any).stream.videoId as string
       await waitForVideoProcessed(videoId)
 
       const response = await callWebhook(`http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`, {
@@ -91,8 +91,8 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
         collection: 'webhook-test',
         showHiddenFields: true,
       })
-      expect(updatedDoc.bunnyVideoResolutions).toBeTruthy()
-      expect(updatedDoc.bunnyVideoResolutions.highest).toMatch(/^\d+p$/)
+      expect((updatedDoc.bunnyData as any)?.stream?.resolutions).toBeTruthy()
+      expect((updatedDoc.bunnyData as any).stream.resolutions.highest).toMatch(/^\d+p$/)
 
       await payload.delete({ id: upload.id, collection: 'webhook-test' })
     }, 180000)

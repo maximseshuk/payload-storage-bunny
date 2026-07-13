@@ -1,6 +1,10 @@
-import type { BasePayload, CollectionConfig } from 'payload'
+import type { BasePayload, CollectionConfig, TypeWithID } from 'payload'
 
-import type { StreamUploadSession } from '@/types/index.js'
+export type StreamUploadSession = {
+  createdAt: string
+  libraryId: string
+  videoId: string
+} & TypeWithID
 
 export const streamUploadSessionsCollectionSlug = 'bunny-stream-upload-sessions'
 

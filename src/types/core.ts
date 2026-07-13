@@ -1,4 +1,4 @@
-import type { CollectionConfig, TypeWithID } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import type {
   NormalizedPurgeConfig,
@@ -22,12 +22,6 @@ export type CollectionContext = {
   urlTransform?: NormalizedUrlTransformConfig
   usePayloadAccessControl: boolean
 }
-
-export type StreamUploadSession = {
-  createdAt: string
-  libraryId: string
-  videoId: string
-} & TypeWithID
 
 export type StreamTusAuthRequest = {
   collection: string

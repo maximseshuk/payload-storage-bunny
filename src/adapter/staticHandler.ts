@@ -1,10 +1,10 @@
 import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
 import { HTTPError } from 'ky'
 
+import { getBunnyData } from '@/fields/bunnyGroupField.js'
 import { storageStaticHandler } from '@/storage/staticHandler.js'
 import { streamStaticHandler } from '@/stream/staticHandler.js'
-import { streamThumbnailStaticHandler } from '@/stream/thumbnail.js'
-import { getBunnyData } from '@/stream/video.js'
+import { streamThumbnailStaticHandler } from '@/stream/thumbnailStaticHandler.js'
 import type { CollectionContext } from '@/types/index.js'
 
 export const getStaticHandler = (context: CollectionContext): StaticHandler => {

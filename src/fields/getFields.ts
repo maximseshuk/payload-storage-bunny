@@ -34,35 +34,14 @@ export const getFields = (
     fields.unshift(...bunnyFields)
   }
 
-  let existingURLFieldIndex = -1
-  let existingThumbnailURLFieldIndex = -1
+  const existingURLField = fields.find((field) => 'name' in field && field.name === 'url' && field.type === 'text')
+  const existingThumbnailURLField = fields.find(
+    (field) => 'name' in field && field.name === 'thumbnailURL' && field.type === 'text',
+  )
 
-  const existingURLField = fields.find((existingField, i) => {
-    if ('name' in existingField && existingField.name === 'url' && existingField.type === 'text') {
-      existingURLFieldIndex = i
-      return true
-    }
-    return false
-  })
-
-  const existingThumbnailURLField = fields.find((existingField, i) => {
-    if ('name' in existingField && existingField.name === 'thumbnailURL' && existingField.type === 'text') {
-      existingThumbnailURLFieldIndex = i
-      return true
-    }
-    return false
-  })
-
-  if (existingURLFieldIndex !== -1) {
-    fields = fields.filter((_, i) => i !== existingURLFieldIndex)
-    if (existingThumbnailURLFieldIndex > existingURLFieldIndex) {
-      existingThumbnailURLFieldIndex--
-    }
-  }
-
-  if (existingThumbnailURLFieldIndex !== -1) {
-    fields = fields.filter((_, i) => i !== existingThumbnailURLFieldIndex)
-  }
+  fields = fields.filter(
+    (field) => !('name' in field && field.type === 'text' && (field.name === 'url' || field.name === 'thumbnailURL')),
+  )
 
   const urlField: TextField = {
     ...baseURLField,

@@ -3,9 +3,8 @@ import { MissingFile } from 'payload'
 
 import { getHandleDelete } from '@/adapter/handleDelete.js'
 import { readStoredVideo, setStoredVideoId } from '@/fields/bunnyGroupField.js'
-import { getStreamVideo } from '@/stream/api.js'
+import { getStreamVideo, isVideoProcessed } from '@/stream/api.js'
 import { deleteStreamVideoSession } from '@/stream/sessionsCollection.js'
-import { isVideoProcessed } from '@/stream/video.js'
 import type { CollectionContext } from '@/types/index.js'
 import { getSafeFileName } from '@/utils/file.js'
 

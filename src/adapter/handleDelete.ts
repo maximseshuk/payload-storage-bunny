@@ -5,13 +5,13 @@ import type { TFunction } from '@payloadcms/translations'
 import { APIError } from 'payload'
 
 import { purgeCache } from '@/cdn/purge.js'
+import { getBunnyData } from '@/fields/bunnyGroupField.js'
 import { deleteStorageFile } from '@/storage/api.js'
 import { deleteStreamVideo } from '@/stream/api.js'
-import { getBunnyData } from '@/stream/video.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
 import type { CollectionContext } from '@/types/index.js'
 
-import { getGenerateURL } from './generateUrl.js'
+import { getGenerateUrl } from './generateUrl.js'
 
 export const getHandleDelete = (context: CollectionContext): HandleDelete => {
   const { apiKey, purgeConfig, storageConfig, streamConfig } = context
@@ -24,7 +24,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
 
       let fileUrl: null | string = null
       if (!bunnyData?.stream && purgeConfig) {
-        fileUrl = await getGenerateURL(context)({
+        fileUrl = await getGenerateUrl(context)({
           collection,
           data: doc,
           filename,

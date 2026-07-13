@@ -366,3 +366,33 @@ export const getStreamVideoResolutions = async ({
     throw new Error(`Unable to get video resolutions: ${videoId}`, { cause: err })
   }
 }
+
+export const parseMp4Resolutions = (data: BunnyStreamVideoResolutions): { available: string[]; sorted: string[] } => {
+  const available =
+    data.mp4Resolutions?.map((r) => r.resolution).filter((resolution): resolution is string => Boolean(resolution)) ??
+    []
+  const sorted = [...available].toSorted((a, b) => parseInt(b.replace('p', '')) - parseInt(a.replace('p', '')))
+
+  return { available, sorted }
+}
+
+export const canUploadToVideo = (status: BunnyStreamVideoStatus): boolean => {
+  return status === BunnyStreamVideoStatus.Created
+}
+
+export const isVideoInErrorState = (status: BunnyStreamVideoStatus): boolean => {
+  return status === BunnyStreamVideoStatus.Error || status === BunnyStreamVideoStatus.UploadFailed
+}
+
+export const isVideoProcessed = (status: BunnyStreamVideoStatus): boolean => {
+  const processedStatuses = [
+    BunnyStreamVideoStatus.Uploaded,
+    BunnyStreamVideoStatus.Processing,
+    BunnyStreamVideoStatus.Transcoding,
+    BunnyStreamVideoStatus.Finished,
+    BunnyStreamVideoStatus.JitSegmenting,
+    BunnyStreamVideoStatus.JitPlaylistsCreated,
+  ]
+
+  return processedStatuses.includes(status)
+}
