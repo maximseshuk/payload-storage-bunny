@@ -1,0 +1,58 @@
+name: E2E 🎭
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v7
+
+      - name: Setup PNPM 📦
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js 🔧
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Check credentials 🔑
+        id: creds
+        env:
+          E2E_ENV: ${{ secrets.E2E_ENV }}
+        run: |
+          if [ -z "$E2E_ENV" ]; then
+            echo "E2E_ENV secret is not set — skipping e2e." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write .env 📝
+        if: steps.creds.outputs.run == 'true'
+        env:
+          E2E_ENV: ${{ secrets.E2E_ENV }}
+        run: printf '%s' "$E2E_ENV" > .env
+
+      - name: Install ⚡
+        if: steps.creds.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers 🎭
+        if: steps.creds.outputs.run == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Integration tests (vitest) 🧪
+        if: steps.creds.outputs.run == 'true'
+        run: pnpm test
+
+      - name: Browser e2e (Playwright) 🌐
+        if: steps.creds.outputs.run == 'true'
+        run: pnpm test:e2e
