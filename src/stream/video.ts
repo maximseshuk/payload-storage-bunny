@@ -1,5 +1,6 @@
 import type { TypeWithID } from 'payload'
 
+import { readStoredVideo } from '@/fields/bunnyGroupField.js'
 import { BunnyStreamVideoStatus } from '@/stream/api.js'
 import type { BunnyDataInternal } from '@/types/core.js'
 
@@ -33,17 +34,15 @@ export const getBunnyData = (doc: TypeWithID | undefined, filename: string): Bun
     return null
   }
 
-  if ('bunnyVideoId' in doc && typeof doc.bunnyVideoId === 'string') {
-    return {
-      stream: {
-        resolutions:
-          'bunnyVideoResolutions' in doc
-            ? (doc.bunnyVideoResolutions as { available?: string[]; highest?: string })
-            : undefined,
-        videoId: doc.bunnyVideoId,
-      },
-    }
+  const stored = readStoredVideo(doc)
+  if (!stored?.videoId || typeof stored.videoId !== 'string') {
+    return null
   }
 
-  return null
+  return {
+    stream: {
+      resolutions: stored.resolutions,
+      videoId: stored.videoId,
+    },
+  }
 }

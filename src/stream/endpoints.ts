@@ -196,7 +196,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                   collection: collectionSlug,
                   limit: 1,
                   where: {
-                    bunnyVideoId: {
+                    'bunnyData.stream.videoId': {
                       equals: VideoGuid,
                     },
                   },
@@ -226,9 +226,13 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                         id: doc.id,
                         collection: collectionSlug,
                         data: {
-                          bunnyVideoResolutions: {
-                            available: availableResolutions,
-                            highest: sortedResolutions[0],
+                          bunnyData: {
+                            stream: {
+                              resolutions: {
+                                available: availableResolutions,
+                                highest: sortedResolutions[0],
+                              },
+                            },
                           },
                         },
                       })

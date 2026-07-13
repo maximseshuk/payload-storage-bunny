@@ -1,9 +1,7 @@
 import type { CollectionConfig, Field, GroupField, TextField } from 'payload'
 
-import { dataField } from '@/fields/dataField.js'
+import { bunnyGroupField } from '@/fields/bunnyGroupField.js'
 import { getThumbnailURLAfterReadFieldHook, getUrlAfterReadFieldHook } from '@/fields/hooks.js'
-import { videoIdField } from '@/fields/videoIdField.js'
-import { videoResolutionsField } from '@/fields/videoResolutionsField.js'
 import type { CollectionContext } from '@/types/index.js'
 
 const getBunnyFields = (collectionContext: CollectionContext): Field[] => {
@@ -11,15 +9,7 @@ const getBunnyFields = (collectionContext: CollectionContext): Field[] => {
     return []
   }
 
-  const fields: Field[] = [videoIdField()]
-
-  if (collectionContext.streamConfig.mp4Fallback) {
-    fields.push(videoResolutionsField())
-  }
-
-  fields.push(dataField(collectionContext))
-
-  return fields
+  return [bunnyGroupField(collectionContext)]
 }
 
 export const getFields = (

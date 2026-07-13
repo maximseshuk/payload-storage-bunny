@@ -2,6 +2,7 @@ import type { CollectionAfterChangeHook, CollectionBeforeValidateHook, FileData,
 import { MissingFile } from 'payload'
 
 import { getHandleDelete } from '@/adapter/handleDelete.js'
+import { readStoredVideo, setStoredVideoId } from '@/fields/bunnyGroupField.js'
 import { getStreamVideo } from '@/stream/api.js'
 import { deleteStreamVideoSession } from '@/stream/sessionsCollection.js'
 import { isVideoProcessed } from '@/stream/video.js'
@@ -22,12 +23,12 @@ export const getBeforeValidateHook = ({
   return async ({ data, operation, originalDoc, req }) => {
     const file = req.file
 
-    if (operation === 'create' && filesRequiredOnCreate && !data?.bunnyVideoId && !file) {
+    if (operation === 'create' && filesRequiredOnCreate && !readStoredVideo(data)?.videoId && !file) {
       throw new MissingFile(req.t)
     }
 
-    if (data && !data.bunnyVideoId) {
-      data.bunnyVideoId = null
+    if (data && !readStoredVideo(data)?.videoId) {
+      setStoredVideoId(data, null)
     }
 
     const processVideoData = async (videoId: string, targetData: typeof data) => {
@@ -54,7 +55,7 @@ export const getBeforeValidateHook = ({
         targetData.height = null
         targetData.focalX = null
         targetData.focalY = null
-        targetData.bunnyVideoId = videoData.guid
+        setStoredVideoId(targetData, videoData.guid)
 
         if (!targetData.mimeType) {
           targetData.mimeType = 'video/mp4'
@@ -67,18 +68,22 @@ export const getBeforeValidateHook = ({
     }
 
     if (operation === 'update' && originalDoc && data) {
-      if (!file && data.bunnyVideoId && data.bunnyVideoId !== originalDoc.bunnyVideoId) {
+      const incomingVideoId = readStoredVideo(data)?.videoId
+      if (!file && incomingVideoId && incomingVideoId !== readStoredVideo(originalDoc)?.videoId) {
         if (!req.context) {
           req.context = {}
         }
         req.context.oldDoc = originalDoc
 
-        await processVideoData(data.bunnyVideoId, data)
+        await processVideoData(incomingVideoId, data)
       }
     }
 
-    if (operation === 'create' && !file && data?.bunnyVideoId) {
-      await processVideoData(data.bunnyVideoId, data)
+    if (operation === 'create' && !file) {
+      const incomingVideoId = readStoredVideo(data)?.videoId
+      if (incomingVideoId) {
+        await processVideoData(incomingVideoId, data)
+      }
     }
 
     return data
@@ -89,11 +94,12 @@ type AfterChangeData = FileData & JsonObject & TypeWithID
 
 export const getAfterChangeHook = (context: CollectionContext): CollectionAfterChangeHook<AfterChangeData> => {
   return async ({ data, req }) => {
-    if (context.streamConfig?.cleanup && data.bunnyVideoId) {
+    const videoId = readStoredVideo(data)?.videoId
+    if (context.streamConfig?.cleanup && videoId) {
       await deleteStreamVideoSession({
         libraryId: context.streamConfig.libraryId,
         payload: req.payload,
-        videoId: data.bunnyVideoId,
+        videoId,
       })
     }
 

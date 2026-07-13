@@ -58,11 +58,17 @@ type StreamTusAuthUploaded = {
 
 export type StreamTusAuthResponse = StreamTusAuthUpload | StreamTusAuthUploaded
 
-export type BunnyData = {
-  stream?: {
-    libraryId: number
-    videoId: string
+export type BunnyStreamData = {
+  libraryId: number
+  resolutions?: {
+    available?: string[]
+    highest?: string
   }
+  videoId: string
+}
+
+export type BunnyData = {
+  stream: BunnyStreamData
   type: 'stream'
 }
 

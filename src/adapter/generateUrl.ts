@@ -3,17 +3,18 @@ import { posix } from 'node:path'
 import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
 
 import { maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
-import type { BunnyData, CollectionContext } from '@/types/index.js'
+import { readStoredVideo } from '@/fields/bunnyGroupField.js'
+import type { CollectionContext } from '@/types/index.js'
 import { applyUrlTransform } from '@/utils/urlTransform.js'
 
 export const getGenerateURL = (context: CollectionContext): GenerateURL => {
   const { collection, signedUrls, storageConfig, streamConfig, urlTransform } = context
 
   return ({ data, filename, prefix = '' }) => {
-    const bunnyData = data?.bunnyData as BunnyData | undefined
+    const videoId = readStoredVideo(data)?.videoId
 
-    if (streamConfig && bunnyData && bunnyData.type === 'stream' && bunnyData.stream) {
-      let streamUrl = `https://${streamConfig.hostname}/${bunnyData.stream.videoId}/playlist.m3u8`
+    if (streamConfig && videoId) {
+      let streamUrl = `https://${streamConfig.hostname}/${videoId}/playlist.m3u8`
 
       if (urlTransform) {
         streamUrl = applyUrlTransform({
@@ -29,7 +30,7 @@ export const getGenerateURL = (context: CollectionContext): GenerateURL => {
       return maybeGenerateSignedUrl(
         streamUrl,
         { collection, filename, signedUrls, tokenSecurityKey: streamConfig.tokenSecurityKey },
-        { tokenPath: `/${bunnyData.stream.videoId}/` },
+        { tokenPath: `/${videoId}/` },
       )
     }
 

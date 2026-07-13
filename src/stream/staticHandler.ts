@@ -136,15 +136,19 @@ export const streamStaticHandler = async ({
         id: docId,
         collection: collection.slug,
         data: {
-          bunnyVideoResolutions: {
-            available: availableResolutions.length > 0 ? availableResolutions : undefined,
-            highest: fallbackQuality,
+          bunnyData: {
+            stream: {
+              resolutions: {
+                available: availableResolutions.length > 0 ? availableResolutions : undefined,
+                highest: fallbackQuality,
+              },
+            },
           },
         },
       })
     } catch (err) {
       if (!(err instanceof NotFound)) {
-        req.payload.logger.error({ err, msg: 'Failed to update bunnyVideoResolutions' })
+        req.payload.logger.error({ err, msg: 'Failed to update bunnyData resolutions' })
       }
     }
   }

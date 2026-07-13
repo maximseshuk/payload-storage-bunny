@@ -5,6 +5,7 @@ import type { TFunction } from '@payloadcms/translations'
 import { APIError } from 'payload'
 
 import { purgeCache } from '@/cdn/purge.js'
+import { setStoredVideoId } from '@/fields/bunnyGroupField.js'
 import { uploadStorageFile } from '@/storage/api.js'
 import { createStreamVideo, uploadStreamVideo } from '@/stream/api.js'
 import { createStreamVideoSession } from '@/stream/sessionsCollection.js'
@@ -51,7 +52,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           videoId: video.guid,
         })
 
-        data.bunnyVideoId = video.guid
+        setStoredVideoId(data, video.guid)
       } else if (storageConfig) {
         await uploadStorageFile({
           apiKey: storageConfig.apiKey,
@@ -63,7 +64,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           zoneName: storageConfig.zoneName,
         })
 
-        data.bunnyVideoId = null
+        setStoredVideoId(data, null)
 
         if (purgeConfig && apiKey) {
           const url = await getGenerateURL(context)({ collection, data, filename: fileName, prefix: uploadPrefix })

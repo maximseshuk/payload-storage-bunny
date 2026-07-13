@@ -9,7 +9,7 @@ export type UrlTransformFunction = (args: {
   baseUrl: string
   /** Collection configuration */
   collection: CollectionConfig
-  /** Document data (for streams contains bunnyVideoId) */
+  /** Document data (for streams contains bunnyData.stream.videoId) */
   data?: Record<string, unknown>
   /** Base filename */
   filename: string

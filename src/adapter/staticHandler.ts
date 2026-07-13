@@ -44,7 +44,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
             collection: collection.slug,
             limit: 1,
             where: {
-              bunnyVideoId: { exists: true },
+              'bunnyData.stream.videoId': { exists: true },
               filename: { equals: filename },
             },
           })

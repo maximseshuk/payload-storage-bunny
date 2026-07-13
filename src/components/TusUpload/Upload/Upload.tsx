@@ -66,7 +66,7 @@ export const Upload: React.FC<UploadProps> = ({
   const updateVideoFields = useCallback(
     (videoId: string, file: File) => {
       const fields = [
-        { path: 'bunnyVideoId', value: videoId },
+        { path: 'bunnyData.stream.videoId', value: videoId },
         { path: 'mimeType', value: state.tusData?.metadata?.filetype || file.type },
         { path: 'filesize', value: state.tusData?.size || file.size },
         { path: 'filename', value: state.tusData?.metadata?.title || file.name },
