@@ -75,17 +75,11 @@ const normalizeStorageConfig = (storage: StorageConfig): NormalizedStorageConfig
 })
 
 const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => {
-  let mimeTypes = stream.mimeTypes
-
-  if (typeof stream.tus === 'object' && stream.tus.mimeTypes !== undefined && stream.mimeTypes === undefined) {
-    mimeTypes = stream.tus.mimeTypes
-  }
-
   const normalized: NormalizedStreamConfig = {
     apiKey: stream.apiKey,
     hostname: stream.hostname,
     libraryId: stream.libraryId,
-    mimeTypes: mimeTypes ?? [...CONFIG_DEFAULTS.stream.mimeTypes],
+    mimeTypes: stream.mimeTypes ?? [...CONFIG_DEFAULTS.stream.mimeTypes],
     mp4Fallback: stream.mp4Fallback ?? CONFIG_DEFAULTS.stream.mp4Fallback,
     referer: stream.referer,
     thumbnailTime: stream.thumbnailTime,
@@ -136,8 +130,7 @@ const normalizePurgeConfig = (
     return undefined
   }
 
-  const apiKey = purge.apiKey ?? fallbackApiKey
-  if (!apiKey) {
+  if (!fallbackApiKey) {
     return undefined
   }
 

@@ -55,11 +55,6 @@ export type ThumbnailConfig = {
 
 export type PurgeConfig = {
   /**
-   * @deprecated Use global `apiKey` instead. This option will be removed in v2.3.0.
-   * Bunny Account API key (AccessKey) for CDN cache purging operations. If not specified, uses the global apiKey.
-   */
-  apiKey?: string
-  /**
    * Wait for purge to complete before continuing
    * @default false
    */
@@ -163,12 +158,6 @@ export type StreamTusConfig = {
    * `collection`, `filesize`, or `filename` before creating the upload).
    */
   checkAccess?: (req: PayloadRequest, body: StreamTusAuthRequest) => boolean | Promise<boolean>
-  /**
-   * @deprecated Use stream.mimeTypes instead. This option will be removed in v2.3.0.
-   * Video and audio file types allowed for TUS uploads.
-   * Moved to stream.mimeTypes for better organization.
-   */
-  mimeTypes?: string[]
   /**
    * Time in seconds for TUS upload session to expire
    * @default 3600

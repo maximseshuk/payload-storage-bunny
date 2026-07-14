@@ -1,6 +1,40 @@
+import type { BunnyStorageConfig } from '@/types/config.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 
+// TODO(v4): drop this deprecated-alias detection once v2 users have migrated.
+type DeprecatedConfig = {
+  adminThumbnail?: unknown
+  purge?: boolean | { apiKey?: unknown }
+  stream?: { tus?: boolean | { mimeTypes?: unknown } }
+}
+
+const findRemovedAliases = (original: BunnyStorageConfig): string[] => {
+  const deprecated = original as DeprecatedConfig
+  const messages: string[] = []
+
+  if (deprecated.adminThumbnail !== undefined) {
+    messages.push('"adminThumbnail" was removed in v3. Rename it to "thumbnail" (same shape).')
+  }
+
+  const tus = typeof deprecated.stream === 'object' ? deprecated.stream.tus : undefined
+  if (typeof tus === 'object' && tus.mimeTypes !== undefined) {
+    messages.push('"stream.tus.mimeTypes" was removed in v3. Move the array to "stream.mimeTypes".')
+  }
+
+  const purge = deprecated.purge
+  if (typeof purge === 'object' && purge.apiKey !== undefined) {
+    messages.push('"purge.apiKey" was removed in v3. Use the global `apiKey` instead.')
+  }
+
+  return messages
+}
+
 export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) => {
+  const removedAliases = findRemovedAliases(config._original)
+  if (removedAliases.length > 0) {
+    throw new Error(removedAliases.map((message) => `Config error: ${message}`).join('\n'))
+  }
+
   const errors: string[] = []
 
   if (!config.storage && !config.stream) {
@@ -20,12 +54,8 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     )
   }
 
-  const purge = config._original.purge
-  if (purge) {
-    const purgeApiKey = typeof purge === 'object' ? purge.apiKey : undefined
-    if (!config.apiKey && !purgeApiKey) {
-      errors.push('`purge` requires global `apiKey` to be provided')
-    }
+  if (config._original.purge && !config.apiKey) {
+    errors.push('`purge` requires global `apiKey` to be provided')
   }
 
   if (config.storage) {
