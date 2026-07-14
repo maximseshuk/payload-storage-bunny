@@ -9,11 +9,13 @@ import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 import { checkEdgeScriptVersion, deployEdgeScript } from './core.js'
 
 export const script: BinScript = async (config) => {
+  /* eslint-disable no-console */
   const logger = {
     error: (message: string) => console.error(message),
     info: (message: string) => console.log(message),
     warn: (message: string) => console.warn(message),
   }
+  /* eslint-enable no-console */
 
   const pluginCustom = config.custom?.['@seshuk/payload-storage-bunny'] as
     | { config?: NormalizedBunnyStorageConfig }

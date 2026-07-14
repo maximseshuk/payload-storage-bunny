@@ -21,6 +21,7 @@ export const killProcessGroup = async (proc: ChildProcess): Promise<void> => {
     proc.once('exit', () => {
       clearTimeout(timeout)
       log.success('Server stopped')
+      // eslint-disable-next-line promise/no-multiple-resolved
       resolve()
     })
 

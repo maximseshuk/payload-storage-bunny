@@ -93,8 +93,11 @@ export const getStreamCleanupTask = (
                 collection: streamUploadSessionsCollectionSlug,
                 req,
               })
-            } catch (err) {
-              req.payload.logger.error({ err, msg: `Bunny Cleanup: failed to delete session for ${videoId}` })
+            } catch (deleteErr) {
+              req.payload.logger.error({
+                err: deleteErr,
+                msg: `Bunny Cleanup: failed to delete session for ${videoId}`,
+              })
             }
           } else {
             req.payload.logger.error({ err, msg: `Bunny Cleanup: failed to process video ${videoId}` })

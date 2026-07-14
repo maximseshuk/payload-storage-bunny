@@ -130,6 +130,7 @@ export const Upload: React.FC<UploadProps> = ({
 
       upload
         .findPreviousUploads()
+        // eslint-disable-next-line promise/always-return
         .then((currentUploads) => {
           if (currentUploads.length > 0) {
             updateState({ tusData: currentUploads[0] })

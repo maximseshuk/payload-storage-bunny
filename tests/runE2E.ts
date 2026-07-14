@@ -121,12 +121,12 @@ const runSuite = async (suite: string, isUIMode: boolean): Promise<TestResult> =
     const playwrightConfig = path.resolve(__dirname, 'playwright.config.ts')
     const testPath = `suites/${suite}/`
 
-    const args = ['test', '-c', playwrightConfig, ...(isUIMode ? ['--ui'] : []), testPath]
+    const playwrightArgs = ['test', '-c', playwrightConfig, ...(isUIMode ? ['--ui'] : []), testPath]
 
-    log.info(`Running: playwright ${args.join(' ')}`)
+    log.info(`Running: playwright ${playwrightArgs.join(' ')}`)
     log.blank()
 
-    const result = spawnSync(playwrightBin, args, {
+    const result = spawnSync(playwrightBin, playwrightArgs, {
       cwd: projectRoot,
       env: {
         ...process.env,
