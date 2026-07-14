@@ -104,6 +104,48 @@ export type StorageConfig = {
   zoneName: string
 }
 
+export type ClientUploadsAccess = (args: { collectionSlug: string; req: PayloadRequest }) => boolean | Promise<boolean>
+
+export type ClientUploadsPrefix = (args: { collectionSlug: string; req: PayloadRequest }) => Promise<string> | string
+
+export type ClientUploadsEdgeConfig = {
+  /**
+   * Max accepted file size in bytes. Also enforced by the Edge Script.
+   * @default 1073741824 (1 GiB)
+   */
+  maxSize?: number
+  /**
+   * Deployed Edge Script URL, e.g. 'https://my-uploader.b-cdn.net'.
+   * Printed by the `bunny:deploy-edge-script` command.
+   */
+  scriptUrl: string
+  /** Shared HMAC secret. Must match the script's SHARED_SECRET secret. */
+  secret: string
+}
+
+export type ClientUploadsConfig = {
+  /**
+   * Determines who may request an upload URL.
+   * @default any authenticated user
+   */
+  access?: ClientUploadsAccess
+  /** Edge Script proxy settings. Required when `mode` is 'edge'. */
+  edge?: ClientUploadsEdgeConfig
+  /**
+   * Upload transport for browser-direct uploads.
+   * - `'edge'`: proxy the file through a Bunny Edge Script (works with any storage zone).
+   * - `'s3'`: presigned PUT straight to the S3 endpoint (requires `storage.s3`).
+   * @default 's3' when `storage.s3` is set, otherwise 'edge'
+   */
+  mode?: 'edge' | 's3'
+  /**
+   * Resolve the storage path prefix at mint time, server-side, before the file is uploaded.
+   * Use it for date/user folders, or a tenant segment in multi-tenant apps.
+   * @default the collection's static prefix
+   */
+  prefix?: ClientUploadsPrefix
+}
+
 export type StreamTusConfig = {
   /**
    * Automatically enable TUS mode when file MIME type is supported.
@@ -263,6 +305,11 @@ export type SignedUrlsConfig = {
 
 export type BunnyStorageCollectionConfig = {
   /**
+   * Override global client uploads config for this collection.
+   * Set to false to disable browser-direct uploads for this collection.
+   */
+  clientUploads?: ClientUploadsConfig | false
+  /**
    * Override global CDN cache purging config for this collection.
    * Set to false to disable cache purging for this collection.
    */
@@ -351,6 +398,11 @@ type BunnyStorageBaseConfig = {
    * Required for CDN cache purging feature.
    */
   apiKey?: string
+  /**
+   * Enable browser-direct uploads that bypass the Payload server for the file bytes,
+   * removing serverless body-size limits (e.g. Vercel's ~4.5 MB). Can be overridden per collection.
+   */
+  clientUploads?: ClientUploadsConfig | false
   /** Which collections should use Bunny Storage */
   collections: CollectionsConfig
   /**

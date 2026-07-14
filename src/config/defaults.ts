@@ -1,6 +1,11 @@
 import { TIMEOUTS, TUS_MIME_TYPES } from '@/utils/constants.js'
 
 export const CONFIG_DEFAULTS = {
+  clientUploads: {
+    edge: {
+      maxSize: 1073741824,
+    },
+  },
   purge: {
     async: false,
   },

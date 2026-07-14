@@ -46,6 +46,30 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     errors.push('stream `tokenSecurityKey` is required when signed URLs and stream are both enabled')
   }
 
+  for (const [slug, collection] of config.collections) {
+    const clientUploads = collection.clientUploads
+    if (!clientUploads) {
+      continue
+    }
+
+    if (!collection.storage) {
+      errors.push(`collection "${slug}" enables \`clientUploads\` but Bunny Storage is not enabled for it`)
+      continue
+    }
+
+    if (clientUploads.mode === 's3' && !collection.storage.s3) {
+      errors.push(
+        `collection "${slug}" uses \`clientUploads.mode: 's3'\` but \`storage.s3\` is not enabled; enable S3 or use \`mode: 'edge'\``,
+      )
+    }
+
+    if (clientUploads.mode === 'edge' && (!clientUploads.edge?.scriptUrl || !clientUploads.edge?.secret)) {
+      errors.push(
+        `collection "${slug}" uses \`clientUploads.mode: 'edge'\` but is missing \`clientUploads.edge.scriptUrl\` or \`clientUploads.edge.secret\``,
+      )
+    }
+  }
+
   if (config.stream) {
     const collectionsWithIssues: string[] = []
 

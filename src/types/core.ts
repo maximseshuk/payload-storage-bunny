@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import type {
+  NormalizedClientUploadsConfig,
   NormalizedPurgeConfig,
   NormalizedSignedUrlsConfig,
   NormalizedStorageConfig,
@@ -11,6 +12,7 @@ import type {
 
 export type CollectionContext = {
   apiKey?: string
+  clientUploads?: NormalizedClientUploadsConfig
   collection: CollectionConfig
   isTusUploadSupported: boolean
   prefix?: string

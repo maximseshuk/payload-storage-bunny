@@ -19,11 +19,16 @@ import { getGenerateUrl } from './generateUrl.js'
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
   const { apiKey, prefix, purgeConfig, storageConfig, streamConfig } = context
 
-  return async ({ collection, data, file, req }) => {
+  return async ({ clientUploadContext, collection, data, file, req }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     data.url = null
     data.thumbnailURL = null
+
+    if (clientUploadContext) {
+      setStoredVideoId(data, null)
+      return data
+    }
 
     try {
       const fileName = file.filename

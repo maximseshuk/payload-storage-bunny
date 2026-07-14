@@ -1,6 +1,7 @@
 import type {
   BunnyStorageCollectionConfig,
   BunnyStorageConfig,
+  ClientUploadsConfig,
   CollectionsConfig,
   PurgeConfig,
   SignedUrlsConfig,
@@ -11,6 +12,7 @@ import type {
 } from '@/types/config.js'
 import type {
   NormalizedBunnyStorageConfig,
+  NormalizedClientUploadsConfig,
   NormalizedCollectionConfig,
   NormalizedPurgeConfig,
   NormalizedSignedUrlsConfig,
@@ -26,6 +28,7 @@ export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedB
   const normalized: NormalizedBunnyStorageConfig = {
     _original: options,
     apiKey: options.apiKey,
+    clientUploads: normalizeClientUploadsConfig(options.clientUploads, !!options.storage?.s3),
     collections: new Map(),
     i18n: options.i18n,
     purge: options.purge ? normalizePurgeConfig(options.purge, options.apiKey) : undefined,
@@ -37,6 +40,31 @@ export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedB
   }
 
   normalized.collections = normalizeCollectionsConfig(options.collections, normalized)
+
+  return normalized
+}
+
+const normalizeClientUploadsConfig = (
+  value: ClientUploadsConfig | false | undefined,
+  hasS3: boolean,
+): NormalizedClientUploadsConfig | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  const normalized: NormalizedClientUploadsConfig = {
+    access: value.access,
+    mode: value.mode ?? (hasS3 ? 's3' : 'edge'),
+    prefix: value.prefix,
+  }
+
+  if (value.edge) {
+    normalized.edge = {
+      maxSize: value.edge.maxSize ?? CONFIG_DEFAULTS.clientUploads.edge.maxSize,
+      scriptUrl: value.edge.scriptUrl.replace(/\/+$/, ''),
+      secret: value.edge.secret,
+    }
+  }
 
   return normalized
 }
@@ -221,6 +249,7 @@ const normalizeCollectionConfig = (
 ): NormalizedCollectionConfig => {
   if (collectionConfig === true) {
     return {
+      clientUploads: normalizedGlobalConfig.clientUploads,
       disablePayloadAccessControl: false,
       prefix: '',
       purge: normalizedGlobalConfig.purge,
@@ -232,7 +261,14 @@ const normalizeCollectionConfig = (
     }
   }
 
+  const storage = resolveCollectionStorageConfig(collectionConfig.storage, normalizedGlobalConfig.storage)
+
   return {
+    clientUploads: resolveCollectionClientUploadsConfig(
+      collectionConfig.clientUploads,
+      normalizedGlobalConfig.clientUploads,
+      !!storage?.s3,
+    ),
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
     prefix: collectionConfig.prefix ?? '',
     purge: resolveCollectionPurgeConfig(collectionConfig.purge, normalizedGlobalConfig.purge),
@@ -241,7 +277,7 @@ const normalizeCollectionConfig = (
       normalizedGlobalConfig.signedUrls,
       normalizeSignedUrlsConfig,
     ),
-    storage: resolveCollectionStorageConfig(collectionConfig.storage, normalizedGlobalConfig.storage),
+    storage,
     stream: resolveCollectionStreamConfig(collectionConfig.stream, normalizedGlobalConfig.stream),
     thumbnail: resolveCollectionConfigSetting(collectionConfig.thumbnail, normalizedGlobalConfig.thumbnail, (value) =>
       normalizeThumbnailConfig(value, normalizedGlobalConfig.thumbnail),
@@ -252,6 +288,22 @@ const normalizeCollectionConfig = (
       (value) => normalizeUrlTransformConfig(value, undefined, normalizedGlobalConfig.urlTransform),
     ),
   }
+}
+
+const resolveCollectionClientUploadsConfig = (
+  collectionOverride: BunnyStorageCollectionConfig['clientUploads'],
+  globalValue: NormalizedClientUploadsConfig | undefined,
+  hasS3: boolean,
+): NormalizedClientUploadsConfig | undefined => {
+  if (collectionOverride === false) {
+    return undefined
+  }
+
+  if (collectionOverride === undefined) {
+    return globalValue
+  }
+
+  return normalizeClientUploadsConfig(collectionOverride, hasS3)
 }
 
 const resolveCollectionStorageConfig = (

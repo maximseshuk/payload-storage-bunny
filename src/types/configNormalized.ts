@@ -2,12 +2,25 @@ import type { TaskConfig } from 'payload'
 
 import type {
   BunnyStorageConfig,
+  ClientUploadsAccess,
+  ClientUploadsPrefix,
   SignedUrlsConfig,
   StorageConfig,
   StreamConfig,
   StreamTusConfig,
   UrlTransformFunction,
 } from './config.js'
+
+export type NormalizedClientUploadsConfig = {
+  access?: ClientUploadsAccess
+  edge?: {
+    maxSize: number
+    scriptUrl: string
+    secret: string
+  }
+  mode: 'edge' | 's3'
+  prefix?: ClientUploadsPrefix
+}
 
 export type NormalizedStorageConfig = {
   uploadTimeout: number
@@ -52,6 +65,7 @@ export type NormalizedPurgeConfig = {
 }
 
 export interface NormalizedCollectionConfig {
+  clientUploads?: NormalizedClientUploadsConfig
   disablePayloadAccessControl: boolean
   prefix: string
   purge?: NormalizedPurgeConfig
@@ -65,6 +79,7 @@ export interface NormalizedCollectionConfig {
 export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, 'i18n'> {
   _original: BunnyStorageConfig
   apiKey?: string
+  clientUploads?: NormalizedClientUploadsConfig
   collections: Map<string, NormalizedCollectionConfig>
   purge?: NormalizedPurgeConfig
   signedUrls?: NormalizedSignedUrlsConfig
