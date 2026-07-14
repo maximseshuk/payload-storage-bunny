@@ -32,6 +32,8 @@ export const streamStaticHandler = async ({
   const videoId = bunnyData.stream?.videoId ?? ''
   const videoResolutions = bunnyData.stream?.resolutions
 
+  const referer = streamConfig.referer
+
   const context = {
     collection,
     filename: '',
@@ -51,7 +53,7 @@ export const streamStaticHandler = async ({
     try {
       const checkUrl = maybeGenerateSignedUrl(savedResolutionUrl, checkContext)
       const headResponse = await fetch(checkUrl, {
-        headers: { Accept: 'video/mp4' },
+        headers: { Accept: 'video/mp4', ...(referer ? { Referer: referer } : {}) },
         method: 'HEAD',
       })
 
@@ -95,7 +97,7 @@ export const streamStaticHandler = async ({
 
             try {
               const headResponse = await fetch(checkUrl, {
-                headers: { Accept: 'video/mp4' },
+                headers: { Accept: 'video/mp4', ...(referer ? { Referer: referer } : {}) },
                 method: 'HEAD',
               })
 
@@ -169,6 +171,9 @@ export const streamStaticHandler = async ({
 
   const rangeHeader = req.headers.get('range')
   const requestHeaders = new Headers()
+  if (referer) {
+    requestHeaders.set('Referer', referer)
+  }
   if (rangeHeader) {
     requestHeaders.set('Range', rangeHeader)
   }

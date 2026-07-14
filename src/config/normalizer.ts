@@ -87,6 +87,7 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
     libraryId: stream.libraryId,
     mimeTypes: mimeTypes ?? [...CONFIG_DEFAULTS.stream.mimeTypes],
     mp4Fallback: stream.mp4Fallback ?? CONFIG_DEFAULTS.stream.mp4Fallback,
+    referer: stream.referer,
     thumbnailTime: stream.thumbnailTime,
     tokenSecurityKey: stream.tokenSecurityKey,
     uploadTimeout: stream.uploadTimeout ?? CONFIG_DEFAULTS.stream.uploadTimeout,

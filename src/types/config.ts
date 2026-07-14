@@ -230,6 +230,13 @@ export type StreamConfig = {
    */
   mp4Fallback?: boolean
   /**
+   * Referer header sent on server-side requests to Bunny when serving the MP4
+   * fallback through Payload access control. Set this only if your Stream library
+   * blocks requests without a referrer (BlockNoneReferrer); the value must satisfy
+   * the library's allowed referrers. Leave unset for default libraries.
+   */
+  referer?: string
+  /**
    * Default thumbnail time in milliseconds for Bunny Stream videos.
    * Specifies which moment in videos to capture as thumbnail.
    * Can be overridden per collection. Use with thumbnail: true to display thumbnails.
