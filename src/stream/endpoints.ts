@@ -2,6 +2,7 @@ import type { Endpoint } from 'payload'
 import { APIError, getAccessResults } from 'payload'
 
 import { createCollectionContext } from '@/config/context.js'
+import { streamWebhookOperation, tusAuthOperation } from '@/openapi.js'
 import {
   canUploadToVideo,
   createStreamVideo,
@@ -159,6 +160,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
           throw new APIError(reqT('error:unknown'), 500, undefined, true)
         }
       },
+      custom: { openapi: tusAuthOperation },
       method: 'post',
       path: '/storage-bunny/stream/tus-auth',
     })
@@ -259,6 +261,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
           return Response.json({ error: 'Internal server error' }, { status: 500 })
         }
       },
+      custom: { openapi: streamWebhookOperation },
       method: 'post',
       path: '/storage-bunny/stream/webhook',
     })

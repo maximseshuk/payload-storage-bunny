@@ -15,6 +15,7 @@ import type { BinScriptConfig, Config } from 'payload'
 import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './adapter/index.js'
 import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './config/index.js'
 import { getFields } from './fields/getFields.js'
+import { clientUploadOperation } from './openapi.js'
 import { getClientUploadHandler } from './storage/clientUploads/endpoint.js'
 import { getStreamCleanupTask } from './stream/cleanupTask.js'
 import { getStreamEndpoints } from './stream/endpoints.js'
@@ -209,6 +210,13 @@ export const bunnyStorage: BunnyStoragePlugin =
         serverHandler: getClientUploadHandler(config),
         serverHandlerPath: '/storage-bunny/storage/upload',
       })
+
+      const clientUploadEndpoint = finalConfig.endpoints?.find((endpoint) =>
+        endpoint.path?.startsWith('/storage-bunny/storage/upload'),
+      )
+      if (clientUploadEndpoint) {
+        clientUploadEndpoint.custom = { ...clientUploadEndpoint.custom, openapi: clientUploadOperation }
+      }
     }
 
     return cloudStoragePlugin({

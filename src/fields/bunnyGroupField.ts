@@ -1,5 +1,6 @@
 import type { Field, GroupField, TypeWithID } from 'payload'
 
+import { bunnyDataFieldOpenApi } from '@/openapi.js'
 import type { BunnyDataInternal, CollectionContext } from '@/types/index.js'
 
 type StoredResolutions = {
@@ -46,6 +47,7 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
     name: 'bunnyData',
     type: 'group',
     admin: { hidden: true },
+    custom: { openapi: bunnyDataFieldOpenApi },
     fields: [
       {
         name: 'type',
