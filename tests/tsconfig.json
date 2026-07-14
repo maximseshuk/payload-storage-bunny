@@ -1,36 +1,36 @@
 {
   "compilerOptions": {
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noEmit": true,
+    "incremental": true,
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "allowJs": true,
-    "checkJs": false,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
     "jsx": "preserve",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "types": ["node"],
-    "incremental": true,
-    "isolatedModules": true,
-    "sourceMap": false,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "paths": {
       "@payload-config": ["./payload.config.ts"],
       "@/*": ["../src/*"],
       "@seshuk/payload-storage-bunny": ["../src/index.ts"],
       "@seshuk/payload-storage-bunny/client": ["../src/exports/client.ts"],
       "@seshuk/payload-storage-bunny/rsc": ["../src/exports/rsc.ts"]
-    }
+    },
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "sourceMap": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
   "references": [
     {

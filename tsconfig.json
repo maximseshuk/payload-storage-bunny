@@ -1,30 +1,30 @@
 {
   "compilerOptions": {
+    "incremental": true,
+    "composite": true,
+    "target": "ES2022",
+    "jsx": "preserve",
     "lib": ["DOM", "DOM.Iterable", "ES2023"],
     "rootDir": "./",
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "esModuleInterop": true,
     "module": "NodeNext",
     "moduleResolution": "nodenext",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "emitDeclarationOnly": true,
-    "target": "ES2022",
-    "composite": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "paths": {
       "@/*": ["./src/*"],
       "@seshuk/payload-storage-bunny": ["./src/index.ts"],
       "@seshuk/payload-storage-bunny/client": ["./src/exports/client.ts"]
-    }
+    },
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,
+    "emitDeclarationOnly": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
   "include": ["./src/**/*.ts", "./src/**/*.tsx", "./tests/**/*.ts", "./tests/next-env.d.ts"],
   "exclude": ["./tests/app/**/*", "./tests/payload.config.ts"]
