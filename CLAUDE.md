@@ -42,8 +42,8 @@ User Config → Normalizer → Collection Context → Handlers → Bunny API
 ```
 
 1. **User config** (`BunnyStorageConfig`) - What user provides in `payload.config.ts`
-2. **Normalizer** (`normalizer.ts`) - Fills defaults, validates, converts to `NormalizedBunnyStorageConfig`
-3. **Collection context** (`context.ts`) - Per-collection runtime config (merges global + collection overrides)
+2. **Normalizer** (`normalizer.ts`) - Fills defaults, validates, and merges global + per-collection overrides (the `resolveCollection*Config` family), producing `NormalizedBunnyStorageConfig`
+3. **Collection context** (`context.ts`) - Wraps the already-resolved per-collection config as the runtime `CollectionContext` (no merging here)
 4. **Handlers** - Use context (never global config directly)
 5. **Bunny API** - Storage or Stream endpoints
 
@@ -106,9 +106,9 @@ src/
 │   ├── configNormalized.ts # NormalizedBunnyStorageConfig (internal)
 │   └── core.ts             # CollectionContext
 │
-├── utils/config/    # Config processing (critical!)
-│   ├── normalizer.ts       # User config → Normalized config
-│   ├── context.ts          # Normalized → Collection context (APPLY OVERRIDES HERE)
+├── config/          # Config processing (critical!)
+│   ├── normalizer.ts       # User config → Normalized config + per-collection override merge (APPLY OVERRIDES HERE)
+│   ├── context.ts          # Wraps resolved per-collection config as runtime CollectionContext
 │   ├── defaults.ts         # Default values
 │   └── validator.ts        # Validation
 │
@@ -166,10 +166,10 @@ export type BunnyStorageCollectionConfig = {
   }
 }
 
-// 2. utils/config/context.ts - Apply override
-const prepareStreamConfig = (...) => {
-  if (collectionConfig.stream?.quality !== undefined) {
-    streamConfig.quality = collectionConfig.stream.quality  // NEW
+// 2. config/normalizer.ts - Apply override in resolveCollectionStreamConfig
+const resolveCollectionStreamConfig = (...) => {
+  if (collectionOverride.quality !== undefined) {
+    streamConfig.quality = collectionOverride.quality  // NEW
   }
 }
 

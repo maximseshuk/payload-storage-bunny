@@ -17,6 +17,10 @@ const createBaseStream = () => ({
   tokenSecurityKey: 'stream-token',
 })
 
+const testShouldUseSignedUrl = () => true
+const testClientAccess = () => true
+const testClientPrefix = () => 'global-prefix'
+
 describe('Config Normalizer', () => {
   describe('thumbnail', () => {
     const globalThumbnail = {
@@ -225,6 +229,26 @@ describe('Config Normalizer', () => {
       expect(normalized.collections.get('media')?.signedUrls?.expiresIn).toBe(7200)
     })
 
+    it('should inherit global keys on partial override', () => {
+      const config: BunnyStorageConfig = {
+        apiKey: 'test-api-key',
+        collections: { media: { signedUrls: { expiresIn: 100 } } },
+        signedUrls: {
+          allowedCountries: ['US', 'CA'],
+          expiresIn: 3600,
+          shouldUseSignedUrl: testShouldUseSignedUrl,
+          staticHandler: { useRedirect: true },
+        },
+        storage: createBaseStorage(),
+      }
+
+      const collectionSigned = createNormalizedConfig(config).collections.get('media')?.signedUrls
+      expect(collectionSigned?.expiresIn).toBe(100)
+      expect(collectionSigned?.allowedCountries).toEqual(['US', 'CA'])
+      expect(collectionSigned?.shouldUseSignedUrl).toBeDefined()
+      expect(collectionSigned?.staticHandler?.useRedirect).toBe(true)
+    })
+
     it('should disable via false', () => {
       const config: BunnyStorageConfig = {
         apiKey: 'test-api-key',
@@ -235,6 +259,29 @@ describe('Config Normalizer', () => {
 
       const normalized = createNormalizedConfig(config)
       expect(normalized.collections.get('media')?.signedUrls).toBeUndefined()
+    })
+  })
+
+  describe('clientUploads', () => {
+    it('should inherit global keys on partial override', () => {
+      const config: BunnyStorageConfig = {
+        apiKey: 'test-api-key',
+        clientUploads: {
+          access: testClientAccess,
+          edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' },
+          mode: 'edge',
+          prefix: testClientPrefix,
+        },
+        collections: { media: { clientUploads: { mode: 'edge' } } },
+        storage: createBaseStorage(),
+      }
+
+      const collectionCU = createNormalizedConfig(config).collections.get('media')?.clientUploads
+      expect(collectionCU?.mode).toBe('edge')
+      expect(collectionCU?.access).toBe(testClientAccess)
+      expect(collectionCU?.prefix).toBe(testClientPrefix)
+      expect(collectionCU?.edge?.scriptUrl).toBe('https://uploader.b-cdn.net')
+      expect(collectionCU?.edge?.secret).toBe('shared')
     })
   })
 
@@ -263,6 +310,18 @@ describe('Config Normalizer', () => {
         const normalized = createNormalizedConfig(config)
         expect(normalized.collections.get('media')?.purge?.async).toBe(expected)
       })
+    })
+
+    it('should enable with defaults when true and no global purge', () => {
+      const config: BunnyStorageConfig = {
+        apiKey: 'test-api-key',
+        collections: { media: { purge: true } },
+        storage: createBaseStorage(),
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('media')?.purge).toBeDefined()
+      expect(normalized.collections.get('media')?.purge?.async).toBe(false)
     })
 
     it('should disable via false', () => {

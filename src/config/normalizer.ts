@@ -113,12 +113,9 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
   return normalized
 }
 
-const normalizePurgeConfig = (
-  purge: boolean | PurgeConfig,
-  fallbackApiKey?: string,
-): NormalizedPurgeConfig | undefined => {
+const normalizePurgeConfig = (purge: boolean | PurgeConfig, apiKey?: string): NormalizedPurgeConfig | undefined => {
   if (purge === true) {
-    if (!fallbackApiKey) {
+    if (!apiKey) {
       return undefined
     }
     return {
@@ -130,7 +127,7 @@ const normalizePurgeConfig = (
     return undefined
   }
 
-  if (!fallbackApiKey) {
+  if (!apiKey) {
     return undefined
   }
 
@@ -139,30 +136,35 @@ const normalizePurgeConfig = (
   }
 }
 
-const normalizeSignedUrlsConfig = (value?: boolean | SignedUrlsConfig): NormalizedSignedUrlsConfig | undefined => {
+const normalizeSignedUrlsConfig = (
+  value?: boolean | SignedUrlsConfig,
+  globalConfig?: NormalizedSignedUrlsConfig,
+): NormalizedSignedUrlsConfig | undefined => {
   if (!value) {
     return undefined
   }
 
   if (value === true) {
-    return {
-      expiresIn: CONFIG_DEFAULTS.signedUrls.expiresIn,
-    }
+    return globalConfig ?? { expiresIn: CONFIG_DEFAULTS.signedUrls.expiresIn }
   }
 
   const normalized: NormalizedSignedUrlsConfig = {
-    allowedCountries: value.allowedCountries,
-    blockedCountries: value.blockedCountries,
-    expiresIn: value.expiresIn ?? CONFIG_DEFAULTS.signedUrls.expiresIn,
-    shouldUseSignedUrl: value.shouldUseSignedUrl ? (...args) => value.shouldUseSignedUrl!(...args) : undefined,
+    allowedCountries: value.allowedCountries ?? globalConfig?.allowedCountries,
+    blockedCountries: value.blockedCountries ?? globalConfig?.blockedCountries,
+    expiresIn: value.expiresIn ?? globalConfig?.expiresIn ?? CONFIG_DEFAULTS.signedUrls.expiresIn,
+    shouldUseSignedUrl: value.shouldUseSignedUrl
+      ? (...args) => value.shouldUseSignedUrl!(...args)
+      : globalConfig?.shouldUseSignedUrl,
   }
 
   if (value.staticHandler) {
     normalized.staticHandler = {
-      expiresIn: value.staticHandler.expiresIn,
-      redirectStatus: value.staticHandler.redirectStatus ?? 302,
-      useRedirect: value.staticHandler.useRedirect ?? false,
+      expiresIn: value.staticHandler.expiresIn ?? globalConfig?.staticHandler?.expiresIn,
+      redirectStatus: value.staticHandler.redirectStatus ?? globalConfig?.staticHandler?.redirectStatus ?? 302,
+      useRedirect: value.staticHandler.useRedirect ?? globalConfig?.staticHandler?.useRedirect ?? false,
     }
+  } else if (globalConfig?.staticHandler) {
+    normalized.staticHandler = globalConfig.staticHandler
   }
 
   return normalized
@@ -265,11 +267,15 @@ const normalizeCollectionConfig = (
     ),
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
     prefix: collectionConfig.prefix ?? '',
-    purge: resolveCollectionPurgeConfig(collectionConfig.purge, normalizedGlobalConfig.purge),
+    purge: resolveCollectionPurgeConfig(
+      collectionConfig.purge,
+      normalizedGlobalConfig.purge,
+      normalizedGlobalConfig.apiKey,
+    ),
     signedUrls: resolveCollectionConfigSetting(
       collectionConfig.signedUrls,
       normalizedGlobalConfig.signedUrls,
-      normalizeSignedUrlsConfig,
+      (value) => normalizeSignedUrlsConfig(value, normalizedGlobalConfig.signedUrls),
     ),
     storage,
     stream: resolveCollectionStreamConfig(collectionConfig.stream, normalizedGlobalConfig.stream),
@@ -297,7 +303,34 @@ const resolveCollectionClientUploadsConfig = (
     return globalValue
   }
 
-  return normalizeClientUploadsConfig(collectionOverride, hasS3)
+  if (!globalValue) {
+    return normalizeClientUploadsConfig(collectionOverride, hasS3)
+  }
+
+  const merged: NormalizedClientUploadsConfig = { ...globalValue }
+
+  if (collectionOverride.access !== undefined) {
+    merged.access = collectionOverride.access
+  }
+
+  if (collectionOverride.mode !== undefined) {
+    merged.mode = collectionOverride.mode
+  }
+
+  if (collectionOverride.prefix !== undefined) {
+    merged.prefix = collectionOverride.prefix
+  }
+
+  if (collectionOverride.edge !== undefined) {
+    merged.edge = {
+      maxSize:
+        collectionOverride.edge.maxSize ?? globalValue.edge?.maxSize ?? CONFIG_DEFAULTS.clientUploads.edge.maxSize,
+      scriptUrl: collectionOverride.edge.scriptUrl.replace(/\/+$/, ''),
+      secret: collectionOverride.edge.secret,
+    }
+  }
+
+  return merged
 }
 
 const resolveCollectionStorageConfig = (
@@ -381,17 +414,22 @@ const resolveCollectionStreamConfig = (
 const resolveCollectionPurgeConfig = (
   collectionValue: boolean | Partial<PurgeConfig> | undefined,
   globalValue: NormalizedPurgeConfig | undefined,
+  apiKey?: string,
 ): NormalizedPurgeConfig | undefined => {
   if (collectionValue === false) {
     return undefined
   }
 
-  if (collectionValue === true || collectionValue === undefined) {
+  if (collectionValue === undefined) {
     return globalValue
   }
 
+  if (collectionValue === true) {
+    return globalValue ?? normalizePurgeConfig(true, apiKey)
+  }
+
   if (!globalValue) {
-    return normalizePurgeConfig(collectionValue)
+    return normalizePurgeConfig(collectionValue, apiKey)
   }
 
   return {
