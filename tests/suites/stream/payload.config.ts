@@ -73,6 +73,7 @@ export default buildConfigWithDefaults({
         hostname: process.env.BUNNY_STREAM_HOSTNAME || '',
         libraryId: parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || ''),
         mp4Fallback: true,
+        referer: `https://${process.env.BUNNY_STREAM_HOSTNAME || ''}/`,
         thumbnailTime: 0,
         tus: true,
       },

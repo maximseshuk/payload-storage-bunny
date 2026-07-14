@@ -163,6 +163,8 @@ test.describe('Stream - TUS File Replacement', () => {
   const secondVideoFilename = 'stream-replace-second.mp4'
 
   test('should upload first file, remove it, upload second file, then save', async ({ page }) => {
+    test.setTimeout(600000)
+
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
 
@@ -224,11 +226,13 @@ test.describe('Stream - TUS File Replacement', () => {
     expect(doc.bunnyData.stream.videoId).toBeTruthy()
 
     const videoId = doc.bunnyData.stream.videoId
-    const processed = await waitForVideoProcessed(videoId)
+    const processed = await waitForVideoProcessed(videoId, { timeout: 300000 })
     expect(processed).toBeTruthy()
 
-    const mp4Response = await page.request.get(`${serverUrl}/api/stream-manual/file/${doc.filename}`)
-    expect(mp4Response.status()).toBe(200)
+    const mp4Url = `${serverUrl}/api/stream-manual/file/${doc.filename}`
+    await expect
+      .poll(async () => (await page.request.get(mp4Url)).status(), { intervals: [1000, 2000, 5000], timeout: 120000 })
+      .toBe(200)
 
     await deleteDocAndAssert(page)
   })
@@ -243,6 +247,8 @@ test.describe('Stream - MP4 Fallback', () => {
   })
 
   test('should serve MP4 with correct content-type after processing', async ({ page }) => {
+    test.setTimeout(600000)
+
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
 
@@ -281,12 +287,15 @@ test.describe('Stream - MP4 Fallback', () => {
     expect(doc.bunnyData.type).toBe('stream')
 
     const videoId = doc.bunnyData.stream.videoId
-    const processed = await waitForVideoProcessed(videoId)
+    const processed = await waitForVideoProcessed(videoId, { timeout: 300000 })
     expect(processed).toBeTruthy()
 
-    const mp4FallbackResponse = await page.request.get(`${serverUrl}/api/stream-manual/file/${doc.filename}`)
-    expect(mp4FallbackResponse.status()).toBe(200)
+    const mp4Url = `${serverUrl}/api/stream-manual/file/${doc.filename}`
+    await expect
+      .poll(async () => (await page.request.get(mp4Url)).status(), { intervals: [1000, 2000, 5000], timeout: 120000 })
+      .toBe(200)
 
+    const mp4FallbackResponse = await page.request.get(mp4Url)
     const contentType = mp4FallbackResponse.headers()['content-type']
     expect(contentType).toContain('video/mp4')
 
