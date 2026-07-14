@@ -1,4 +1,4 @@
-import { startMongoMemoryServer, stopMongoMemoryServer } from './mongoMemoryServer.js'
+import { startMongoMemoryServer, stopMongoMemoryServer } from '../shared/mongoMemoryServer.js'
 
 let teardownHappened = false
 

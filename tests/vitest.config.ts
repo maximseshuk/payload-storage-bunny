@@ -13,7 +13,7 @@ export default defineConfig({
     },
     environment: 'node',
     globals: true,
-    globalSetup: path.resolve(__dirname, './helpers/vitestGlobalSetup.ts'),
+    globalSetup: path.resolve(__dirname, './helpers/int/vitestGlobalSetup.ts'),
     root: __dirname,
   },
 })

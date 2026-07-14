@@ -4,9 +4,9 @@ import path from 'node:path'
 import { getFileByPath, type Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { cleanupStreamVideos } from '../../helpers/bunnyStream.js'
-import { hasBunnyCredentials } from '../../helpers/credentials.js'
-import { getPayload } from '../../helpers/getPayload.js'
+import { cleanupStreamVideos } from '../../helpers/e2e/bunnyStream.js'
+import { getPayload } from '../../helpers/int/getPayload.js'
+import { hasBunnyCredentials } from '../../helpers/shared/credentials.js'
 
 describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
   let payload: Payload

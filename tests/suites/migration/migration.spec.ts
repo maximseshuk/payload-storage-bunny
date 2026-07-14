@@ -7,9 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { migrateBunnyData } from '@/migrations/index.js'
 
 import { bunnyStorage } from '../../../src/index.js'
-import { buildConfigWithDefaults } from '../../helpers/buildConfigWithDefaults.js'
-import { createMediaCollection } from '../../helpers/createMediaCollection.js'
-import { startPgliteServer, stopPgliteServer } from '../../helpers/pgliteServer.js'
+import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDefaults.js'
+import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
+import { startPgliteServer, stopPgliteServer } from '../../helpers/shared/pgliteServer.js'
 
 const SLUG = 'migration-media'
 const TABLE = 'migration_media'

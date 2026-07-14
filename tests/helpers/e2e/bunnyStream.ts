@@ -1,7 +1,7 @@
 import { deleteStreamVideo, getStreamVideo, listStreamVideos } from '@/stream/api.js'
 import { type BunnyStreamCredentials, BunnyStreamVideoStatus } from '@/stream/api.js'
 
-import { log } from './log.js'
+import { log } from '../shared/log.js'
 
 const getCredentials = (envPrefix?: string): BunnyStreamCredentials | null => {
   const prefix = envPrefix ? `BUNNY_${envPrefix}_` : 'BUNNY_'

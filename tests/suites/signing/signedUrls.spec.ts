@@ -3,9 +3,9 @@ import path from 'node:path'
 import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/bunnyStream.js'
-import { hasSignedBunnyCredentials } from '../../helpers/credentials.js'
-import { getPayload } from '../../helpers/getPayload.js'
+import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/e2e/bunnyStream.js'
+import { getPayload } from '../../helpers/int/getPayload.js'
+import { hasSignedBunnyCredentials } from '../../helpers/shared/credentials.js'
 
 describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
   let payload: Payload

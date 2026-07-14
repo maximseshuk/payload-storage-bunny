@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export const getSuiteDir = (suite: string): string => {
-  const suiteDir = path.resolve(__dirname, '..', 'suites', suite)
+  const suiteDir = path.resolve(__dirname, '..', '..', 'suites', suite)
 
   if (!fs.existsSync(suiteDir)) {
     throw new Error(`Test suite not found: ${suite}`)

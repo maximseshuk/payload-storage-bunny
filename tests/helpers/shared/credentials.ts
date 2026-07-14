@@ -11,6 +11,26 @@ export const hasBunnyCredentials = (): boolean =>
     'BUNNY_STREAM_HOSTNAME',
   )
 
+export const hasStorageCredentials = (): boolean =>
+  hasEnv('BUNNY_STORAGE_API_KEY', 'BUNNY_STORAGE_ZONE_NAME', 'BUNNY_STORAGE_HOSTNAME')
+
+export const hasS3StorageCredentials = (): boolean =>
+  hasEnv(
+    'BUNNY_S3_STORAGE_API_KEY',
+    'BUNNY_S3_STORAGE_ZONE_NAME',
+    'BUNNY_S3_STORAGE_HOSTNAME',
+    'BUNNY_S3_STORAGE_REGION',
+  )
+
+export const hasClientUploadsEdgeCredentials = (): boolean =>
+  hasEnv(
+    'BUNNY_STORAGE_API_KEY',
+    'BUNNY_STORAGE_ZONE_NAME',
+    'BUNNY_STORAGE_HOSTNAME',
+    'BUNNY_EDGE_SCRIPT_URL',
+    'BUNNY_EDGE_SECRET',
+  )
+
 export const hasSignedBunnyCredentials = (): boolean =>
   hasEnv(
     'BUNNY_SIGNED_STORAGE_API_KEY',

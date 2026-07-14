@@ -24,7 +24,7 @@ export default defineConfig({
   retries: process.env.CI ? 3 : undefined,
   testDir: '.',
   testMatch: '**/*.e2e.ts',
-  timeout: 60 * 1000, // 1 minute
+  timeout: 60 * 1000,
   use: {
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',

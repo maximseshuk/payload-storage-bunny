@@ -4,9 +4,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { log } from './helpers/log.js'
-import { killProcessGroup } from './helpers/process.js'
-import { findAvailablePort, waitForServer } from './helpers/server.js'
+import { findAvailablePort, waitForServer } from './helpers/e2e/server.js'
+import { log } from './helpers/shared/log.js'
+import { killProcessGroup } from './helpers/shared/process.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

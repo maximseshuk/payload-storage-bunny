@@ -6,11 +6,11 @@ import { fileURLToPath, parse } from 'node:url'
 import nextEnv from '@next/env'
 import next from 'next'
 
-import { getSuiteDir } from './helpers/getSuiteDir.js'
-import { initDev } from './helpers/initDev.js'
-import { log } from './helpers/log.js'
-import { startMongoMemoryServer, stopMongoMemoryServer } from './helpers/mongoMemoryServer.js'
-import { findAvailablePort } from './helpers/server.js'
+import { initDev } from './helpers/e2e/initDev.js'
+import { findAvailablePort } from './helpers/e2e/server.js'
+import { getSuiteDir } from './helpers/shared/getSuiteDir.js'
+import { log } from './helpers/shared/log.js'
+import { startMongoMemoryServer, stopMongoMemoryServer } from './helpers/shared/mongoMemoryServer.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -36,9 +36,7 @@ const setupSuite = (suiteName: string) => {
   try {
     fs.lstatSync(symlinkPath)
     fs.unlinkSync(symlinkPath)
-  } catch {
-    /* empty */
-  }
+  } catch {}
 
   fs.symlinkSync(path.relative(__dirname, targetPath), symlinkPath)
   log.info(`Linked config → ${path.relative(__dirname, targetPath)}`)
@@ -79,7 +77,6 @@ const startDev = async () => {
     process.env.TURBOPACK = '1'
   }
 
-  // Forward environment to Next.js (important for env vars created after loadEnv)
   nextEnv.updateInitialEnv(process.env)
 
   // @ts-expect-error Next.js types

@@ -5,16 +5,23 @@ import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDef
 import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
 
 export default buildConfigWithDefaults({
-  collections: [createMediaCollection({ slug: 'storage-basic' })],
+  collections: [
+    createMediaCollection({
+      slug: 'client-uploads-edge',
+      upload: { mimeTypes: ['image/*'] },
+    }),
+  ],
   plugins: [
     bunnyStorage({
-      apiKey: process.env.BUNNY_API_KEY || '',
+      clientUploads: {
+        edge: {
+          scriptUrl: process.env.BUNNY_EDGE_SCRIPT_URL || 'https://uploader.invalid',
+          secret: process.env.BUNNY_EDGE_SECRET || 'placeholder-secret',
+        },
+      },
       collections: {
-        'storage-basic': {
-          disablePayloadAccessControl: true,
-          prefix: 'storage-basic',
-          signedUrls: false,
-          stream: false,
+        'client-uploads-edge': {
+          prefix: 'client-uploads-edge',
         },
       },
       enabled: true,

@@ -4,8 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createStreamVideo, deleteStreamVideo, getStreamVideo } from '@/stream/api.js'
 import { streamUploadSessionsCollectionSlug } from '@/stream/sessionsCollection.js'
 
-import { hasBunnyCredentials } from '../../helpers/credentials.js'
-import { getPayload } from '../../helpers/getPayload.js'
+import { getPayload } from '../../helpers/int/getPayload.js'
+import { hasBunnyCredentials } from '../../helpers/shared/credentials.js'
 
 describe.skipIf(!hasBunnyCredentials())('Stream Cleanup Task', () => {
   let payload: Payload

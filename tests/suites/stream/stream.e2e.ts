@@ -3,9 +3,9 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test } from '@playwright/test'
 
-import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/bunnyStream.js'
-import { deleteDocAndAssert, saveDocAndAssert } from '../../helpers/e2e.js'
-import { getServerUrl } from '../../helpers/server.js'
+import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/e2e/bunnyStream.js'
+import { deleteDocAndAssert, saveDocAndAssert } from '../../helpers/e2e/interactions.js'
+import { getServerUrl } from '../../helpers/e2e/server.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 

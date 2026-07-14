@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 
-import { log } from './log.js'
+import { log } from '../shared/log.js'
 
 export const getServerUrl = (): string => {
   const url = process.env.E2E_SERVER_URL
@@ -35,9 +35,7 @@ export const waitForServer = async (port: number, timeout = 60000): Promise<bool
       if (response.ok) {
         return true
       }
-    } catch {
-      /* empty */
-    }
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
   return false

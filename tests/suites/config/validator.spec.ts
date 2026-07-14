@@ -86,6 +86,48 @@ describe('Config Validator', () => {
     })
   })
 
+  describe('client uploads validation', () => {
+    it('throws when s3 mode is used without storage.s3', () => {
+      const config: BunnyStorageConfig = {
+        clientUploads: { mode: 's3' },
+        collections: { media: true },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).toThrow("uses `clientUploads.mode: 's3'`")
+    })
+
+    it('throws when edge mode is missing scriptUrl or secret', () => {
+      const config = {
+        clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net' }, mode: 'edge' },
+        collections: { media: true },
+        storage: createBaseStorage(),
+      } as unknown as BunnyStorageConfig
+
+      expect(() => normalizeAndValidate(config)).toThrow("uses `clientUploads.mode: 'edge'`")
+    })
+
+    it('passes edge mode with scriptUrl and secret', () => {
+      const config: BunnyStorageConfig = {
+        clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
+        collections: { media: true },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).not.toThrow()
+    })
+
+    it('defaults to s3 mode when storage.s3 is enabled', () => {
+      const normalized = normalizeAndValidate({
+        clientUploads: {},
+        collections: { media: true },
+        storage: { ...createBaseStorage(), s3: { region: 'de' } },
+      })
+
+      expect(normalized.collections.get('media')?.clientUploads?.mode).toBe('s3')
+    })
+  })
+
   describe('purge validation', () => {
     it('throws if purge enabled without apiKey', () => {
       const config: BunnyStorageConfig = {

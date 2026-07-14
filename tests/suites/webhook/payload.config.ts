@@ -1,8 +1,8 @@
 import type { Config } from 'payload'
 
 import { bunnyStorage } from '../../../src/index.js'
-import { buildConfigWithDefaults } from '../../helpers/buildConfigWithDefaults.js'
-import { createMediaCollection } from '../../helpers/createMediaCollection.js'
+import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDefaults.js'
+import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
 
 export default buildConfigWithDefaults({
   collections: [createMediaCollection({ slug: 'webhook-test' })],
