@@ -34,6 +34,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./client": "./dist/exports/client.js",
+    "./media-preview": "./dist/mediaPreview/adapter.js",
     "./migrations": "./dist/migrations/index.js",
     "./*": "./*"
   },
@@ -50,6 +51,11 @@
         "import": "./dist/exports/client.js",
         "types": "./dist/exports/client.d.ts",
         "default": "./dist/exports/client.js"
+      },
+      "./media-preview": {
+        "import": "./dist/mediaPreview/adapter.js",
+        "types": "./dist/mediaPreview/adapter.d.ts",
+        "default": "./dist/mediaPreview/adapter.js"
       },
       "./migrations": {
         "import": "./dist/migrations/index.js",
@@ -102,6 +108,7 @@
     "@payloadcms/translations": "^3.86.0",
     "@payloadcms/ui": "^3.86.0",
     "@playwright/test": "^1.61.1",
+    "@seshuk/payload-plugin-media-preview": "^1.1.1",
     "@types/node": "^26.1.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
@@ -128,8 +135,14 @@
   },
   "peerDependencies": {
     "@payloadcms/translations": "^3.66.0",
+    "@seshuk/payload-plugin-media-preview": "^1.0.0",
     "payload": "^3.66.0",
     "sanitize-filename": "1.6.3"
+  },
+  "peerDependenciesMeta": {
+    "@seshuk/payload-plugin-media-preview": {
+      "optional": true
+    }
   },
   "devEngines": {
     "packageManager": {

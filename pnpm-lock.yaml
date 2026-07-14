@@ -250,6 +250,9 @@ importers:
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1
+      '@seshuk/payload-plugin-media-preview':
+        specifier: ^1.1.1
+        version: 1.1.1(@payloadcms/translations@3.86.0)(@payloadcms/ui@3.86.0(@types/react@19.2.17)(monaco-editor@0.52.2)(next@16.2.10(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(sass@1.77.4))(payload@3.86.0(graphql@16.10.0)(typescript@6.0.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@6.0.3))(payload@3.86.0(graphql@16.10.0)(typescript@6.0.3))
       '@types/node':
         specifier: ^26.1.1
         version: 26.1.1
@@ -1940,6 +1943,14 @@ packages:
     resolution: {integrity: sha512-UhTd8u31dXadv0MopwGgNOBpUVROFKWVQgAg5N1ESyCz8AuBcMqm4AuTjrwgQKGDfoFuz02EuMRHQIw/frmYKQ==}
     cpu: [x64]
     os: [win32]
+
+  '@seshuk/payload-plugin-media-preview@1.1.1':
+    resolution: {integrity: sha512-EEguicIsZ30TzMzG3bUO99dlVQINkw+XMVq4wau+3X0ej7cHZOMunjZEWAt1w38ecOnub1nK50U2t1CFrPuOiA==}
+    engines: {node: ^18.20.2 || >=20.9.0}
+    peerDependencies:
+      '@payloadcms/translations': ^3.53.0
+      '@payloadcms/ui': ^3.53.0
+      payload: ^3.53.0
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -5333,6 +5344,12 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.53.3':
     optional: true
+
+  '@seshuk/payload-plugin-media-preview@1.1.1(@payloadcms/translations@3.86.0)(@payloadcms/ui@3.86.0(@types/react@19.2.17)(monaco-editor@0.52.2)(next@16.2.10(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(sass@1.77.4))(payload@3.86.0(graphql@16.10.0)(typescript@6.0.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@6.0.3))(payload@3.86.0(graphql@16.10.0)(typescript@6.0.3))':
+    dependencies:
+      '@payloadcms/translations': 3.86.0
+      '@payloadcms/ui': 3.86.0(@types/react@19.2.17)(monaco-editor@0.52.2)(next@16.2.10(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(sass@1.77.4))(payload@3.86.0(graphql@16.10.0)(typescript@6.0.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@6.0.3)
+      payload: 3.86.0(graphql@16.10.0)(typescript@6.0.3)
 
   '@standard-schema/spec@1.1.0': {}
 
