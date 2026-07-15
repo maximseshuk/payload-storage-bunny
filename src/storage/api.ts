@@ -1,7 +1,5 @@
-import { HTTPError } from 'ky'
-
+import { bunnyRequest } from '@/utils/bunnyRequest.js'
 import { getStorageUrl, TIMEOUTS } from '@/utils/constants.js'
-import { kyClient } from '@/utils/kyClient.js'
 
 export type BunnyStorageCredentials = {
   apiKey: string
@@ -15,23 +13,16 @@ export const deleteStorageFile = async ({
   region,
   zoneName,
 }: { path: string } & BunnyStorageCredentials): Promise<void> => {
-  try {
-    await kyClient.delete(`${getStorageUrl(region)}/${zoneName}/${path}`, {
-      headers: {
-        Accept: 'application/json',
-        AccessKey: apiKey,
-      },
-      timeout: TIMEOUTS.DEFAULT,
-    })
-  } catch (err) {
-    if (err instanceof HTTPError) {
-      if (err.response.status === 400) {
-        throw new Error('Bunny Storage: Delete failed', { cause: err })
-      }
-    }
-
-    throw new Error(`Unable to delete file: ${path}`, { cause: err })
-  }
+  await bunnyRequest({
+    apiKey,
+    genericError: `Unable to delete file: ${path}`,
+    method: 'delete',
+    statusErrors: {
+      400: 'Bunny Storage: Delete failed',
+    },
+    timeout: TIMEOUTS.DEFAULT,
+    url: `${getStorageUrl(region)}/${zoneName}/${path}`,
+  })
 }
 
 export const uploadStorageFile = async ({
@@ -48,25 +39,17 @@ export const uploadStorageFile = async ({
   path: string
   timeout?: number
 } & BunnyStorageCredentials): Promise<void> => {
-  try {
-    await kyClient.put(`${getStorageUrl(region)}/${zoneName}/${path}`, {
-      body: buffer as unknown as BodyInit,
-      headers: {
-        Accept: 'application/json',
-        AccessKey: apiKey,
-        'Content-Type': mimeType,
-      },
-      timeout: timeout ?? TIMEOUTS.DEFAULT,
-    })
-  } catch (err) {
-    if (err instanceof HTTPError) {
-      if (err.response.status === 400) {
-        throw new Error('Bunny Storage: Upload failed', { cause: err })
-      } else if (err.response.status === 401) {
-        throw new Error('Bunny Storage: Invalid access key, region, or file format', { cause: err })
-      }
-    }
-
-    throw new Error(`Unable to upload file: ${path}`, { cause: err })
-  }
+  await bunnyRequest({
+    apiKey,
+    body: buffer as unknown as BodyInit,
+    contentType: mimeType,
+    genericError: `Unable to upload file: ${path}`,
+    method: 'put',
+    statusErrors: {
+      400: 'Bunny Storage: Upload failed',
+      401: 'Bunny Storage: Invalid access key, region, or file format',
+    },
+    timeout: timeout ?? TIMEOUTS.DEFAULT,
+    url: `${getStorageUrl(region)}/${zoneName}/${path}`,
+  })
 }

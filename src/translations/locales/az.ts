@@ -31,15 +31,11 @@ export const az: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Bu resursa giriş icazəniz yoxdur',
-    errorCannotUploadToVideo: 'Bu videoya yükləmək olmur',
-    errorCreateVideoFailed: 'Bunny CDN-də video yaradılmadı',
     errorDeleteFileFailed: 'Fayl silinmədi: {{filename}}',
     errorMissingRequiredFields: 'Bəzi tələb olunan məlumatlar əksikdir',
     errorNoServiceConfigured: 'Heç bir xidmət konfiqurasiya edilməyib',
     errorStreamConfigMissing: 'Bunny Stream düzgün konfiqurasiya edilməyib',
     errorTitleRequired: 'Zəhmət olmasa videonuz üçün başlıq daxil edin',
     errorUploadFileFailed: 'Fayl yüklənmədi: {{filename}}',
-    errorVideoInErrorState: 'Bu videoda yükləmə xətası var',
-    errorVideoNotFound: '"{{videoId}}" videosu mövcud deyil',
   },
 }

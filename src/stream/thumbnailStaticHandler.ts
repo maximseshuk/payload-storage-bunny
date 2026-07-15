@@ -3,6 +3,7 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
+import { buildStreamCdnUrl } from '@/utils/cdnUrl.js'
 import { copyHeaders } from '@/utils/http.js'
 import { kyClient } from '@/utils/kyClient.js'
 
@@ -25,7 +26,7 @@ export const streamThumbnailStaticHandler = async ({
   usePayloadAccessControl,
   videoId,
 }: Args): Promise<Response> => {
-  let thumbnailUrl = `https://${streamConfig.hostname}/${videoId}/${thumbnailType}`
+  let thumbnailUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, thumbnailType)
 
   if (req.url) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)
@@ -60,7 +61,7 @@ export const streamThumbnailStaticHandler = async ({
       return new Response('Thumbnail not found', { status: err.response.status })
     }
 
-    req.payload.logger.error({ err, thumbnailUrl })
+    req.payload.logger.error({ err, msg: '[bunny:stream] thumbnail: fetch failed', thumbnailUrl })
     return new Response('Error fetching thumbnail', { status: 500 })
   }
 }

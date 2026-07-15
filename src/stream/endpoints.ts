@@ -17,8 +17,9 @@ import { generateStreamTusUploadSignature } from '@/stream/tusSignature.js'
 import type { PluginStorageBunnyTFunction } from '@/translations/index.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 import type { StreamTusAuthRequest, StreamTusAuthResponse } from '@/types/index.js'
+import { jsonResponse } from '@/utils/http.js'
 
-export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoint[] {
+export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoint[] => {
   const { stream } = config
 
   if (!stream) {
@@ -93,7 +94,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                 videoId = undefined
                 videoData = null
               } else if (isVideoProcessed(videoStatus)) {
-                return Response.json({
+                return jsonResponse({
                   type: 'uploaded',
                   libraryId: stream.libraryId,
                   thumbnailTime: collectionStreamConfig.thumbnailTime,
@@ -143,7 +144,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             videoId,
           })
 
-          return Response.json({
+          return jsonResponse({
             type: 'upload',
             authorizationExpire: expirationTime,
             authorizationSignature: signature,
@@ -156,7 +157,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
             throw err
           }
 
-          req.payload.logger.error({ err })
+          req.payload.logger.error({ err, msg: '[bunny:stream] tus-auth: request failed' })
           throw new APIError(reqT('error:unknown'), 500, undefined, true)
         }
       },
@@ -174,18 +175,18 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
           const secret = url.searchParams.get('secret')
 
           if (secret !== stream.webhook!.secret) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 })
+            return jsonResponse({ error: 'Unauthorized' }, 401)
           }
 
           const body = req.json ? await req.json() : req.body
           const { Status, VideoGuid, VideoLibraryId } = body
 
           if (!VideoLibraryId || !VideoGuid || Status === undefined) {
-            return Response.json({ error: 'Invalid webhook payload' }, { status: 400 })
+            return jsonResponse({ error: 'Invalid webhook payload' }, 400)
           }
 
           if (VideoLibraryId !== stream.libraryId) {
-            return Response.json({ error: 'Library ID mismatch' }, { status: 403 })
+            return jsonResponse({ error: 'Library ID mismatch' }, 403)
           }
 
           if (Status === 3 && stream.mp4Fallback) {
@@ -240,7 +241,7 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                       })
 
                       req.payload.logger.debug({
-                        msg: 'Webhook: Updated video resolutions',
+                        msg: '[bunny:stream] webhook: updated video resolutions',
                         resolutions: available,
                         videoId: VideoGuid,
                       })
@@ -250,15 +251,19 @@ export function getStreamEndpoints(config: NormalizedBunnyStorageConfig): Endpoi
                   break
                 }
               } catch (err) {
-                req.payload.logger.error({ err, msg: 'Webhook: Error processing video', videoId: VideoGuid })
+                req.payload.logger.error({
+                  err,
+                  msg: '[bunny:stream] webhook: error processing video',
+                  videoId: VideoGuid,
+                })
               }
             }
           }
 
-          return Response.json({ success: true })
+          return jsonResponse({ success: true })
         } catch (err) {
-          req.payload.logger.error({ err, msg: 'Webhook error' })
-          return Response.json({ error: 'Internal server error' }, { status: 500 })
+          req.payload.logger.error({ err, msg: '[bunny:stream] webhook: handler failed' })
+          return jsonResponse({ error: 'Internal server error' }, 500)
         }
       },
       custom: { openapi: streamWebhookOperation },

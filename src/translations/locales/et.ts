@@ -31,15 +31,11 @@ export const et: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Teil pole õigust sellele ressursile juurdepääsuks',
-    errorCannotUploadToVideo: 'Sellesse videosse ei saa üles laadida',
-    errorCreateVideoFailed: 'Bunny CDN-is video loomine ebaõnnestus',
     errorDeleteFileFailed: 'Faili kustutamine ebaõnnestus: {{filename}}',
     errorMissingRequiredFields: 'Mõned nõutavad andmed puuduvad',
     errorNoServiceConfigured: 'Ühtegi teenust pole konfigureeritud',
     errorStreamConfigMissing: 'Bunny Stream pole õigesti seadistatud',
     errorTitleRequired: 'Palun sisestage oma video pealkiri',
     errorUploadFileFailed: 'Faili üleslaadimine ebaõnnestus: {{filename}}',
-    errorVideoInErrorState: 'Sellel videol oli üleslaadimise viga',
-    errorVideoNotFound: 'Videot "{{videoId}}" ei ole olemas',
   },
 }

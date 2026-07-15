@@ -7,11 +7,11 @@ import * as tus from 'tus-js-client'
 
 import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/translations/index.js'
 import type { StreamTusAuthResponse } from '@/types/index.js'
-import { TUS_MIME_TYPES } from '@/utils/constants.js'
+import { BUNNY_API, TUS_MIME_TYPES } from '@/utils/constants.js'
 import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 
 import { ToggleButton } from '../ToggleButton/ToggleButton.js'
-import { BASE_CLASS, INITIAL_STATE, TUS_ENDPOINT, TUS_RETRY_DELAYS } from './Upload.constants.js'
+import { BASE_CLASS, INITIAL_STATE, TUS_RETRY_DELAYS } from './Upload.constants.js'
 import type { UploadState } from './Upload.types.js'
 import './Upload.scss'
 import { cleanupTusLocalStorage, findPreviousTusUploads } from './Upload.utils.js'
@@ -155,7 +155,7 @@ export const Upload: React.FC<UploadProps> = ({
       }
 
       const upload = new tus.Upload(file, {
-        endpoint: TUS_ENDPOINT,
+        endpoint: BUNNY_API.TUS_ENDPOINT,
         headers: {
           AuthorizationExpire: authData.authorizationExpire.toString(),
           AuthorizationSignature: authData.authorizationSignature,

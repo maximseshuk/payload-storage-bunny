@@ -31,15 +31,11 @@ export const sl: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Nimate dovoljenja za dostop do tega vira',
-    errorCannotUploadToVideo: 'V ta video ni mogoče naložiti',
-    errorCreateVideoFailed: 'Ni bilo mogoče ustvariti videa na Bunny CDN',
     errorDeleteFileFailed: 'Ni bilo mogoče izbrisati datoteke: {{filename}}',
     errorMissingRequiredFields: 'Manjkajo nekatere potrebne informacije',
     errorNoServiceConfigured: 'Ni konfigurirana nobena storitev',
     errorStreamConfigMissing: 'Bunny Stream ni pravilno konfiguriran',
     errorTitleRequired: 'Prosimo vnesite naslov vašega videa',
     errorUploadFileFailed: 'Ni bilo mogoče naložiti datoteke: {{filename}}',
-    errorVideoInErrorState: 'Ta video je imel napako pri nalaganju',
-    errorVideoNotFound: 'Video "{{videoId}}" ne obstaja',
   },
 }

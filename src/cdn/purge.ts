@@ -1,7 +1,5 @@
-import { HTTPError } from 'ky'
-
+import { bunnyRequest } from '@/utils/bunnyRequest.js'
 import { BUNNY_API, TIMEOUTS } from '@/utils/constants.js'
-import { kyClient } from '@/utils/kyClient.js'
 
 export const purgeCache = async ({
   apiKey,
@@ -16,26 +14,17 @@ export const purgeCache = async ({
     throw new Error('API key is required for cache purging')
   }
 
-  try {
-    await kyClient.post(`${BUNNY_API.BASE_URL}/purge`, {
-      headers: {
-        AccessKey: apiKey,
-      },
-      searchParams: {
-        async,
-        url,
-      },
-      timeout: TIMEOUTS.DEFAULT,
-    })
-  } catch (err) {
-    if (err instanceof HTTPError) {
-      if (err.response.status === 401) {
-        throw new Error('Bunny.net: Invalid API key', { cause: err })
-      } else if (err.response.status === 500) {
-        throw new Error('Bunny.net: Server error', { cause: err })
-      }
-    }
-
-    throw new Error(`Unable to purge cache: ${url}`, { cause: err })
-  }
+  await bunnyRequest({
+    accept: false,
+    apiKey,
+    genericError: `Unable to purge cache: ${url}`,
+    method: 'post',
+    searchParams: { async, url },
+    statusErrors: {
+      401: 'Bunny.net: Invalid API key',
+      500: 'Bunny.net: Server error',
+    },
+    timeout: TIMEOUTS.DEFAULT,
+    url: `${BUNNY_API.BASE_URL}/purge`,
+  })
 }

@@ -31,15 +31,11 @@ export const rs: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Немате дозволу за приступ овом ресурсу',
-    errorCannotUploadToVideo: 'Не могу да отпремим на овај видео',
-    errorCreateVideoFailed: 'Није могуће креирати видео на Bunny CDN',
     errorDeleteFileFailed: 'Није могуће обрисати фајл: {{filename}}',
     errorMissingRequiredFields: 'Недостају неке потребне информације',
     errorNoServiceConfigured: 'Ниједна услуга није конфигурисана',
     errorStreamConfigMissing: 'Bunny Stream није исправно конфигурисан',
     errorTitleRequired: 'Молимо унесите наслов за ваш видео',
     errorUploadFileFailed: 'Није могуће отпремити фајл: {{filename}}',
-    errorVideoInErrorState: 'Овај видео је имао грешку при отпремању',
-    errorVideoNotFound: 'Видео "{{videoId}}" не постоји',
   },
 }

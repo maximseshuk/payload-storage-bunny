@@ -41,7 +41,9 @@ export const getStreamCleanupTask = (
         }
       }
 
-      req.payload.logger.debug(`Bunny Cleanup: found ${incompleteSessions.totalDocs} stale sessions`)
+      req.payload.logger.debug({
+        msg: `[bunny:stream] cleanup: found ${incompleteSessions.totalDocs} stale sessions`,
+      })
 
       let deletedCount = 0
       let errorCount = 0
@@ -62,7 +64,7 @@ export const getStreamCleanupTask = (
             video.status === BunnyStreamVideoStatus.UploadFailed ||
             video.status === BunnyStreamVideoStatus.Error
           ) {
-            req.payload.logger.debug(`Bunny Cleanup: deleting orphan video ${videoId}`)
+            req.payload.logger.debug({ msg: `[bunny:stream] cleanup: deleting orphan video ${videoId}` })
             await deleteStreamVideo({
               apiKey: streamConfig.apiKey,
               libraryId: streamConfig.libraryId,
@@ -96,19 +98,19 @@ export const getStreamCleanupTask = (
             } catch (deleteErr) {
               req.payload.logger.error({
                 err: deleteErr,
-                msg: `Bunny Cleanup: failed to delete session for ${videoId}`,
+                msg: `[bunny:stream] cleanup: failed to delete session for ${videoId}`,
               })
             }
           } else {
-            req.payload.logger.error({ err, msg: `Bunny Cleanup: failed to process video ${videoId}` })
+            req.payload.logger.error({ err, msg: `[bunny:stream] cleanup: failed to process video ${videoId}` })
           }
         }
       }
 
       if (errorCount > 0) {
-        req.payload.logger.error(
-          `Bunny Cleanup: completed with errors: ${deletedCount} videos deleted, ${errorCount} errors`,
-        )
+        req.payload.logger.error({
+          msg: `[bunny:stream] cleanup: completed with errors: ${deletedCount} videos deleted, ${errorCount} errors`,
+        })
       }
 
       return {

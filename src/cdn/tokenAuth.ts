@@ -144,11 +144,11 @@ type SignedUrlContext = {
   tokenSecurityKey?: string
 }
 
-export function maybeGenerateSignedUrl(
+export const maybeGenerateSignedUrl = (
   baseUrl: string,
   context: SignedUrlContext,
   options?: Parameters<typeof generateSignedUrl>[3],
-): string {
+): string => {
   const { collection, filename, signedUrls, tokenSecurityKey } = context
 
   if (!signedUrls || !tokenSecurityKey) {
@@ -164,11 +164,11 @@ export function maybeGenerateSignedUrl(
   return generateSignedUrl(baseUrl, tokenSecurityKey, signedUrls, options)
 }
 
-export function maybeCreateRedirect(
+export const maybeCreateRedirect = (
   baseUrl: string,
   context: { usePayloadAccessControl: boolean } & SignedUrlContext,
   options?: Parameters<typeof generateSignedUrl>[3],
-): null | Response {
+): null | Response => {
   const { signedUrls, tokenSecurityKey, usePayloadAccessControl } = context
 
   if (!usePayloadAccessControl || !signedUrls || !tokenSecurityKey) {

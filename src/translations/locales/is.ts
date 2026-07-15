@@ -31,15 +31,11 @@ export const is: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Þú hefur ekki heimild til að nálgast þetta tilfang',
-    errorCannotUploadToVideo: 'Ekki er hægt að hlaða upp í þetta myndskeið',
-    errorCreateVideoFailed: 'Mistókst að búa til myndskeið á Bunny CDN',
     errorDeleteFileFailed: 'Mistókst að eyða skrá: {{filename}}',
     errorMissingRequiredFields: 'Sumar nauðsynlegar upplýsingar vantar',
     errorNoServiceConfigured: 'Engin þjónusta stillt',
     errorStreamConfigMissing: 'Bunny Stream er ekki rétt stillt',
     errorTitleRequired: 'Vinsamlegast sláðu inn titil fyrir myndskeiðið þitt',
     errorUploadFileFailed: 'Mistókst að hlaða upp skrá: {{filename}}',
-    errorVideoInErrorState: 'Þetta myndskeið fékk villa við upphal',
-    errorVideoNotFound: 'Myndskeið "{{videoId}}" er ekki til',
   },
 }

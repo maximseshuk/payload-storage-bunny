@@ -31,15 +31,11 @@ export const ca: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'No tens permís per accedir a aquest recurs',
-    errorCannotUploadToVideo: 'No es pot carregar a aquest vídeo',
-    errorCreateVideoFailed: "No s'ha pogut crear el vídeo a Bunny CDN",
     errorDeleteFileFailed: "No s'ha pogut eliminar el fitxer: {{filename}}",
     errorMissingRequiredFields: 'Falta alguna informació necessària',
     errorNoServiceConfigured: "No s'ha configurat cap servei",
     errorStreamConfigMissing: 'Bunny Stream no està configurat correctament',
     errorTitleRequired: 'Si us plau, introduïu un títol per al vostre vídeo',
     errorUploadFileFailed: "No s'ha pogut carregar el fitxer: {{filename}}",
-    errorVideoInErrorState: 'Aquest vídeo ha tingut un error de càrrega',
-    errorVideoNotFound: 'El vídeo "{{videoId}}" no existeix',
   },
 }

@@ -31,15 +31,11 @@ export const nl: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'U heeft geen toestemming om deze bron te benaderen',
-    errorCannotUploadToVideo: 'Naar deze video kan niet geüpload worden',
-    errorCreateVideoFailed: 'Video kon niet worden aangemaakt op Bunny CDN',
     errorDeleteFileFailed: 'Bestand kon niet worden verwijderd: {{filename}}',
     errorMissingRequiredFields: 'Enkele vereiste gegevens ontbreken',
     errorNoServiceConfigured: 'Geen service geconfigureerd',
     errorStreamConfigMissing: 'Bunny Stream is niet correct geconfigureerd',
     errorTitleRequired: 'Voer alstublieft een titel in voor uw video',
     errorUploadFileFailed: 'Bestand kon niet worden geüpload: {{filename}}',
-    errorVideoInErrorState: 'Deze video heeft een uploadfout gehad',
-    errorVideoNotFound: 'Video "{{videoId}}" bestaat niet',
   },
 }

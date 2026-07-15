@@ -31,15 +31,11 @@ export const bnIn: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'এই সম্পদে প্রবেশ করার অনুমতি আপনার নেই',
-    errorCannotUploadToVideo: 'এই ভিডিওতে আপলোড করা যাবে না',
-    errorCreateVideoFailed: 'Bunny CDN এ ভিডিও তৈরি করা যায়নি',
     errorDeleteFileFailed: 'ফাইল মুছে ফেলা যায়নি: {{filename}}',
     errorMissingRequiredFields: 'কিছু প্রয়োজনীয় তথ্য অনুপস্থিত',
     errorNoServiceConfigured: 'কোনো সার্ভিস কনফিগার করা নেই',
     errorStreamConfigMissing: 'Bunny Stream সঠিকভাবে কনফিগার করা হয়নি',
     errorTitleRequired: 'অনুগ্রহ করে আপনার ভিডিওর জন্য একটি শিরোনাম প্রদান করুন',
     errorUploadFileFailed: 'ফাইল আপলোড করা যায়নি: {{filename}}',
-    errorVideoInErrorState: 'এই ভিডিওতে আপলোড ত্রুটি রয়েছে',
-    errorVideoNotFound: 'ভিডিও "{{videoId}}" বিদ্যমান নেই',
   },
 }

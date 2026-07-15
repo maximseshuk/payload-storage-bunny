@@ -1,19 +1,18 @@
 import type { Field, GroupField, Payload, PayloadRequest } from 'payload'
 
 import { dropLegacyMongo, migrateMongo, rollbackMongo } from './mongo.js'
+import type { BunnyCollectionTarget } from './shared.js'
 import { dropLegacySql, migrateSql, rollbackSql } from './sql.js'
 
-export const LEGACY_VIDEO_ID_FIELD = 'bunnyVideoId'
-export const LEGACY_META_FIELD = 'bunnyVideoMeta'
-export const LEGACY_VIDEO_ID_COLUMN = 'bunny_video_id'
-export const LEGACY_META_COLUMN = 'bunny_video_meta'
-export const NEW_VIDEO_ID_COLUMN = 'bunny_data_stream_video_id'
-export const NEW_RESOLUTIONS_COLUMN = 'bunny_data_stream_resolutions'
-
-export type BunnyCollectionTarget = {
-  hasResolutions: boolean
-  slug: string
-}
+export {
+  LEGACY_META_COLUMN,
+  LEGACY_META_FIELD,
+  LEGACY_VIDEO_ID_COLUMN,
+  LEGACY_VIDEO_ID_FIELD,
+  NEW_RESOLUTIONS_COLUMN,
+  NEW_VIDEO_ID_COLUMN,
+} from './shared.js'
+export type { BunnyCollectionTarget } from './shared.js'
 
 export type MigrateBunnyDataArgs = {
   collections?: string[]
@@ -81,7 +80,7 @@ export const migrateBunnyData = async (args: MigrateBunnyDataArgs): Promise<Migr
     }
 
     results.push({ changed, slug: target.slug })
-    payload.logger.info(`[bunny:migrate] ${direction} "${target.slug}": ${changed} document(s)`)
+    payload.logger.info({ msg: `[bunny:migrate] ${direction} "${target.slug}": ${changed} document(s)` })
   }
 
   return { adapter, collections: results, direction }

@@ -31,15 +31,11 @@ export const hr: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Nemate dozvolu za pristup ovom resursu',
-    errorCannotUploadToVideo: 'Ne mogu prenijeti na ovaj video',
-    errorCreateVideoFailed: 'Nije moguće kreirati video na Bunny CDN',
     errorDeleteFileFailed: 'Nije moguće obrisati datoteku: {{filename}}',
     errorMissingRequiredFields: 'Nedostaju neke potrebne informacije',
     errorNoServiceConfigured: 'Nijedna usluga nije konfigurirana',
     errorStreamConfigMissing: 'Bunny Stream nije ispravno konfiguriran',
     errorTitleRequired: 'Molimo unesite naslov za svoj video',
     errorUploadFileFailed: 'Nije moguće prenijeti datoteku: {{filename}}',
-    errorVideoInErrorState: 'Ovaj video je imao grešku pri prijenosu',
-    errorVideoNotFound: 'Video "{{videoId}}" ne postoji',
   },
 }

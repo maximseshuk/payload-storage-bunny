@@ -7,6 +7,7 @@ import { createCollectionContext } from '@/config/context.js'
 import { presignStoragePutUrl } from '@/storage/s3.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 import { getSafeFileName } from '@/utils/file.js'
+import { jsonResponse, sanitizePrefix } from '@/utils/http.js'
 import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 
 import { mintEdgeUploadUrl } from './edge/mint.js'
@@ -17,14 +18,6 @@ type ClientUploadRequestBody = {
   filesize?: number
   mimeType?: string
 }
-
-const jsonResponse = (data: Record<string, unknown>, status = 200): Response =>
-  new Response(JSON.stringify(data), {
-    headers: { 'Content-Type': 'application/json' },
-    status,
-  })
-
-const sanitizePrefix = (value: string): string => value.replace(/^\/+|\/+$/g, '')
 
 export const getClientUploadHandler =
   (config: NormalizedBunnyStorageConfig): PayloadHandler =>

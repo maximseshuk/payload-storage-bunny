@@ -70,12 +70,12 @@ type GetSafeFileNameArgs = {
 
 // Function taken from:
 // @https://github.com/payloadcms/payload/blob/main/packages/payload/src/uploads/getSafeFileName.ts
-export async function getSafeFileName({
+export const getSafeFileName = async ({
   collectionSlug,
   desiredFilename,
   req,
   staticPath,
-}: GetSafeFileNameArgs): Promise<string> {
+}: GetSafeFileNameArgs): Promise<string> => {
   let modifiedFilename = desiredFilename
 
   while (

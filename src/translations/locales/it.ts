@@ -31,15 +31,11 @@ export const it: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Non hai il permesso di accedere a questa risorsa',
-    errorCannotUploadToVideo: 'Impossibile caricare su questo video',
-    errorCreateVideoFailed: 'Impossibile creare il video su Bunny CDN',
     errorDeleteFileFailed: 'Impossibile eliminare il file: {{filename}}',
     errorMissingRequiredFields: 'Mancano alcune informazioni richieste',
     errorNoServiceConfigured: 'Nessun servizio configurato',
     errorStreamConfigMissing: 'Bunny Stream non è configurato correttamente',
     errorTitleRequired: 'Per favore inserisci un titolo per il tuo video',
     errorUploadFileFailed: 'Impossibile caricare il file: {{filename}}',
-    errorVideoInErrorState: 'Questo video ha avuto un errore di caricamento',
-    errorVideoNotFound: 'Il video "{{videoId}}" non esiste',
   },
 }

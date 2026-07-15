@@ -1,9 +1,8 @@
-import { posix } from 'node:path'
-
 import type { CollectionConfig, PayloadRequest } from 'payload'
 
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import type { NormalizedSignedUrlsConfig, NormalizedStorageConfig } from '@/types/index.js'
+import { buildStorageCdnUrl } from '@/utils/cdnUrl.js'
 import { copyHeaders, createProxyResponse } from '@/utils/http.js'
 
 type Args = {
@@ -25,7 +24,7 @@ export const storageStaticHandler = async ({
   storageConfig,
   usePayloadAccessControl,
 }: Args): Promise<Response> => {
-  let baseUrl = `https://${storageConfig.hostname}/${posix.join(prefix || '', filename)}`
+  let baseUrl = buildStorageCdnUrl(storageConfig.hostname, prefix || '', filename)
 
   if (req.url) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)

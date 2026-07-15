@@ -31,15 +31,11 @@ export const rsLatin: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Nemate dozvolu za pristup ovom resursu',
-    errorCannotUploadToVideo: 'Ne mogu da otpremim na ovaj video',
-    errorCreateVideoFailed: 'Nije moguće kreirati video na Bunny CDN',
     errorDeleteFileFailed: 'Nije moguće obrisati fajl: {{filename}}',
     errorMissingRequiredFields: 'Nedostaju neke potrebne informacije',
     errorNoServiceConfigured: 'Nijedna usluga nije konfigurisana',
     errorStreamConfigMissing: 'Bunny Stream nije ispravno konfigurisan',
     errorTitleRequired: 'Molimo unesite naslov za vaš video',
     errorUploadFileFailed: 'Nije moguće otpremiti fajl: {{filename}}',
-    errorVideoInErrorState: 'Ovaj video je imao grešku pri otpremanju',
-    errorVideoNotFound: 'Video "{{videoId}}" ne postoji',
   },
 }

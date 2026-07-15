@@ -61,20 +61,21 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
         if (purgeConfig && apiKey && fileUrl) {
           await purgeCache({ apiKey, async: purgeConfig.async, url: fileUrl })
           req.payload.logger.debug({
-            action: 'Cache purged after delete',
+            msg: '[bunny:storage] delete: cache purged',
             url: fileUrl,
           })
         }
       } else {
         req.payload.logger.debug({
-          action: 'No storage or stream config, skipping delete',
           file: { name: filename },
+          msg: '[bunny:storage] delete: skipping, no storage or stream config',
         })
       }
     } catch (err) {
       req.payload.logger.error({
         err,
         file: { name: filename },
+        msg: '[bunny:storage] delete: failed',
         ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 

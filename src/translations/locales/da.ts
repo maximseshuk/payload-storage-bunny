@@ -31,15 +31,11 @@ export const da: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Du har ikke tilladelse til at få adgang til denne ressource',
-    errorCannotUploadToVideo: 'Denne video kan ikke uploades til',
-    errorCreateVideoFailed: 'Kunne ikke oprette video på Bunny CDN',
     errorDeleteFileFailed: 'Kunne ikke slette fil: {{filename}}',
     errorMissingRequiredFields: 'Nogle nødvendige oplysninger mangler',
     errorNoServiceConfigured: 'Ingen service konfigureret',
     errorStreamConfigMissing: 'Bunny Stream er ikke konfigureret korrekt',
     errorTitleRequired: 'Indtast venligst en titel til din video',
     errorUploadFileFailed: 'Kunne ikke uploade fil: {{filename}}',
-    errorVideoInErrorState: 'Denne video havde en upload fejl',
-    errorVideoNotFound: 'Video "{{videoId}}" findes ikke',
   },
 }

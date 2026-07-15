@@ -1,16 +1,27 @@
-export function copyHeaders(from: Headers): Headers {
+export const copyHeaders = (from: Headers): Headers => {
   const headers = new Headers()
   from.forEach((value, key) => headers.set(key, value))
   return headers
 }
 
-export function createProxyResponse(
+export const jsonResponse = <T>(data: T, status = 200): Response => {
+  return new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json' },
+    status,
+  })
+}
+
+export const sanitizePrefix = (value: string): string => {
+  return value.replace(/^\/+|\/+$/g, '')
+}
+
+export const createProxyResponse = (
   response: Response,
   options?: {
     additionalHeaders?: Record<string, string>
     status?: number
   },
-): Response {
+): Response => {
   const headers = copyHeaders(response.headers)
 
   if (options?.additionalHeaders) {

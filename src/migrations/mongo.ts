@@ -1,7 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import type { BunnyCollectionTarget } from './index.js'
-import { LEGACY_META_FIELD, LEGACY_VIDEO_ID_FIELD } from './index.js'
+import type { BunnyCollectionTarget } from './shared.js'
+import { LEGACY_META_FIELD, LEGACY_VIDEO_ID_FIELD } from './shared.js'
 
 type NativeCollection = {
   updateMany: (

@@ -1,21 +1,16 @@
-import { posix } from 'node:path'
-
 import type { FieldHook, PayloadRequest } from 'payload'
 
 import { maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import { readStoredVideo } from '@/fields/bunnyGroupField.js'
 import type { NormalizedThumbnailConfig } from '@/types/configNormalized.js'
 import type { CollectionContext } from '@/types/index.js'
+import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/utils/cdnUrl.js'
 import { isImage } from '@/utils/mimeTypes.js'
 import { applyUrlTransform } from '@/utils/urlTransform.js'
 
 type FieldHookArgs = {
   context: CollectionContext
   size?: { name: string }
-}
-
-const createBaseUrl = (hostname: string, prefix: string, filename: string): string => {
-  return `https://${hostname}/${posix.join(prefix, filename)}`
 }
 
 const applyTransform = (
@@ -73,7 +68,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
           return null
         }
 
-        const baseUrl = createBaseUrl(storageConfig.hostname, prefix, sizeFilename)
+        const baseUrl = buildStorageCdnUrl(storageConfig.hostname, prefix, sizeFilename)
         const transformedUrl = applyTransform(thumbnail, context, doc, sizeFilename, prefix, baseUrl)
         return maybeGenerateSignedUrl(transformedUrl, {
           collection,
@@ -97,7 +92,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         return null
       }
 
-      const baseUrl = createBaseUrl(storageConfig.hostname, prefix, filename)
+      const baseUrl = buildStorageCdnUrl(storageConfig.hostname, prefix, filename)
       const transformedUrl = applyTransform(thumbnail, context, doc, filename, prefix, baseUrl)
       return maybeGenerateSignedUrl(transformedUrl, {
         collection,
@@ -119,7 +114,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 
-      const baseUrl = createBaseUrl(streamConfig.hostname, prefix, filename)
+      const baseUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, thumbnailFile)
       const transformedUrl = applyTransform(thumbnail, context, doc, filename, prefix, baseUrl)
       return maybeGenerateSignedUrl(transformedUrl, {
         collection,

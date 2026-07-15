@@ -31,15 +31,11 @@ export const id: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Anda tidak memiliki izin untuk mengakses sumber daya ini',
-    errorCannotUploadToVideo: 'Video ini tidak dapat diunggah',
-    errorCreateVideoFailed: 'Tidak dapat membuat video di Bunny CDN',
     errorDeleteFileFailed: 'Tidak dapat menghapus file: {{filename}}',
     errorMissingRequiredFields: 'Beberapa informasi yang diperlukan hilang',
     errorNoServiceConfigured: 'Tidak ada layanan yang dikonfigurasi',
     errorStreamConfigMissing: 'Bunny Stream tidak dikonfigurasi dengan benar',
     errorTitleRequired: 'Silakan masukkan judul untuk video Anda',
     errorUploadFileFailed: 'Tidak dapat mengunggah file: {{filename}}',
-    errorVideoInErrorState: 'Video ini mengalami kesalahan unggahan',
-    errorVideoNotFound: 'Video "{{videoId}}" tidak ada',
   },
 }

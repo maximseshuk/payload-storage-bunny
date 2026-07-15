@@ -31,15 +31,11 @@ export const hy: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Դուք թույլտվություն չունեք այս ռեսուրսին մուտք գործելու համար',
-    errorCannotUploadToVideo: 'Այս տեսանյութին վերբեռնել հնարավор չէ',
-    errorCreateVideoFailed: 'Չհաջողվեց տեսանյութ ստեղծել Bunny CDN-ում',
     errorDeleteFileFailed: 'Չհաջողվեց ջնջել ֆայլը՝ {{filename}}',
     errorMissingRequiredFields: 'Մի քանի անհրաժեշտ տվյալներ բացակայում են',
     errorNoServiceConfigured: 'Ոչ մի ծառայություն կարգավորված չէ',
     errorStreamConfigMissing: 'Bunny Stream-ը ճիշտ կարգավորված չէ',
     errorTitleRequired: 'Խնդրում ենք մուտքագրել ձեր տեսանյութի վերնագիր',
     errorUploadFileFailed: 'Չհաջողվեց վերբեռնել ֆայլը՝ {{filename}}',
-    errorVideoInErrorState: 'Այս տեսանյութը վերբեռնման սխալ է ունեցել',
-    errorVideoNotFound: '«{{videoId}}» տեսանյութը գոյություն չունի',
   },
 }

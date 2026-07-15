@@ -87,6 +87,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         req.payload.logger.error({
           err,
           file: { name: data.params.filename },
+          msg: '[bunny:storage] serve: upstream request failed',
           ...(storageConfig && { storage: storageConfig.zoneName }),
         })
 
@@ -99,6 +100,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
       req.payload.logger.error({
         err,
         file: { name: data.params.filename },
+        msg: '[bunny:storage] serve: static handler failed',
         ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 

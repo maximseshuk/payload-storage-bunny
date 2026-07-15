@@ -31,15 +31,11 @@ export const sv: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Du har inte behörighet att komma åt denna resurs',
-    errorCannotUploadToVideo: 'Kan inte ladda upp till denna video',
-    errorCreateVideoFailed: 'Kunde inte skapa video på Bunny CDN',
     errorDeleteFileFailed: 'Kunde inte radera fil: {{filename}}',
     errorMissingRequiredFields: 'Viss nödvändig information saknas',
     errorNoServiceConfigured: 'Ingen tjänst konfigurerad',
     errorStreamConfigMissing: 'Bunny Stream är inte korrekt konfigurerat',
     errorTitleRequired: 'Vänligen ange en titel för din video',
     errorUploadFileFailed: 'Kunde inte ladda upp fil: {{filename}}',
-    errorVideoInErrorState: 'Denna video hade ett uppladdningsfel',
-    errorVideoNotFound: 'Video "{{videoId}}" finns inte',
   },
 }

@@ -4,6 +4,7 @@ import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import { getStreamVideoResolutions, parseMp4Resolutions } from '@/stream/api.js'
 import type { BunnyDataInternal } from '@/types/core.js'
 import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/types/index.js'
+import { buildStreamCdnUrl } from '@/utils/cdnUrl.js'
 import { createProxyResponse } from '@/utils/http.js'
 
 type Args = {
@@ -47,7 +48,7 @@ export const streamStaticHandler = async ({
   let metaNeedsUpdate = false
 
   if (videoResolutions?.highest) {
-    const savedResolutionUrl = `https://${streamConfig.hostname}/${videoId}/play_${videoResolutions.highest}.mp4`
+    const savedResolutionUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, `play_${videoResolutions.highest}.mp4`)
     const checkContext = { ...context, filename: `${videoId}/play_${videoResolutions.highest}.mp4` }
 
     try {
@@ -66,7 +67,7 @@ export const streamStaticHandler = async ({
         metaNeedsUpdate = true
       }
     } catch (err) {
-      req.payload.logger.error({ err, msg: 'Error checking saved resolution' })
+      req.payload.logger.error({ err, msg: '[bunny:stream] mp4-fallback: error checking saved resolution' })
       metaNeedsUpdate = true
     }
   } else {
@@ -91,7 +92,7 @@ export const streamStaticHandler = async ({
 
         if (available.length > 0) {
           for (const resolution of sorted) {
-            const baseCheckUrl = `https://${streamConfig.hostname}/${videoId}/play_${resolution}.mp4`
+            const baseCheckUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, `play_${resolution}.mp4`)
             const checkContext = { ...context, filename: `${videoId}/play_${resolution}.mp4` }
             const checkUrl = maybeGenerateSignedUrl(baseCheckUrl, checkContext)
 
@@ -106,7 +107,10 @@ export const streamStaticHandler = async ({
                 break
               }
             } catch (err) {
-              req.payload.logger.error({ err, msg: `Error checking resolution ${resolution}` })
+              req.payload.logger.error({
+                err,
+                msg: `[bunny:stream] mp4-fallback: error checking resolution ${resolution}`,
+              })
             }
           }
 
@@ -115,10 +119,15 @@ export const streamStaticHandler = async ({
           }
         }
       } else {
-        req.payload.logger.debug('No MP4 resolutions available from Bunny API (video may still be processing)')
+        req.payload.logger.debug({
+          msg: '[bunny:stream] mp4-fallback: no resolutions available (video may still be processing)',
+        })
       }
     } catch (err) {
-      req.payload.logger.debug({ err, msg: 'Error fetching available resolutions (video may still be processing)' })
+      req.payload.logger.debug({
+        err,
+        msg: '[bunny:stream] mp4-fallback: error fetching resolutions (video may still be processing)',
+      })
     }
   }
 
@@ -144,12 +153,12 @@ export const streamStaticHandler = async ({
       })
     } catch (err) {
       if (!(err instanceof NotFound)) {
-        req.payload.logger.error({ err, msg: 'Failed to update bunnyData resolutions' })
+        req.payload.logger.error({ err, msg: '[bunny:stream] mp4-fallback: failed to update bunnyData resolutions' })
       }
     }
   }
 
-  let mp4Url = `https://${streamConfig.hostname}/${videoId}/play_${fallbackQuality}.mp4`
+  let mp4Url = buildStreamCdnUrl(streamConfig.hostname, videoId, `play_${fallbackQuality}.mp4`)
 
   if (req.url) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)

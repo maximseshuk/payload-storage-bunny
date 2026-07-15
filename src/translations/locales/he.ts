@@ -31,15 +31,11 @@ export const he: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'אין לך הרשאה לגשת למשאב זה',
-    errorCannotUploadToVideo: 'לא ניתן להעלות לסרטון זה',
-    errorCreateVideoFailed: 'לא ניתן ליצור סרטון ב-Bunny CDN',
     errorDeleteFileFailed: 'לא ניתן למחוק קובץ: {{filename}}',
     errorMissingRequiredFields: 'חסר מידע נדרש',
     errorNoServiceConfigured: 'לא הוגדר שירות',
     errorStreamConfigMissing: 'Bunny Stream לא מוגדר כראוי',
     errorTitleRequired: 'אנא הזן כותרת לסרטון שלך',
     errorUploadFileFailed: 'לא ניתן להעלות קובץ: {{filename}}',
-    errorVideoInErrorState: 'לסרטון זה הייתה שגיאת העלאה',
-    errorVideoNotFound: 'הסרטון "{{videoId}}" לא קיים',
   },
 }

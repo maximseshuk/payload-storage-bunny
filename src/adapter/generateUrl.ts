@@ -1,10 +1,9 @@
-import { posix } from 'node:path'
-
 import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
 
 import { maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import { readStoredVideo } from '@/fields/bunnyGroupField.js'
 import type { CollectionContext } from '@/types/index.js'
+import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/utils/cdnUrl.js'
 import { applyUrlTransform } from '@/utils/urlTransform.js'
 
 export const getGenerateUrl = (context: CollectionContext): GenerateURL => {
@@ -14,7 +13,7 @@ export const getGenerateUrl = (context: CollectionContext): GenerateURL => {
     const videoId = readStoredVideo(data)?.videoId
 
     if (streamConfig && videoId) {
-      let streamUrl = `https://${streamConfig.hostname}/${videoId}/playlist.m3u8`
+      let streamUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, 'playlist.m3u8')
 
       if (urlTransform) {
         streamUrl = applyUrlTransform({
@@ -38,7 +37,7 @@ export const getGenerateUrl = (context: CollectionContext): GenerateURL => {
       return ''
     }
 
-    let baseUrl = `https://${storageConfig.hostname}/${encodeURI(posix.join(prefix, filename))}`
+    let baseUrl = buildStorageCdnUrl(storageConfig.hostname, prefix, filename, true)
 
     if (urlTransform) {
       baseUrl = applyUrlTransform({

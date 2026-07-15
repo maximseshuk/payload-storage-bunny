@@ -1,24 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
 import type { NormalizedBunnyStorageConfig, NormalizedStreamConfig } from '@/types/configNormalized.js'
-import type { BunnyStorageConfig, CollectionContext } from '@/types/index.js'
+import type { CollectionContext } from '@/types/index.js'
 import { intersectMimeTypes } from '@/utils/mimeTypes.js'
-
-import { createNormalizedConfig } from './normalizer.js'
-
-const configCache = new WeakMap<BunnyStorageConfig, NormalizedBunnyStorageConfig>()
-
-export const getNormalizedConfig = (config: BunnyStorageConfig): NormalizedBunnyStorageConfig => {
-  const cached = configCache.get(config)
-  if (cached) {
-    return cached
-  }
-
-  const normalized = createNormalizedConfig(config)
-  configCache.set(normalized._original, normalized)
-
-  return normalized
-}
 
 export const createCollectionContext = (
   config: NormalizedBunnyStorageConfig,

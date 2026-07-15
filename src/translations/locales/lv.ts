@@ -31,15 +31,11 @@ export const lv: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Jums nav atļaujas piekļūt šim resursam',
-    errorCannotUploadToVideo: 'Uz šo video nevar augšupielādēt',
-    errorCreateVideoFailed: 'Neizdevās izveidot video Bunny CDN',
     errorDeleteFileFailed: 'Neizdevās dzēst failu: {{filename}}',
     errorMissingRequiredFields: 'Trūkst nepieciešamas informācijas',
     errorNoServiceConfigured: 'Nav konfigurēts neviens pakalpojums',
     errorStreamConfigMissing: 'Bunny Stream nav pareizi konfigurēts',
     errorTitleRequired: 'Lūdzu, ievadiet sava video nosaukumu',
     errorUploadFileFailed: 'Neizdevās augšupielādēt failu: {{filename}}',
-    errorVideoInErrorState: 'Šim video bija augšupielādes kļūda',
-    errorVideoNotFound: 'Video "{{videoId}}" neeksistē',
   },
 }

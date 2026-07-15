@@ -31,15 +31,11 @@ export const lt: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Neturite leidimo pasiekti šį išteklių',
-    errorCannotUploadToVideo: 'Negalima įkelti į šį vaizdo įrašą',
-    errorCreateVideoFailed: 'Nepavyko sukurti vaizdo įrašo Bunny CDN',
     errorDeleteFileFailed: 'Nepavyko ištrinti failo: {{filename}}',
     errorMissingRequiredFields: 'Trūksta reikalingos informacijos',
     errorNoServiceConfigured: 'Nėra sukonfigūruotos paslaugos',
     errorStreamConfigMissing: 'Bunny Stream nėra tinkamai sukonfigūruotas',
     errorTitleRequired: 'Prašome įvesti savo vaizdo įrašo pavadinimą',
     errorUploadFileFailed: 'Nepavyko įkelti failo: {{filename}}',
-    errorVideoInErrorState: 'Šis vaizdo įrašas turėjo įkėlimo klaidą',
-    errorVideoNotFound: 'Vaizdo įrašas "{{videoId}}" neegzistuoja',
   },
 }

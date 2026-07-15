@@ -31,15 +31,11 @@ export const vi: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Bạn không có quyền truy cập tài nguyên này',
-    errorCannotUploadToVideo: 'Không thể tải lên video này',
-    errorCreateVideoFailed: 'Không thể tạo video trên Bunny CDN',
     errorDeleteFileFailed: 'Không thể xóa tệp: {{filename}}',
     errorMissingRequiredFields: 'Thiếu một số thông tin cần thiết',
     errorNoServiceConfigured: 'Không có dịch vụ nào được cấu hình',
     errorStreamConfigMissing: 'Bunny Stream chưa được cấu hình đúng cách',
     errorTitleRequired: 'Vui lòng nhập tiêu đề cho video của bạn',
     errorUploadFileFailed: 'Không thể tải lên tệp: {{filename}}',
-    errorVideoInErrorState: 'Video này đã gặp lỗi tải lên',
-    errorVideoNotFound: 'Video "{{videoId}}" không tồn tại',
   },
 }

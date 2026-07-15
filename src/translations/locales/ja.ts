@@ -31,15 +31,11 @@ export const ja: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'このリソースにアクセスする権限がありません',
-    errorCannotUploadToVideo: 'この動画にはアップロードできません',
-    errorCreateVideoFailed: 'Bunny CDNで動画を作成できませんでした',
     errorDeleteFileFailed: 'ファイルを削除できませんでした：{{filename}}',
     errorMissingRequiredFields: '必要な情報が不足しています',
     errorNoServiceConfigured: 'サービスが設定されていません',
     errorStreamConfigMissing: 'Bunny Streamが正しく設定されていません',
     errorTitleRequired: '動画のタイトルを入力してください',
     errorUploadFileFailed: 'ファイルをアップロードできませんでした：{{filename}}',
-    errorVideoInErrorState: 'この動画にはアップロードエラーが発生しました',
-    errorVideoNotFound: '動画「{{videoId}}」は存在しません',
   },
 }

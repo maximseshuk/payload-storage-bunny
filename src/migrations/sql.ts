@@ -1,7 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import type { BunnyCollectionTarget } from './index.js'
-import { LEGACY_META_COLUMN, LEGACY_VIDEO_ID_COLUMN, NEW_RESOLUTIONS_COLUMN, NEW_VIDEO_ID_COLUMN } from './index.js'
+import type { BunnyCollectionTarget } from './shared.js'
+import { LEGACY_META_COLUMN, LEGACY_VIDEO_ID_COLUMN, NEW_RESOLUTIONS_COLUMN, NEW_VIDEO_ID_COLUMN } from './shared.js'
 
 type SqlFragment = unknown
 type SqlTag = {

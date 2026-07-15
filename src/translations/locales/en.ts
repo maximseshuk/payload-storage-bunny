@@ -32,15 +32,11 @@ export const en: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: "You don't have permission to access this resource",
-    errorCannotUploadToVideo: "This video can't be uploaded to",
-    errorCreateVideoFailed: "Couldn't create video on Bunny CDN",
     errorDeleteFileFailed: "Couldn't delete file: {{filename}}",
     errorMissingRequiredFields: 'Some required information is missing',
     errorNoServiceConfigured: 'No service configured',
     errorStreamConfigMissing: "Bunny Stream isn't configured properly",
     errorTitleRequired: 'Please enter a title for your video',
     errorUploadFileFailed: "Couldn't upload file: {{filename}}",
-    errorVideoInErrorState: 'This video had an upload error',
-    errorVideoNotFound: 'Video "{{videoId}}" doesn\'t exist',
   },
 }

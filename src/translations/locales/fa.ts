@@ -31,15 +31,11 @@ export const fa: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'شما مجوز دسترسی به این منبع را ندارید',
-    errorCannotUploadToVideo: 'نمی‌توان به این ویدیو آپلود کرد',
-    errorCreateVideoFailed: 'ایجاد ویدیو در Bunny CDN امکان‌پذیر نبود',
     errorDeleteFileFailed: 'حذف فایل امکان‌پذیر نبود: {{filename}}',
     errorMissingRequiredFields: 'برخی اطلاعات ضروری موجود نیست',
     errorNoServiceConfigured: 'هیچ سرویسی پیکربندی نشده است',
     errorStreamConfigMissing: 'Bunny Stream به درستی پیکربندی نشده است',
     errorTitleRequired: 'لطفاً عنوانی برای ویدیوی خود وارد کنید',
     errorUploadFileFailed: 'آپلود فایل امکان‌پذیر نبود: {{filename}}',
-    errorVideoInErrorState: 'این ویدیو دچار خطای آپلود شد',
-    errorVideoNotFound: 'ویدیو "{{videoId}}" وجود ندارد',
   },
 }

@@ -31,15 +31,11 @@ export const ro: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Nu ai permisiunea să accesezi această resursă',
-    errorCannotUploadToVideo: 'Nu se poate încărca în acest video',
-    errorCreateVideoFailed: 'Nu s-a putut crea videoclipul pe Bunny CDN',
     errorDeleteFileFailed: 'Nu s-a putut șterge fișierul: {{filename}}',
     errorMissingRequiredFields: 'Lipsesc unele informații necesare',
     errorNoServiceConfigured: 'Nu este configurat niciun serviciu',
     errorStreamConfigMissing: 'Bunny Stream nu este configurat corect',
     errorTitleRequired: 'Te rog să introduci un titlu pentru videoclipul tău',
     errorUploadFileFailed: 'Nu s-a putut încărca fișierul: {{filename}}',
-    errorVideoInErrorState: 'Acest videoclip a avut o eroare de încărcare',
-    errorVideoNotFound: 'Videoclipul "{{videoId}}" nu există',
   },
 }

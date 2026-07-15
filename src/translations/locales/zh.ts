@@ -31,15 +31,11 @@ export const zh: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: '您没有权限访问此资源',
-    errorCannotUploadToVideo: '无法上传到此视频',
-    errorCreateVideoFailed: '无法在 Bunny CDN 上创建视频',
     errorDeleteFileFailed: '无法删除文件：{{filename}}',
     errorMissingRequiredFields: '缺少一些必需的信息',
     errorNoServiceConfigured: '未配置任何服务',
     errorStreamConfigMissing: 'Bunny Stream 配置不正确',
     errorTitleRequired: '请为您的视频输入标题',
     errorUploadFileFailed: '无法上传文件：{{filename}}',
-    errorVideoInErrorState: '此视频上传时发生错误',
-    errorVideoNotFound: '视频"{{videoId}}"不存在',
   },
 }

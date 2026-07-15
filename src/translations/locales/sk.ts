@@ -31,15 +31,11 @@ export const sk: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Nemáte oprávnenie pre prístup k tomuto zdroju',
-    errorCannotUploadToVideo: 'Do tohto videa sa nedá nahrávať',
-    errorCreateVideoFailed: 'Nepodarilo sa vytvoriť video na Bunny CDN',
     errorDeleteFileFailed: 'Nepodarilo sa zmazať súbor: {{filename}}',
     errorMissingRequiredFields: 'Chýbajú niektoré potrebné informácie',
     errorNoServiceConfigured: 'Žiadna služba nie je nakonfigurovaná',
     errorStreamConfigMissing: 'Bunny Stream nie je správne nakonfigurovaný',
     errorTitleRequired: 'Prosím zadajte názov vášho videa',
     errorUploadFileFailed: 'Nepodarilo sa nahrať súbor: {{filename}}',
-    errorVideoInErrorState: 'Toto video malo chybu pri nahrávaní',
-    errorVideoNotFound: 'Video "{{videoId}}" neexistuje',
   },
 }

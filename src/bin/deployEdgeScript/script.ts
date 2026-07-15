@@ -23,14 +23,14 @@ export const script: BinScript = async (config) => {
   const normalized = pluginCustom?.config
 
   if (!normalized?.storage) {
-    logger.error('[@seshuk/payload-storage-bunny] Bunny Storage is not configured; cannot deploy the Edge Script.')
+    logger.error('Bunny Storage is not configured; cannot deploy the Edge Script.')
     process.exit(1)
     return
   }
 
   const accountApiKey = getFlag(parseFlags(process.argv.slice(3)), 'api-key') ?? process.env.BUNNY_API_KEY
   if (!accountApiKey) {
-    logger.error('[@seshuk/payload-storage-bunny] Missing account API key. Pass --api-key or set BUNNY_API_KEY.')
+    logger.error('Missing account API key. Pass --api-key or set BUNNY_API_KEY.')
     process.exit(1)
     return
   }
@@ -40,7 +40,7 @@ export const script: BinScript = async (config) => {
   if (getBooleanFlag(flags, 'check')) {
     const scriptUrl = getFlag(flags, 'script-url') ?? normalized.clientUploads?.edge?.scriptUrl ?? ''
     if (!scriptUrl) {
-      logger.error('[@seshuk/payload-storage-bunny] --check needs --script-url or clientUploads.edge.scriptUrl.')
+      logger.error('--check needs --script-url or clientUploads.edge.scriptUrl.')
       process.exit(1)
       return
     }
@@ -88,7 +88,7 @@ export const script: BinScript = async (config) => {
       logger.info('  }')
     }
   } catch (err) {
-    logger.error(`[@seshuk/payload-storage-bunny] ${(err as Error).message}`)
+    logger.error(`${(err as Error).message}`)
     process.exit(1)
   }
 }

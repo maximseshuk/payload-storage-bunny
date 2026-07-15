@@ -31,15 +31,11 @@ export const tr: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Bu kaynağa erişim izniniz yok',
-    errorCannotUploadToVideo: 'Bu videoya yükleme yapılamıyor',
-    errorCreateVideoFailed: "Bunny CDN'de video oluşturulamadı",
     errorDeleteFileFailed: 'Dosya silinemedi: {{filename}}',
     errorMissingRequiredFields: 'Bazı gerekli bilgiler eksik',
     errorNoServiceConfigured: 'Hiçbir hizmet yapılandırılmamış',
     errorStreamConfigMissing: 'Bunny Stream düzgün yapılandırılmamış',
     errorTitleRequired: 'Lütfen videonuz için bir başlık girin',
     errorUploadFileFailed: 'Dosya yüklenemedi: {{filename}}',
-    errorVideoInErrorState: 'Bu videoda yükleme hatası oldu',
-    errorVideoNotFound: '"{{videoId}}" videosu mevcut değil',
   },
 }

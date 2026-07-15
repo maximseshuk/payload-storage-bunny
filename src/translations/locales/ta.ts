@@ -31,15 +31,11 @@ export const ta: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'இந்த ஆதாரத்தை அணுக உங்களுக்கு அனுமति இல்லை',
-    errorCannotUploadToVideo: 'இந்த வீடியோவைப் பதிவேற்ற முடியாது',
-    errorCreateVideoFailed: 'Bunny CDN இல் வீடியோவை உருவாக்க முடியவில்லை',
     errorDeleteFileFailed: 'கோப்பை நீக்க முடியவில்லை: {{filename}}',
     errorMissingRequiredFields: 'சில தேவையான தகவல்கள் விடுபட்டுள்ளன',
     errorNoServiceConfigured: 'எந்த சேவையும் கட்டமைக்கப்படவில்லை',
     errorStreamConfigMissing: 'Bunny Stream சரியாக கட்டமைக்கப்படவில்லை',
     errorTitleRequired: 'உங்கள் வீடியோவுக்கு ஒரு தலைப்பை உள்ளிடவும்',
     errorUploadFileFailed: 'கோப்பைப் பதிவேற்ற முடியவில்லை: {{filename}}',
-    errorVideoInErrorState: 'இந்த வீடியோவில் பதிவேற்ற பிழை ஏற்பட்டது',
-    errorVideoNotFound: 'வீடியோ "{{videoId}}" இல்லை',
   },
 }

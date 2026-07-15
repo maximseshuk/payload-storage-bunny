@@ -31,15 +31,11 @@ export const hu: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Nincs jogosultsága ennek az erőforrásnak az eléréséhez',
-    errorCannotUploadToVideo: 'Erre a videóra nem lehet feltölteni',
-    errorCreateVideoFailed: 'Nem sikerült videót létrehozni a Bunny CDN-en',
     errorDeleteFileFailed: 'Nem sikerült törölni a fájlt: {{filename}}',
     errorMissingRequiredFields: 'Hiányzik néhány szükséges információ',
     errorNoServiceConfigured: 'Nincs szolgáltatás konfigurálva',
     errorStreamConfigMissing: 'A Bunny Stream nincs megfelelően beállítva',
     errorTitleRequired: 'Kérjük, adjon címet a videójának',
     errorUploadFileFailed: 'Nem sikerült feltölteni a fájlt: {{filename}}',
-    errorVideoInErrorState: 'Ennek a videónak feltöltési hibája volt',
-    errorVideoNotFound: 'A "{{videoId}}" videó nem létezik',
   },
 }

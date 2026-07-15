@@ -1,14 +1,14 @@
 import * as tus from 'tus-js-client'
 
-const TUS_ENDPOINT = 'https://video.bunnycdn.com/tusupload'
+import { BUNNY_API } from '@/utils/constants.js'
 
-export async function findPreviousTusUploads(
+export const findPreviousTusUploads = async (
   file: File,
   metadata?: Record<string, string>,
-): Promise<tus.PreviousUpload[]> {
+): Promise<tus.PreviousUpload[]> => {
   try {
     const tempUpload = new tus.Upload(file, {
-      endpoint: TUS_ENDPOINT,
+      endpoint: BUNNY_API.TUS_ENDPOINT,
       metadata,
     })
 
@@ -18,10 +18,10 @@ export async function findPreviousTusUploads(
   }
 }
 
-export async function cleanupTusLocalStorage(file: File, videoId: string): Promise<void> {
+export const cleanupTusLocalStorage = async (file: File, videoId: string): Promise<void> => {
   try {
     const tempUpload = new tus.Upload(file, {
-      endpoint: TUS_ENDPOINT,
+      endpoint: BUNNY_API.TUS_ENDPOINT,
       metadata: { videoId },
     })
 

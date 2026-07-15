@@ -31,15 +31,11 @@ export const pl: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'Nie masz uprawnień do dostępu do tego zasobu',
-    errorCannotUploadToVideo: 'Nie można przesłać do tego wideo',
-    errorCreateVideoFailed: 'Nie udało się utworzyć wideo na Bunny CDN',
     errorDeleteFileFailed: 'Nie udało się usunąć pliku: {{filename}}',
     errorMissingRequiredFields: 'Brakuje niektórych wymaganych informacji',
     errorNoServiceConfigured: 'Brak skonfigurowanej usługi',
     errorStreamConfigMissing: 'Bunny Stream nie jest poprawnie skonfigurowany',
     errorTitleRequired: 'Proszę wprowadzić tytuł swojego wideo',
     errorUploadFileFailed: 'Nie udało się przesłać pliku: {{filename}}',
-    errorVideoInErrorState: 'To wideo miało błąd przesyłania',
-    errorVideoNotFound: 'Wideo "{{videoId}}" nie istnieje',
   },
 }

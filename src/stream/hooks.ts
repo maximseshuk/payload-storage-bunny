@@ -120,16 +120,14 @@ export const getAfterChangeHook = (context: CollectionContext): CollectionAfterC
         })
 
         req.payload.logger.debug({
-          action: 'File cleanup after upload change',
           filename: oldDoc.filename,
-          message: `Successfully deleted old file: ${oldDoc.filename}`,
+          msg: '[bunny:stream] tus: deleted replaced file after upload',
         })
       } catch (err) {
         req.payload.logger.error({
-          action: 'File cleanup after upload change',
           err,
           filename: oldDoc.filename,
-          message: `Failed to delete old file: ${oldDoc.filename}`,
+          msg: '[bunny:stream] tus: failed to delete replaced file after upload',
         })
       }
     }

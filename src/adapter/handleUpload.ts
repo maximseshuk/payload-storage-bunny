@@ -89,13 +89,13 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           try {
             await purgeCache({ apiKey, async: purgeConfig.async, url })
             req.payload.logger.debug({
-              action: 'Cache purged after upload',
+              msg: '[bunny:storage] upload: cache purged',
               url,
             })
           } catch (err) {
             req.payload.logger.error({
-              action: 'Cache purge after upload',
               err,
+              msg: '[bunny:storage] upload: cache purge failed',
               url,
             })
           }
@@ -113,6 +113,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           type: file.mimeType,
           size: file.filesize,
         },
+        msg: '[bunny:storage] upload: failed',
         ...(storageConfig && { storage: storageConfig.zoneName }),
       })
 

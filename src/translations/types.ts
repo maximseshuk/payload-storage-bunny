@@ -2,16 +2,12 @@ export type PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
     // Error messages
     errorAccessDenied: string
-    errorCannotUploadToVideo: string
-    errorCreateVideoFailed: string
     errorDeleteFileFailed: string
     errorMissingRequiredFields: string
     errorNoServiceConfigured: string
     errorStreamConfigMissing: string
     errorTitleRequired: string
     errorUploadFileFailed: string
-    errorVideoInErrorState: string
-    errorVideoNotFound: string
 
     // TUS Upload
     tusUploadChecking: string

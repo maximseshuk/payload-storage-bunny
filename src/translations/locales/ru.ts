@@ -32,15 +32,11 @@ export const ru: PluginDefaultTranslationsObject = {
 
     // Error messages
     errorAccessDenied: 'У вас нет разрешения на доступ к этому ресурсу',
-    errorCannotUploadToVideo: 'Невозможно загрузить в это видео',
-    errorCreateVideoFailed: 'Не удалось создать видео на Bunny CDN',
     errorDeleteFileFailed: 'Не удалось удалить файл: {{filename}}',
     errorMissingRequiredFields: 'Отсутствует необходимая информация',
     errorNoServiceConfigured: 'Не настроена ни одна служба',
     errorStreamConfigMissing: 'Bunny Stream настроен неправильно',
     errorTitleRequired: 'Пожалуйста, введите заголовок для вашего видео',
     errorUploadFileFailed: 'Не удалось загрузить файл: {{filename}}',
-    errorVideoInErrorState: 'У этого видео произошла ошибка загрузки',
-    errorVideoNotFound: 'Видео "{{videoId}}" не существует',
   },
 }
