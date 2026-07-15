@@ -163,6 +163,17 @@ describe('Config Validator', () => {
       )
     })
 
+    it('throws a boot error for the removed `stream.tus.uploadTimeout` alias', () => {
+      const config = {
+        collections: { media: { disablePayloadAccessControl: true } },
+        stream: { ...createBaseStream(), tus: { uploadTimeout: 3600 } },
+      } as unknown as BunnyStorageConfig
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        `Config error: "stream.tus.uploadTimeout" was removed in v3. Rename it to "stream.tus.expiresIn" (it's a session expiry in seconds).`,
+      )
+    })
+
     it('throws a boot error for the removed `purge.apiKey` alias', () => {
       const config = {
         collections: { media: true },

@@ -5,7 +5,7 @@ import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 type DeprecatedConfig = {
   adminThumbnail?: unknown
   purge?: boolean | { apiKey?: unknown }
-  stream?: { tus?: boolean | { mimeTypes?: unknown } }
+  stream?: { tus?: boolean | { mimeTypes?: unknown; uploadTimeout?: unknown } }
 }
 
 const findRemovedAliases = (original: BunnyStorageConfig): string[] => {
@@ -19,6 +19,12 @@ const findRemovedAliases = (original: BunnyStorageConfig): string[] => {
   const tus = typeof deprecated.stream === 'object' ? deprecated.stream.tus : undefined
   if (typeof tus === 'object' && tus.mimeTypes !== undefined) {
     messages.push('"stream.tus.mimeTypes" was removed in v3. Move the array to "stream.mimeTypes".')
+  }
+
+  if (typeof tus === 'object' && tus.uploadTimeout !== undefined) {
+    messages.push(
+      `"stream.tus.uploadTimeout" was removed in v3. Rename it to "stream.tus.expiresIn" (it's a session expiry in seconds).`,
+    )
   }
 
   const purge = deprecated.purge

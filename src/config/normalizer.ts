@@ -114,7 +114,7 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
     normalized.tus = {
       autoMode: stream.tus.autoMode ?? CONFIG_DEFAULTS.stream.tus.autoMode,
       checkAccess: stream.tus.checkAccess,
-      uploadTimeout: stream.tus.uploadTimeout ?? CONFIG_DEFAULTS.stream.tus.uploadTimeout,
+      expiresIn: stream.tus.expiresIn ?? CONFIG_DEFAULTS.stream.tus.expiresIn,
     }
   }
 
@@ -415,7 +415,7 @@ const resolveCollectionStreamConfig = ({
   if (collectionOverride.tus && streamConfig.tus) {
     streamConfig.tus = mergeDefined(streamConfig.tus, {
       autoMode: collectionOverride.tus.autoMode,
-      uploadTimeout: collectionOverride.tus.uploadTimeout,
+      expiresIn: collectionOverride.tus.expiresIn,
     })
   }
 

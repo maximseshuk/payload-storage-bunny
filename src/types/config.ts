@@ -162,7 +162,7 @@ export type StreamTusConfig = {
    * Time in seconds for TUS upload session to expire
    * @default 3600
    */
-  uploadTimeout?: number
+  expiresIn?: number
 }
 
 export type StreamConfig = {
@@ -358,9 +358,9 @@ export type BunnyStorageCollectionConfig = {
            */
           autoMode?: boolean
           /**
-           * Override TUS upload timeout in seconds for this collection
+           * Override TUS upload session expiry in seconds for this collection
            */
-          uploadTimeout?: number
+          expiresIn?: number
         }
         /**
          * Override upload timeout in milliseconds for this collection

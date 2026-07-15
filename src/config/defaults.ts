@@ -27,7 +27,7 @@ export const CONFIG_DEFAULTS = {
     mp4Fallback: false,
     tus: {
       autoMode: true,
-      uploadTimeout: 3600,
+      expiresIn: 3600,
     },
     uploadTimeout: TIMEOUTS.STREAM_UPLOAD,
   },

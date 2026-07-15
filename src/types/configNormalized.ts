@@ -35,7 +35,7 @@ export type NormalizedStreamConfig = {
   mp4Fallback: boolean
   tus?: {
     autoMode: boolean
-    uploadTimeout: number
+    expiresIn: number
   } & StreamTusConfig
   uploadTimeout: number
 } & Omit<StreamConfig, 'cleanup' | 'mimeTypes' | 'mp4Fallback' | 'tus' | 'uploadTimeout'>
