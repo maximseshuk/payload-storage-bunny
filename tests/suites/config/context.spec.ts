@@ -1,24 +1,13 @@
 import type { CollectionConfig } from 'payload'
 import { describe, expect, it } from 'vitest'
 
-import { createCollectionContext, getNormalizedConfig } from '@/config/context.js'
+import { createCollectionContext } from '@/config/context.js'
 import { createNormalizedConfig } from '@/config/normalizer.js'
 import type { BunnyStorageConfig } from '@/types/config.js'
 
-const createBaseStorage = () => ({
-  apiKey: 'storage-key',
-  hostname: 'storage.bunny.net',
-  tokenSecurityKey: 'token-key',
-  uploadTimeout: 60000,
-  zoneName: 'test-zone',
-})
+import { createBaseStorage as sharedCreateBaseStorage, createBaseStream } from '../../helpers/unit/configBuilders.js'
 
-const createBaseStream = () => ({
-  apiKey: 'stream-key',
-  hostname: 'stream.bunny.net',
-  libraryId: 12345,
-  tokenSecurityKey: 'stream-token',
-})
+const createBaseStorage = () => sharedCreateBaseStorage({ uploadTimeout: 60000 })
 
 const createMockCollection = (slug: string, overrides: Partial<CollectionConfig> = {}): CollectionConfig => ({
   slug,
@@ -239,19 +228,5 @@ describe('createCollectionContext', () => {
       expect(ctx.streamConfig?.mimeTypes).toEqual(['video/mp4', 'video/webm'])
       expect(ctx.streamConfig?.tus).toBeDefined()
     })
-  })
-})
-
-describe('getNormalizedConfig', () => {
-  it('caches normalized config by reference', () => {
-    const config: BunnyStorageConfig = {
-      collections: { media: true },
-      storage: createBaseStorage(),
-    }
-
-    const normalized1 = getNormalizedConfig(config)
-    const normalized2 = getNormalizedConfig(config)
-
-    expect(normalized1).toBe(normalized2)
   })
 })

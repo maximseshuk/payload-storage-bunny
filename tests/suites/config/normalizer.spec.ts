@@ -3,19 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createNormalizedConfig } from '@/config/normalizer.js'
 import type { BunnyStorageConfig } from '@/types/config.js'
 
-const createBaseStorage = () => ({
-  apiKey: 'storage-key',
-  hostname: 'storage.bunny.net',
-  tokenSecurityKey: 'token-key',
-  zoneName: 'test-zone',
-})
-
-const createBaseStream = () => ({
-  apiKey: 'stream-key',
-  hostname: 'stream.bunny.net',
-  libraryId: 12345,
-  tokenSecurityKey: 'stream-token',
-})
+import { createBaseStorage, createBaseStream } from '../../helpers/unit/configBuilders.js'
 
 const testShouldUseSignedUrl = () => true
 const testClientAccess = () => true

@@ -4,19 +4,7 @@ import { createNormalizedConfig } from '@/config/normalizer.js'
 import { validateNormalizedConfig } from '@/config/validator.js'
 import type { BunnyStorageConfig } from '@/types/config.js'
 
-const createBaseStorage = () => ({
-  apiKey: 'storage-key',
-  hostname: 'storage.bunny.net',
-  tokenSecurityKey: 'token-key',
-  zoneName: 'test-zone',
-})
-
-const createBaseStream = () => ({
-  apiKey: 'stream-key',
-  hostname: 'stream.bunny.net',
-  libraryId: 12345,
-  tokenSecurityKey: 'stream-token',
-})
+import { createBaseStorage, createBaseStream } from '../../helpers/unit/configBuilders.js'
 
 const normalizeAndValidate = (config: BunnyStorageConfig) => {
   const normalized = createNormalizedConfig(config)

@@ -5,6 +5,9 @@ node_modules/
 dist/
 out/
 
+# coverage
+coverage/
+
 # env
 .env
 .env*
