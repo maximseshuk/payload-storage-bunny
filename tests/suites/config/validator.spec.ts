@@ -137,6 +137,47 @@ describe('Config Validator', () => {
 
       expect(() => normalizeAndValidate(config)).not.toThrow()
     })
+
+    it('throws if collection-level purge is enabled without accountApiKey', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { purge: true } },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        'collections [media] enable `purge` but global `accountApiKey` is not provided',
+      )
+    })
+
+    it('throws if collection-level purge config object is set without accountApiKey', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { purge: { async: true } } },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        'collections [media] enable `purge` but global `accountApiKey` is not provided',
+      )
+    })
+
+    it('passes when collection-level purge is enabled with accountApiKey', () => {
+      const config: BunnyStorageConfig = {
+        accountApiKey: 'global-api-key',
+        collections: { media: { purge: true } },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).not.toThrow()
+    })
+
+    it('passes when collection-level purge is false without accountApiKey', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { purge: false } },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).not.toThrow()
+    })
   })
 
   describe('removed aliases (v3)', () => {
@@ -320,6 +361,48 @@ describe('Config Validator', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
         signedUrls: true,
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).not.toThrow()
+    })
+
+    it('throws if collection-level signedUrls is enabled without storage.tokenSecurityKey', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { signedUrls: true } },
+        storage: createBaseStorage({ tokenSecurityKey: undefined }),
+      }
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        'collections [media] enable `signedUrls` but storage `tokenSecurityKey` is not provided',
+      )
+    })
+
+    it('throws if collection-level signedUrls is enabled without stream.tokenSecurityKey', () => {
+      const config: BunnyStorageConfig = {
+        collections: {
+          media: {
+            disablePayloadAccessControl: true,
+            signedUrls: { expiresIn: 3600 },
+            storage: false,
+          },
+        },
+        storage: createBaseStorage(),
+        stream: {
+          apiKey: 'stream-key',
+          hostname: 'stream.bunny.net',
+          libraryId: 12345,
+        },
+      }
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        'collections [media] enable `signedUrls` but stream `tokenSecurityKey` is not provided',
+      )
+    })
+
+    it('passes when collection-level signedUrls is enabled with tokenSecurityKey present', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { signedUrls: true } },
         storage: createBaseStorage(),
       }
 

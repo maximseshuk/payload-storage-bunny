@@ -69,6 +69,21 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     errors.push('`purge` requires global `accountApiKey` to be provided')
   }
 
+  if (!config.accountApiKey && !config._original.purge) {
+    const collectionsWithPurge: string[] = []
+    for (const [slug, collectionConfig] of Object.entries(config._original.collections)) {
+      if (collectionConfig && collectionConfig !== true && collectionConfig.purge) {
+        collectionsWithPurge.push(slug)
+      }
+    }
+
+    if (collectionsWithPurge.length > 0) {
+      errors.push(
+        `collections [${collectionsWithPurge.join(', ')}] enable \`purge\` but global \`accountApiKey\` is not provided`,
+      )
+    }
+  }
+
   if (config.storage) {
     if (config.storage.hostname.includes('storage.bunnycdn.com')) {
       errors.push('storage `hostname` cannot include "storage.bunnycdn.com"')
@@ -85,6 +100,37 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
 
   if (config.signedUrls && config.stream && !config.stream.tokenSecurityKey) {
     errors.push('stream `tokenSecurityKey` is required when signed URLs and stream are both enabled')
+  }
+
+  if (!config.signedUrls) {
+    const storageSignedUrlIssues: string[] = []
+    const streamSignedUrlIssues: string[] = []
+
+    for (const [slug, collection] of config.collections) {
+      if (!collection.signedUrls) {
+        continue
+      }
+
+      if (collection.storage && !collection.storage.tokenSecurityKey) {
+        storageSignedUrlIssues.push(slug)
+      }
+
+      if (collection.stream && !collection.stream.tokenSecurityKey) {
+        streamSignedUrlIssues.push(slug)
+      }
+    }
+
+    if (storageSignedUrlIssues.length > 0) {
+      errors.push(
+        `collections [${storageSignedUrlIssues.join(', ')}] enable \`signedUrls\` but storage \`tokenSecurityKey\` is not provided`,
+      )
+    }
+
+    if (streamSignedUrlIssues.length > 0) {
+      errors.push(
+        `collections [${streamSignedUrlIssues.join(', ')}] enable \`signedUrls\` but stream \`tokenSecurityKey\` is not provided`,
+      )
+    }
   }
 
   for (const [slug, collection] of config.collections) {
