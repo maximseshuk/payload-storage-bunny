@@ -271,6 +271,55 @@ describe('Config Normalizer', () => {
       expect(collectionCU?.edge?.scriptUrl).toBe('https://uploader.b-cdn.net')
       expect(collectionCU?.edge?.secret).toBe('shared')
     })
+
+    it('should enable globally with defaults when true', () => {
+      const config: BunnyStorageConfig = {
+        clientUploads: true,
+        collections: { media: true },
+        storage: { ...createBaseStorage(), s3: { region: 'de' } },
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.clientUploads?.mode).toBe('s3')
+      expect(normalized.collections.get('media')?.clientUploads?.mode).toBe('s3')
+    })
+
+    it('should adopt global config when collection sets true', () => {
+      const config: BunnyStorageConfig = {
+        clientUploads: {
+          edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' },
+          mode: 'edge',
+        },
+        collections: { media: { clientUploads: true } },
+        storage: createBaseStorage(),
+      }
+
+      const collectionCU = createNormalizedConfig(config).collections.get('media')?.clientUploads
+      expect(collectionCU?.mode).toBe('edge')
+      expect(collectionCU?.edge?.scriptUrl).toBe('https://uploader.b-cdn.net')
+    })
+
+    it('should enable per collection with defaults when true and no global config', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { clientUploads: true } },
+        storage: { ...createBaseStorage(), s3: { region: 'de' } },
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.clientUploads).toBeUndefined()
+      expect(normalized.collections.get('media')?.clientUploads?.mode).toBe('s3')
+    })
+
+    it('should disable per collection via false', () => {
+      const config: BunnyStorageConfig = {
+        clientUploads: true,
+        collections: { media: { clientUploads: false } },
+        storage: { ...createBaseStorage(), s3: { region: 'de' } },
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('media')?.clientUploads).toBeUndefined()
+    })
   })
 
   describe('purge', () => {
@@ -376,6 +425,37 @@ describe('Config Normalizer', () => {
 
       const normalized = createNormalizedConfig(config)
       expect(normalized.collections.get('media')?.stream).toBeUndefined()
+    })
+
+    it('should disable tus per collection via false', () => {
+      const config: BunnyStorageConfig = {
+        accountApiKey: 'test-api-key',
+        collections: {
+          media: { stream: { tus: false } },
+          videos: true,
+        },
+        storage: createBaseStorage(),
+        stream: { ...globalStream, tus: true },
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('media')?.stream?.tus).toBeUndefined()
+      expect(normalized.collections.get('videos')?.stream?.tus).toBeDefined()
+    })
+
+    it('should override tus settings per collection', () => {
+      const config: BunnyStorageConfig = {
+        accountApiKey: 'test-api-key',
+        collections: {
+          media: { stream: { tus: { autoMode: false, expiresIn: 7200 } } },
+        },
+        storage: createBaseStorage(),
+        stream: { ...globalStream, tus: true },
+      }
+
+      const mediaTus = createNormalizedConfig(config).collections.get('media')?.stream?.tus
+      expect(mediaTus?.autoMode).toBe(false)
+      expect(mediaTus?.expiresIn).toBe(7200)
     })
   })
 

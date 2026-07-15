@@ -56,23 +56,25 @@ const normalizeClientUploadsConfig = ({
   value,
 }: {
   hasS3: boolean
-  value: ClientUploadsConfig | false | undefined
+  value: boolean | ClientUploadsConfig | undefined
 }): NormalizedClientUploadsConfig | undefined => {
   if (!value) {
     return undefined
   }
 
+  const config: ClientUploadsConfig = value === true ? {} : value
+
   const normalized: NormalizedClientUploadsConfig = {
-    access: value.access,
-    mode: value.mode ?? (hasS3 ? 's3' : 'edge'),
-    prefix: value.prefix,
+    access: config.access,
+    mode: config.mode ?? (hasS3 ? 's3' : 'edge'),
+    prefix: config.prefix,
   }
 
-  if (value.edge) {
+  if (config.edge) {
     normalized.edge = {
-      maxSize: value.edge.maxSize ?? CONFIG_DEFAULTS.clientUploads.edge.maxSize,
-      scriptUrl: value.edge.scriptUrl.replace(/\/+$/, ''),
-      secret: value.edge.secret,
+      maxSize: config.edge.maxSize ?? CONFIG_DEFAULTS.clientUploads.edge.maxSize,
+      scriptUrl: config.edge.scriptUrl.replace(/\/+$/, ''),
+      secret: config.edge.secret,
     }
   }
 
@@ -344,6 +346,10 @@ const resolveCollectionClientUploadsConfig = ({
     return globalValue
   }
 
+  if (collectionOverride === true) {
+    return globalValue ?? normalizeClientUploadsConfig({ hasS3, value: true })
+  }
+
   if (!globalValue) {
     return normalizeClientUploadsConfig({ hasS3, value: collectionOverride })
   }
@@ -414,7 +420,9 @@ const resolveCollectionStreamConfig = ({
     uploadTimeout: collectionOverride.uploadTimeout,
   })
 
-  if (collectionOverride.tus && streamConfig.tus) {
+  if (collectionOverride.tus === false) {
+    streamConfig.tus = undefined
+  } else if (collectionOverride.tus && streamConfig.tus) {
     streamConfig.tus = mergeDefined(streamConfig.tus, {
       autoMode: collectionOverride.tus.autoMode,
       expiresIn: collectionOverride.tus.expiresIn,

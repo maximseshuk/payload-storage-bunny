@@ -302,9 +302,10 @@ export type SignedUrlsConfig = {
 export type BunnyStorageCollectionConfig = {
   /**
    * Override global client uploads config for this collection.
+   * Set to true to enable browser-direct uploads with defaults for this collection.
    * Set to false to disable browser-direct uploads for this collection.
    */
-  clientUploads?: ClientUploadsConfig | false
+  clientUploads?: boolean | ClientUploadsConfig
   /**
    * Override global CDN cache purging config for this collection.
    * Set to false to disable cache purging for this collection.
@@ -348,20 +349,23 @@ export type BunnyStorageCollectionConfig = {
          */
         thumbnailTime?: number
         /**
-         * Override TUS resumable uploads config for this collection
+         * Override TUS resumable uploads config for this collection.
+         * Set to false to disable TUS resumable uploads for this collection.
          */
-        tus?: {
-          /**
-           * Override automatic TUS mode enablement for this collection.
-           * When true, TUS auto-enables for supported video MIME types.
-           * When false, user must manually click "Enable tus mode" button.
-           */
-          autoMode?: boolean
-          /**
-           * Override TUS upload session expiry in seconds for this collection
-           */
-          expiresIn?: number
-        }
+        tus?:
+          | false
+          | {
+              /**
+               * Override automatic TUS mode enablement for this collection.
+               * When true, TUS auto-enables for supported video MIME types.
+               * When false, user must manually click "Enable tus mode" button.
+               */
+              autoMode?: boolean
+              /**
+               * Override TUS upload session expiry in seconds for this collection
+               */
+              expiresIn?: number
+            }
         /**
          * Override upload timeout in milliseconds for this collection
          */
@@ -396,8 +400,9 @@ type BunnyStorageBaseConfig = {
   /**
    * Enable browser-direct uploads that bypass the Payload server for the file bytes,
    * removing serverless body-size limits (e.g. Vercel's ~4.5 MB). Can be overridden per collection.
+   * Set to true to enable with defaults.
    */
-  clientUploads?: ClientUploadsConfig | false
+  clientUploads?: boolean | ClientUploadsConfig
   /** Which collections should use Bunny Storage */
   collections: CollectionsConfig
   /**
