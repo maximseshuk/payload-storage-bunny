@@ -382,7 +382,7 @@ export type BunnyStorageCollectionConfig = {
    * Set to false to disable URL transformation for this collection.
    */
   urlTransform?: boolean | UrlTransformConfig
-} & Omit<CollectionOptions, 'adapter'>
+} & Omit<CollectionOptions, 'adapter' | 'disableLocalStorage'>
 
 /** Configuration for which collections use Bunny Storage */
 export type CollectionsConfig = Partial<Record<UploadCollectionSlug, BunnyStorageCollectionConfig | true>>
@@ -405,8 +405,6 @@ type BunnyStorageBaseConfig = {
    * @default true
    */
   enabled?: boolean
-  /** Experimental features that may change in future versions */
-  experimental?: Record<string, never>
   /** Internationalization settings for UI elements */
   i18n?: {
     translations: {
