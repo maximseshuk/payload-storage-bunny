@@ -55,8 +55,8 @@ export type ThumbnailConfig = {
 
 export type PurgeConfig = {
   /**
-   * Wait for purge to complete before continuing
-   * @default false
+   * Run the purge asynchronously and return before it finishes.
+   * @default false (wait for completion)
    */
   async?: boolean
 }
@@ -273,7 +273,7 @@ export type StaticHandlerConfig = {
    * Redirect to signed URL instead of proxying content through Payload
    *
    * When enabled, static handler responds with HTTP redirect instead of streaming content.
-   * Only works when enablePayloadAccessControl is true.
+   * Only works when `disablePayloadAccessControl` is false.
    *
    * @default false
    */
@@ -380,7 +380,6 @@ export type BunnyStorageCollectionConfig = {
   /**
    * Override global URL transformation config for this collection
    * Set to false to disable URL transformation for this collection.
-   * @note Does not work when `disablePayloadAccessControl` is true
    */
   urlTransform?: boolean | UrlTransformConfig
 } & Omit<CollectionOptions, 'adapter'>
@@ -433,7 +432,6 @@ type BunnyStorageBaseConfig = {
   thumbnail?: boolean | ThumbnailConfig
   /**
    * Global URL transformation config for all collections (can be overridden per collection)
-   * @note Does not work when `disablePayloadAccessControl` is true for the collection
    */
   urlTransform?: boolean | UrlTransformConfig
 }
