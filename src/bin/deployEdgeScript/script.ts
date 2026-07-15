@@ -8,6 +8,12 @@ import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 
 import { checkEdgeScriptVersion, deployEdgeScript } from './core.js'
 
+const useColor = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR
+const paint = (code: string, text: string): string => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text)
+const key = (text: string): string => paint('36', text)
+const str = (text: string): string => paint('32', text)
+const punc = (text: string): string => paint('2', text)
+
 export const script: BinScript = async (config) => {
   /* eslint-disable no-console */
   const logger = {
@@ -83,9 +89,11 @@ export const script: BinScript = async (config) => {
     if (result.scriptUrl) {
       logger.info('')
       logger.info('Add this to your bunnyStorage config:')
-      logger.info('  clientUploads: {')
-      logger.info(`    edge: { scriptUrl: '${result.scriptUrl}', secret: '${result.sharedSecret}' },`)
-      logger.info('  }')
+      logger.info(`  ${key('clientUploads')}${punc(': {')}`)
+      logger.info(
+        `    ${key('edge')}${punc(': { ')}${key('scriptUrl')}${punc(': ')}${str(`'${result.scriptUrl}'`)}${punc(', ')}${key('secret')}${punc(': ')}${str(`'${result.sharedSecret}'`)}${punc(' },')}`,
+      )
+      logger.info(`  ${punc('}')}`)
     }
   } catch (err) {
     logger.error(`${(err as Error).message}`)

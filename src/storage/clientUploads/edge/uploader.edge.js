@@ -99,19 +99,52 @@ BunnySDK.net.http.serve(async (request) => {
 
   const maxSize = Number(url.searchParams.get('X-Upload-Max-Size'))
   const contentLength = Number(request.headers.get('Content-Length'))
-  if (Number.isFinite(maxSize) && Number.isFinite(contentLength) && contentLength > maxSize) {
-    return withCors(new Response('File too large', { status: 413 }), request)
+
+  if (Number.isFinite(maxSize)) {
+    if (!Number.isFinite(contentLength)) {
+      return withCors(new Response('Content-Length required', { status: 411 }), request)
+    }
+    if (contentLength > maxSize) {
+      return withCors(new Response('File too large', { status: 413 }), request)
+    }
   }
 
-  const upstream = await fetch('https://' + STORAGE_HOST + '/' + STORAGE_ZONE + '/' + path, {
-    method: 'PUT',
-    body: request.body,
-    duplex: 'half',
-    headers: {
-      AccessKey: STORAGE_ACCESS_KEY,
-      'Content-Type': request.headers.get('Content-Type') ?? 'application/octet-stream',
-    },
-  })
+  let body = request.body
+  let sizeExceeded = false
+  if (Number.isFinite(maxSize) && body) {
+    let transferred = 0
+    body = body.pipeThrough(
+      new TransformStream({
+        transform(chunk, controller) {
+          transferred += chunk.byteLength
+          if (transferred > maxSize) {
+            sizeExceeded = true
+            controller.error(new Error('max-size exceeded'))
+            return
+          }
+          controller.enqueue(chunk)
+        },
+      }),
+    )
+  }
+
+  let upstream
+  try {
+    upstream = await fetch('https://' + STORAGE_HOST + '/' + STORAGE_ZONE + '/' + path, {
+      method: 'PUT',
+      body,
+      duplex: 'half',
+      headers: {
+        AccessKey: STORAGE_ACCESS_KEY,
+        'Content-Type': request.headers.get('Content-Type') ?? 'application/octet-stream',
+      },
+    })
+  } catch (err) {
+    if (sizeExceeded) {
+      return withCors(new Response('File too large', { status: 413 }), request)
+    }
+    throw err
+  }
 
   return withCors(new Response(upstream.body, { status: upstream.status }), request)
 })
