@@ -17,7 +17,7 @@ import { matchesMimeTypePattern } from '@/utils/mimeTypes.js'
 import { getGenerateUrl } from './generateUrl.js'
 
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
-  const { apiKey, prefix, purgeConfig, storageConfig, streamConfig } = context
+  const { accountApiKey, prefix, purgeConfig, storageConfig, streamConfig } = context
 
   return async ({ clientUploadContext, collection, data, file, req }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
@@ -84,10 +84,10 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
 
         setStoredVideoId(data, null)
 
-        if (purgeConfig && apiKey) {
+        if (purgeConfig && accountApiKey) {
           const url = await getGenerateUrl(context)({ collection, data, filename: fileName, prefix: uploadPrefix })
           try {
-            await purgeCache({ apiKey, async: purgeConfig.async, url })
+            await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url })
             req.payload.logger.debug({
               msg: '[bunny:storage] upload: cache purged',
               url,

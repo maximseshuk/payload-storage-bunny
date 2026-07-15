@@ -393,7 +393,7 @@ type BunnyStorageBaseConfig = {
    * Bunny Account API key (AccessKey) for account-level operations.
    * Required for CDN cache purging feature.
    */
-  apiKey?: string
+  accountApiKey?: string
   /**
    * Enable browser-direct uploads that bypass the Payload server for the file bytes,
    * removing serverless body-size limits (e.g. Vercel's ~4.5 MB). Can be overridden per collection.

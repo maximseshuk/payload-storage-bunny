@@ -19,7 +19,7 @@ All scripts read credentials from `.env`.
 
 `test:provision` prints all of these; paste them into `.env`.
 
-- `BUNNY_API_KEY` — account API key.
+- `BUNNY_ACCOUNT_API_KEY` — account API key.
 - `BUNNY_STORAGE_*` — plain storage zone (`_ZONE_NAME`, `_API_KEY`, `_HOSTNAME`).
 - `BUNNY_SIGNED_STORAGE_*` — storage zone with token auth (adds `_TOKEN_SECURITY_KEY`).
 - `BUNNY_S3_STORAGE_*` — S3-compatible zone (adds `_REGION`, e.g. `de`).

@@ -8,7 +8,7 @@ export default buildConfigWithDefaults({
   collections: [createMediaCollection({ slug: 'webhook-test' })],
   plugins: [
     bunnyStorage({
-      apiKey: process.env.BUNNY_API_KEY || '',
+      accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {
         'webhook-test': {
           disablePayloadAccessControl: true,

@@ -117,19 +117,19 @@ describe('Config Validator', () => {
   })
 
   describe('purge validation', () => {
-    it('throws if purge enabled without apiKey', () => {
+    it('throws if purge enabled without accountApiKey', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
         purge: true,
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow('`purge` requires global `apiKey` to be provided')
+      expect(() => normalizeAndValidate(config)).toThrow('`purge` requires global `accountApiKey` to be provided')
     })
 
-    it('passes when purge enabled with global apiKey', () => {
+    it('passes when purge enabled with global accountApiKey', () => {
       const config: BunnyStorageConfig = {
-        apiKey: 'global-api-key',
+        accountApiKey: 'global-api-key',
         collections: { media: true },
         purge: true,
         storage: createBaseStorage(),
@@ -182,7 +182,19 @@ describe('Config Validator', () => {
       } as unknown as BunnyStorageConfig
 
       expect(() => normalizeAndValidate(config)).toThrow(
-        'Config error: "purge.apiKey" was removed in v3. Use the global `apiKey` instead.',
+        'Config error: "purge.apiKey" was removed in v3. Use the global `accountApiKey` instead.',
+      )
+    })
+
+    it('throws a boot error for the removed top-level `apiKey` alias', () => {
+      const config = {
+        apiKey: 'account-api-key',
+        collections: { media: true },
+        storage: createBaseStorage(),
+      } as unknown as BunnyStorageConfig
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        'Config error: "apiKey" was removed in v3. Rename it to "accountApiKey".',
       )
     })
   })
@@ -431,7 +443,7 @@ describe('Config Validator', () => {
         const message = (e as Error).message
         expect(message).toContain(';')
         expect(message).toContain('either `storage` or `stream`')
-        expect(message).toContain('`purge` requires global `apiKey`')
+        expect(message).toContain('`purge` requires global `accountApiKey`')
       }
     })
   })

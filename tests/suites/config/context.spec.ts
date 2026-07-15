@@ -19,7 +19,7 @@ describe('createCollectionContext', () => {
   describe('global config inheritance', () => {
     it('inherits all global settings when collection has no overrides', () => {
       const config: BunnyStorageConfig = {
-        apiKey: 'global-api-key',
+        accountApiKey: 'global-api-key',
         collections: { media: true },
         purge: { async: true },
         signedUrls: { expiresIn: 3600 },
@@ -31,7 +31,7 @@ describe('createCollectionContext', () => {
       const normalized = createNormalizedConfig(config)
       const context = createCollectionContext(normalized, createMockCollection('media'))
 
-      expect(context.apiKey).toBe('global-api-key')
+      expect(context.accountApiKey).toBe('global-api-key')
       expect(context.storageConfig).toBeDefined()
       expect(context.purgeConfig?.async).toBe(true)
       expect(context.signedUrls?.expiresIn).toBe(3600)
@@ -101,7 +101,7 @@ describe('createCollectionContext', () => {
       expect(ctx2.signedUrls).toBeUndefined()
 
       const config3: BunnyStorageConfig = {
-        apiKey: 'global-api-key',
+        accountApiKey: 'global-api-key',
         collections: { media: { purge: { async: true } } },
         purge: { async: false },
         storage: createBaseStorage(),
@@ -110,7 +110,7 @@ describe('createCollectionContext', () => {
       expect(ctx3.purgeConfig?.async).toBe(true)
 
       const config4: BunnyStorageConfig = {
-        apiKey: 'global-api-key',
+        accountApiKey: 'global-api-key',
         collections: { media: { purge: false } },
         purge: { async: false },
         storage: createBaseStorage(),

@@ -41,7 +41,7 @@ export default buildConfigWithDefaults({
   ],
   plugins: [
     bunnyStorage({
-      apiKey: process.env.BUNNY_API_KEY || '',
+      accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {
         'thumbnail-custom': {
           prefix: 'thumbnail-custom',

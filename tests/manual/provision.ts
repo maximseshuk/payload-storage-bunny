@@ -4,14 +4,14 @@ import { log } from '../helpers/shared/log.js'
 const BASE = 'https://api.bunny.net'
 
 const flags = parseFlags(process.argv.slice(2))
-const accountKey = getFlag(flags, 'api-key') ?? process.env.BUNNY_API_KEY ?? ''
+const accountKey = getFlag(flags, 'api-key') ?? process.env.BUNNY_ACCOUNT_API_KEY ?? ''
 const prefix = getFlag(flags, 'prefix') ?? 'psb-e2e'
 const region = (getFlag(flags, 'region') ?? 'DE').toUpperCase()
 const dumpJson = getBooleanFlag(flags, 'json')
 const dryRun = getBooleanFlag(flags, 'dry-run')
 
 if (!accountKey) {
-  log.error('Missing account API key. Pass --api-key or set BUNNY_API_KEY.')
+  log.error('Missing account API key. Pass --api-key or set BUNNY_ACCOUNT_API_KEY.')
   process.exit(1)
 }
 
@@ -169,7 +169,7 @@ const main = async (): Promise<void> => {
   const signedStream = await ensureVideoLibrary(names.streamSigned, true)
 
   const lines = [
-    `BUNNY_API_KEY=${accountKey}`,
+    `BUNNY_ACCOUNT_API_KEY=${accountKey}`,
     '',
     `BUNNY_STORAGE_ZONE_NAME=${storage.Name}`,
     `BUNNY_STORAGE_API_KEY=${storage.Password ?? ''}`,

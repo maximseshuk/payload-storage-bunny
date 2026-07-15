@@ -11,7 +11,7 @@ import type {
 } from './configNormalized.js'
 
 export type CollectionContext = {
-  apiKey?: string
+  accountApiKey?: string
   clientUploads?: NormalizedClientUploadsConfig
   collection: CollectionConfig
   isTusUploadSupported: boolean

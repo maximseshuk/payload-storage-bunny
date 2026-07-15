@@ -15,7 +15,7 @@ import type { CollectionContext } from '@/types/index.js'
 import { getGenerateUrl } from './generateUrl.js'
 
 export const getHandleDelete = (context: CollectionContext): HandleDelete => {
-  const { apiKey, purgeConfig, storageConfig, streamConfig } = context
+  const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
 
   return async ({ collection, doc, filename, req }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
@@ -58,8 +58,8 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
           })
         }
 
-        if (purgeConfig && apiKey && fileUrl) {
-          await purgeCache({ apiKey, async: purgeConfig.async, url: fileUrl })
+        if (purgeConfig && accountApiKey && fileUrl) {
+          await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url: fileUrl })
           req.payload.logger.debug({
             msg: '[bunny:storage] delete: cache purged',
             url: fileUrl,

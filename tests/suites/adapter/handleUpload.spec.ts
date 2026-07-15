@@ -83,7 +83,7 @@ const storageConfig = {
 
 const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionContext =>
   ({
-    apiKey: 'account-key',
+    accountApiKey: 'account-key',
     collection: { slug: 'media' },
     ...overrides,
   }) as unknown as CollectionContext
@@ -250,7 +250,7 @@ describe('getHandleUpload', () => {
   })
 
   describe('purge after upload', () => {
-    it('purges the cache when purgeConfig and apiKey are present', async () => {
+    it('purges the cache when purgeConfig and accountApiKey are present', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockResolvedValue(undefined)
 
@@ -299,12 +299,12 @@ describe('getHandleUpload', () => {
       )
     })
 
-    it('does not purge when apiKey is missing even if purgeConfig is set', async () => {
+    it('does not purge when accountApiKey is missing even if purgeConfig is set', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
 
       const handler = getHandleUpload(
         buildContext({
-          apiKey: undefined,
+          accountApiKey: undefined,
           purgeConfig: { async: false },
           storageConfig,
         } as unknown as Partial<CollectionContext>),

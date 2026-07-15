@@ -34,9 +34,9 @@ export const script: BinScript = async (config) => {
     return
   }
 
-  const accountApiKey = getFlag(parseFlags(process.argv.slice(3)), 'api-key') ?? process.env.BUNNY_API_KEY
+  const accountApiKey = getFlag(parseFlags(process.argv.slice(3)), 'api-key') ?? process.env.BUNNY_ACCOUNT_API_KEY
   if (!accountApiKey) {
-    logger.error('Missing account API key. Pass --api-key or set BUNNY_API_KEY.')
+    logger.error('Missing account API key. Pass --api-key or set BUNNY_ACCOUNT_API_KEY.')
     process.exit(1)
     return
   }

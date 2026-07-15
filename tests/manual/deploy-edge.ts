@@ -7,14 +7,14 @@ import { log } from '../helpers/shared/log.js'
 
 const flags = parseFlags(process.argv.slice(2))
 
-const accountKey = getFlag(flags, 'api-key') ?? process.env.BUNNY_API_KEY ?? ''
+const accountKey = getFlag(flags, 'api-key') ?? process.env.BUNNY_ACCOUNT_API_KEY ?? ''
 const zoneName = getFlag(flags, 'storage-zone') ?? process.env.BUNNY_STORAGE_ZONE_NAME ?? ''
 const zoneKey = getFlag(flags, 'storage-key') ?? process.env.BUNNY_STORAGE_API_KEY ?? ''
 const storageHost = getFlag(flags, 'storage-host') ?? 'storage.bunnycdn.com'
 const secret = getFlag(flags, 'secret') ?? process.env.BUNNY_EDGE_SECRET ?? randomBytes(16).toString('hex')
 
 if (!accountKey || !zoneName || !zoneKey) {
-  log.error('Missing BUNNY_API_KEY, BUNNY_STORAGE_ZONE_NAME, or BUNNY_STORAGE_API_KEY (or the matching flags).')
+  log.error('Missing BUNNY_ACCOUNT_API_KEY, BUNNY_STORAGE_ZONE_NAME, or BUNNY_STORAGE_API_KEY (or the matching flags).')
   process.exit(1)
 }
 

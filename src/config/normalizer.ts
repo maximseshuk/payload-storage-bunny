@@ -32,11 +32,13 @@ const mergeDefined = <T extends object>(base: T, override: Partial<T>): T => {
 export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedBunnyStorageConfig => {
   const normalized: NormalizedBunnyStorageConfig = {
     _original: options,
-    apiKey: options.apiKey,
+    accountApiKey: options.accountApiKey,
     clientUploads: normalizeClientUploadsConfig({ hasS3: !!options.storage?.s3, value: options.clientUploads }),
     collections: new Map(),
     i18n: options.i18n,
-    purge: options.purge ? normalizePurgeConfig({ apiKey: options.apiKey, purge: options.purge }) : undefined,
+    purge: options.purge
+      ? normalizePurgeConfig({ accountApiKey: options.accountApiKey, purge: options.purge })
+      : undefined,
     signedUrls: normalizeSignedUrlsConfig({ value: options.signedUrls }),
     storage: options.storage ? normalizeStorageConfig(options.storage) : undefined,
     stream: options.stream ? normalizeStreamConfig(options.stream) : undefined,
@@ -122,14 +124,14 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
 }
 
 const normalizePurgeConfig = ({
-  apiKey,
+  accountApiKey,
   purge,
 }: {
-  apiKey?: string
+  accountApiKey?: string
   purge: boolean | PurgeConfig
 }): NormalizedPurgeConfig | undefined => {
   if (purge === true) {
-    if (!apiKey) {
+    if (!accountApiKey) {
       return undefined
     }
     return {
@@ -141,7 +143,7 @@ const normalizePurgeConfig = ({
     return undefined
   }
 
-  if (!apiKey) {
+  if (!accountApiKey) {
     return undefined
   }
 
@@ -304,7 +306,7 @@ const normalizeCollectionConfig = ({
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
     prefix: collectionConfig.prefix ?? '',
     purge: resolveCollectionPurgeConfig({
-      apiKey: globalConfig.apiKey,
+      accountApiKey: globalConfig.accountApiKey,
       collectionOverride: collectionConfig.purge,
       globalValue: globalConfig.purge,
     }),
@@ -423,11 +425,11 @@ const resolveCollectionStreamConfig = ({
 }
 
 const resolveCollectionPurgeConfig = ({
-  apiKey,
+  accountApiKey,
   collectionOverride,
   globalValue,
 }: {
-  apiKey?: string
+  accountApiKey?: string
   collectionOverride: boolean | Partial<PurgeConfig> | undefined
   globalValue: NormalizedPurgeConfig | undefined
 }): NormalizedPurgeConfig | undefined => {
@@ -440,11 +442,11 @@ const resolveCollectionPurgeConfig = ({
   }
 
   if (collectionOverride === true) {
-    return globalValue ?? normalizePurgeConfig({ apiKey, purge: true })
+    return globalValue ?? normalizePurgeConfig({ accountApiKey, purge: true })
   }
 
   if (!globalValue) {
-    return normalizePurgeConfig({ apiKey, purge: collectionOverride })
+    return normalizePurgeConfig({ accountApiKey, purge: collectionOverride })
   }
 
   return mergeDefined(globalValue, { async: collectionOverride.async })

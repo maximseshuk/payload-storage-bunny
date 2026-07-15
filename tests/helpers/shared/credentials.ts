@@ -2,7 +2,7 @@ const hasEnv = (...keys: string[]): boolean => keys.every((key) => Boolean(proce
 
 export const hasBunnyCredentials = (): boolean =>
   hasEnv(
-    'BUNNY_API_KEY',
+    'BUNNY_ACCOUNT_API_KEY',
     'BUNNY_STORAGE_API_KEY',
     'BUNNY_STORAGE_ZONE_NAME',
     'BUNNY_STORAGE_HOSTNAME',

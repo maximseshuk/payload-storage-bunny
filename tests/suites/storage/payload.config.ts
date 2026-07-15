@@ -8,7 +8,7 @@ export default buildConfigWithDefaults({
   collections: [createMediaCollection({ slug: 'storage-basic' })],
   plugins: [
     bunnyStorage({
-      apiKey: process.env.BUNNY_API_KEY || '',
+      accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {
         'storage-basic': {
           disablePayloadAccessControl: true,

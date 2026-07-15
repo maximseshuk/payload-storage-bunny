@@ -78,7 +78,7 @@ export interface NormalizedCollectionConfig {
 
 export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, 'i18n'> {
   _original: BunnyStorageConfig
-  apiKey?: string
+  accountApiKey?: string
   clientUploads?: NormalizedClientUploadsConfig
   collections: Map<string, NormalizedCollectionConfig>
   purge?: NormalizedPurgeConfig

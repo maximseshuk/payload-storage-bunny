@@ -18,7 +18,7 @@ export const createCollectionContext = (
   const streamConfig = applyStreamConfig(collectionConfig.stream, collection)
 
   return {
-    apiKey: config.apiKey,
+    accountApiKey: config.accountApiKey,
     clientUploads: collectionConfig.clientUploads,
     collection,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
@@ -41,7 +41,7 @@ const createDefaultContext = (
   const streamConfig = applyStreamConfig(config.stream, collection)
 
   return {
-    apiKey: config.apiKey,
+    accountApiKey: config.accountApiKey,
     clientUploads: config.clientUploads,
     collection,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,

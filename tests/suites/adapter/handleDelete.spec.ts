@@ -56,7 +56,7 @@ const storageConfig = {
 
 const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionContext =>
   ({
-    apiKey: 'account-key',
+    accountApiKey: 'account-key',
     collection: { slug: 'media' },
     ...overrides,
   }) as unknown as CollectionContext
@@ -121,7 +121,7 @@ describe('getHandleDelete', () => {
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
 
-    it('deletes via the HTTP backend and purges when purgeConfig, apiKey and a fileUrl are present', async () => {
+    it('deletes via the HTTP backend and purges when purgeConfig, accountApiKey and a fileUrl are present', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockResolvedValue(undefined)
 
