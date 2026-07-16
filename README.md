@@ -22,24 +22,26 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
   - [Signed URLs](#signed-urls-configuration)
   - [URL Transform](#url-transform-configuration)
   - [TUS Uploads](#tus-uploads-configuration)
+  - [Client Uploads](#client-uploads-configuration)
   - [Access Control](#access-control-configuration)
 - [CDN Cache Management](#cdn-cache-management)
 - [Getting API Keys](#getting-api-keys)
 - [Storage Regions](#storage-regions)
 - [Basic Usage Example](#basic-usage-example)
-- [Examples](docs/examples.md)
+- [Examples](https://payload-storage-bunny.seshuk.im/examples)
 
 ## Features
 
 - **Bunny Storage** - Upload files, images, and documents to Bunny's global CDN
 - **Bunny Stream** - Handle videos with HLS/MP4 streaming, adaptive bitrates, and thumbnails
 - **TUS Resumable Uploads** - Reliable uploads for large video files with auto-resume on interruption
+- **Client Uploads** - Browser-direct uploads (S3 or Edge Script) that bypass serverless body-size limits
 - **Thumbnail Generation** - Automatic thumbnails for admin panel and API responses with customizable transformations
 - **Signed URLs** - Secure file access with time limits and geo-restrictions
 - **Custom URL Transformations** - Apply query parameters or custom logic to file URLs
 - **Access Control** - Use Payload's access rules or direct CDN delivery
 - **Automatic CDN Cache Purging** - Invalidate cache on file upload/delete for instant updates
-- **Per-Collection Configuration** - Override global settings for specific collections
+- **Collection overrides** - Override global settings for specific collections
 
 > [!TIP]
 > Looking for media preview functionality (inline previews of images, videos, audio, and documents in the admin panel)? Use the standalone **[@seshuk/payload-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** plugin — it works with any storage adapter, including this one.
@@ -49,10 +51,10 @@ Built on top of `@payloadcms/plugin-cloud-storage` for seamless Payload CMS inte
 
 ## Installation
 
-Requires Payload CMS 3.53.0 or higher.
+Requires Payload CMS 3.83.0 or higher, and Node.js 22 or higher.
 
 > [!IMPORTANT]
-> **Migration from v1.x**: Version 2.0.0+ requires Payload CMS 3.53.0+. For older Payload versions (3.0.0 - 3.52.x), use version 1.x with the optional experimental `replaceSaveButtonComponent` feature to fix the field update bug. See [Migration Guide](docs/migration-guide.md) for detailed upgrade instructions.
+> **Upgrading?** v3 renames and removes several config keys (the plugin throws a clear error at startup) and migrates stored Stream metadata into a `bunnyData` field. See the [Migration Guide](https://payload-storage-bunny.seshuk.im/upgrade-guide) for step-by-step instructions.
 
 ```bash
 # npm
@@ -73,8 +75,8 @@ Create a `.env` file in your project root:
 
 ```env
 BUNNY_STORAGE_API_KEY=your-storage-api-key
-BUNNY_HOSTNAME=example.b-cdn.net
-BUNNY_ZONE_NAME=your-storage-zone
+BUNNY_STORAGE_HOSTNAME=example.b-cdn.net
+BUNNY_STORAGE_ZONE_NAME=your-storage-zone
 ```
 
 ### 2. Configure the plugin
@@ -96,8 +98,8 @@ export default buildConfig({
       },
       storage: {
         apiKey: process.env.BUNNY_STORAGE_API_KEY,
-        hostname: process.env.BUNNY_HOSTNAME,
-        zoneName: process.env.BUNNY_ZONE_NAME,
+        hostname: process.env.BUNNY_STORAGE_HOSTNAME,
+        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,
       },
     }),
   ],
@@ -113,9 +115,7 @@ import { CollectionConfig } from 'payload'
 
 export const Media: CollectionConfig = {
   slug: 'media',
-  upload: {
-    disableLocalStorage: true, // Required - handled by Bunny.net
-  },
+  upload: true,
   fields: [
     {
       name: 'alt',
@@ -138,40 +138,43 @@ export const Media: CollectionConfig = {
 
 Main plugin configuration options:
 
-| Option         | Type                | Required | Description                                                     |
-| -------------- | ------------------- | -------- | --------------------------------------------------------------- |
-| `enabled`      | `boolean`           | ❌       | Enable or disable the plugin (default: true)                    |
-| `apiKey`       | `string`            | ⚠️       | Bunny Account API key (required for `purge` feature)            |
-| `collections`  | `object`            | ✅       | Which collections should use Bunny Storage                      |
-| `storage`      | `object`            | ⚠️       | Bunny Storage configuration (required if `stream` not provided) |
-| `stream`       | `object`            | ⚠️       | Bunny Stream configuration (required if `storage` not provided) |
-| `purge`        | `boolean \| object` | ❌       | CDN cache purging configuration (optional)                      |
-| `thumbnail`    | `boolean \| object` | ❌       | Global thumbnail settings (optional)                            |
-| `signedUrls`   | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                     |
-| `urlTransform` | `object`            | ❌       | Global URL transformation config (optional)                     |
-| `i18n`         | `object`            | ❌       | Internationalization settings (optional)                        |
-| `experimental` | `object`            | ❌       | Experimental features (optional)                                |
+| Option          | Type                | Required | Description                                                                                                |
+| --------------- | ------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `enabled`       | `boolean`           | ❌       | Enable or disable the plugin (default: true)                                                               |
+| `accountApiKey` | `string`            | ⚠️       | Bunny **account** API key (required for `purge`; also used by the edge-script deploy CLI)                  |
+| `collections`   | `object`            | ✅       | Which collections should use Bunny Storage                                                                 |
+| `storage`       | `object`            | ⚠️       | Bunny Storage configuration, incl. `storage.clientUploads` (optional if every collection provides its own) |
+| `stream`        | `object`            | ⚠️       | Bunny Stream configuration (optional if every collection provides its own)                                 |
+| `purge`         | `boolean \| object` | ❌       | CDN cache purging configuration (optional)                                                                 |
+| `thumbnail`     | `boolean \| object` | ❌       | Global thumbnail settings (optional)                                                                       |
+| `signedUrls`    | `boolean \| object` | ❌       | Global signed URLs configuration (optional)                                                                |
+| `urlTransform`  | `object`            | ❌       | Global URL transformation config (optional)                                                                |
+| `i18n`          | `object`            | ❌       | Internationalization settings (optional)                                                                   |
 
 ### Collections Configuration
 
 Define which collections will use Bunny Storage:
 
-| Option                        | Type                | Default         | Description                                                      |
-| ----------------------------- | ------------------- | --------------- | ---------------------------------------------------------------- |
-| `[collectionSlug]`            | `boolean \| object` | -               | Enable Bunny Storage for collection (true) or with options       |
-| `prefix`                      | `string`            | Collection slug | Folder prefix within Bunny Storage                               |
-| `disablePayloadAccessControl` | `boolean`           | `false`         | Use direct CDN access (bypasses Payload auth)                    |
-| `purge`                       | `boolean \| object` | Global setting  | Override global cache purging config (false to disable)          |
-| `storage`                     | `false \| object`   | Global setting  | Disable storage for this collection (false) or override settings |
-| `storage.uploadTimeout`       | `number`            | Global setting  | Override storage upload timeout in milliseconds                  |
-| `stream`                      | `false \| object`   | Global setting  | Disable stream for this collection (false) or override settings  |
-| `stream.mp4Fallback`          | `boolean`           | Global setting  | Override MP4 fallback setting for videos                         |
-| `stream.thumbnailTime`        | `number`            | Global setting  | Override default thumbnail time for videos (in milliseconds)     |
-| `stream.tus.uploadTimeout`    | `number`            | Global setting  | Override TUS upload timeout in seconds                           |
-| `stream.uploadTimeout`        | `number`            | Global setting  | Override stream upload timeout in milliseconds                   |
-| `thumbnail`                   | `boolean \| object` | Global setting  | Override global thumbnail config                                 |
-| `signedUrls`                  | `boolean \| object` | Global setting  | Override global signed URLs config                               |
-| `urlTransform`                | `object`            | Global setting  | Override global URL transform config                             |
+| Option                        | Type                | Default          | Description                                                                                                                                                                                                                          |
+| ----------------------------- | ------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `[collectionSlug]`            | `boolean \| object` | -                | Enable Bunny Storage for collection (true) or with options                                                                                                                                                                           |
+| `prefix`                      | `string`            | `''` (zone root) | Folder prefix within Bunny Storage                                                                                                                                                                                                   |
+| `disablePayloadAccessControl` | `boolean`           | `false`          | Use direct CDN access (bypasses Payload auth)                                                                                                                                                                                        |
+| `purge`                       | `boolean \| object` | Global setting   | Override global cache purging config (false to disable)                                                                                                                                                                              |
+| `storage`                     | `false \| object`   | Global setting   | Partial override (`uploadTimeout`, `clientUploads`), a full config with own `apiKey`/`hostname`/`zoneName` (own zone; complete replacement, nothing inherited — see below), or `false` to disable                                    |
+| `storage.uploadTimeout`       | `number`            | Global setting   | Override storage upload timeout in milliseconds                                                                                                                                                                                      |
+| `storage.clientUploads`       | `boolean \| object` | Global setting   | Enable, disable, or override browser-direct uploads                                                                                                                                                                                  |
+| `stream`                      | `false \| object`   | Global setting   | Partial override (`mimeTypes`/`mp4Fallback`/`thumbnailTime`/`tus`/`uploadTimeout`), a full config with own `apiKey`/`hostname`/`libraryId` (own library; complete replacement, nothing inherited — see below), or `false` to disable |
+| `stream.mimeTypes`            | `string[]`          | Global setting   | Override the MIME types routed to Bunny Stream for this collection                                                                                                                                                                   |
+| `stream.mp4Fallback`          | `boolean`           | Global setting   | Override MP4 fallback setting for videos                                                                                                                                                                                             |
+| `stream.thumbnailTime`        | `number`            | Global setting   | Override default thumbnail time for videos (in milliseconds)                                                                                                                                                                         |
+| `stream.tus`                  | `false \| object`   | Global setting   | Override TUS config, or `false` to disable TUS for this collection                                                                                                                                                                   |
+| `stream.tus.autoMode`         | `boolean`           | Global setting   | Override auto-enable of TUS for supported files                                                                                                                                                                                      |
+| `stream.tus.expiresIn`        | `number`            | Global setting   | Override TUS session expiry in seconds                                                                                                                                                                                               |
+| `stream.uploadTimeout`        | `number`            | Global setting   | Override stream upload timeout in milliseconds                                                                                                                                                                                       |
+| `thumbnail`                   | `boolean \| object` | Global setting   | Override global thumbnail config                                                                                                                                                                                                     |
+| `signedUrls`                  | `boolean \| object` | Global setting   | Override global signed URLs config                                                                                                                                                                                                   |
+| `urlTransform`                | `object`            | Global setting   | Override global URL transform config                                                                                                                                                                                                 |
 
 **Examples:**
 
@@ -189,7 +192,7 @@ collections: {
     stream: {
       mp4Fallback: true,
       tus: {
-        uploadTimeout: 7200 // 2 hours for large files
+        expiresIn: 7200 // session expiry in seconds (2 hours)
       }
     }
   }
@@ -216,18 +219,70 @@ collections: {
 
 The `prefix` option organizes files in folders within your Bunny Storage. For example, `prefix: 'images'` stores uploads in an "images" folder.
 
+**Per-collection zones and libraries:** a collection's `storage`/`stream` can also be a **full config** with its own `apiKey`/`hostname`/`zoneName` (storage) or `apiKey`/`hostname`/`libraryId` (stream). That collection then uses its OWN Bunny zone/library and inherits nothing from the global config — omitted keys fall back to plugin defaults, not the global values. The plugin tells a full config from a partial override by whether it includes `apiKey`. Provide that zone/library's own `tokenSecurityKey` for signed URLs and its own `webhook.secret` for stream webhooks; per-collection `cleanup` carries only `maxAge` (the schedule is global-only). Because a collection can own its whole zone/library, the top-level `storage`/`stream` are optional.
+
+```typescript
+collections: {
+  media: true, // global zone + library
+  tenantA: {
+    storage: {
+      apiKey: process.env.TENANT_A_STORAGE_API_KEY,
+      hostname: 'tenant-a.b-cdn.net',
+      zoneName: 'tenant-a-zone',
+    },
+    stream: {
+      apiKey: process.env.TENANT_A_STREAM_API_KEY,
+      hostname: 'vz-tenant-a-123.b-cdn.net',
+      libraryId: 654321,
+    },
+  },
+}
+```
+
+See the [Collection overrides](https://payload-storage-bunny.seshuk.im/configuration/collection-overrides) guide for the full rules.
+
+#### Accessing the resolved config
+
+Need a collection's resolved settings inside a hook, endpoint, or script — the library id and API key for a Stream recipe, the zone name for a direct Storage call? Ask the plugin instead of re-deriving them from `process.env`. These accessors read the config the plugin stashed on `payload.config.custom`, with global config and per-collection overrides already applied:
+
+```typescript
+import {
+  getBunnyStorageForCollection,
+  getBunnyStreamForCollection,
+  getBunnyCollectionConfig,
+  getBunnyConfig,
+} from '@seshuk/payload-storage-bunny'
+
+const stream = getBunnyStreamForCollection(req.payload, 'media')
+// → { apiKey, libraryId, hostname, tokenSecurityKey? } | undefined
+```
+
+| Accessor                                      | Returns                                                                           |
+| --------------------------------------------- | --------------------------------------------------------------------------------- |
+| `getBunnyStorageForCollection(payload, slug)` | `{ apiKey, zoneName, hostname, region?, s3?, tokenSecurityKey? }` or `undefined`. |
+| `getBunnyStreamForCollection(payload, slug)`  | `{ apiKey, libraryId, hostname, tokenSecurityKey? }` or `undefined`.              |
+| `getBunnyCollectionConfig(payload, slug)`     | `{ storage?, stream? }` for a managed collection, or `undefined`.                 |
+| `getBunnyConfig(payload)`                     | The full normalized plugin config (escape hatch, internal shape), or `undefined`. |
+
+They never throw: `undefined` means the plugin is absent/disabled, the slug is not managed, or (for a per-backend accessor) that backend is off for the collection.
+
+> [!WARNING]
+> The returned objects contain your Bunny API keys. Use them in server code only — never send them to the client.
+
 ### Storage Configuration
 
 Connect to Bunny Storage:
 
-| Option             | Type     | Required | Description                                                           |
-| ------------------ | -------- | -------- | --------------------------------------------------------------------- |
-| `apiKey`           | `string` | ✅       | Your Bunny Storage API key                                            |
-| `hostname`         | `string` | ✅       | Your CDN domain from Pull Zone (e.g., 'example.b-cdn.net')            |
-| `zoneName`         | `string` | ✅       | Your storage zone name                                                |
-| `region`           | `string` | ❌       | Storage region code ('uk', 'ny', 'la', 'sg', 'se', 'br', 'jh', 'syd') |
-| `tokenSecurityKey` | `string` | ❌       | Security key for signing storage URLs                                 |
-| `uploadTimeout`    | `number` | ❌       | Upload timeout in milliseconds (default: 120000)                      |
+| Option             | Type                | Required | Description                                                                                                                                             |
+| ------------------ | ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apiKey`           | `string`            | ✅       | Your Bunny Storage API key                                                                                                                              |
+| `hostname`         | `string`            | ✅       | Your CDN domain from Pull Zone (e.g., 'example.b-cdn.net')                                                                                              |
+| `zoneName`         | `string`            | ✅       | Your storage zone name                                                                                                                                  |
+| `region`           | `string`            | ❌       | Storage region code ('uk', 'ny', 'la', 'sg', 'se', 'br', 'jh', 'syd')                                                                                   |
+| `s3`               | `object`            | ❌       | S3-compatible zone access (`{ region }`). Zone must be created with S3 compatibility. Switches client uploads to presigned S3.                          |
+| `tokenSecurityKey` | `string`            | ❌       | Security key for signing storage URLs                                                                                                                   |
+| `uploadTimeout`    | `number`            | ❌       | Upload timeout in milliseconds (default: 120000)                                                                                                        |
+| `clientUploads`    | `boolean \| object` | ❌       | Browser-direct uploads for this zone. `true` for defaults; native zones need `clientUploads.edge`. See [Client uploads](#client-uploads-configuration). |
 
 > [!IMPORTANT]
 > Bunny Storage requires a Pull Zone to be configured for your Storage Zone. Files will not be accessible without a properly configured Pull Zone. The `hostname` should be your Pull Zone hostname, not the Storage API endpoint. See [Bunny's documentation](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage?ref=fndfoymy0j) on accessing and delivering files from Bunny Storage.
@@ -236,29 +291,31 @@ Connect to Bunny Storage:
 
 Optional settings for video handling:
 
-| Option             | Type                | Required | Description                                                                                |
-| ------------------ | ------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `apiKey`           | `string`            | ✅       | Your Bunny Stream API key                                                                  |
-| `hostname`         | `string`            | ✅       | Stream CDN domain (e.g., 'vz-abc123def-456.b-cdn.net')                                     |
-| `libraryId`        | `number`            | ✅       | Your video library ID (e.g., 123456)                                                       |
-| `mimeTypes`        | `string[]`          | ❌       | File types that should use Bunny Stream (defaults to video/audio types)                    |
-| `mp4Fallback`      | `boolean`           | ❌       | Enable MP4 downloads (required with access control unless using signed URLs with redirect) |
-| `thumbnailTime`    | `number`            | ❌       | Default thumbnail time in milliseconds (specifies moment in video to capture)              |
-| `tokenSecurityKey` | `string`            | ❌       | Security key for signing stream URLs                                                       |
-| `uploadTimeout`    | `number`            | ❌       | Upload timeout in milliseconds (default: 300000)                                           |
-| `tus`              | `boolean \| object` | ❌       | Enable TUS resumable uploads (see options below)                                           |
-| `cleanup`          | `boolean \| object` | ❌       | Automatic cleanup of incomplete uploads (requires Jobs Queue setup, see options below)     |
+| Option             | Type                 | Required | Description                                                                                                                                                                                              |
+| ------------------ | -------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apiKey`           | `string`             | ✅       | Your Bunny Stream API key                                                                                                                                                                                |
+| `hostname`         | `string`             | ✅       | Stream CDN domain (e.g., 'vz-abc123def-456.b-cdn.net')                                                                                                                                                   |
+| `libraryId`        | `number`             | ✅       | Your video library ID (e.g., 123456)                                                                                                                                                                     |
+| `mimeTypes`        | `string[]`           | ❌       | File types that should use Bunny Stream (defaults to video/audio types)                                                                                                                                  |
+| `mp4Fallback`      | `boolean`            | ❌       | Enable MP4 downloads (required with access control unless using signed URLs with redirect)                                                                                                               |
+| `referer`          | `string`             | ❌       | `Referer` header for server-side MP4-fallback requests (only needed for BlockNoneReferrer libraries)                                                                                                     |
+| `thumbnailTime`    | `number`             | ❌       | Default thumbnail time in milliseconds (specifies moment in video to capture)                                                                                                                            |
+| `tokenSecurityKey` | `string`             | ❌       | Security key for signing stream URLs                                                                                                                                                                     |
+| `uploadTimeout`    | `number`             | ❌       | Upload timeout in milliseconds (default: 300000)                                                                                                                                                         |
+| `tus`              | `boolean \| object`  | ❌       | Enable TUS resumable uploads (see options below)                                                                                                                                                         |
+| `cleanup`          | `boolean \| object`  | ❌       | Automatic cleanup of incomplete uploads (requires Jobs Queue setup, see options below)                                                                                                                   |
+| `webhook`          | `{ secret: string }` | ❌       | Receive signed Bunny Stream status updates. `secret` is the library's Read-Only API key — Bunny signs each webhook (`X-BunnyStream-Signature`), verified per library. Can be set per-collection library. |
 
 > [!IMPORTANT]
 > The `stream.mimeTypes` setting works together with your collection's `mimeTypes` setting. If a file type is allowed in stream config but blocked in your collection config, the collection setting takes priority and the file will be rejected.
 
 **TUS upload options:**
 
-| Option          | Type       | Default        | Description                              |
-| --------------- | ---------- | -------------- | ---------------------------------------- |
-| `autoMode`      | `boolean`  | `true`         | Auto-enable TUS for supported MIME types |
-| `checkAccess`   | `function` | Built-in check | Custom authorization function            |
-| `uploadTimeout` | `number`   | `3600`         | Upload timeout in seconds                |
+| Option        | Type       | Default        | Description                                            |
+| ------------- | ---------- | -------------- | ------------------------------------------------------ |
+| `autoMode`    | `boolean`  | `true`         | Auto-enable TUS for supported MIME types               |
+| `checkAccess` | `function` | Built-in check | Custom authorization function (receives `(req, body)`) |
+| `expiresIn`   | `number`   | `3600`         | TUS session expiry in seconds                          |
 
 **Cleanup options:**
 
@@ -269,6 +326,9 @@ Optional settings for video handling:
 
 > [!NOTE]
 > Cleanup feature requires Jobs Queue to be configured in your Payload setup. See [Payload Jobs Queue documentation](https://payloadcms.com/docs/jobs-queue/overview) for setup instructions.
+
+> [!NOTE]
+> There is one cleanup task for the whole plugin. Its `schedule` is global-only (set it on the top-level `stream.cleanup`); a per-collection library's `cleanup` controls only `maxAge`.
 
 > [!WARNING]
 > If you use Payload's access control without signed URLs, you must enable MP4 fallback both here and in your [Bunny Stream settings](https://support.bunny.net/hc/en-us/articles/5154991563026-How-to-retrieve-an-MP4-URL-from-Stream?ref=fndfoymy0j). However, if you use signed URLs with `staticHandler.useRedirect: true`, MP4 fallback is not required as users are redirected directly to Bunny's HLS streams.
@@ -286,12 +346,12 @@ Enable automatic CDN cache purging for storage files (not applicable to Stream).
 - `purge: false` - Disable cache purging
 - `purge: { ... }` - Enable with custom settings (see options below)
 
-| Option  | Type      | Required | Description                                 |
-| ------- | --------- | -------- | ------------------------------------------- |
-| `async` | `boolean` | ❌       | Wait for purge to complete (default: false) |
+| Option  | Type      | Required | Description                                                                                         |
+| ------- | --------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `async` | `boolean` | ❌       | Run the purge asynchronously and return before it finishes (default: `false` — wait for completion) |
 
 > [!IMPORTANT]
-> Cache purging requires a global `apiKey` to be configured at the plugin level. See [Bunny API Key](#bunny-api-key) section for setup instructions.
+> Cache purging requires a global `accountApiKey` to be configured at the plugin level. See [Bunny Account API Key](#bunny-account-api-key) section for setup instructions.
 
 When enabled, the plugin automatically purges CDN cache after:
 
@@ -317,7 +377,7 @@ purge: {
 
 ### Thumbnail Configuration
 
-Enable thumbnail generation for upload collections. When enabled, the plugin provides a function to Payload's `adminThumbnail` configuration that generates thumbnail URLs for your files.
+Enable thumbnail generation for upload collections. When enabled, the plugin populates a hidden `thumbnailURL` field on your documents, which the admin panel uses for previews and which is returned in API responses.
 
 **For Bunny Stream videos**: Uses the thumbnail generated at `stream.thumbnailTime` moment.
 
@@ -326,14 +386,14 @@ Enable thumbnail generation for upload collections. When enabled, the plugin pro
 Use `thumbnail: true` to enable with defaults, `thumbnail: false` to disable, or provide an object to customize:
 
 > [!NOTE]
-> This configures Payload's `upload.adminThumbnail` function which populates the `thumbnailURL` field in API responses.
+> This populates a hidden `thumbnailURL` field on read, used by the admin panel and returned in API responses.
 
-| Option            | Type      | Default | Description                                                                     |
-| ----------------- | --------- | ------- | ------------------------------------------------------------------------------- |
-| `appendTimestamp` | `boolean` | `false` | Add timestamp to bust cache                                                     |
-| `streamAnimated`  | `boolean` | `false` | Use animated preview (WebP) instead of static thumbnail for Bunny Stream videos |
-| `queryParams`     | `object`  | `{}`    | Custom query parameters appended to URLs (optimized for Bunny Optimizer)        |
-| `sizeName`        | `string`  | -       | Use specific size from upload collection's sizes instead of original file       |
+| Option            | Type      | Default | Description                                                                         |
+| ----------------- | --------- | ------- | ----------------------------------------------------------------------------------- |
+| `appendTimestamp` | `boolean` | `true`  | Add timestamp to bust cache (thumbnails default to `true`; pass `false` to opt out) |
+| `streamAnimated`  | `boolean` | `false` | Use animated preview (WebP) instead of static thumbnail for Bunny Stream videos     |
+| `queryParams`     | `object`  | `{}`    | Custom query parameters appended to URLs (optimized for Bunny Optimizer)            |
+| `sizeName`        | `string`  | -       | Use specific size from upload collection's sizes instead of original file           |
 
 **Examples:**
 
@@ -372,13 +432,15 @@ The `sizeName` option allows you to use a specific size variant from your upload
 
 Enable signed URLs for secure file access:
 
-| Option               | Type       | Default     | Description                                          |
-| -------------------- | ---------- | ----------- | ---------------------------------------------------- |
-| `expiresIn`          | `number`   | `7200`      | Link expiration time in seconds                      |
-| `allowedCountries`   | `string[]` | `[]`        | Allowed countries (ISO 3166-1 alpha-2 codes)         |
-| `blockedCountries`   | `string[]` | `[]`        | Blocked countries (ISO 3166-1 alpha-2 codes)         |
-| `shouldUseSignedUrl` | `function` | Always sign | Custom function to determine when to use signed URLs |
-| `staticHandler`      | `object`   | `{}`        | Static handler behavior (see below)                  |
+| Option               | Type       | Default     | Description                                                                                             |
+| -------------------- | ---------- | ----------- | ------------------------------------------------------------------------------------------------------- |
+| `expiresIn`          | `number`   | `7200`      | Link expiration time in seconds                                                                         |
+| `expiresAt`          | `function` | –           | Absolute expiry (`Date` or UNIX seconds) instead of the sliding `expiresIn` window                      |
+| `allowedCountries`   | `string[]` | –           | Allowed countries (ISO 3166-1 alpha-2 codes)                                                            |
+| `blockedCountries`   | `string[]` | –           | Blocked countries (ISO 3166-1 alpha-2 codes)                                                            |
+| `shouldUseSignedUrl` | `function` | Always sign | Custom function to determine when to use signed URLs                                                    |
+| `userIp`             | `function` | –           | Lock links to the client's IPv4 (extracted from `req`); requires Bunny's Token IP Validation, IPv4 only |
+| `staticHandler`      | `object`   | –           | Static handler behavior (see below)                                                                     |
 
 **Static handler options:**
 
@@ -452,6 +514,43 @@ TUS (resumable uploads) enables reliable uploads of large video files by breakin
 - **Simple enable:** `tus: true` (uses auto mode by default)
 - **Detailed configuration:** See [Stream Configuration](#stream-configuration) section for all TUS options
 
+### Client Uploads Configuration
+
+Browser-direct uploads send the file bytes straight from the browser to Bunny — the Payload server only mints a short-lived signed upload URL. This removes serverless body-size limits (e.g. Vercel's ~4.5 MB) and keeps large uploads off your app server. It covers Bunny **Storage** files; for large Stream videos, use [TUS](#tus-uploads-configuration) instead.
+
+When you resolve the path with a `clientUploads.prefix` callback, the plugin persists the minted prefix onto the created document (and injects the hidden per-document `prefix` field automatically), so later reads, deletes, and URL generation resolve to the same path.
+
+Configure it under `storage.clientUploads` (both globally and per collection). There is **no `mode` option** — the transport is chosen automatically:
+
+- **`storage.s3` set → presigned S3.** The browser PUTs straight to Bunny's S3 endpoint. No Edge Script; `clientUploads.edge` is not applicable.
+- **`storage.s3` not set → edge.** The upload is proxied through a Bunny Edge Script, so `clientUploads.edge` is required.
+
+```typescript
+// S3 zone — presigned S3, nothing to deploy
+storage: {
+  /* ... */
+  s3: { region: 'de' },
+  clientUploads: true,
+},
+
+// Native zone — proxied through an Edge Script
+storage: {
+  /* ... */
+  clientUploads: {
+    edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET },
+  },
+},
+```
+
+**Multi-zone Edge Script:** one deployed script serves **all** your non-s3 zones. `npx payload bunny:deploy-edge-script` enumerates every non-s3 zone in your config, builds the script's zone map, and prints **one** shared `edge: { scriptUrl, secret }` — paste the same snippet into every non-s3 zone that enables client uploads. Re-run the CLI whenever you add or remove a non-s3 zone so the map stays in sync. S3 zones need no Edge Script at all.
+
+**Deploying the right environment:** the CLI reads keys from the environment Payload loaded your config with — dev values on a dev machine. To deploy the prod script, select the environment explicitly with `--env-file .env.production` (it reloads that file and rebuilds the plan), or `npx dotenv-cli -e .env.production -- npx payload bunny:deploy-edge-script`. `NODE_ENV=production` alone is **not** enough (`.env.local` still outranks `.env.production`). Other flags: `--zones-file zones.json` (config-free CI deploy), `--script-url <url>` / `--new` to pick a group when zones resolve to multiple scripts (multi-account), `--no-print-secret` to keep the shared secret out of CI logs, `--dry-run`, `--check`.
+
+> [!IMPORTANT]
+> **Rollout order after upgrading the plugin:** every previously-deployed Edge Script reports "outdated" on `--check` and must be redeployed. Upgrade the plugin everywhere **first** (so it mints upload URLs that carry the signed zone), **then** redeploy the script with `npx payload bunny:deploy-edge-script`. Redeploying while an old plugin still mints URLs — or rolling the plugin back afterward — causes `403 Unknown upload zone` on client uploads.
+
+See the [Client uploads](https://payload-storage-bunny.seshuk.im/configuration/storage/client-uploads) guide for the auto transport, access control, the deploy CLI, and per-collection overrides.
+
 ### Access Control Configuration
 
 **Example:**
@@ -496,7 +595,7 @@ Enable automatic cache purging when files are uploaded or deleted:
 
 ```typescript
 // At plugin level
-apiKey: process.env.BUNNY_API_KEY, // Required for purge
+accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY, // Required for purge
 purge: true, // Simple enable with defaults
 
 // OR with custom settings
@@ -560,8 +659,8 @@ This approach appends a timestamp parameter (`?t=1234567890`) to file URLs. When
 
 **Comparison:**
 
-- **Automatic cache purging** - Immediate updates everywhere, requires global `apiKey`
-- **Timestamp-based cache busting** - Simpler setup, works without `apiKey`, updates only when files are re-uploaded
+- **Automatic cache purging** - Immediate updates everywhere, requires global `accountApiKey`
+- **Timestamp-based cache busting** - Simpler setup, works without `accountApiKey`, updates only when files are re-uploaded
 
 ## Getting API Keys
 
@@ -597,9 +696,9 @@ To get your Bunny Stream API key:
 5. Copy the **CDN Hostname** (use for `hostname` setting, e.g., "vz-abc123def-456.b-cdn.net")
 6. Copy the **API Key** (found at the bottom of the page)
 
-### Bunny API Key
+### Bunny Account API Key
 
-To get your Bunny API key:
+To get your Bunny account API key:
 
 1. Go to your **Bunny.net** dashboard
 2. Click on your **account** in the top-right corner
@@ -675,7 +774,7 @@ export default buildConfig({
   plugins: [
     bunnyStorage({
       // Bunny Account API key for account-level operations
-      apiKey: process.env.BUNNY_API_KEY,
+      accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY,
       collections: {
         media: {
           prefix: 'media',
@@ -693,7 +792,7 @@ export default buildConfig({
         libraryId: 123456,
         tus: true, // Enable resumable uploads
       },
-      // Optional: Auto-purge CDN cache (requires apiKey)
+      // Optional: Auto-purge CDN cache (requires accountApiKey)
       purge: true,
     }),
   ],
@@ -740,7 +839,7 @@ export default buildConfig({
 })
 ```
 
-For detailed configuration examples and advanced use cases, see [docs/examples.md](docs/examples.md).
+For detailed configuration examples and advanced use cases, see the [Examples](https://payload-storage-bunny.seshuk.im/examples) on the docs site.
 
 ---
 

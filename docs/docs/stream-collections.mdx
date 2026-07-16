@@ -1,0 +1,100 @@
+# Stream collections
+
+Bunny Stream can organize videos into **collections** — folders inside a video library. It is a dashboard-organization feature: you can, for example, drop each tenant's videos into their own collection. Collections are managed through the Bunny Stream API; this plugin does not create or assign them for you, but everything you need to do it yourself is already on the document.
+
+:::warning Collections organize, they do not isolate
+Collections are **not** access control. Bunny does not make them public, you cannot generate a URL for a collection, and a video's playback is governed by its library, GUID, and token — never by which collection it sits in. For real tenant isolation use [signed URLs](/configuration/signed-urls) or Payload access control — see [Multi-tenant](/multi-tenant#stream-has-no-folders).
+:::
+
+## What you have to work with
+
+After a video is uploaded, the plugin stores its Bunny identity on the document under `bunnyData.stream`:
+
+- `bunnyData.stream.videoId` — the video GUID, which the Stream API addresses.
+- `bunnyData.stream.libraryId` — the library the video lives in (computed from your config on read).
+
+The plugin creates the video without a `collectionId`, so the recipe **moves** it into a collection after upload with the Update Video API (`POST /library/{libraryId}/videos/{videoId}`).
+
+## Accessing the resolved config
+
+The recipe needs the library id and the Stream API key for the collection the upload landed in — ask the plugin for it. `getBunnyStreamForCollection(payload, slug)` returns that collection's resolved `{ apiKey, libraryId, hostname, tokenSecurityKey? }`, with global config and per-collection overrides already applied. See [Accessing the resolved config](/configuration/collection-overrides#accessing-the-resolved-config) for the full accessor list.
+
+:::warning Server-side only
+The returned object contains your Stream API key. Use it inside hooks, endpoints, or scripts — never send it to the client.
+:::
+
+## Recipe
+
+Add an `afterChange` hook to your upload collection. Resolve the target collection however you like — here, one collection per tenant — then call Update Video:
+
+```ts title="collections/Media.ts"
+import { getBunnyStreamForCollection } from '@seshuk/payload-storage-bunny'
+import type { CollectionConfig } from 'payload'
+
+// `${libraryId}:${name}` → collection guid. Prevents duplicate collections
+// and an API round-trip on every upload. A DB table survives restarts.
+const collectionCache = new Map<string, string>()
+
+async function ensureCollection(libraryId: number, apiKey: string, name: string): Promise<string> {
+  const cacheKey = `${libraryId}:${name}`
+  const cached = collectionCache.get(cacheKey)
+  if (cached) return cached
+
+  const base = `https://video.bunnycdn.com/library/${libraryId}/collections`
+  const list = await fetch(`${base}?search=${encodeURIComponent(name)}`, {
+    headers: { AccessKey: apiKey },
+  }).then((r) => r.json())
+
+  let guid: string | undefined = list.items?.find((c: { name: string }) => c.name === name)?.guid
+  if (!guid) {
+    const created = await fetch(base, {
+      method: 'POST',
+      headers: { AccessKey: apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }).then((r) => r.json())
+    guid = created.guid
+  }
+
+  collectionCache.set(cacheKey, guid!)
+  return guid!
+}
+
+export const Media: CollectionConfig = {
+  slug: 'media',
+  upload: true,
+  hooks: {
+    afterChange: [
+      async ({ collection, doc, operation, req }) => {
+        if (operation !== 'create') return doc
+
+        const videoId = doc?.bunnyData?.stream?.videoId
+        if (!videoId) return doc // not a Stream video
+
+        // this collection's resolved library + key, straight from the plugin
+        const stream = getBunnyStreamForCollection(req.payload, collection.slug)
+        if (!stream) return doc
+
+        const { apiKey, libraryId } = stream
+
+        // organize however you like — here, one collection per tenant
+        const collectionId = await ensureCollection(libraryId, apiKey, `tenant-${doc.tenant}`)
+
+        await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+          method: 'POST',
+          headers: { AccessKey: apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collectionId }),
+        })
+
+        return doc
+      },
+    ],
+  },
+}
+```
+
+## Notes
+
+- **Let the accessor resolve the library and key.** With [per-collection stream libraries](/configuration/collection-overrides), different collections upload to different libraries. `getBunnyStreamForCollection(req.payload, collection.slug)` returns _that collection's_ resolved library and API key directly. Collections are per-library, so a `tenant-x` collection exists independently in every library that tenant's videos touch.
+- **Run on create, once the video exists.** `videoId` is only present after the plugin has created the video, so gate on `operation === 'create'` and bail when it is absent (non-video uploads, or the document before its video is made).
+- **Cache collection lookups.** Creating a collection is not idempotent — without a cache or an existence check you will spawn duplicates and hit the API on every upload. The module-level `Map` above is the minimum.
+- **Bulk moves.** The dashboard cannot move many videos at once, but the same Update Video call looped over `payload.find(...)` results will.

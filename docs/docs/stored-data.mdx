@@ -1,0 +1,49 @@
+import { Badge, Callout } from '@rspress/core/theme'
+
+# Stored data
+
+For collections that use Bunny Stream, the plugin injects a hidden group field named `bunnyData` that holds stream metadata for each document.
+
+## Shape
+
+For a video, the API returns:
+
+```jsonc
+"bunnyData": {
+  "type": "stream",
+  "stream": {
+    "videoId": "e7f2c1a0-…",
+    "libraryId": 12345,
+    "resolutions": { "available": ["720p", "480p"], "highest": "720p" }
+  }
+}
+```
+
+For non-video documents in the same collection, `bunnyData` is `null`.
+
+- `videoId` <Badge text="stored" type="tip" /> — stored and indexed.
+- `type` and `libraryId` <Badge text="computed" type="info" /> — computed on read from your config, not stored in the database.
+- `resolutions` <Badge text="stored" type="tip" /> — `available` lists the MP4 renditions Bunny reports (unordered); `highest` is the highest of those whose MP4 file has been verified to exist. Because Bunny encodes renditions asynchronously, `highest` can be lower than the top of `available` until the higher rendition finishes.
+
+<Callout type="tip" title="Encoding is asynchronous">
+
+`resolutions` only appears on the field when [`stream.mp4Fallback`](/configuration/stream#options) is enabled. It stays empty until Bunny finishes encoding the video and calls your [webhook](/configuration/stream/webhooks) — encoding happens asynchronously, so it will not be present right after upload.
+
+</Callout>
+
+## Querying
+
+Because `videoId` is stored, you can query it directly:
+
+```ts
+await payload.find({
+  collection: 'media',
+  where: {
+    'bunnyData.stream.videoId': { equals: 'e7f2c1a0-…' },
+  },
+})
+```
+
+## Upgrading from v2
+
+In v2 this data lived in flat `bunnyVideoId` and `bunnyVideoMeta` fields. See the [migration guide](/upgrade-guide) to move existing documents into `bunnyData`.

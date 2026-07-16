@@ -1,0 +1,152 @@
+import { Badge, Callout } from '@rspress/core/theme'
+
+# Stream
+
+Bunny Stream handles video and audio: adaptive HLS/MP4 playback, thumbnails, and resumable uploads for large files. It is the `stream` block passed to `bunnyStorage(...)`.
+
+```ts title="payload.config.ts"
+bunnyStorage({
+  collections: { media: true },
+  stream: {
+    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    hostname: process.env.BUNNY_STREAM_HOSTNAME, // e.g. vz-xxxx.b-cdn.net
+    libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID),
+    mp4Fallback: true,
+  },
+})
+```
+
+With Payload access control on (the default), a Stream collection needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/configuration/stream#access-control-and-mp4-fallback). Set `disablePayloadAccessControl: true` on the collection to serve straight from the CDN instead, where this requirement does not apply.
+
+Files whose MIME type matches `mimeTypes` are routed to Bunny Stream. Everything else goes to [Bunny Storage](/configuration/storage), if configured. Video metadata for each document lives in the [`bunnyData`](/stored-data) field.
+
+## Options
+
+| Option             | Type                 | Required                                | Default                          | Description                                                                                                                                                                                                                                                                                       |
+| ------------------ | -------------------- | --------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apiKey`           | `string`             | <Badge text="required" type="danger" /> | –                                | Bunny Stream API key.                                                                                                                                                                                                                                                                             |
+| `hostname`         | `string`             | <Badge text="required" type="danger" /> | –                                | Stream CDN domain, e.g. `vz-abc123def-456.b-cdn.net`.                                                                                                                                                                                                                                             |
+| `libraryId`        | `number`             | <Badge text="required" type="danger" /> | –                                | Your Video Library ID.                                                                                                                                                                                                                                                                            |
+| `mimeTypes`        | `string[]`           | <Badge text="optional" type="info" />   | video/audio formats listed below | File types routed to Bunny Stream. A collection's own `upload.mimeTypes` setting can narrow this further — if a type is blocked there, it is rejected even if allowed here.                                                                                                                       |
+| `mp4Fallback`      | `boolean`            | <Badge text="optional" type="info" />   | `false`                          | Also store MP4 renditions alongside HLS. Required when Payload access control is on, unless you use signed URLs with redirect — see [below](/configuration/stream#access-control-and-mp4-fallback).                                                                                               |
+| `referer`          | `string`             | <Badge text="optional" type="info" />   | –                                | `Referer` header sent on server-side requests when serving the MP4 fallback through Payload access control. Set it only if your Stream library blocks requests without a referrer (BlockNoneReferrer); the value must satisfy the library's allowed referrers. Leave unset for default libraries. |
+| `thumbnailTime`    | `number`             | <Badge text="optional" type="info" />   | –                                | Moment in the video (ms) to use as the thumbnail. Used with [`thumbnail: true`](/configuration/thumbnails).                                                                                                                                                                                       |
+| `tokenSecurityKey` | `string`             | <Badge text="optional" type="info" />   | –                                | Security key for signing stream URLs. Required if you enable [signed URLs](/configuration/signed-urls) for stream.                                                                                                                                                                                |
+| `uploadTimeout`    | `number`             | <Badge text="optional" type="info" />   | `300000` (ms)                    | Upload timeout for standard (non-TUS) uploads.                                                                                                                                                                                                                                                    |
+| `tus`              | `boolean \| object`  | <Badge text="optional" type="info" />   | disabled                         | Enable resumable TUS uploads. See [TUS uploads](/configuration/stream/tus).                                                                                                                                                                                                                       |
+| `cleanup`          | `boolean \| object`  | <Badge text="optional" type="info" />   | disabled                         | Automatically remove incomplete uploads. See [Cleanup](/configuration/stream#cleanup).                                                                                                                                                                                                            |
+| `webhook`          | `{ secret: string }` | <Badge text="optional" type="info" />   | disabled                         | Receive status updates from Bunny Stream. See [Webhook](/configuration/stream/webhooks).                                                                                                                                                                                                          |
+
+Default `mimeTypes` cover the common video and audio formats: MP4, MKV, WebM, FLV, AVI, MOV, WMV, MPEG, TS, MXF, and MP3/OGG/WAV audio.
+
+<Callout type="info">
+
+The top-level `stream` block is optional. If every collection points at [its own stream library](#collection-overrides), you can omit the global `stream` entirely.
+
+</Callout>
+
+## Access control and MP4 fallback
+
+By default, files are served through Payload's access control (`disablePayloadAccessControl` is not set on the collection). For Stream videos in this mode, Bunny cannot serve HLS directly through Payload's proxy, so you need one of:
+
+- **`mp4Fallback: true`** — Payload proxies the MP4 rendition instead of HLS.
+- **Signed URLs with redirect** — set `signedUrls.staticHandler.useRedirect: true` (globally or on the collection) so Payload redirects straight to Bunny's HLS stream instead of proxying it. This is the faster option — see [Signed URLs](/configuration/signed-urls).
+
+<Callout type="warning">
+
+The plugin's config validator rejects a collection at startup if neither is set and access control is on. If you set `disablePayloadAccessControl: true` on a collection instead, files are served directly from the Bunny CDN and this restriction does not apply.
+
+</Callout>
+
+When Payload proxies the MP4 fallback, it fetches the file from Bunny server-side. If your Stream library uses a BlockNoneReferrer rule, set [`referer`](#options) to a value the library allows so those requests are not rejected. Default libraries need nothing here.
+
+## Cleanup
+
+Uploads that start but never finish (abandoned tabs, failed TUS sessions) leave orphaned videos in your library. Enable `cleanup` to remove them on a schedule.
+
+```ts
+stream: {
+  // ...
+  cleanup: true, // daily cleanup with defaults
+}
+```
+
+Or customize:
+
+```ts
+stream: {
+  cleanup: {
+    maxAge: 86400,                              // seconds before an incomplete upload is considered dead (default)
+    schedule: { cron: '0 2 * * *', queue: 'storage-bunny' }, // default: daily at 2am
+  },
+}
+```
+
+| Option     | Type     | Default                                         | Description                                                  |
+| ---------- | -------- | ----------------------------------------------- | ------------------------------------------------------------ |
+| `maxAge`   | `number` | `86400`                                         | Seconds after which an incomplete upload is considered dead. |
+| `schedule` | object   | `{ cron: '0 2 * * *', queue: 'storage-bunny' }` | Cron schedule for the cleanup job.                           |
+
+Cleanup registers a Payload job task, so your project needs [Jobs Queue](https://payloadcms.com/docs/jobs-queue/overview) configured and the queue processed (e.g. via a cron endpoint or `payload jobs:run`).
+
+<Callout type="info">
+
+There is one cleanup task for the whole plugin, and its `schedule` is **global-only** — set it on the top-level `stream.cleanup`. When a collection points at its own library, its `cleanup` controls only `maxAge` (each library's stale sessions are swept with that library's own cutoff); it cannot set a separate `schedule`.
+
+</Callout>
+
+## Collection overrides
+
+A collection's `stream` can be one of three things:
+
+- a **partial override** (`mimeTypes`, `mp4Fallback`, `thumbnailTime`, `tus`, `uploadTimeout`) — merged onto the global library;
+- a **full config** (with its own `apiKey`/`hostname`/`libraryId`) — this collection uses its OWN stream library, ignoring the global library entirely;
+- **`false`** — disable Bunny Stream for this collection.
+
+```ts
+collections: {
+  // Partial override — tweak the global library
+  largeVideos: {
+    stream: {
+      mimeTypes: ['video/mp4'],  // narrow allowed types for this collection
+      mp4Fallback: true,
+      thumbnailTime: 3000,
+      uploadTimeout: 600000,     // 10 minutes
+      tus: {
+        expiresIn: 7200,         // 2 hours
+        autoMode: true,
+      },
+    },
+  },
+  // Full config — this collection uses its own library
+  tenantA: {
+    stream: {
+      apiKey: process.env.TENANT_A_STREAM_API_KEY,
+      hostname: 'vz-tenant-a-123.b-cdn.net',
+      libraryId: 654321,
+      mp4Fallback: true,
+      tokenSecurityKey: process.env.TENANT_A_STREAM_TOKEN_KEY, // for signed URLs on this library
+      webhook: { secret: process.env.TENANT_A_STREAM_READONLY_API_KEY }, // this library's Read-Only API key
+      cleanup: { maxAge: 43200 }, // per-library cutoff; schedule stays global-only
+    },
+  },
+  shortClips: {
+    stream: {
+      tus: false, // disable TUS for this collection only
+    },
+  },
+  imagesOnly: {
+    stream: false, // disable Bunny Stream for this collection — videos will fail to upload
+  },
+}
+```
+
+The plugin distinguishes a full config from a partial override by whether it includes `apiKey`. A full config **inherits nothing** from the global library — `mimeTypes`, `mp4Fallback`, `tus`, and the rest fall back to plugin defaults, not the global library's values. Provide that library's own `tokenSecurityKey` for [signed URLs](/configuration/signed-urls), and its own `webhook.secret` if you use webhooks. Per-collection `cleanup` carries only `maxAge` — the cleanup `schedule` is global-only.
+
+<Callout type="warning">
+
+A partial `tus: { … }` override only applies when the global `stream.tus` is enabled — otherwise it is silently dropped. To turn TUS on for a single collection, either give that collection a full stream config, or enable `tus` globally and disable it per collection with `tus: false`.
+
+</Callout>
+
+See [Collection overrides](/configuration/collection-overrides) for the full-config vs partial-override rules and the complete list of options.

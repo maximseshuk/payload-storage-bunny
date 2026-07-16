@@ -1,0 +1,177 @@
+import { Badge, Steps, Callout } from '@rspress/core/theme'
+
+# Client uploads
+
+Client uploads send the file bytes **straight from the browser to Bunny**. The Payload server only mints a short-lived, signed upload URL — it never receives the file itself. This removes serverless body-size limits (Vercel caps request bodies at ~4.5 MB) and keeps large uploads off your app server entirely. They are configured under `storage.clientUploads`:
+
+```ts title="payload.config.ts"
+bunnyStorage({
+  collections: { media: true },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+    s3: { region: 'de' },
+    clientUploads: true, // enable with defaults
+  },
+})
+```
+
+<Callout type="info">
+
+Client uploads cover **Bunny Storage** files. For large **Stream videos**, use [TUS resumable uploads](/configuration/stream/tus) instead — TUS is the browser-direct path for Stream.
+
+</Callout>
+
+## How it works
+
+<Steps>
+
+### Request
+
+When an editor picks a file, the admin UI calls `POST /api/storage-bunny/storage/upload` with `{ collectionSlug, filename, filesize, mimeType }`.
+
+### Authorize and validate
+
+The server runs the [`access`](#client-upload-options) check (default: any authenticated user), then validates the file against the collection's `upload.mimeTypes`, Payload's `upload.limits.fileSize`, and — for edge transport — `edge.maxSize`.
+
+### Resolve the path
+
+The [`prefix`](#client-upload-options) callback (or the collection's static prefix) decides where the file lands, server-side. When you use a `prefix` callback, the plugin persists the resolved prefix onto the created document (and injects the hidden per-document `prefix` field for you), so later reads, deletes, and URL generation all resolve to the same path.
+
+### Mint the URL
+
+The server returns a presigned (S3) or signed (edge) upload URL scoped to that path.
+
+### Upload
+
+The browser `PUT`s the file straight to Bunny. Your app server is never in the data path.
+
+</Steps>
+
+This is built on `@payloadcms/plugin-cloud-storage`'s client-uploads mechanism.
+
+## Transport is automatic
+
+The plugin picks the transport from the zone:
+
+- **[`storage.s3`](/configuration/storage#s3-mode) is set → presigned S3.** The browser `PUT`s straight to Bunny's S3 endpoint. No Edge Script is involved, and `clientUploads.edge` is not applicable.
+- **`storage.s3` is not set → edge.** The upload is proxied through a Bunny Edge Script, so `clientUploads.edge` is **required**.
+
+A collection that points at [its own storage zone](/configuration/collection-overrides) follows that zone's transport: its own `s3` presigns against its own endpoint, its own `edge` mints against its own script.
+
+## Client upload options
+
+Pass `storage.clientUploads: true` for defaults, `false` to disable, or an object:
+
+| Option           | Type                           | Required                                   | Default                        | Description                                                                                                                                                                        |
+| ---------------- | ------------------------------ | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `access`         | `(args) => boolean \| Promise` | <Badge text="optional" type="info" />      | any authenticated user         | Decides who may request an upload URL. Receives `{ collectionSlug, req }`. See [Access control](#access-control).                                                                  |
+| `edge.scriptUrl` | `string`                       | <Badge text="edge zones" type="warning" /> | –                              | Deployed Edge Script URL, e.g. `https://my-uploader.b-cdn.net`. Required when the zone has no `s3`; not applicable when `s3` is set.                                               |
+| `edge.secret`    | `string`                       | <Badge text="edge zones" type="warning" /> | –                              | Shared HMAC secret. Must match the script's `SHARED_SECRET`. Required when the zone has no `s3`.                                                                                   |
+| `edge.maxSize`   | `number`                       | <Badge text="optional" type="info" />      | `1073741824` (1 GiB)           | Max accepted file size in bytes. Also enforced by the Edge Script.                                                                                                                 |
+| `prefix`         | `(args) => string \| Promise`  | <Badge text="optional" type="info" />      | the collection's static prefix | Resolve the storage path prefix at mint time, server-side. Use it for date/user folders or a tenant segment. See [Multi-tenant](/multi-tenant#client-uploads-prefix-at-mint-time). |
+
+<Callout type="info">
+
+When the zone sets `storage.s3`, the `clientUploads` object accepts only `access` and `prefix` — the `edge` block is not available for S3 zones. This is enforced by the type: a storage zone is either HTTP API (needs `edge`) or S3 (presigns directly).
+
+</Callout>
+
+## S3 transport
+
+When the zone has [`storage.s3`](/configuration/storage#s3-mode), the browser sends a presigned `PUT` straight to Bunny's S3 endpoint. This requires a storage zone created with S3 compatibility enabled.
+
+```ts title="payload.config.ts"
+bunnyStorage({
+  collections: { media: true },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+    s3: { region: 'de' },
+    clientUploads: true, // presigned S3, because storage.s3 is set
+  },
+})
+```
+
+No Edge Script to deploy: the presigned URL is signed with your existing storage credentials.
+
+## Edge transport
+
+Without `storage.s3`, the file is proxied through a [Bunny Edge Script](https://docs.bunny.net/docs/edge-scripting?ref=fndfoymy0j) that you deploy once. `clientUploads.edge` is required.
+
+```ts title="payload.config.ts"
+bunnyStorage({
+  collections: { media: true },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+    clientUploads: {
+      edge: {
+        scriptUrl: 'https://my-uploader.b-cdn.net',
+        secret: process.env.BUNNY_EDGE_UPLOAD_SECRET,
+      },
+    },
+  },
+})
+```
+
+The server mints a signed HMAC URL for each upload: it appends an `X-Upload-Expires` timestamp, an `X-Upload-Zone` name, and an HMAC-SHA256 signature over the request. The Edge Script rejects anything whose signature doesn't verify against its `SHARED_SECRET`, so `edge.secret` must match the secret the script was deployed with.
+
+## Access control
+
+`access` gates who may request an upload URL. It receives `{ collectionSlug, req }` and returns a boolean (or a promise). It runs **before** the `prefix` callback, so an unauthorized caller never reaches path resolution.
+
+```ts
+storage: {
+  // ...
+  clientUploads: {
+    access: ({ req }) => req.user?.role === 'editor' || req.user?.role === 'admin',
+  },
+}
+```
+
+The default requires an authenticated user (`req.user` must be set). The endpoint also enforces the collection's `upload.mimeTypes` and Payload's `upload.limits.fileSize` regardless of your `access` function.
+
+## Client upload requirements
+
+<Callout type="warning">
+
+- Bunny Storage must be enabled for the collection.
+- A zone **with** `storage.s3` presigns directly — no `edge` config, nothing to deploy.
+- A zone **without** `storage.s3` requires `storage.clientUploads.edge.scriptUrl` and `edge.secret`.
+- All non-s3 zones that share the same `edge.scriptUrl` must use the same `edge.secret` — one deployed script holds one shared secret.
+
+The config validator throws a startup error if any of these is violated.
+
+</Callout>
+
+## Per-collection client uploads
+
+Set `storage.clientUploads` per collection to enable, disable, or reconfigure browser-direct uploads. A collection inherits the global `storage.clientUploads` unless it sets its own:
+
+```ts title="payload.config.ts"
+collections: {
+  media: true,          // inherits the global storage.clientUploads
+  documents: {
+    storage: {
+      clientUploads: false, // no browser-direct uploads for this collection
+    },
+  },
+  archive: {
+    // full per-collection zone with its own edge config
+    storage: {
+      apiKey: process.env.BUNNY_ARCHIVE_STORAGE_API_KEY,
+      hostname: 'archive.b-cdn.net',
+      zoneName: 'archive-zone',
+      clientUploads: {
+        edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET },
+      },
+    },
+  },
+}
+```
+
+See [Collection overrides](/configuration/collection-overrides) for the full list of options you can tune per collection, and [Examples](/examples#browser-direct-client-uploads) for complete configs.

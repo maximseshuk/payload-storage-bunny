@@ -1,0 +1,10 @@
+[
+  { "type": "file", "name": "index", "label": "Overview" },
+  { "type": "dir", "name": "storage", "label": "Storage", "collapsible": true, "collapsed": false },
+  { "type": "dir", "name": "stream", "label": "Stream", "collapsible": true, "collapsed": false },
+  { "type": "file", "name": "collection-overrides", "label": "Collection overrides" },
+  { "type": "file", "name": "signed-urls", "label": "Signed URLs" },
+  { "type": "file", "name": "thumbnails", "label": "Thumbnails" },
+  { "type": "file", "name": "cache-purge", "label": "Cache Purge" },
+  { "type": "file", "name": "url-transforms", "label": "URL Transforms" }
+]

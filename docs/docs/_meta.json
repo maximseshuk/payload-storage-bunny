@@ -1,0 +1,16 @@
+[
+  { "type": "section-header", "label": "Documentation" },
+  { "type": "file", "name": "introduction", "label": "Introduction" },
+  { "type": "file", "name": "quick-start", "label": "Quick Start" },
+  { "type": "file", "name": "upgrade-guide", "label": "Upgrade Guide" },
+  {
+    "type": "dir-section-header",
+    "name": "configuration",
+    "label": "Configuration"
+  },
+  { "type": "section-header", "label": "Guides" },
+  { "type": "file", "name": "stored-data", "label": "Stored data" },
+  { "type": "file", "name": "multi-tenant", "label": "Multi-tenant" },
+  { "type": "file", "name": "stream-collections", "label": "Stream collections" },
+  { "type": "file", "name": "examples", "label": "Examples" }
+]

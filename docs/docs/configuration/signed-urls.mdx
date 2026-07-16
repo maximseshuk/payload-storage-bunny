@@ -1,0 +1,167 @@
+import { Tabs, Tab, Callout } from '@rspress/core/theme'
+
+# Signed URLs
+
+Signed URLs add a time limit — and optionally a country restriction or an [IP lock](#ip-locking-userip) — to file and video links, so they cannot be shared or reused forever. They work for both [Storage](/configuration/storage) and [Stream](/configuration/stream), as long as the matching `tokenSecurityKey` is set.
+
+```ts title="payload.config.ts"
+bunnyStorage({
+  collections: { media: true },
+  storage: {
+    // ...
+    tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
+  },
+  signedUrls: true, // enable with defaults (2-hour expiry)
+})
+```
+
+<Callout type="info">
+
+Signed URLs secure **downloads** (how files are served). For securing **uploads** — minting short-lived URLs so the browser can send files straight to Bunny — see [Client uploads](/configuration/storage/client-uploads).
+
+</Callout>
+
+## Options
+
+| Option               | Type                                                           | Default     | Description                                                                    |
+| -------------------- | -------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------ |
+| `expiresIn`          | `number`                                                       | `7200`      | Link expiration time, in seconds.                                              |
+| `expiresAt`          | `(args) => Date \| number \| undefined`                        | –           | Absolute expiry instead of the sliding `expiresIn` window. See below.          |
+| `allowedCountries`   | `string[]`                                                     | –           | ISO 3166-1 alpha-2 codes. Only these countries can use the link.               |
+| `blockedCountries`   | `string[]`                                                     | –           | ISO 3166-1 alpha-2 codes. These countries are rejected.                        |
+| `shouldUseSignedUrl` | `(args: { collection, filename, req? }) => boolean`            | always sign | Return `false` to skip signing for specific files.                             |
+| `userIp`             | `(args: { collection, filename, req }) => string \| undefined` | –           | Lock links to the client's IPv4 address. See [IP locking](#ip-locking-userip). |
+| `staticHandler`      | `object`                                                       | –           | Controls how Payload serves files when its access control is on. See below.    |
+
+## Getting your token security keys
+
+<Tabs groupId="bunny-service">
+  <Tab label="Storage">
+    Bunny dashboard → **Delivery** → **CDN** → your Pull Zone → **Security** → **Token Authentication** → enable it and
+    copy the key.
+  </Tab>
+  <Tab label="Stream">
+    Bunny dashboard → **Delivery** → **Stream** → your Video Library → **Security** → **General** → enable **CDN Token
+    Authentication** and copy the key.
+  </Tab>
+</Tabs>
+
+## Requirements
+
+<Callout type="warning">
+
+- If `signedUrls` is enabled anywhere `storage` is configured, `storage.tokenSecurityKey` is required.
+- If `signedUrls` is enabled anywhere `stream` is configured, `stream.tokenSecurityKey` is required.
+
+Without the matching key, the plugin's config validator throws a startup error.
+
+</Callout>
+
+<Callout type="info">
+
+The `tokenSecurityKey` is per zone / per library. When a collection points at [its own storage zone or stream library](/configuration/collection-overrides#own-zone-or-library-per-collection), that zone/library must carry its own `tokenSecurityKey` for signed URLs to work on it — the global key is not inherited.
+
+</Callout>
+
+## Proxy vs. redirect (`staticHandler`)
+
+When a collection uses Payload's access control (the default), a file request goes through Payload first. `staticHandler` controls what happens next:
+
+| Option           | Type                       | Default                   | Description                                                                                      |
+| ---------------- | -------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------ |
+| `useRedirect`    | `boolean`                  | `false`                   | `true` sends a redirect to a signed Bunny URL. `false` proxies the file content through Payload. |
+| `redirectStatus` | `301 \| 302 \| 307 \| 308` | `302`                     | HTTP status code used for the redirect.                                                          |
+| `expiresIn`      | `number`                   | uses the main `expiresIn` | Shorter expiry just for redirect links.                                                          |
+
+```ts
+signedUrls: {
+  expiresIn: 3600,
+  staticHandler: {
+    useRedirect: true,
+    redirectStatus: 302,
+    expiresIn: 1800, // redirect links expire faster than direct signed URLs
+  },
+}
+```
+
+<Callout type="tip" title="Redirect is recommended">
+
+Proxying downloads the file from Bunny to your server and back out to the user on every request — a redirect sends the user straight to Bunny's CDN, so your server does none of that work. It also lets Stream videos play as HLS instead of falling back to MP4 — see [Access control and mp4Fallback](/configuration/stream#access-control-and-mp4-fallback).
+
+</Callout>
+
+## IP locking (`userIp`)
+
+`userIp` binds each signed link to a single client IPv4 address — a leaked URL stops working from any other IP. You provide the callback because reliably extracting the real client IP depends on your host and proxy chain:
+
+```ts
+signedUrls: {
+  userIp: ({ req }) => {
+    // Adjust to your deployment: pick the header your proxy/CDN sets.
+    const forwarded = req.headers.get('x-forwarded-for')
+    return forwarded?.split(',')[0]?.trim() || undefined
+  },
+}
+```
+
+How it behaves:
+
+- The IP goes into the token hash only — it is never added to the URL.
+- Return a falsy value when no IP can be determined; the link is then signed **without** an IP lock rather than failing the request.
+- The callback runs only for URLs the client itself will open — document `url` fields, admin thumbnails, and `staticHandler` redirects. URLs your server fetches on the client's behalf (proxied downloads) and URLs generated outside a request (cache purging) are never IP-locked, since Bunny would see your server's IP there, not the client's.
+
+<Callout type="warning" title="Bunny-side requirements">
+
+- Enforcement requires **Token IP Validation** to be enabled on Bunny: Pull Zone → **Security** → **Token Authentication** for Storage, or the equivalent setting on your Stream library. Without it, Bunny ignores the IP in the hash — but a token signed _with_ an IP will not validate, so only enable `userIp` together with the Bunny-side setting.
+- Only **IPv4** is supported; enabling Token IP Validation disables IPv6 routing on the Pull Zone. Values that are not a plain IPv4 address are ignored (the link is signed without a lock) and a warning is logged.
+
+</Callout>
+
+<Callout type="info">
+
+Clients behind carrier-grade NAT or switching networks (mobile) can legitimately change IPs mid-session, which breaks IP-locked links. Prefer short `expiresIn` values over IP locking for those audiences, or combine both with a tolerant `userIp` callback.
+
+</Callout>
+
+## Absolute expiry (`expiresAt`)
+
+`expiresIn` is a sliding window from the moment each URL is signed. `expiresAt` sets a fixed cut-off instead — useful when links must all die at the same wall-clock moment, such as the end of a live event or a rental period:
+
+```ts
+signedUrls: {
+  expiresIn: 3600, // fallback
+  expiresAt: () => eventEndsAt, // Date or UNIX timestamp in seconds
+}
+```
+
+Return a `Date` or a UNIX timestamp in seconds. Return `undefined` to fall back to `expiresIn` for that URL. The callback receives the same `{ collection, filename, req? }` args as `shouldUseSignedUrl`.
+
+## Example: sign only videos, restrict by country
+
+```ts
+signedUrls: {
+  expiresIn: 7200,
+  allowedCountries: ['US', 'CA', 'GB', 'AU'],
+  shouldUseSignedUrl: ({ filename }) => /\.(mp4|webm|mov|avi)$/i.test(filename),
+  staticHandler: {
+    useRedirect: true,
+  },
+}
+```
+
+## Collection overrides
+
+```ts
+collections: {
+  privateDocs: {
+    signedUrls: {
+      expiresIn: 1800,
+    },
+  },
+  publicMedia: {
+    signedUrls: false, // disable signing for this collection
+  },
+}
+```
+
+See [Collection overrides](/configuration/collection-overrides) for the full list of options you can tune per collection.

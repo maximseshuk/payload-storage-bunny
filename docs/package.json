@@ -1,0 +1,39 @@
+{
+  "name": "docs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rspress build",
+    "dev": "rspress dev --port 4000",
+    "preview": "rspress preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/geist-mono": "^5.2.8",
+    "@rspress/core": "2.0.17",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.13.0",
+      "onFail": "warning"
+    },
+    "runtime": {
+      "name": "node",
+      "version": ">=24.14.0",
+      "onFail": "warning"
+    }
+  },
+  "engines": {
+    "node": ">=24.14.0"
+  }
+}

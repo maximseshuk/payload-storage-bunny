@@ -1,0 +1,4 @@
+[
+  { "type": "file", "name": "client-uploads", "label": "Client uploads" },
+  { "type": "file", "name": "edge-script", "label": "Deploy the Edge Script" }
+]
