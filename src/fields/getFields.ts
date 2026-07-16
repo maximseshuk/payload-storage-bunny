@@ -75,6 +75,23 @@ export const getFields = (
 
   fields.push(urlField, thumbnailURLField)
 
+  const hasDynamicClientUploadPrefix = typeof collectionContext.storageConfig?.clientUploads?.prefix === 'function'
+  const existingPrefixField = fields.some((field) => 'name' in field && field.name === 'prefix')
+
+  if (hasDynamicClientUploadPrefix && !existingPrefixField) {
+    const prefixField: TextField = {
+      name: 'prefix',
+      type: 'text',
+      admin: {
+        hidden: true,
+        readOnly: true,
+      },
+      defaultValue: collectionContext.prefix ?? '',
+    }
+
+    fields.push(prefixField)
+  }
+
   if (typeof collection.upload === 'object' && collection.upload.imageSizes) {
     let existingSizesFieldIndex = -1
 

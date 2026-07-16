@@ -17,9 +17,13 @@ const buildResult = (): Config => {
   } as unknown as Config
 
   return bunnyStorage({
-    clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
     collections: { media: true },
-    storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+    storage: {
+      apiKey: 'zone-pw',
+      clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
+      hostname: 'cdn.b-cdn.net',
+      zoneName: 'zone',
+    },
   })(incoming) as Config
 }
 

@@ -30,7 +30,7 @@ const main = async (): Promise<void> => {
   const key = `edge-verify/hello-${Date.now()}.txt`
   const payload = `edge upload at ${new Date().toISOString()}`
 
-  const url = mintEdgeUploadUrl({ maxSize: 1_000_000, path: key, scriptUrl, secret })
+  const url = mintEdgeUploadUrl({ maxSize: 1_000_000, path: key, scriptUrl, secret, zoneName: zone })
   check('local signature verifies', verifyEdgeUploadUrl(url, secret).valid)
 
   const put = await fetch(url, { body: payload, headers: { 'Content-Type': 'text/plain' }, method: 'PUT' })
@@ -49,6 +49,38 @@ const main = async (): Promise<void> => {
   check('unsigned PUT rejected', unsigned.status === 401, `status ${unsigned.status}`)
   if (unsigned.body) {
     await unsigned.text().catch(() => undefined)
+  }
+
+  const unknownZoneUrl = mintEdgeUploadUrl({
+    maxSize: 1_000_000,
+    path: key,
+    scriptUrl,
+    secret,
+    zoneName: `no-such-zone-${Date.now()}`,
+  })
+  const unknownZone = await fetch(unknownZoneUrl, {
+    body: 'nope',
+    headers: { 'Content-Type': 'text/plain' },
+    method: 'PUT',
+  })
+  check('validly-signed URL for an unmapped zone rejected', unknownZone.status === 403, `status ${unknownZone.status}`)
+  if (unknownZone.body) {
+    await unknownZone.text().catch(() => undefined)
+  }
+
+  const swappedZoneUrl = url.replace(`X-Upload-Zone=${encodeURIComponent(zone)}`, 'X-Upload-Zone=swapped')
+  const swappedZone = await fetch(swappedZoneUrl, {
+    body: 'nope',
+    headers: { 'Content-Type': 'text/plain' },
+    method: 'PUT',
+  })
+  check(
+    'URL with the zone param swapped after minting rejected',
+    swappedZone.status === 401,
+    `status ${swappedZone.status}`,
+  )
+  if (swappedZone.body) {
+    await swappedZone.text().catch(() => undefined)
   }
 
   const del = await fetch(`https://${storageHost}/${zone}/${key}`, {

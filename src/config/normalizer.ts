@@ -33,7 +33,6 @@ export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedB
   const normalized: NormalizedBunnyStorageConfig = {
     _original: options,
     accountApiKey: options.accountApiKey,
-    clientUploads: normalizeClientUploadsConfig({ hasS3: !!options.storage?.s3, value: options.clientUploads }),
     collections: new Map(),
     i18n: options.i18n,
     purge: options.purge
@@ -52,10 +51,8 @@ export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedB
 }
 
 const normalizeClientUploadsConfig = ({
-  hasS3,
   value,
 }: {
-  hasS3: boolean
   value: boolean | ClientUploadsConfig | undefined
 }): NormalizedClientUploadsConfig | undefined => {
   if (!value) {
@@ -66,7 +63,6 @@ const normalizeClientUploadsConfig = ({
 
   const normalized: NormalizedClientUploadsConfig = {
     access: config.access,
-    mode: config.mode ?? (hasS3 ? 's3' : 'edge'),
     prefix: config.prefix,
   }
 
@@ -82,8 +78,14 @@ const normalizeClientUploadsConfig = ({
 }
 
 const normalizeStorageConfig = (storage: StorageConfig): NormalizedStorageConfig => ({
-  ...storage,
+  apiKey: storage.apiKey,
+  clientUploads: normalizeClientUploadsConfig({ value: storage.clientUploads }),
+  hostname: storage.hostname,
+  region: storage.region,
+  s3: storage.s3,
+  tokenSecurityKey: storage.tokenSecurityKey,
   uploadTimeout: storage.uploadTimeout ?? CONFIG_DEFAULTS.storage.uploadTimeout,
+  zoneName: storage.zoneName,
 })
 
 const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => {
@@ -172,10 +174,12 @@ const normalizeSignedUrlsConfig = ({
   const normalized: NormalizedSignedUrlsConfig = {
     allowedCountries: value.allowedCountries ?? globalConfig?.allowedCountries,
     blockedCountries: value.blockedCountries ?? globalConfig?.blockedCountries,
+    expiresAt: value.expiresAt ? (...args) => value.expiresAt!(...args) : globalConfig?.expiresAt,
     expiresIn: value.expiresIn ?? globalConfig?.expiresIn ?? CONFIG_DEFAULTS.signedUrls.expiresIn,
     shouldUseSignedUrl: value.shouldUseSignedUrl
       ? (...args) => value.shouldUseSignedUrl!(...args)
       : globalConfig?.shouldUseSignedUrl,
+    userIp: value.userIp ? (...args) => value.userIp!(...args) : globalConfig?.userIp,
   }
 
   if (value.staticHandler) {
@@ -282,7 +286,6 @@ const normalizeCollectionConfig = ({
 }): NormalizedCollectionConfig => {
   if (collectionConfig === true) {
     return {
-      clientUploads: globalConfig.clientUploads,
       disablePayloadAccessControl: false,
       prefix: '',
       purge: globalConfig.purge,
@@ -300,11 +303,6 @@ const normalizeCollectionConfig = ({
   })
 
   return {
-    clientUploads: resolveCollectionClientUploadsConfig({
-      collectionOverride: collectionConfig.clientUploads,
-      globalValue: globalConfig.clientUploads,
-      hasS3: !!storage?.s3,
-    }),
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
     prefix: collectionConfig.prefix ?? '',
     purge: resolveCollectionPurgeConfig({
@@ -332,11 +330,9 @@ const normalizeCollectionConfig = ({
 const resolveCollectionClientUploadsConfig = ({
   collectionOverride,
   globalValue,
-  hasS3,
 }: {
-  collectionOverride: BunnyStorageCollectionConfig['clientUploads']
+  collectionOverride: boolean | ClientUploadsConfig | undefined
   globalValue: NormalizedClientUploadsConfig | undefined
-  hasS3: boolean
 }): NormalizedClientUploadsConfig | undefined => {
   if (collectionOverride === false) {
     return undefined
@@ -347,16 +343,15 @@ const resolveCollectionClientUploadsConfig = ({
   }
 
   if (collectionOverride === true) {
-    return globalValue ?? normalizeClientUploadsConfig({ hasS3, value: true })
+    return globalValue ?? normalizeClientUploadsConfig({ value: true })
   }
 
   if (!globalValue) {
-    return normalizeClientUploadsConfig({ hasS3, value: collectionOverride })
+    return normalizeClientUploadsConfig({ value: collectionOverride })
   }
 
   const merged = mergeDefined(globalValue, {
     access: collectionOverride.access,
-    mode: collectionOverride.mode,
     prefix: collectionOverride.prefix,
   })
 
@@ -383,6 +378,10 @@ const resolveCollectionStorageConfig = ({
     return undefined
   }
 
+  if (collectionOverride && 'apiKey' in collectionOverride) {
+    return normalizeStorageConfig(collectionOverride)
+  }
+
   if (!globalValue) {
     return undefined
   }
@@ -391,7 +390,13 @@ const resolveCollectionStorageConfig = ({
     return globalValue
   }
 
-  return mergeDefined(globalValue, { uploadTimeout: collectionOverride.uploadTimeout })
+  const merged = mergeDefined(globalValue, { uploadTimeout: collectionOverride.uploadTimeout })
+  merged.clientUploads = resolveCollectionClientUploadsConfig({
+    collectionOverride: collectionOverride.clientUploads,
+    globalValue: globalValue.clientUploads,
+  })
+
+  return merged
 }
 
 const resolveCollectionStreamConfig = ({
@@ -403,6 +408,10 @@ const resolveCollectionStreamConfig = ({
 }): NormalizedStreamConfig | undefined => {
   if (collectionOverride === false) {
     return undefined
+  }
+
+  if (collectionOverride && 'apiKey' in collectionOverride) {
+    return normalizeStreamConfig(collectionOverride)
   }
 
   if (!globalValue) {

@@ -21,9 +21,13 @@ type LooseReq = { payload: { find: ReturnType<typeof vi.fn>; logger: { error: Re
 
 const { getStaticHandler: rawGetStaticHandler } = await import('@/adapter/staticHandler.js')
 
-const getStaticHandler = rawGetStaticHandler as unknown as (
-  ctx: CollectionContext,
-) => (req: LooseReq, args: { doc?: unknown; params: { filename: string } }) => Promise<Response>
+const getStaticHandler = rawGetStaticHandler as unknown as (ctx: CollectionContext) => (
+  req: LooseReq,
+  args: {
+    doc?: unknown
+    params: { clientUploadContext?: unknown; filename: string; prefix?: string }
+  },
+) => Promise<Response>
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
@@ -157,5 +161,85 @@ describe('getStaticHandler dispatch', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     expect(req.payload.logger.error).toHaveBeenCalled()
+  })
+})
+
+const prefixCollection = {
+  slug: 'media',
+  fields: [{ name: 'prefix', type: 'text' }],
+} as unknown as CollectionConfig
+
+describe('getStaticHandler storage prefix resolution', () => {
+  it('uses params.prefix over everything else', async () => {
+    const req = makeReq()
+    const handler = getStaticHandler(context({ streamConfig: undefined }))
+
+    await handler(req, {
+      doc: { prefix: 'doc/pre' },
+      params: { clientUploadContext: { prefix: 'ctx/pre' }, filename: 'photo.jpg', prefix: 'query/pre' },
+    })
+
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'query/pre' }))
+    expect(req.payload.find).not.toHaveBeenCalled()
+  })
+
+  it('uses clientUploadContext.prefix on a read-back (doc: null, no param)', async () => {
+    const req = makeReq()
+    const handler = getStaticHandler(context({ streamConfig: undefined }))
+
+    await handler(req, {
+      doc: null,
+      params: { clientUploadContext: { prefix: 'tenants/acme' }, filename: 'photo.jpg' },
+    })
+
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/acme' }))
+    expect(req.payload.find).not.toHaveBeenCalled()
+  })
+
+  it('uses doc.prefix when no param or clientUploadContext is present', async () => {
+    const req = makeReq()
+    const handler = getStaticHandler(context({ streamConfig: undefined }))
+
+    await handler(req, { doc: { prefix: 'tenants/beta/media' }, params: { filename: 'photo.jpg' } })
+
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/beta/media' }))
+    expect(req.payload.find).not.toHaveBeenCalled()
+  })
+
+  it('falls back to a gated DB find when the collection has a prefix field', async () => {
+    const req = makeReq({ docs: [{ prefix: 'tenants/db/media' }] })
+    const handler = getStaticHandler(context({ collection: prefixCollection, streamConfig: undefined }))
+
+    await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
+
+    expect(req.payload.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'media',
+        draft: true,
+        where: { or: expect.arrayContaining([{ filename: { equals: 'photo.jpg' } }]) },
+      }),
+    )
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/db/media' }))
+  })
+
+  it('skips the DB find and uses the static fallback prefix when no prefix field exists', async () => {
+    const req = makeReq()
+    const handler = getStaticHandler(context({ prefix: 'static-pre', streamConfig: undefined }))
+
+    await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
+
+    expect(req.payload.find).not.toHaveBeenCalled()
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'static-pre' }))
+  })
+
+  it('sanitizes a traversal attempt in the prefix query param', async () => {
+    const req = makeReq()
+    const handler = getStaticHandler(context({ streamConfig: undefined }))
+
+    await handler(req, { doc: undefined, params: { filename: 'photo.jpg', prefix: '../%2e%2e/secret' } })
+
+    const passedPrefix = storageHandlerMock.mock.calls[0][0].prefix as string
+    expect(passedPrefix).not.toContain('..')
+    expect(passedPrefix).toBe('secret')
   })
 })

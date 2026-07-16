@@ -1,4 +1,12 @@
+import { readFileSync } from 'node:fs'
+import nodePath from 'node:path'
+
+import { collectStorageConfigs } from '@/config/inspect.js'
+import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
+
 const BUNNY_API_BASE = 'https://api.bunny.net'
+
+const STALE_ZONE_SECRETS = ['STORAGE_HOST', 'STORAGE_ZONE', 'STORAGE_ACCESS_KEY']
 
 export type DeployLogger = {
   error: (message: string) => void
@@ -18,9 +26,116 @@ export type DeployEdgeScriptOptions = {
   requestLimit: number
   sharedSecret: string
   skipHarden: boolean
-  storageAccessKey: string
-  storageHost: string
-  storageZone: string
+  zones: Record<string, { accessKey: string; host: string }>
+}
+
+export const storageHostFor = (region?: string): string =>
+  region ? `${region}.storage.bunnycdn.com` : 'storage.bunnycdn.com'
+
+export type EdgeDeployGroup = {
+  scriptUrl?: string
+  secretConflict?: boolean
+  sharedSecret?: string
+  zoneNames: string[]
+  zones: Record<string, { accessKey: string; host: string }>
+}
+
+export type EdgeDeployPlan = {
+  errors: string[]
+  groups: EdgeDeployGroup[]
+}
+
+export const buildEdgeDeployPlan = (config: NormalizedBunnyStorageConfig): EdgeDeployPlan => {
+  const errors: string[] = []
+  const all = collectStorageConfigs(config).filter((s) => !s.s3)
+
+  if (all.length === 0) {
+    return {
+      errors: [
+        'no non-s3 storage zones are configured; the Edge Script only serves non-s3 zones (S3-enabled zones presign uploads directly)',
+      ],
+      groups: [],
+    }
+  }
+
+  const withUploads = all.filter((s) => s.clientUploads)
+  const targets = withUploads.length > 0 ? withUploads : all
+
+  const buckets = new Map<string | undefined, typeof targets>()
+  for (const zone of targets) {
+    const url = zone.clientUploads?.edge?.scriptUrl || undefined
+    const list = buckets.get(url) ?? []
+    list.push(zone)
+    buckets.set(url, list)
+  }
+
+  const groups: EdgeDeployGroup[] = []
+  for (const [scriptUrl, zonesInGroup] of buckets) {
+    const zones = Object.fromEntries(
+      zonesInGroup.map((z) => [z.zoneName, { accessKey: z.apiKey, host: storageHostFor(z.region) }]),
+    )
+    const zoneNames = zonesInGroup.map((z) => z.zoneName)
+
+    const distinctSecrets = [
+      ...new Set(zonesInGroup.map((z) => z.clientUploads?.edge?.secret).filter((s): s is string => Boolean(s))),
+    ]
+    let sharedSecret: string | undefined
+    let secretConflict = false
+    if (distinctSecrets.length === 1) {
+      sharedSecret = distinctSecrets[0]
+    } else if (distinctSecrets.length >= 2) {
+      secretConflict = true
+      errors.push(
+        `storage zones [${zoneNames.join(', ')}] configure different \`clientUploads.edge.secret\` values; a shared Edge Script needs one secret — align them (or pass --secret to override)`,
+      )
+    }
+
+    groups.push({ scriptUrl, secretConflict, sharedSecret, zoneNames, zones })
+  }
+
+  return { errors, groups }
+}
+
+type ZonesFileEntry = {
+  accessKey?: string
+  accessKeyEnv?: string
+  region?: string
+}
+
+export const loadZonesFileGroup = (filePath: string): EdgeDeployGroup => {
+  const resolved = nodePath.resolve(process.cwd(), filePath)
+
+  let contents: string
+  try {
+    contents = readFileSync(resolved, 'utf8')
+  } catch (err) {
+    throw new Error(`could not read zones file "${resolved}": ${(err as Error).message}`, { cause: err })
+  }
+
+  let parsed: Record<string, ZonesFileEntry>
+  try {
+    parsed = JSON.parse(contents) as Record<string, ZonesFileEntry>
+  } catch (err) {
+    throw new Error(`zones file "${resolved}" is not valid JSON: ${(err as Error).message}`, { cause: err })
+  }
+
+  const zones: Record<string, { accessKey: string; host: string }> = {}
+  const zoneNames: string[] = []
+  for (const [zoneName, entry] of Object.entries(parsed)) {
+    const accessKey = entry.accessKey ?? (entry.accessKeyEnv ? process.env[entry.accessKeyEnv] : undefined)
+    if (!accessKey) {
+      const via = entry.accessKeyEnv ? ` (env var "${entry.accessKeyEnv}" is not set)` : ''
+      throw new Error(`zones file entry "${zoneName}" is missing an accessKey${via}`)
+    }
+    zones[zoneName] = { accessKey, host: storageHostFor(entry.region) }
+    zoneNames.push(zoneName)
+  }
+
+  if (zoneNames.length === 0) {
+    throw new Error(`zones file "${resolved}" contains no zones`)
+  }
+
+  return { zoneNames, zones }
 }
 
 export type DeployEdgeScriptResult = {
@@ -83,6 +198,8 @@ const setSecrets = async (
   accountApiKey: string,
   scriptId: number,
   secrets: Array<{ Name: string; Secret: string }>,
+  staleNames: string[] = [],
+  logger?: DeployLogger,
 ): Promise<void> => {
   const response = await bunnyFetch(accountApiKey, `/compute/script/${scriptId}/secrets`)
   const existing = ((await response.json()) as { Secrets?: Array<{ Id: number; Name: string }> }).Secrets ?? []
@@ -92,6 +209,18 @@ const setSecrets = async (
     const id = idByName.get(secret.Name)
     const path = id === undefined ? `/compute/script/${scriptId}/secrets` : `/compute/script/${scriptId}/secrets/${id}`
     await bunnyFetch(accountApiKey, path, { body: secret, method: 'POST' })
+  }
+
+  for (const name of staleNames) {
+    const id = idByName.get(name)
+    if (id === undefined) {
+      continue
+    }
+    try {
+      await bunnyFetch(accountApiKey, `/compute/script/${scriptId}/secrets/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      logger?.warn(`Could not remove stale secret "${name}": ${(err as Error).message}`)
+    }
   }
 }
 
@@ -198,16 +327,13 @@ const hardenPullZone = async (options: DeployEdgeScriptOptions, pullZoneId: numb
 }
 
 export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promise<DeployEdgeScriptResult> => {
-  const { accountApiKey, allowedOrigins, code, dryRun, logger, name, sharedSecret } = options
+  const { accountApiKey, allowedOrigins, code, dryRun, logger, name, sharedSecret, zones } = options
 
   const existing = await findScriptByName(accountApiKey, name)
 
   if (dryRun) {
-    logger.info(
-      existing
-        ? `Dry run: would update existing script "${name}" (id ${existing.Id}) and republish.`
-        : `Dry run: would create script "${name}" with a linked Pull Zone and publish.`,
-    )
+    const verb = existing ? 'update' : 'create'
+    logger.info(`Dry run: would ${verb} script "${name}" serving zones [${Object.keys(zones).join(', ')}].`)
     return {
       created: !existing,
       scriptId: existing?.Id ?? 0,
@@ -238,15 +364,13 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
 
   const secrets: Array<{ Name: string; Secret: string }> = [
     { Name: 'SHARED_SECRET', Secret: sharedSecret },
-    { Name: 'STORAGE_HOST', Secret: options.storageHost },
-    { Name: 'STORAGE_ZONE', Secret: options.storageZone },
-    { Name: 'STORAGE_ACCESS_KEY', Secret: options.storageAccessKey },
+    { Name: 'ZONES', Secret: JSON.stringify(zones) },
   ]
   if (allowedOrigins) {
     secrets.push({ Name: 'ALLOWED_ORIGINS', Secret: allowedOrigins })
   }
 
-  await setSecrets(accountApiKey, script.Id, secrets)
+  await setSecrets(accountApiKey, script.Id, secrets, STALE_ZONE_SECRETS, logger)
 
   await bunnyFetch(accountApiKey, `/compute/script/${script.Id}/publish`, {
     body: { Note: 'payload-storage-bunny' },

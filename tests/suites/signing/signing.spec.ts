@@ -1,9 +1,192 @@
 import { createHash } from 'crypto'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { generateSignedToken, generateSignedUrl } from '@/cdn/tokenAuth.js'
 import { generateStreamTusUploadSignature } from '@/stream/tusSignature.js'
+
+const rawToken = (hashable: string) =>
+  createHash('sha256').update(hashable).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+
+describe('token output lock (must stay byte-identical to the verified Bunny standard scheme)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('pins token for key + path + expires', () => {
+    expect(generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000)).toBe(
+      'SxFvxHGdfK9v7p53gmnSvd84VLGy2GlsIrPBoCPGqns',
+    )
+  })
+
+  it('pins token for key + path + expires + sorted params', () => {
+    expect(
+      generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000, 'token_countries=US,CA&width=500'),
+    ).toBe('d8_U6ufdeoXh1KgeBCjJHu3Di1Tlh_uMPWAbCfi9Ahg')
+  })
+
+  it('pins token for token_path signing', () => {
+    expect(generateSignedToken('test-security-key', '/videos/', 1700000000, 'token_path=/videos/')).toBe(
+      'LK4PNazpPWHPtkD4ShDMsm7fGD8Bvg0HV5monXaghkg',
+    )
+  })
+
+  it('pins full query-mode URL output', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1699996400000))
+
+    const url = generateSignedUrl('https://cdn.example.com/file.jpg', 'test-security-key', {
+      allowedCountries: ['US', 'CA'],
+      expiresIn: 3600,
+    })
+
+    expect(url).toBe(
+      'https://cdn.example.com/file.jpg?token_countries=US%2CCA&token=CUyXC1WG2Rd2Dirr-Ftkm8iG79k5psJf7GVYm4hfayI&expires=1700000000',
+    )
+  })
+
+  it('pins full path-mode URL output', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1699996400000))
+
+    const url = generateSignedUrl(
+      'https://stream.example.com/vid123/playlist.m3u8',
+      'test-security-key',
+      {
+        expiresIn: 3600,
+      },
+      {
+        tokenPath: '/vid123/',
+      },
+    )
+
+    expect(url).toBe(
+      'https://stream.example.com/bcdn_token=FxF2m08_mzkcT5O12FB_R23oWkIUDkr6EpPGB2E7Qnc&token_path=%2Fvid123%2F&expires=1700000000/vid123/playlist.m3u8',
+    )
+  })
+
+  it('pins plain URL output without extra params', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1699996400000))
+
+    const url = generateSignedUrl('https://cdn.example.com/file.jpg', 'test-security-key', { expiresIn: 3600 })
+
+    expect(url).toBe(
+      'https://cdn.example.com/file.jpg?token=-UDRI8YaL5AmYgvcAaAfm2dJqCOTm0bcqtXm3mCUjMA&expires=1700000000',
+    )
+  })
+})
+
+describe('IP-locked tokens (standard scheme: key + path + expires + ip + sorted params)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const securityKey = 'test-security-key'
+  const signaturePath = '/path/to/file.jpg'
+  const expires = '1700000000'
+  const userIp = '192.168.1.1'
+  const sortedParams = 'token_countries=US,CA&width=500'
+
+  it('hashes the IP between expires and params', () => {
+    const token = generateSignedToken(securityKey, signaturePath, 1700000000, undefined, userIp)
+
+    expect(token).toBe(rawToken(securityKey + signaturePath + expires + userIp))
+    expect(token).toBe('28C0lC5Wc2I6oClnXZMYt5cVIjN_lT8WVIGIi5Uo9sk')
+  })
+
+  it('hashes the IP before sorted params when both are present', () => {
+    const token = generateSignedToken(securityKey, signaturePath, 1700000000, sortedParams, userIp)
+
+    expect(token).toBe(rawToken(securityKey + signaturePath + expires + userIp + sortedParams))
+    expect(token).toBe('bHSXubiYmOXgqHxcYEZBdSyZbLG_5w82_uaq3yqTIL0')
+  })
+
+  it('produces the legacy token when IP is absent', () => {
+    expect(generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000, undefined, undefined)).toBe(
+      generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000),
+    )
+  })
+
+  it('signs URLs with the IP in the hash but never in the URL itself', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1699996400000))
+
+    const url = generateSignedUrl(
+      'https://cdn.example.com/file.jpg',
+      'test-security-key',
+      { expiresIn: 3600 },
+      { userIp: '192.168.1.1' },
+    )
+
+    expect(url).toBe(
+      'https://cdn.example.com/file.jpg?token=2g2Y3w3fl6xutlMR8qcLF2bYoPQhMT38oVvlvPB_e_Q&expires=1700000000',
+    )
+    expect(url).not.toContain('192.168.1.1')
+  })
+
+  it('combines IP with country restrictions in the pinned order', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1699996400000))
+
+    const url = generateSignedUrl(
+      'https://cdn.example.com/file.jpg',
+      'test-security-key',
+      { allowedCountries: ['US', 'CA'], expiresIn: 3600 },
+      { userIp: '192.168.1.1' },
+    )
+
+    expect(url).toBe(
+      'https://cdn.example.com/file.jpg?token_countries=US%2CCA&token=ftxhlK6aaJ7ZjP6ySjcLiZrAciXB7V-hIh0Q8Sra2gs&expires=1700000000',
+    )
+  })
+
+  it('combines IP with a path-based token', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1699996400000))
+
+    const url = generateSignedUrl(
+      'https://stream.example.com/vid123/playlist.m3u8',
+      'test-security-key',
+      { expiresIn: 3600 },
+      { tokenPath: '/vid123/', userIp: '203.0.113.7' },
+    )
+
+    expect(url).toBe(
+      'https://stream.example.com/bcdn_token=gCCs31C4cphAaMuQ-mbtHi1IqJroLV_MMEe7tb9zNA8&token_path=%2Fvid123%2F&expires=1700000000/vid123/playlist.m3u8',
+    )
+  })
+})
+
+describe('absolute expiry (expiresAt option)', () => {
+  it('uses the absolute timestamp as the expires value in hash and URL', () => {
+    const url = generateSignedUrl(
+      'https://cdn.example.com/file.jpg',
+      'test-security-key',
+      { expiresIn: 3600 },
+      { expiresAt: 1800000000 },
+    )
+
+    expect(url).toBe(
+      'https://cdn.example.com/file.jpg?token=dnOPvXnJbXAT1DoKqqvYP2nr0GQai6nYSbLUKhiTfjw&expires=1800000000',
+    )
+  })
+
+  it('ignores non-positive expiresAt and falls back to expiresIn', () => {
+    const before = Math.floor(Date.now() / 1000)
+    const url = generateSignedUrl(
+      'https://cdn.example.com/file.jpg',
+      'test-security-key',
+      { expiresIn: 3600 },
+      { expiresAt: 0 },
+    )
+    const after = Math.floor(Date.now() / 1000)
+
+    const expires = Number(new URL(url).searchParams.get('expires'))
+    expect(expires).toBeGreaterThanOrEqual(before + 3600)
+    expect(expires).toBeLessThanOrEqual(after + 3600 + 1)
+  })
+})
 
 describe('generateSignedToken', () => {
   const securityKey = 'test-security-key'

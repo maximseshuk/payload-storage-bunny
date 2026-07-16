@@ -59,11 +59,19 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
         }
 
         if (purgeConfig && accountApiKey && fileUrl) {
-          await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url: fileUrl })
-          req.payload.logger.debug({
-            msg: '[bunny:storage] delete: cache purged',
-            url: fileUrl,
-          })
+          try {
+            await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url: fileUrl })
+            req.payload.logger.debug({
+              msg: '[bunny:storage] delete: cache purged',
+              url: fileUrl,
+            })
+          } catch (err) {
+            req.payload.logger.error({
+              err,
+              msg: '[bunny:storage] delete: cache purge failed',
+              url: fileUrl,
+            })
+          }
         }
       } else {
         req.payload.logger.debug({

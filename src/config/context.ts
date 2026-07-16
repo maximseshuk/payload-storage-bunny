@@ -19,7 +19,6 @@ export const createCollectionContext = (
 
   return {
     accountApiKey: config.accountApiKey,
-    clientUploads: collectionConfig.clientUploads,
     collection,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? collectionConfig.prefix,
@@ -42,7 +41,6 @@ const createDefaultContext = (
 
   return {
     accountApiKey: config.accountApiKey,
-    clientUploads: config.clientUploads,
     collection,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? '',

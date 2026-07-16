@@ -5,7 +5,12 @@ import { createCollectionContext } from '@/config/context.js'
 import { createNormalizedConfig } from '@/config/normalizer.js'
 import type { BunnyStorageConfig } from '@/types/config.js'
 
-import { createBaseStorage as sharedCreateBaseStorage, createBaseStream } from '../../helpers/unit/configBuilders.js'
+import {
+  createBaseStorage as sharedCreateBaseStorage,
+  createBaseStream,
+  createOwnStorage,
+  createOwnStream,
+} from '../../helpers/unit/configBuilders.js'
 
 const createBaseStorage = () => sharedCreateBaseStorage({ uploadTimeout: 60000 })
 
@@ -117,6 +122,32 @@ describe('createCollectionContext', () => {
       }
       const ctx4 = createCollectionContext(createNormalizedConfig(config4), createMockCollection('media'))
       expect(ctx4.purgeConfig).toBeUndefined()
+    })
+  })
+
+  describe('full per-collection override contexts', () => {
+    it('exposes own storage/stream configs while a sibling keeps global', () => {
+      const config: BunnyStorageConfig = {
+        collections: {
+          own: {
+            disablePayloadAccessControl: true,
+            storage: createOwnStorage('own'),
+            stream: createOwnStream(777),
+          },
+          sibling: { disablePayloadAccessControl: true },
+        },
+        storage: createBaseStorage(),
+        stream: createBaseStream(),
+      }
+      const normalized = createNormalizedConfig(config)
+
+      const ownCtx = createCollectionContext(normalized, createMockCollection('own'))
+      expect(ownCtx.storageConfig?.zoneName).toBe('own-zone-own')
+      expect(ownCtx.streamConfig?.libraryId).toBe(777)
+
+      const siblingCtx = createCollectionContext(normalized, createMockCollection('sibling'))
+      expect(siblingCtx.storageConfig?.zoneName).toBe('test-zone')
+      expect(siblingCtx.streamConfig?.libraryId).toBe(12345)
     })
   })
 

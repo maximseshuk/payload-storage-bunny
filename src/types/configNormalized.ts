@@ -5,7 +5,7 @@ import type {
   ClientUploadsAccess,
   ClientUploadsPrefix,
   SignedUrlsConfig,
-  StorageConfig,
+  StorageS3Config,
   StreamConfig,
   StreamTusConfig,
   UrlTransformFunction,
@@ -18,13 +18,19 @@ export type NormalizedClientUploadsConfig = {
     scriptUrl: string
     secret: string
   }
-  mode: 'edge' | 's3'
   prefix?: ClientUploadsPrefix
 }
 
 export type NormalizedStorageConfig = {
+  apiKey: string
+  clientUploads?: NormalizedClientUploadsConfig
+  hostname: string
+  region?: 'br' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | ({} & string)
+  s3?: StorageS3Config
+  tokenSecurityKey?: string
   uploadTimeout: number
-} & StorageConfig
+  zoneName: string
+}
 
 export type NormalizedStreamConfig = {
   cleanup?: {
@@ -65,7 +71,6 @@ export type NormalizedPurgeConfig = {
 }
 
 export interface NormalizedCollectionConfig {
-  clientUploads?: NormalizedClientUploadsConfig
   disablePayloadAccessControl: boolean
   prefix: string
   purge?: NormalizedPurgeConfig
@@ -79,7 +84,6 @@ export interface NormalizedCollectionConfig {
 export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, 'i18n'> {
   _original: BunnyStorageConfig
   accountApiKey?: string
-  clientUploads?: NormalizedClientUploadsConfig
   collections: Map<string, NormalizedCollectionConfig>
   purge?: NormalizedPurgeConfig
   signedUrls?: NormalizedSignedUrlsConfig

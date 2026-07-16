@@ -12,3 +12,17 @@ export const createBaseStream = () => ({
   libraryId: 12345,
   tokenSecurityKey: 'stream-token',
 })
+
+export const createOwnStorage = (slugSuffix = 'own', overrides: Record<string, unknown> = {}) => ({
+  apiKey: `own-storage-key-${slugSuffix}`,
+  hostname: `own-${slugSuffix}.b-cdn.net`,
+  zoneName: `own-zone-${slugSuffix}`,
+  ...overrides,
+})
+
+export const createOwnStream = (libraryId = 999, overrides: Record<string, unknown> = {}) => ({
+  apiKey: `own-stream-key-${libraryId}`,
+  hostname: `own-stream-${libraryId}.b-cdn.net`,
+  libraryId,
+  ...overrides,
+})

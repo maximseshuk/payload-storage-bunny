@@ -13,12 +13,6 @@ export default buildConfigWithDefaults({
   ],
   plugins: [
     bunnyStorage({
-      clientUploads: {
-        edge: {
-          scriptUrl: process.env.BUNNY_EDGE_SCRIPT_URL || 'https://uploader.invalid',
-          secret: process.env.BUNNY_EDGE_SECRET || 'placeholder-secret',
-        },
-      },
       collections: {
         'client-uploads-edge': {
           prefix: 'client-uploads-edge',
@@ -27,6 +21,12 @@ export default buildConfigWithDefaults({
       enabled: true,
       storage: {
         apiKey: process.env.BUNNY_STORAGE_API_KEY || '',
+        clientUploads: {
+          edge: {
+            scriptUrl: process.env.BUNNY_EDGE_SCRIPT_URL || 'https://uploader.invalid',
+            secret: process.env.BUNNY_EDGE_SECRET || 'placeholder-secret',
+          },
+        },
         hostname: process.env.BUNNY_STORAGE_HOSTNAME || '',
         zoneName: process.env.BUNNY_STORAGE_ZONE_NAME || '',
       },

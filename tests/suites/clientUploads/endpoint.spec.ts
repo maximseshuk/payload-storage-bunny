@@ -34,9 +34,14 @@ const buildRequest = (body: Record<string, unknown>, overrides: Record<string, u
 
 const s3Config = () =>
   createNormalizedConfig({
-    clientUploads: {},
     collections: { media: true },
-    storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: { region: 'de' }, zoneName: 'zone' },
+    storage: {
+      apiKey: 'zone-pw',
+      clientUploads: {},
+      hostname: 'cdn.b-cdn.net',
+      s3: { region: 'de' },
+      zoneName: 'zone',
+    },
   } as never)
 
 describe('client upload endpoint', () => {
@@ -95,9 +100,14 @@ describe('client upload endpoint', () => {
 
   it('applies a server-side prefix callback to the key', async () => {
     const config = createNormalizedConfig({
-      clientUploads: { prefix: () => 'tenants/acme' },
       collections: { media: true },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: { region: 'de' }, zoneName: 'zone' },
+      storage: {
+        apiKey: 'zone-pw',
+        clientUploads: { prefix: () => 'tenants/acme' },
+        hostname: 'cdn.b-cdn.net',
+        s3: { region: 'de' },
+        zoneName: 'zone',
+      },
     } as never)
 
     const handler = getClientUploadHandler(config)
@@ -112,9 +122,13 @@ describe('client upload endpoint', () => {
 
   it('mints a signed Edge Script URL in edge mode', async () => {
     const config = createNormalizedConfig({
-      clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
       collections: { media: true },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+      storage: {
+        apiKey: 'zone-pw',
+        clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
+        hostname: 'cdn.b-cdn.net',
+        zoneName: 'zone',
+      },
     } as never)
 
     const handler = getClientUploadHandler(config)
@@ -125,7 +139,39 @@ describe('client upload endpoint', () => {
 
     expect(res.status).toBe(200)
     expect(json.url.startsWith('https://uploader.b-cdn.net/upload?')).toBe(true)
+    expect(new URL(json.url).searchParams.get('X-Upload-Zone')).toBe('zone')
     expect(verifyEdgeUploadUrl(json.url, 'shared').valid).toBe(true)
     expect(presignMock).not.toHaveBeenCalled()
+  })
+
+  it('signs the per-collection storage zone, not the global one', async () => {
+    const config = createNormalizedConfig({
+      collections: {
+        media: {
+          storage: {
+            apiKey: 'tenant-a-pw',
+            clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
+            hostname: 'tenant-a.b-cdn.net',
+            zoneName: 'tenant-a',
+          },
+        },
+      },
+      storage: {
+        apiKey: 'zone-pw',
+        clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
+        hostname: 'cdn.b-cdn.net',
+        zoneName: 'zone',
+      },
+    } as never)
+
+    const handler = getClientUploadHandler(config)
+    const res = await handler(
+      buildRequest({ collectionSlug: 'media', filename: 'photo.jpg', filesize: 1000, mimeType: 'image/jpeg' }) as never,
+    )
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(new URL(json.url).searchParams.get('X-Upload-Zone')).toBe('tenant-a')
+    expect(verifyEdgeUploadUrl(json.url, 'shared').valid).toBe(true)
   })
 })

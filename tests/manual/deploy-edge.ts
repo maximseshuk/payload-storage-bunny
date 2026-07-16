@@ -13,8 +13,29 @@ const zoneKey = getFlag(flags, 'storage-key') ?? process.env.BUNNY_STORAGE_API_K
 const storageHost = getFlag(flags, 'storage-host') ?? 'storage.bunnycdn.com'
 const secret = getFlag(flags, 'secret') ?? process.env.BUNNY_EDGE_SECRET ?? randomBytes(16).toString('hex')
 
-if (!accountKey || !zoneName || !zoneKey) {
-  log.error('Missing BUNNY_ACCOUNT_API_KEY, BUNNY_STORAGE_ZONE_NAME, or BUNNY_STORAGE_API_KEY (or the matching flags).')
+const zones: Record<string, { accessKey: string; host: string }> = {}
+const argv = process.argv.slice(2)
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] !== '--zone') {
+    continue
+  }
+  const spec = argv[i + 1] ?? ''
+  const [name, accessKey, host] = spec.split(':')
+  if (name && accessKey) {
+    zones[name] = { accessKey, host: host || 'storage.bunnycdn.com' }
+  }
+}
+
+if (Object.keys(zones).length === 0) {
+  if (!accountKey || !zoneName || !zoneKey) {
+    log.error(
+      'Missing BUNNY_ACCOUNT_API_KEY, BUNNY_STORAGE_ZONE_NAME, or BUNNY_STORAGE_API_KEY (or the matching flags).',
+    )
+    process.exit(1)
+  }
+  zones[zoneName] = { accessKey: zoneKey, host: storageHost }
+} else if (!accountKey) {
+  log.error('Missing BUNNY_ACCOUNT_API_KEY (or --api-key).')
   process.exit(1)
 }
 
@@ -48,9 +69,7 @@ const main = async (): Promise<void> => {
     requestLimit: Number(getFlag(flags, 'request-limit') ?? 30),
     sharedSecret: secret,
     skipHarden: getBooleanFlag(flags, 'skip-harden'),
-    storageAccessKey: zoneKey,
-    storageHost,
-    storageZone: zoneName,
+    zones,
   })
 
   log.success(`edge script deployed (version ${EDGE_SCRIPT_VERSION})`)

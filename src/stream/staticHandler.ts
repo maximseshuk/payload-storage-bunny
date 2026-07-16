@@ -171,9 +171,13 @@ export const streamStaticHandler = async ({
 
   const tokenPath = `/${videoId}/`
 
-  const redirect = maybeCreateRedirect(mp4Url, finalContext, {
-    tokenPath,
-  })
+  const redirect = maybeCreateRedirect(
+    mp4Url,
+    { ...finalContext, req },
+    {
+      tokenPath,
+    },
+  )
   if (redirect) {
     return redirect
   }

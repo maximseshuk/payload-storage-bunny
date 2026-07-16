@@ -85,6 +85,43 @@ describe('storageStaticHandler', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://cdn.b-cdn.net/tenants/acme/photo.jpg?width=100')
   })
 
+  it('strips the prefix query param from the forwarded CDN URL but keeps other params', async () => {
+    fetchMock.mockResolvedValue(new Response(streamBody('x'), { status: 200 }))
+
+    await storageStaticHandler({
+      collection,
+      filename: 'photo.jpg',
+      prefix: 'tenants/acme',
+      req: makeReq({}, '/api/media/file/photo.jpg?prefix=tenants/acme&ts=1'),
+      signedUrls: false,
+      storageConfig: storageConfig(),
+      usePayloadAccessControl: true,
+    })
+
+    const fetchedUrl = fetchMock.mock.calls[0][0] as string
+    expect(fetchedUrl).toContain('ts=1')
+    expect(fetchedUrl).not.toContain('prefix=')
+    expect(fetchedUrl).toContain('tenants/acme/photo.jpg')
+  })
+
+  it('signs the prefixed path in redirect mode after stripping the prefix param', async () => {
+    const res = await storageStaticHandler({
+      collection,
+      filename: 'photo.jpg',
+      prefix: 'tenants/acme',
+      req: makeReq({}, '/api/media/file/photo.jpg?prefix=tenants/acme'),
+      signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true } }),
+      storageConfig: storageConfig(),
+      usePayloadAccessControl: true,
+    })
+
+    const location = res.headers.get('Location') || ''
+    expect(res.status).toBe(302)
+    expect(location).toContain('tenants/acme/photo.jpg')
+    expect(location).not.toContain('prefix=')
+    expect(location).toContain('token=')
+  })
+
   it('signs the fetch URL when signedUrls is enabled without redirect', async () => {
     fetchMock.mockResolvedValue(new Response(streamBody('x'), { status: 200 }))
 

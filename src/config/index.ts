@@ -1,4 +1,6 @@
+export * from './access.js'
 export * from './context.js'
 export * from './defaults.js'
+export * from './inspect.js'
 export * from './normalizer.js'
 export * from './validator.js'

@@ -13,7 +13,6 @@ export default buildConfigWithDefaults({
   ],
   plugins: [
     bunnyStorage({
-      clientUploads: {},
       collections: {
         'client-uploads-s3': {
           prefix: 'client-uploads-s3',
@@ -22,6 +21,7 @@ export default buildConfigWithDefaults({
       enabled: true,
       storage: {
         apiKey: process.env.BUNNY_S3_STORAGE_API_KEY || '',
+        clientUploads: {},
         hostname: process.env.BUNNY_S3_STORAGE_HOSTNAME || '',
         s3: { region: process.env.BUNNY_S3_STORAGE_REGION || 'de' },
         zoneName: process.env.BUNNY_S3_STORAGE_ZONE_NAME || '',

@@ -3,10 +3,18 @@ import * as BunnySDK from 'https://esm.sh/@bunny.net/edgescript-sdk@0.11.2'
 const env = (name) => globalThis.Deno?.env?.get?.(name) ?? globalThis.process?.env?.[name] ?? ''
 
 const SHARED_SECRET = env('SHARED_SECRET')
-const STORAGE_HOST = env('STORAGE_HOST')
-const STORAGE_ZONE = env('STORAGE_ZONE')
-const STORAGE_ACCESS_KEY = env('STORAGE_ACCESS_KEY')
 const ALLOWED_ORIGINS = env('ALLOWED_ORIGINS') || '*'
+
+const parseZones = (raw) => {
+  try {
+    const parsed = JSON.parse(raw || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const ZONES = parseZones(env('ZONES'))
 
 const SIGNATURE_PARAM = 'X-Upload-Signature'
 const VERSION = '__PSB_EDGE_VERSION__'
@@ -97,6 +105,12 @@ BunnySDK.net.http.serve(async (request) => {
     return withCors(new Response('Invalid upload path', { status: 400 }), request)
   }
 
+  const zoneName = url.searchParams.get('X-Upload-Zone') ?? ''
+  const zone = Object.prototype.hasOwnProperty.call(ZONES, zoneName) ? ZONES[zoneName] : undefined
+  if (!zone || typeof zone.host !== 'string' || typeof zone.accessKey !== 'string') {
+    return withCors(new Response('Unknown upload zone', { status: 403 }), request)
+  }
+
   const maxSize = Number(url.searchParams.get('X-Upload-Max-Size'))
   const contentLength = Number(request.headers.get('Content-Length'))
 
@@ -130,12 +144,12 @@ BunnySDK.net.http.serve(async (request) => {
 
   let upstream
   try {
-    upstream = await fetch('https://' + STORAGE_HOST + '/' + STORAGE_ZONE + '/' + path, {
+    upstream = await fetch('https://' + zone.host + '/' + zoneName + '/' + path, {
       method: 'PUT',
       body,
       duplex: 'half',
       headers: {
-        AccessKey: STORAGE_ACCESS_KEY,
+        AccessKey: zone.accessKey,
         'Content-Type': request.headers.get('Content-Type') ?? 'application/octet-stream',
       },
     })

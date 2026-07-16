@@ -13,10 +13,17 @@ import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { BinScriptConfig, Config } from 'payload'
 
 import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './adapter/index.js'
-import { createCollectionContext, createNormalizedConfig, validateNormalizedConfig } from './config/index.js'
+import {
+  createCollectionContext,
+  createNormalizedConfig,
+  hasAnyStorage,
+  hasAnyStreamCleanup,
+  validateNormalizedConfig,
+} from './config/index.js'
 import { getFields } from './fields/getFields.js'
 import { clientUploadOperation } from './openapi.js'
 import { getClientUploadHandler } from './storage/clientUploads/endpoint.js'
+import { getPersistClientUploadPrefixHook } from './storage/clientUploads/persistPrefixHook.js'
 import { getStreamCleanupTask } from './stream/cleanupTask.js'
 import { getStreamEndpoints } from './stream/endpoints.js'
 import { getAfterChangeHook, getBeforeValidateHook } from './stream/hooks.js'
@@ -25,6 +32,16 @@ import { translations } from './translations/index.js'
 import type { PluginDefaultTranslationsObject } from './translations/types.js'
 import type { NormalizedBunnyStorageConfig } from './types/configNormalized.js'
 import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
+import { PLUGIN_KEY } from './utils/constants.js'
+
+export {
+  getBunnyCollectionConfig,
+  getBunnyConfig,
+  getBunnyStorageForCollection,
+  getBunnyStreamForCollection,
+} from './config/access.js'
+export type { BunnyCollectionConfig, BunnyCollectionStorage, BunnyCollectionStream } from './config/access.js'
+export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from './types/configNormalized.js'
 
 export const bunnyStorage: BunnyStoragePlugin =
   (pluginConfig: BunnyStorageConfig) =>
@@ -51,11 +68,11 @@ export const bunnyStorage: BunnyStoragePlugin =
       {} as Record<string, CollectionOptions>,
     )
 
-    const streamEndpoints = config.stream ? getStreamEndpoints(config) : []
-    const cleanupTask = config.stream?.cleanup ? getStreamCleanupTask(config.stream) : undefined
+    const streamEndpoints = getStreamEndpoints(config)
+    const cleanupTask = getStreamCleanupTask(config)
 
     const dirname = path.dirname(fileURLToPath(import.meta.url))
-    const pluginBin: BinScriptConfig[] = config.storage
+    const pluginBin: BinScriptConfig[] = hasAnyStorage(config)
       ? [{ key: 'bunny:deploy-edge-script', scriptPath: path.resolve(dirname, 'bin/deployEdgeScript/script.js') }]
       : []
     const existingBin = incomingConfig.bin ?? []
@@ -65,8 +82,8 @@ export const bunnyStorage: BunnyStoragePlugin =
       bin: [...existingBin, ...pluginBin.filter((entry) => !existingBin.some((b) => b.key === entry.key))],
       custom: {
         ...incomingConfig.custom,
-        '@seshuk/payload-storage-bunny': {
-          ...(incomingConfig.custom?.['@seshuk/payload-storage-bunny'] || {}),
+        [PLUGIN_KEY]: {
+          ...(incomingConfig.custom?.[PLUGIN_KEY] || {}),
           config,
         },
       },
@@ -88,6 +105,9 @@ export const bunnyStorage: BunnyStoragePlugin =
             typeof collection.upload === 'object' ? (collection.upload.filesRequiredOnCreate ?? true) : true
 
           const fields = getFields(collection, collectionContext, collection.fields)
+
+          const hasDynamicClientUploadPrefix =
+            typeof collectionContext.storageConfig?.clientUploads?.prefix === 'function'
 
           return {
             ...collection,
@@ -130,6 +150,10 @@ export const bunnyStorage: BunnyStoragePlugin =
             hooks: {
               ...(collection.hooks || {}),
               afterChange: [...(collection.hooks?.afterChange || []), getAfterChangeHook(collectionContext)],
+              beforeChange: [
+                ...(collection.hooks?.beforeChange || []),
+                ...(hasDynamicClientUploadPrefix ? [getPersistClientUploadPrefixHook(collectionContext)] : []),
+              ],
               beforeValidate: [
                 ...(collection.hooks?.beforeValidate || []),
                 ...(collectionContext.isTusUploadSupported
@@ -159,7 +183,7 @@ export const bunnyStorage: BunnyStoragePlugin =
             },
           }
         }),
-        ...(config.stream && config.stream.cleanup ? [getStreamUploadSessionsCollection()] : []),
+        ...(hasAnyStreamCleanup(config) ? [getStreamUploadSessionsCollection()] : []),
       ],
       endpoints: [...(incomingConfig.endpoints || []), ...streamEndpoints],
       i18n: {
@@ -196,7 +220,7 @@ export const bunnyStorage: BunnyStoragePlugin =
     }
 
     const clientUploadCollections = [...config.collections.entries()].filter(
-      ([, collection]) => collection.clientUploads,
+      ([, collection]) => collection.storage?.clientUploads,
     )
 
     if (clientUploadCollections.length > 0) {
@@ -230,7 +254,7 @@ const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => 
 
     return {
       name: 'bunny',
-      ...(collectionContext.clientUploads ? { clientUploads: true } : {}),
+      ...(collectionContext.storageConfig?.clientUploads ? { clientUploads: true } : {}),
       fields: [],
       generateURL: getGenerateUrl(collectionContext),
       handleDelete: getHandleDelete(collectionContext),

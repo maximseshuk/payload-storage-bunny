@@ -7,6 +7,7 @@ const base = {
   path: 'media/photo.jpg',
   scriptUrl: 'https://uploader.b-cdn.net',
   secret: 'shared-secret',
+  zoneName: 'media',
 }
 
 describe('edge upload URL mint/verify', () => {
@@ -49,5 +50,19 @@ describe('edge upload URL mint/verify', () => {
 
   it('rejects a URL missing the signature', () => {
     expect(verifyEdgeUploadUrl('https://uploader.b-cdn.net/upload?X-Upload-Path=a', base.secret).valid).toBe(false)
+  })
+
+  it('signs the zone name into the minted URL', () => {
+    const now = 1_700_000_000_000
+    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
+    expect(new URL(url).searchParams.get('X-Upload-Zone')).toBe('media')
+    expect(verifyEdgeUploadUrl(url, base.secret, now + 1000)).toEqual({ valid: true })
+  })
+
+  it('rejects a URL whose zone was re-pointed after minting', () => {
+    const now = 1_700_000_000_000
+    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
+    const tampered = url.replace('X-Upload-Zone=media', 'X-Upload-Zone=other')
+    expect(verifyEdgeUploadUrl(tampered, base.secret, now + 1000).valid).toBe(false)
   })
 })

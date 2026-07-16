@@ -153,6 +153,51 @@ describe('getHandleDelete', () => {
       )
     })
 
+    it('completes the delete and logs a warning when the cache purge throws', async () => {
+      deleteStorageFileMock.mockResolvedValue(undefined)
+      purgeCacheMock.mockRejectedValue(new Error('purge down'))
+
+      const req = createReq()
+      const handler = getHandleDelete(
+        buildContext({ purgeConfig: { async: false }, storageConfig } as Partial<CollectionContext>),
+      )
+
+      await expect(
+        handler({
+          collection: { slug: 'media' },
+          doc: storageDoc,
+          filename: 'photo.jpg',
+          req,
+        } as never),
+      ).resolves.toBeUndefined()
+
+      expect(deleteStorageFileMock).toHaveBeenCalled()
+      expect(purgeCacheMock).toHaveBeenCalled()
+      expect(req.payload.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: '[bunny:storage] delete: cache purge failed' }),
+      )
+    })
+
+    it('deletes from a dynamic per-document prefix path', async () => {
+      deleteStorageFileMock.mockResolvedValue(undefined)
+
+      const handler = getHandleDelete(buildContext({ storageConfig } as Partial<CollectionContext>))
+
+      await handler({
+        collection: { slug: 'media' },
+        doc: { ...storageDoc, prefix: 'tenants/a/media' },
+        filename: 'photo.jpg',
+        req: createReq(),
+      } as never)
+
+      expect(deleteStorageFileMock).toHaveBeenCalledWith({
+        apiKey: 'storage-key',
+        path: 'tenants/a/media/photo.jpg',
+        region: 'de',
+        zoneName: 'my-zone',
+      })
+    })
+
     it('does not purge when purgeConfig is absent', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
 

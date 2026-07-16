@@ -43,7 +43,7 @@ export const streamThumbnailStaticHandler = async ({
     usePayloadAccessControl,
   }
 
-  const redirect = maybeCreateRedirect(thumbnailUrl, context)
+  const redirect = maybeCreateRedirect(thumbnailUrl, { ...context, req })
   if (redirect) {
     return redirect
   }

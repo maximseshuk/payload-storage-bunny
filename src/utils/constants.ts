@@ -1,3 +1,5 @@
+export const PLUGIN_KEY = '@seshuk/payload-storage-bunny'
+
 export const BUNNY_API = {
   BASE_URL: 'https://api.bunny.net',
   STORAGE_HOSTNAME: 'storage.bunnycdn.com',

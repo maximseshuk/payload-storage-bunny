@@ -2,6 +2,7 @@ import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
 import { HTTPError } from 'ky'
 
 import { getBunnyData } from '@/fields/bunnyGroupField.js'
+import { resolveStoragePrefix } from '@/storage/resolvePrefix.js'
 import { storageStaticHandler } from '@/storage/staticHandler.js'
 import { streamStaticHandler } from '@/stream/staticHandler.js'
 import { streamThumbnailStaticHandler } from '@/stream/thumbnailStaticHandler.js'
@@ -14,7 +15,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
     try {
       const {
         doc,
-        params: { filename },
+        params: { clientUploadContext, filename, prefix: prefixQueryParam },
       } = data
       if (streamConfig) {
         if (filename?.startsWith('bunny:stream:')) {
@@ -73,10 +74,20 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         return new Response('Storage not configured', { status: 404 })
       }
 
+      const resolvedPrefix = await resolveStoragePrefix({
+        clientUploadContext,
+        collection,
+        doc,
+        fallbackPrefix: prefix,
+        filename,
+        prefixQueryParam,
+        req,
+      })
+
       return await storageStaticHandler({
         collection,
         filename,
-        prefix,
+        prefix: resolvedPrefix,
         req,
         signedUrls: signedUrls || false,
         storageConfig,

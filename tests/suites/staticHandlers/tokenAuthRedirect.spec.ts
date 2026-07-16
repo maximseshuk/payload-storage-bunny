@@ -1,15 +1,27 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
-import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
+import { generateSignedToken, maybeCreateRedirect, maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import type { NormalizedSignedUrlsConfig } from '@/types/index.js'
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
+
+const createReq = (): PayloadRequest =>
+  ({
+    headers: new Headers({ 'x-forwarded-for': '203.0.113.7' }),
+    payload: { logger: { warn: vi.fn() } },
+  }) as unknown as PayloadRequest
 
 const baseUrl = 'https://cdn.example.com/path/to/photo.jpg'
 
 const signed = (over: Partial<NormalizedSignedUrlsConfig> = {}): NormalizedSignedUrlsConfig =>
   ({ expiresIn: 3600, ...over }) as NormalizedSignedUrlsConfig
+
+const tokenLockedTo = (result: string, ip?: string): string => {
+  const url = new URL(result)
+  const expires = Number(url.searchParams.get('expires'))
+  return generateSignedToken('security-key', '/path/to/photo.jpg', expires, undefined, ip)
+}
 
 const redirectContext = (
   over: Partial<Parameters<typeof maybeCreateRedirect>[1]> = {},
@@ -165,5 +177,159 @@ describe('maybeGenerateSignedUrl', () => {
     expect(result).not.toBe(baseUrl)
     expect(result).toContain('token=')
     expect(result).toContain('expires=')
+  })
+
+  it('passes req to shouldUseSignedUrl when available', () => {
+    const req = createReq()
+    const shouldUseSignedUrl = vi.fn().mockReturnValue(true)
+
+    maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ shouldUseSignedUrl }) })
+
+    expect(shouldUseSignedUrl).toHaveBeenCalledWith({ collection, filename: 'photo.jpg', req })
+  })
+})
+
+describe('maybeGenerateSignedUrl with userIp', () => {
+  const context = {
+    collection,
+    filename: 'photo.jpg',
+    signedUrls: signed(),
+    tokenSecurityKey: 'security-key',
+  }
+
+  it('locks the token to the IP returned by the callback', () => {
+    const req = createReq()
+    const userIp = vi.fn(({ req: callbackReq }) => callbackReq.headers.get('x-forwarded-for') ?? undefined)
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
+
+    expect(userIp).toHaveBeenCalledWith({ collection, filename: 'photo.jpg', req })
+    expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result, '203.0.113.7'))
+    expect(result).not.toContain('203.0.113.7')
+  })
+
+  it('signs without an IP lock when the callback returns undefined', () => {
+    const req = createReq()
+    const userIp = vi.fn().mockReturnValue(undefined)
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
+
+    expect(userIp).toHaveBeenCalledOnce()
+    expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result))
+  })
+
+  it('does not invoke the callback when no req is available', () => {
+    const userIp = vi.fn().mockReturnValue('203.0.113.7')
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, signedUrls: signed({ userIp }) })
+
+    expect(userIp).not.toHaveBeenCalled()
+    expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result))
+  })
+
+  it('rejects a non-IPv4 value, warns, and signs without an IP lock', () => {
+    const req = createReq()
+    const userIp = vi.fn().mockReturnValue('2001:db8::1')
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
+
+    expect(req.payload.logger.warn).toHaveBeenCalledOnce()
+    expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result))
+  })
+
+  it('rejects an IPv4 with out-of-range octets', () => {
+    const req = createReq()
+    const userIp = vi.fn().mockReturnValue('300.1.1.1')
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
+
+    expect(req.payload.logger.warn).toHaveBeenCalledOnce()
+    expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result))
+  })
+
+  it('trims surrounding whitespace from the returned IP', () => {
+    const req = createReq()
+    const userIp = vi.fn().mockReturnValue(' 203.0.113.7 ')
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
+
+    expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result, '203.0.113.7'))
+  })
+})
+
+describe('maybeGenerateSignedUrl with expiresAt', () => {
+  const context = {
+    collection,
+    filename: 'photo.jpg',
+    signedUrls: signed(),
+    tokenSecurityKey: 'security-key',
+  }
+
+  it('uses the absolute expiry returned by the callback', () => {
+    const expiresAt = vi.fn().mockReturnValue(1800000000)
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, signedUrls: signed({ expiresAt }) })
+
+    expect(expiresAt).toHaveBeenCalledWith({ collection, filename: 'photo.jpg', req: undefined })
+    expect(new URL(result).searchParams.get('expires')).toBe('1800000000')
+  })
+
+  it('converts a Date to a UNIX timestamp in seconds', () => {
+    const expiresAt = vi.fn().mockReturnValue(new Date(1800000000 * 1000))
+
+    const result = maybeGenerateSignedUrl(baseUrl, { ...context, signedUrls: signed({ expiresAt }) })
+
+    expect(new URL(result).searchParams.get('expires')).toBe('1800000000')
+  })
+
+  it('falls back to expiresIn when the callback returns undefined', () => {
+    const before = Math.floor(Date.now() / 1000)
+    const result = maybeGenerateSignedUrl(baseUrl, {
+      ...context,
+      signedUrls: signed({ expiresAt: () => undefined, expiresIn: 3600 }),
+    })
+    const after = Math.floor(Date.now() / 1000)
+
+    const expires = Number(new URL(result).searchParams.get('expires'))
+    expect(expires).toBeGreaterThanOrEqual(before + 3600)
+    expect(expires).toBeLessThanOrEqual(after + 3600 + 1)
+  })
+})
+
+describe('maybeCreateRedirect with userIp and expiresAt', () => {
+  it('locks the redirect Location token to the client IP', () => {
+    const req = createReq()
+    const userIp = vi.fn(({ req: callbackReq }) => callbackReq.headers.get('x-forwarded-for') ?? undefined)
+
+    const res = maybeCreateRedirect(
+      baseUrl,
+      redirectContext({
+        req,
+        signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true }, userIp }),
+      }),
+    )
+
+    expect(userIp).toHaveBeenCalledWith({ collection, filename: 'photo.jpg', req })
+
+    const location = new URL(res!.headers.get('Location')!)
+    const expires = Number(location.searchParams.get('expires'))
+    expect(location.searchParams.get('token')).toBe(
+      generateSignedToken('security-key', '/path/to/photo.jpg', expires, undefined, '203.0.113.7'),
+    )
+  })
+
+  it('uses the absolute expiry from expiresAt over staticHandler.expiresIn', () => {
+    const res = maybeCreateRedirect(
+      baseUrl,
+      redirectContext({
+        req: createReq(),
+        signedUrls: signed({
+          expiresAt: () => 1800000000,
+          staticHandler: { expiresIn: 100, redirectStatus: 302, useRedirect: true },
+        }),
+      }),
+    )
+
+    expect(new URL(res!.headers.get('Location')!).searchParams.get('expires')).toBe('1800000000')
   })
 })

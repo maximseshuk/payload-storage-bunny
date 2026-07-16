@@ -1,4 +1,5 @@
 import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
+import type { PayloadRequest } from 'payload'
 
 import { maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import { readStoredVideo } from '@/fields/bunnyGroupField.js'
@@ -6,10 +7,12 @@ import type { CollectionContext } from '@/types/index.js'
 import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/utils/cdnUrl.js'
 import { applyUrlTransform } from '@/utils/urlTransform.js'
 
-export const getGenerateUrl = (context: CollectionContext): GenerateURL => {
+type GenerateUrlArgs = { req?: PayloadRequest } & Parameters<GenerateURL>[0]
+
+export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlArgs) => string) => {
   const { collection, signedUrls, storageConfig, streamConfig, urlTransform } = context
 
-  return ({ data, filename, prefix = '' }) => {
+  return ({ data, filename, prefix = '', req }) => {
     const videoId = readStoredVideo(data)?.videoId
 
     if (streamConfig && videoId) {
@@ -28,7 +31,7 @@ export const getGenerateUrl = (context: CollectionContext): GenerateURL => {
 
       return maybeGenerateSignedUrl(
         streamUrl,
-        { collection, filename, signedUrls, tokenSecurityKey: streamConfig.tokenSecurityKey },
+        { collection, filename, req, signedUrls, tokenSecurityKey: streamConfig.tokenSecurityKey },
         { tokenPath: `/${videoId}/` },
       )
     }
@@ -53,6 +56,7 @@ export const getGenerateUrl = (context: CollectionContext): GenerateURL => {
     return maybeGenerateSignedUrl(baseUrl, {
       collection,
       filename,
+      req,
       signedUrls,
       tokenSecurityKey: storageConfig.tokenSecurityKey,
     })

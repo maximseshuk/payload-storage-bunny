@@ -40,8 +40,8 @@ export const getClientUploadHandler =
     }
 
     const context = createCollectionContext(config, collection)
-    const clientUploads = context.clientUploads
     const storage = context.storageConfig
+    const clientUploads = storage?.clientUploads
     if (!clientUploads || !storage) {
       return jsonResponse({ error: `Client uploads are not enabled for "${collectionSlug}"` }, 403)
     }
@@ -65,7 +65,7 @@ export const getClientUploadHandler =
       if (typeof sizeLimit === 'number' && filesize > sizeLimit) {
         return jsonResponse({ error: 'File exceeds the configured size limit' }, 413)
       }
-      if (clientUploads.mode === 'edge' && clientUploads.edge && filesize > clientUploads.edge.maxSize) {
+      if (!storage.s3 && clientUploads.edge && filesize > clientUploads.edge.maxSize) {
         return jsonResponse({ error: 'File exceeds the configured size limit' }, 413)
       }
     }
@@ -85,10 +85,7 @@ export const getClientUploadHandler =
     const path = prefix ? posix.join(prefix, safeFilename) : safeFilename
 
     let url: string
-    if (clientUploads.mode === 's3') {
-      if (!storage.s3) {
-        return jsonResponse({ error: 'S3 mode is not configured for this collection' }, 500)
-      }
+    if (storage.s3) {
       url = await presignStoragePutUrl({
         apiKey: storage.apiKey,
         path,
@@ -97,13 +94,14 @@ export const getClientUploadHandler =
       })
     } else {
       if (!clientUploads.edge) {
-        return jsonResponse({ error: 'Edge mode is not configured for this collection' }, 500)
+        return jsonResponse({ error: 'Edge uploads are not configured for this collection' }, 500)
       }
       url = mintEdgeUploadUrl({
         maxSize: clientUploads.edge.maxSize,
         path,
         scriptUrl: clientUploads.edge.scriptUrl,
         secret: clientUploads.edge.secret,
+        zoneName: storage.zoneName,
       })
     }
 

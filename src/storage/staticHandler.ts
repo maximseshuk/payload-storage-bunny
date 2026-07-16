@@ -28,8 +28,10 @@ export const storageStaticHandler = async ({
 
   if (req.url) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)
-    if (requestUrl.search) {
-      baseUrl += requestUrl.search
+    requestUrl.searchParams.delete('prefix')
+    const forwardedSearch = requestUrl.searchParams.toString()
+    if (forwardedSearch) {
+      baseUrl += `?${forwardedSearch}`
     }
   }
 
@@ -41,7 +43,7 @@ export const storageStaticHandler = async ({
     usePayloadAccessControl,
   }
 
-  const redirect = maybeCreateRedirect(baseUrl, context)
+  const redirect = maybeCreateRedirect(baseUrl, { ...context, req })
   if (redirect) {
     return redirect
   }

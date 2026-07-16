@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import path from 'node:path'
 
 import type { Payload } from 'payload'
@@ -21,46 +22,41 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
     await payload.destroy()
   })
 
-  const callWebhook = async (url: string, body: object) => {
+  const callWebhook = async (body: object, signSecret: null | string = WEBHOOK_SECRET) => {
     const endpoint = payload.config.endpoints?.find((e) => e.path === '/storage-bunny/stream/webhook')
     if (!endpoint) {
       throw new Error('Webhook endpoint not found')
     }
 
-    const req = new Request(url, {
-      body: JSON.stringify(body),
-      headers: { 'Content-Type': 'application/json' },
-      method: 'POST',
-    })
+    const url = 'http://localhost/api/storage-bunny/stream/webhook'
+    const rawBody = JSON.stringify(body)
+    const headers = new Headers({ 'Content-Type': 'application/json' })
+    if (signSecret) {
+      headers.set('x-bunnystream-signature', createHmac('sha256', signSecret).update(rawBody).digest('hex'))
+    }
 
-    return endpoint.handler({ ...req, json: () => req.json(), payload, url } as any)
+    return endpoint.handler({ headers, payload, text: async () => rawBody, url } as any)
   }
 
   describe('Authentication', () => {
     const libraryId = parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0')
     const baseBody = { Status: 3, VideoGuid: 'test-guid', VideoLibraryId: libraryId }
 
-    it('should reject without secret or with wrong secret', async () => {
-      const noSecret = await callWebhook('http://localhost/api/storage-bunny/stream/webhook', baseBody)
-      expect(noSecret.status).toBe(401)
+    it('should reject without a signature or with a wrong-secret signature', async () => {
+      const noSignature = await callWebhook(baseBody, null)
+      expect(noSignature.status).toBe(401)
 
-      const wrongSecret = await callWebhook('http://localhost/api/storage-bunny/stream/webhook?secret=wrong', baseBody)
+      const wrongSecret = await callWebhook(baseBody, 'wrong')
       expect(wrongSecret.status).toBe(401)
     })
 
     it('should reject with wrong library ID', async () => {
-      const response = await callWebhook(`http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`, {
-        ...baseBody,
-        VideoLibraryId: 99999,
-      })
+      const response = await callWebhook({ ...baseBody, VideoLibraryId: 99999 })
       expect(response.status).toBe(403)
     })
 
-    it('should accept with correct secret and library ID', async () => {
-      const response = await callWebhook(`http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`, {
-        ...baseBody,
-        VideoGuid: 'non-existent-guid',
-      })
+    it('should accept with a valid signature and library ID', async () => {
+      const response = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' })
       expect(response.status).toBe(200)
     })
   })
@@ -79,7 +75,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
       const videoId = (upload.bunnyData as any).stream.videoId as string
       await waitForVideoProcessed(videoId)
 
-      const response = await callWebhook(`http://localhost/api/storage-bunny/stream/webhook?secret=${WEBHOOK_SECRET}`, {
+      const response = await callWebhook({
         Status: 3,
         VideoGuid: videoId,
         VideoLibraryId: libraryId,

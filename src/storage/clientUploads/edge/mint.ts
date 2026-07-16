@@ -11,6 +11,7 @@ export type MintEdgeUploadUrlArgs = {
   path: string
   scriptUrl: string
   secret: string
+  zoneName: string
 }
 
 export const buildEdgeCanonical = (scriptUrl: string, params: URLSearchParams): string =>
@@ -27,12 +28,14 @@ export const mintEdgeUploadUrl = ({
   path,
   scriptUrl,
   secret,
+  zoneName,
 }: MintEdgeUploadUrlArgs): string => {
   const params = new URLSearchParams({
     'X-Upload-Path': path,
     'X-Upload-Max-Size': String(maxSize),
     'X-Upload-Expires': String((now ?? Date.now()) + (expiresInMs ?? DEFAULT_EXPIRES_IN_MS)),
     'X-Upload-Nonce': nonce ?? randomUUID(),
+    'X-Upload-Zone': zoneName,
   })
 
   const canonical = buildEdgeCanonical(scriptUrl, params)

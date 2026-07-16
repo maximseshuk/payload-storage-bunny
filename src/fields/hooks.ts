@@ -1,5 +1,6 @@
 import type { FieldHook, PayloadRequest } from 'payload'
 
+import { getGenerateUrl } from '@/adapter/generateUrl.js'
 import { maybeGenerateSignedUrl } from '@/cdn/tokenAuth.js'
 import { readStoredVideo } from '@/fields/bunnyGroupField.js'
 import type { NormalizedThumbnailConfig } from '@/types/configNormalized.js'
@@ -43,7 +44,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
     return undefined
   }
 
-  return ({ doc, req: _req }: { doc: Record<string, unknown>; req: PayloadRequest }): null | string => {
+  return ({ doc, req }: { doc: Record<string, unknown>; req: PayloadRequest }): null | string => {
     if (
       thumbnail &&
       typeof thumbnail === 'object' &&
@@ -73,6 +74,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         return maybeGenerateSignedUrl(transformedUrl, {
           collection,
           filename: sizeFilename,
+          req,
           signedUrls,
           tokenSecurityKey: storageConfig.tokenSecurityKey,
         })
@@ -97,6 +99,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       return maybeGenerateSignedUrl(transformedUrl, {
         collection,
         filename,
+        req,
         signedUrls,
         tokenSecurityKey: storageConfig.tokenSecurityKey,
       })
@@ -119,6 +122,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       return maybeGenerateSignedUrl(transformedUrl, {
         collection,
         filename,
+        req,
         signedUrls,
         tokenSecurityKey: streamConfig.tokenSecurityKey,
       })
@@ -129,10 +133,20 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 }
 
 export const getUrlAfterReadFieldHook = ({ context, size }: FieldHookArgs): FieldHook => {
-  return ({ data, value }) => {
+  return ({ data, req, value }) => {
     const filename = size ? data?.sizes?.[size.name]?.filename : data?.filename
     const prefix = data?.prefix
     let url = value
+
+    if (!context.usePayloadAccessControl && context.signedUrls && context.signedUrls.userIp && filename) {
+      return getGenerateUrl(context)({
+        collection: context.collection,
+        data,
+        filename,
+        prefix: prefix || '',
+        req,
+      })
+    }
 
     if (context.usePayloadAccessControl && context.urlTransform && url && typeof url === 'string') {
       url = applyUrlTransform({
