@@ -5,17 +5,6 @@ const env = (name) => globalThis.Deno?.env?.get?.(name) ?? globalThis.process?.e
 const SHARED_SECRET = env('SHARED_SECRET')
 const ALLOWED_ORIGINS = env('ALLOWED_ORIGINS') || '*'
 
-const parseZones = (raw) => {
-  try {
-    const parsed = JSON.parse(raw || '{}')
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
-  }
-}
-
-const ZONES = parseZones(env('ZONES'))
-
 const SIGNATURE_PARAM = 'X-Upload-Signature'
 const VERSION = '__PSB_EDGE_VERSION__'
 const encoder = new TextEncoder()
@@ -106,7 +95,15 @@ BunnySDK.net.http.serve(async (request) => {
   }
 
   const zoneName = url.searchParams.get('X-Upload-Zone') ?? ''
-  const zone = Object.prototype.hasOwnProperty.call(ZONES, zoneName) ? ZONES[zoneName] : undefined
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(zoneName)) {
+    return withCors(new Response('Unknown upload zone', { status: 403 }), request)
+  }
+  let zone
+  try {
+    zone = JSON.parse(env('ZONE_' + zoneName.toUpperCase().replaceAll('-', '_')) || 'null')
+  } catch {
+    zone = undefined
+  }
   if (!zone || typeof zone.host !== 'string' || typeof zone.accessKey !== 'string') {
     return withCors(new Response('Unknown upload zone', { status: 403 }), request)
   }

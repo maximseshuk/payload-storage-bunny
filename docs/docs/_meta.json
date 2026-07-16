@@ -8,9 +8,11 @@
     "name": "configuration",
     "label": "Configuration"
   },
+  { "type": "dir-section-header", "name": "cli", "label": "CLI" },
   { "type": "section-header", "label": "Guides" },
   { "type": "file", "name": "stored-data", "label": "Stored data" },
   { "type": "file", "name": "multi-tenant", "label": "Multi-tenant" },
   { "type": "file", "name": "stream-collections", "label": "Stream collections" },
+  { "type": "file", "name": "media-preview", "label": "Media preview" },
   { "type": "file", "name": "examples", "label": "Examples" }
 ]

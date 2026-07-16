@@ -16,7 +16,7 @@ bunnyStorage({
 })
 ```
 
-With Payload access control on (the default), a Stream collection needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/configuration/stream#access-control-and-mp4-fallback). Set `disablePayloadAccessControl: true` on the collection to serve straight from the CDN instead, where this requirement does not apply.
+With Payload access control on (the default), a Stream collection needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/configuration/stream#access-control-and-mp4-fallback). Set `disablePayloadAccessControl: true` on the collection to serve straight from the CDN instead, where this requirement doesn't apply.
 
 Files whose MIME type matches `mimeTypes` are routed to Bunny Stream. Everything else goes to [Bunny Storage](/configuration/storage), if configured. Video metadata for each document lives in the [`bunnyData`](/stored-data) field.
 
@@ -47,18 +47,18 @@ The top-level `stream` block is optional. If every collection points at [its own
 
 ## Access control and MP4 fallback
 
-By default, files are served through Payload's access control (`disablePayloadAccessControl` is not set on the collection). For Stream videos in this mode, Bunny cannot serve HLS directly through Payload's proxy, so you need one of:
+By default, files are served through Payload's access control (`disablePayloadAccessControl` isn't set on the collection). For Stream videos in this mode, Bunny can't serve HLS directly through Payload's proxy, so you need one of:
 
 - **`mp4Fallback: true`** — Payload proxies the MP4 rendition instead of HLS.
 - **Signed URLs with redirect** — set `signedUrls.staticHandler.useRedirect: true` (globally or on the collection) so Payload redirects straight to Bunny's HLS stream instead of proxying it. This is the faster option — see [Signed URLs](/configuration/signed-urls).
 
 <Callout type="warning">
 
-The plugin's config validator rejects a collection at startup if neither is set and access control is on. If you set `disablePayloadAccessControl: true` on a collection instead, files are served directly from the Bunny CDN and this restriction does not apply.
+The plugin's config validator rejects a collection at startup if neither is set and access control is on. If you set `disablePayloadAccessControl: true` on a collection instead, files are served directly from the Bunny CDN and this restriction doesn't apply.
 
 </Callout>
 
-When Payload proxies the MP4 fallback, it fetches the file from Bunny server-side. If your Stream library uses a BlockNoneReferrer rule, set [`referer`](#options) to a value the library allows so those requests are not rejected. Default libraries need nothing here.
+When Payload proxies the MP4 fallback, it fetches the file from Bunny server-side. If your Stream library uses a BlockNoneReferrer rule, set [`referer`](#options) to a value the library allows so those requests aren't rejected. Default libraries need nothing here.
 
 ## Cleanup
 
@@ -91,7 +91,7 @@ Cleanup registers a Payload job task, so your project needs [Jobs Queue](https:/
 
 <Callout type="info">
 
-There is one cleanup task for the whole plugin, and its `schedule` is **global-only** — set it on the top-level `stream.cleanup`. When a collection points at its own library, its `cleanup` controls only `maxAge` (each library's stale sessions are swept with that library's own cutoff); it cannot set a separate `schedule`.
+There is one cleanup task for the whole plugin, and its `schedule` is **global-only** — set it on the top-level `stream.cleanup`. When a collection points at its own library, its `cleanup` controls only `maxAge` (each library's stale sessions are swept with that library's own cutoff); it can't set a separate `schedule`.
 
 </Callout>
 

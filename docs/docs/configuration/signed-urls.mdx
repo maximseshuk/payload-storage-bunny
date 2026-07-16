@@ -2,7 +2,7 @@ import { Tabs, Tab, Callout } from '@rspress/core/theme'
 
 # Signed URLs
 
-Signed URLs add a time limit — and optionally a country restriction or an [IP lock](#ip-locking-userip) — to file and video links, so they cannot be shared or reused forever. They work for both [Storage](/configuration/storage) and [Stream](/configuration/stream), as long as the matching `tokenSecurityKey` is set.
+Signed URLs add a time limit — and optionally a country restriction or an [IP lock](#ip-locking-userip) — to file and video links, so they can't be shared or reused forever. They work for both [Storage](/configuration/storage) and [Stream](/configuration/stream), as long as the matching `tokenSecurityKey` is set.
 
 ```ts title="payload.config.ts"
 bunnyStorage({
@@ -59,7 +59,7 @@ Without the matching key, the plugin's config validator throws a startup error.
 
 <Callout type="info">
 
-The `tokenSecurityKey` is per zone / per library. When a collection points at [its own storage zone or stream library](/configuration/collection-overrides#own-zone-or-library-per-collection), that zone/library must carry its own `tokenSecurityKey` for signed URLs to work on it — the global key is not inherited.
+The `tokenSecurityKey` is per zone / per library. When a collection points at [its own storage zone or stream library](/configuration/collection-overrides#own-zone-or-library-per-collection), that zone/library must carry its own `tokenSecurityKey` for signed URLs to work on it — the global key isn't inherited.
 
 </Callout>
 
@@ -112,8 +112,8 @@ How it behaves:
 
 <Callout type="warning" title="Bunny-side requirements">
 
-- Enforcement requires **Token IP Validation** to be enabled on Bunny: Pull Zone → **Security** → **Token Authentication** for Storage, or the equivalent setting on your Stream library. Without it, Bunny ignores the IP in the hash — but a token signed _with_ an IP will not validate, so only enable `userIp` together with the Bunny-side setting.
-- Only **IPv4** is supported; enabling Token IP Validation disables IPv6 routing on the Pull Zone. Values that are not a plain IPv4 address are ignored (the link is signed without a lock) and a warning is logged.
+- Enforcement requires **Token IP Validation** to be enabled on Bunny: Pull Zone → **Security** → **Token Authentication** for Storage, or the equivalent setting on your Stream library. Without it, Bunny ignores the IP in the hash — but a token signed _with_ an IP won't validate, so only enable `userIp` together with the Bunny-side setting.
+- Only **IPv4** is supported; enabling Token IP Validation disables IPv6 routing on the Pull Zone. Values that aren't a plain IPv4 address are ignored (the link is signed without a lock) and a warning is logged.
 
 </Callout>
 

@@ -1,9 +1,9 @@
 # Stream collections
 
-Bunny Stream can organize videos into **collections** — folders inside a video library. It is a dashboard-organization feature: you can, for example, drop each tenant's videos into their own collection. Collections are managed through the Bunny Stream API; this plugin does not create or assign them for you, but everything you need to do it yourself is already on the document.
+Bunny Stream can organize videos into **collections** — folders inside a video library. It is a dashboard-organization feature: you can, for example, drop each tenant's videos into their own collection. Collections are managed through the Bunny Stream API; this plugin doesn't create or assign them for you, but everything you need to do it yourself is already on the document.
 
-:::warning Collections organize, they do not isolate
-Collections are **not** access control. Bunny does not make them public, you cannot generate a URL for a collection, and a video's playback is governed by its library, GUID, and token — never by which collection it sits in. For real tenant isolation use [signed URLs](/configuration/signed-urls) or Payload access control — see [Multi-tenant](/multi-tenant#stream-has-no-folders).
+:::warning Collections organize, they don't isolate
+Collections are **not** access control. Bunny doesn't make them public, you can't generate a URL for a collection, and a video's playback is governed by its library, GUID, and token — never by which collection it sits in. For real tenant isolation use [signed URLs](/configuration/signed-urls) or Payload access control — see [Multi-tenant](/multi-tenant#stream-has-no-folders).
 :::
 
 ## What you have to work with
@@ -96,5 +96,5 @@ export const Media: CollectionConfig = {
 
 - **Let the accessor resolve the library and key.** With [per-collection stream libraries](/configuration/collection-overrides), different collections upload to different libraries. `getBunnyStreamForCollection(req.payload, collection.slug)` returns _that collection's_ resolved library and API key directly. Collections are per-library, so a `tenant-x` collection exists independently in every library that tenant's videos touch.
 - **Run on create, once the video exists.** `videoId` is only present after the plugin has created the video, so gate on `operation === 'create'` and bail when it is absent (non-video uploads, or the document before its video is made).
-- **Cache collection lookups.** Creating a collection is not idempotent — without a cache or an existence check you will spawn duplicates and hit the API on every upload. The module-level `Map` above is the minimum.
-- **Bulk moves.** The dashboard cannot move many videos at once, but the same Update Video call looped over `payload.find(...)` results will.
+- **Cache collection lookups.** Creating a collection isn't idempotent — without a cache or an existence check you will spawn duplicates and hit the API on every upload. The module-level `Map` above is the minimum.
+- **Bulk moves.** The dashboard can't move many videos at once, but the same Update Video call looped over `payload.find(...)` results will.

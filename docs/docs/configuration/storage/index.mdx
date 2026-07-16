@@ -2,7 +2,7 @@ import { Badge, Steps, Callout } from '@rspress/core/theme'
 
 # Storage
 
-Bunny Storage holds regular files: images, documents, and anything that is not routed to [Bunny Stream](/configuration/stream). It is the `storage` block passed to `bunnyStorage(...)`. This page also covers browser-direct [client uploads](/configuration/storage/client-uploads), which are configured under `storage.clientUploads`.
+Bunny Storage holds regular files: images, documents, and anything that isn't routed to [Bunny Stream](/configuration/stream). It is the `storage` block passed to `bunnyStorage(...)`. This page also covers browser-direct [client uploads](/configuration/storage/client-uploads), which are configured under `storage.clientUploads`.
 
 ```ts title="payload.config.ts"
 bunnyStorage({
@@ -48,7 +48,7 @@ The **Username** shown in the same panel.
 
 ### hostname
 
-Your **Pull Zone** hostname (not the Storage API endpoint). Bunny Storage needs a Pull Zone configured in front of it; files are not reachable without one. See [Bunny's guide on accessing storage files](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage?ref=fndfoymy0j).
+Your **Pull Zone** hostname (not the Storage API endpoint). Bunny Storage needs a Pull Zone configured in front of it; files aren't reachable without one. See [Bunny's guide on accessing storage files](https://support.bunny.net/hc/en-us/articles/8561433879964-How-to-access-and-deliver-files-from-Bunny-Storage?ref=fndfoymy0j).
 
 ### region
 
@@ -62,7 +62,7 @@ Setting `storage.s3` makes the plugin upload and delete files through Bunny's S3
 
 <Callout type="warning">
 
-The zone must have been **created** with S3 compatibility enabled — it cannot be turned on for an existing zone.
+The zone must have been **created** with S3 compatibility enabled — it can't be turned on for an existing zone.
 
 </Callout>
 
@@ -83,7 +83,7 @@ storage: {
 
 <Callout type="info">
 
-This list is not the same as `storage.region` above — the S3 region codes include `de` and omit `br`.
+This list isn't the same as `storage.region` above — the S3 region codes include `de` and omit `br`.
 
 </Callout>
 

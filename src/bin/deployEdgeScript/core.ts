@@ -1,31 +1,26 @@
 import { readFileSync } from 'node:fs'
 import nodePath from 'node:path'
 
+import { bunnyFetch } from '@/bin/shared/bunnyApi.js'
+import type { Logger } from '@/bin/shared/logger.js'
 import { collectStorageConfigs } from '@/config/inspect.js'
+import { ZONE_SECRET_PATTERN, zoneSecretName } from '@/storage/clientUploads/edge/zoneSecret.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
-
-const BUNNY_API_BASE = 'https://api.bunny.net'
-
-const STALE_ZONE_SECRETS = ['STORAGE_HOST', 'STORAGE_ZONE', 'STORAGE_ACCESS_KEY']
-
-export type DeployLogger = {
-  error: (message: string) => void
-  info: (message: string) => void
-  warn: (message: string) => void
-}
 
 export type DeployEdgeScriptOptions = {
   accountApiKey: string
+  additive?: boolean
   allowedOrigins?: string
   cdnTier: 'standard' | 'volume'
   code: string
   connectionLimit: number
   dryRun: boolean
-  logger: DeployLogger
+  logger: Logger
   name: string
   requestLimit: number
   sharedSecret: string
   skipHarden: boolean
+  writeSharedSecret?: boolean
   zones: Record<string, { accessKey: string; host: string }>
 }
 
@@ -151,34 +146,14 @@ type ScriptSummary = {
   Name: string
 }
 
-const bunnyFetch = async (
-  accountApiKey: string,
-  path: string,
-  init: { body?: unknown; method?: string } = {},
-): Promise<Response> => {
-  const response = await fetch(`${BUNNY_API_BASE}${path}`, {
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    headers: {
-      accept: 'application/json',
-      AccessKey: accountApiKey,
-      'content-type': 'application/json',
-    },
-    method: init.method ?? 'GET',
-  })
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Bunny API ${init.method ?? 'GET'} ${path} failed (${response.status}): ${text}`)
-  }
-
-  return response
-}
-
 const findScriptByName = async (accountApiKey: string, name: string): Promise<ScriptSummary | undefined> => {
   const response = await bunnyFetch(accountApiKey, '/compute/script?page=1&perPage=1000')
   const data = (await response.json()) as { Items?: ScriptSummary[] }
   return data.Items?.find((item) => item.Name === name)
 }
+
+export const edgeScriptExists = async (accountApiKey: string, name: string): Promise<boolean> =>
+  Boolean(await findScriptByName(accountApiKey, name))
 
 export const checkEdgeScriptVersion = async (scriptUrl: string): Promise<string | undefined> => {
   try {
@@ -194,30 +169,55 @@ const getScript = async (accountApiKey: string, scriptId: number): Promise<Scrip
   return (await response.json()) as ScriptSummary
 }
 
-const setSecrets = async (
+const listSecretIds = async (accountApiKey: string, scriptId: number): Promise<Map<string, number>> => {
+  const response = await bunnyFetch(accountApiKey, `/compute/script/${scriptId}/secrets`)
+  const existing = ((await response.json()) as { Secrets?: Array<{ Id: number; Name: string }> }).Secrets ?? []
+  return new Map(existing.map((secret) => [secret.Name, secret.Id]))
+}
+
+const upsertSecrets = async (
   accountApiKey: string,
   scriptId: number,
   secrets: Array<{ Name: string; Secret: string }>,
-  staleNames: string[] = [],
-  logger?: DeployLogger,
 ): Promise<void> => {
-  const response = await bunnyFetch(accountApiKey, `/compute/script/${scriptId}/secrets`)
-  const existing = ((await response.json()) as { Secrets?: Array<{ Id: number; Name: string }> }).Secrets ?? []
-  const idByName = new Map(existing.map((secret) => [secret.Name, secret.Id]))
-
+  const idByName = await listSecretIds(accountApiKey, scriptId)
   for (const secret of secrets) {
     const id = idByName.get(secret.Name)
     const path = id === undefined ? `/compute/script/${scriptId}/secrets` : `/compute/script/${scriptId}/secrets/${id}`
     await bunnyFetch(accountApiKey, path, { body: secret, method: 'POST' })
   }
+}
 
-  for (const name of staleNames) {
+type PruneSecretsOptions = {
+  keepNames: string[]
+  logger?: Logger
+  pruneZoneSecrets: boolean
+}
+
+const pruneSecrets = async (accountApiKey: string, scriptId: number, options: PruneSecretsOptions): Promise<void> => {
+  const { keepNames, logger, pruneZoneSecrets } = options
+  const idByName = await listSecretIds(accountApiKey, scriptId)
+  const keep = new Set(keepNames)
+  const toDelete = new Set<string>()
+
+  if (pruneZoneSecrets) {
+    for (const name of idByName.keys()) {
+      if (ZONE_SECRET_PATTERN.test(name) && !keep.has(name)) {
+        toDelete.add(name)
+      }
+    }
+  }
+
+  for (const name of toDelete) {
     const id = idByName.get(name)
     if (id === undefined) {
       continue
     }
     try {
       await bunnyFetch(accountApiKey, `/compute/script/${scriptId}/secrets/${id}`, { method: 'DELETE' })
+      if (ZONE_SECRET_PATTERN.test(name)) {
+        logger?.info(`Removed zone secret ${name} (no longer in config).`)
+      }
     } catch (err) {
       logger?.warn(`Could not remove stale secret "${name}": ${(err as Error).message}`)
     }
@@ -327,7 +327,18 @@ const hardenPullZone = async (options: DeployEdgeScriptOptions, pullZoneId: numb
 }
 
 export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promise<DeployEdgeScriptResult> => {
-  const { accountApiKey, allowedOrigins, code, dryRun, logger, name, sharedSecret, zones } = options
+  const {
+    accountApiKey,
+    additive,
+    allowedOrigins,
+    code,
+    dryRun,
+    logger,
+    name,
+    sharedSecret,
+    writeSharedSecret,
+    zones,
+  } = options
 
   const existing = await findScriptByName(accountApiKey, name)
 
@@ -362,21 +373,30 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
     method: 'POST',
   })
 
-  const secrets: Array<{ Name: string; Secret: string }> = [
-    { Name: 'SHARED_SECRET', Secret: sharedSecret },
-    { Name: 'ZONES', Secret: JSON.stringify(zones) },
-  ]
+  const secrets: Array<{ Name: string; Secret: string }> = []
+  if (writeSharedSecret !== false) {
+    secrets.push({ Name: 'SHARED_SECRET', Secret: sharedSecret })
+  }
   if (allowedOrigins) {
     secrets.push({ Name: 'ALLOWED_ORIGINS', Secret: allowedOrigins })
   }
+  for (const [zoneName, zone] of Object.entries(zones)) {
+    secrets.push({ Name: zoneSecretName(zoneName), Secret: JSON.stringify(zone) })
+  }
 
-  await setSecrets(accountApiKey, script.Id, secrets, STALE_ZONE_SECRETS, logger)
+  await upsertSecrets(accountApiKey, script.Id, secrets)
 
   await bunnyFetch(accountApiKey, `/compute/script/${script.Id}/publish`, {
     body: { Note: 'payload-storage-bunny' },
     method: 'POST',
   })
   logger.info('Published the Edge Script.')
+
+  await pruneSecrets(accountApiKey, script.Id, {
+    keepNames: secrets.map((secret) => secret.Name),
+    logger,
+    pruneZoneSecrets: additive !== true,
+  })
 
   const pullZoneId =
     script.LinkedPullZones?.[0]?.Id ?? (await getScript(accountApiKey, script.Id)).LinkedPullZones?.[0]?.Id

@@ -1,0 +1,98 @@
+import { Callout } from '@rspress/core/theme'
+
+# Deploy the Edge Script
+
+One deployed Edge Script serves **all** your non-s3 storage zones. Run the bundled deploy command with your Bunny account key available:
+
+```bash
+BUNNY_ACCOUNT_API_KEY=your-account-key npx payload bunny:deploy-edge-script
+```
+
+The CLI enumerates every non-s3 zone in your config (global and per-collection) and writes each one's credentials into its own `ZONE_<NAME>` script secret. On success it prints **one** shared `edge` block:
+
+```
+Serving zones: media, archives
+
+Add this to storage.clientUploads of every non-s3 zone that enables client uploads
+(the same scriptUrl and secret are shared by all of them):
+  edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: '…' },
+```
+
+Paste that **same** `edge: { scriptUrl, secret }` into `storage.clientUploads` of every non-s3 zone that enables client uploads — the one script (one `scriptUrl`, one shared `secret`) handles all of them. Each zone's credentials live in a separate `ZONE_<NAME>` script secret, so re-running the command is incremental: it adds a `ZONE_*` secret for each new zone and removes the `ZONE_*` secrets for zones no longer in your config. Adding a zone with `bunny:init` no longer requires a full redeploy — it upserts just that zone's secret. S3 zones need no Edge Script at all.
+
+## Deploying with the right environment
+
+The deploy command reads your zone access keys and account key from the **environment that was active when Payload loaded your config** — the same env resolution Payload uses at boot (`@next/env`). On a dev machine that means your `.env`/`.env.local` values, not production.
+
+To deploy the **production** script from a dev machine, point the command at a specific env file with `--env-file` (it re-loads that file with override semantics and rebuilds the plan from it):
+
+```bash
+npx payload bunny:deploy-edge-script --env-file .env.production
+npx payload bunny:deploy-edge-script --env-file .env.production --dry-run   # inspect first
+```
+
+Equivalent recipes without the flag (the env is set before Payload loads its config, so it wins):
+
+```bash
+npx dotenv-cli -e .env.production -- npx payload bunny:deploy-edge-script
+BUNNY_STORAGE_API_KEY=... BUNNY_ACCOUNT_API_KEY=... npx payload bunny:deploy-edge-script
+```
+
+<Callout type="warning" title="`NODE_ENV=production` alone isn't enough">
+
+Setting `NODE_ENV=production` does **not** make the command use `.env.production`: `@next/env` still ranks `.env.local` above `.env.production`, so your dev values leak into a "prod" deploy. Use `--env-file` (or `dotenv-cli`/inline env vars) to select the environment explicitly. (`NODE_OPTIONS='--env-file=…'` is **not** supported — Node rejects `--env-file` inside `NODE_OPTIONS`.)
+
+</Callout>
+
+For CI or config-free deploys, `--zones-file zones.json` bypasses config entirely and takes the zone map from a JSON file:
+
+```json
+{
+  "media": { "accessKeyEnv": "BUNNY_MEDIA_KEY", "region": "ny" },
+  "archives": { "accessKey": "…", "region": "de" }
+}
+```
+
+Each entry supplies its access key inline (`accessKey`) or indirectly from an env var (`accessKeyEnv`, so keys stay out of the file). Combine with `--secret`, `--name`, and `--api-key`. `--zones-file` and `--env-file` can't be combined.
+
+## Multiple Edge Scripts (multi-account)
+
+If your zones resolve to **different** `scriptUrl`s (for example, some zones live on a second Bunny account with its own deployed script), the command groups them and refuses to guess. It lists each group and asks you to select one:
+
+```bash
+npx payload bunny:deploy-edge-script --script-url https://my-uploader.b-cdn.net   # deploy a specific group
+npx payload bunny:deploy-edge-script --new                                        # deploy zones not yet assigned to a script
+```
+
+Pair each invocation with the matching `--api-key`/`--env-file` for that account. Each deploy writes only the selected group's zones as per-zone `ZONE_*` secrets; the `ZONE_*` secrets for other groups/accounts aren't touched. If several separate Payload configs intentionally share **one** script and each deploys its own zones, pass `--no-prune` so a deploy only upserts its zones and never removes the others' `ZONE_*` secrets.
+
+Pass `--check` (optionally with `--script-url`) to compare the deployed script version against the bundled one instead of deploying:
+
+```bash
+BUNNY_ACCOUNT_API_KEY=your-account-key npx payload bunny:deploy-edge-script --check
+```
+
+Pass `--help` to print the full flag reference:
+
+```bash
+npx payload bunny:deploy-edge-script --help
+```
+
+| Flag                 | Default                                | Description                                                                                                                                                           |
+| -------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--api-key`          | `BUNNY_ACCOUNT_API_KEY` env            | Bunny account API key. Required to deploy (flag or env var). Resolved **after** `--env-file`.                                                                         |
+| `--env-file`         | –                                      | Load this env file (override semantics) and rebuild the deploy plan from it. Missing file fails closed. Can't combine with `--zones-file`.                            |
+| `--zones-file`       | –                                      | Config-free deploy: take the zone map from a JSON file (`{ "zone": { "accessKey" \| "accessKeyEnv", "region" } }`). Can't combine with `--env-file`.                  |
+| `--secret`           | configured or random                   | Explicit shared secret for the script. Overrides the configured or generated one.                                                                                     |
+| `--check`            | –                                      | Compare deployed vs. bundled script version instead of deploying.                                                                                                     |
+| `--script-url`       | `storage.clientUploads.edge.scriptUrl` | Inspect this URL with `--check`; also selects a deploy group when several are configured.                                                                             |
+| `--new`              | –                                      | Select the unassigned group (zones not yet on a script) when several groups exist.                                                                                    |
+| `--name`             | `payload-storage-bunny-uploader`       | Edge Script name.                                                                                                                                                     |
+| `--cdn-tier`         | `volume`                               | Pull Zone tier: `standard` or `volume`.                                                                                                                               |
+| `--allowed-origins`  | –                                      | Comma-separated origins allowed to call the script (CORS).                                                                                                            |
+| `--connection-limit` | `10`                                   | Per-IP connection limit on the script's Pull Zone.                                                                                                                    |
+| `--request-limit`    | `30`                                   | Per-IP request limit on the script's Pull Zone.                                                                                                                       |
+| `--dry-run`          | –                                      | Print what would be deployed without making changes.                                                                                                                  |
+| `--no-print-secret`  | –                                      | Omit the cleartext shared secret from the success output (useful on shared CI logs).                                                                                  |
+| `--no-prune`         | –                                      | Additive deploy: upsert this deploy's `ZONE_*` secrets only, without removing `ZONE_*` secrets for zones not in this config. For multiple configs sharing one script. |
+| `--skip-harden`      | –                                      | Skip the Pull Zone hardening step (rate limits, origin rules).                                                                                                        |

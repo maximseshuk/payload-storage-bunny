@@ -261,53 +261,6 @@ describe('Config Validator', () => {
         'Config error: "apiKey" was removed in v3. Rename it to "accountApiKey".',
       )
     })
-
-    it('throws a boot error for the moved top-level `clientUploads` alias', () => {
-      const config = {
-        clientUploads: true,
-        collections: { media: true },
-        storage: createBaseStorage(),
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'Config error: "clientUploads" was moved in v3. Nest it under "storage.clientUploads".',
-      )
-    })
-
-    it('throws a boot error for the moved per-collection `clientUploads` alias', () => {
-      const config = {
-        collections: { media: { clientUploads: true } },
-        storage: createBaseStorage(),
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'Config error: Per-collection "clientUploads" was moved in v3 (collection "media"). Nest it under "storage.clientUploads".',
-      )
-    })
-
-    it('throws a boot error for the removed `clientUploads.mode` option', () => {
-      const modeConfigs = [
-        {
-          collections: { media: true },
-          storage: { ...createBaseStorage(), clientUploads: { mode: 's3' } },
-        },
-        {
-          clientUploads: { mode: 'edge' },
-          collections: { media: true },
-          storage: createBaseStorage(),
-        },
-        {
-          collections: { media: { storage: { clientUploads: { mode: 'edge' } } } },
-          storage: createBaseStorage(),
-        },
-      ] as unknown as BunnyStorageConfig[]
-
-      for (const config of modeConfigs) {
-        expect(() => normalizeAndValidate(config)).toThrow(
-          `Config error: "clientUploads.mode" was removed in v3 — the transport is chosen automatically ('s3' when "storage.s3" is set, otherwise 'edge').`,
-        )
-      }
-    })
   })
 
   describe('storage hostname validation', () => {

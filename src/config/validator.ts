@@ -12,22 +12,9 @@ const isNonEmptyString = (value: unknown): boolean => typeof value === 'string' 
 type DeprecatedConfig = {
   adminThumbnail?: unknown
   apiKey?: unknown
-  clientUploads?: boolean | { mode?: unknown }
-  collections?: Record<
-    string,
-    | boolean
-    | {
-        clientUploads?: boolean | { mode?: unknown }
-        storage?: boolean | { clientUploads?: boolean | { mode?: unknown } }
-      }
-  >
   purge?: boolean | { apiKey?: unknown }
-  storage?: { clientUploads?: boolean | { mode?: unknown } }
   stream?: { tus?: boolean | { mimeTypes?: unknown; uploadTimeout?: unknown } }
 }
-
-const hasClientUploadsMode = (value: unknown): boolean =>
-  typeof value === 'object' && value !== null && (value as { mode?: unknown }).mode !== undefined
 
 const findRemovedAliases = (original: BunnyStorageConfig): string[] => {
   const deprecated = original as DeprecatedConfig
@@ -55,35 +42,6 @@ const findRemovedAliases = (original: BunnyStorageConfig): string[] => {
   const purge = deprecated.purge
   if (typeof purge === 'object' && purge.apiKey !== undefined) {
     messages.push('"purge.apiKey" was removed in v3. Use the global `accountApiKey` instead.')
-  }
-
-  if (deprecated.clientUploads !== undefined) {
-    messages.push('"clientUploads" was moved in v3. Nest it under "storage.clientUploads".')
-  }
-
-  const modeSources: unknown[] = [deprecated.clientUploads, deprecated.storage?.clientUploads]
-
-  for (const [slug, collection] of Object.entries(deprecated.collections ?? {})) {
-    if (typeof collection !== 'object' || collection === null) {
-      continue
-    }
-
-    if (collection.clientUploads !== undefined) {
-      messages.push(
-        `Per-collection "clientUploads" was moved in v3 (collection "${slug}"). Nest it under "storage.clientUploads".`,
-      )
-      modeSources.push(collection.clientUploads)
-    }
-
-    if (typeof collection.storage === 'object' && collection.storage !== null) {
-      modeSources.push(collection.storage.clientUploads)
-    }
-  }
-
-  if (modeSources.some(hasClientUploadsMode)) {
-    messages.push(
-      `"clientUploads.mode" was removed in v3 — the transport is chosen automatically ('s3' when "storage.s3" is set, otherwise 'edge').`,
-    )
   }
 
   return messages

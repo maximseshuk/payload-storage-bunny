@@ -55,8 +55,8 @@ This is built on `@payloadcms/plugin-cloud-storage`'s client-uploads mechanism.
 
 The plugin picks the transport from the zone:
 
-- **[`storage.s3`](/configuration/storage#s3-mode) is set → presigned S3.** The browser `PUT`s straight to Bunny's S3 endpoint. No Edge Script is involved, and `clientUploads.edge` is not applicable.
-- **`storage.s3` is not set → edge.** The upload is proxied through a Bunny Edge Script, so `clientUploads.edge` is **required**.
+- **[`storage.s3`](/configuration/storage#s3-mode) is set → presigned S3.** The browser `PUT`s straight to Bunny's S3 endpoint. No Edge Script is involved, and `clientUploads.edge` isn't applicable.
+- **`storage.s3` isn't set → edge.** The upload is proxied through a Bunny Edge Script, so `clientUploads.edge` is **required**.
 
 A collection that points at [its own storage zone](/configuration/collection-overrides) follows that zone's transport: its own `s3` presigns against its own endpoint, its own `edge` mints against its own script.
 
@@ -74,7 +74,7 @@ Pass `storage.clientUploads: true` for defaults, `false` to disable, or an objec
 
 <Callout type="info">
 
-When the zone sets `storage.s3`, the `clientUploads` object accepts only `access` and `prefix` — the `edge` block is not available for S3 zones. This is enforced by the type: a storage zone is either HTTP API (needs `edge`) or S3 (presigns directly).
+When the zone sets `storage.s3`, the `clientUploads` object accepts only `access` and `prefix` — the `edge` block isn't available for S3 zones. This is enforced by the type: a storage zone is either HTTP API (needs `edge`) or S3 (presigns directly).
 
 </Callout>
 
@@ -99,7 +99,7 @@ No Edge Script to deploy: the presigned URL is signed with your existing storage
 
 ## Edge transport
 
-Without `storage.s3`, the file is proxied through a [Bunny Edge Script](https://docs.bunny.net/docs/edge-scripting?ref=fndfoymy0j) that you deploy once. `clientUploads.edge` is required.
+Without `storage.s3`, the file is proxied through a [Bunny Edge Script](https://docs.bunny.net/docs/edge-scripting?ref=fndfoymy0j) that you deploy once with [`bunny:deploy-edge-script`](/cli/deploy-edge-script). `clientUploads.edge` is required.
 
 ```ts title="payload.config.ts"
 bunnyStorage({
@@ -118,7 +118,7 @@ bunnyStorage({
 })
 ```
 
-The server mints a signed HMAC URL for each upload: it appends an `X-Upload-Expires` timestamp, an `X-Upload-Zone` name, and an HMAC-SHA256 signature over the request. The Edge Script rejects anything whose signature doesn't verify against its `SHARED_SECRET`, so `edge.secret` must match the secret the script was deployed with.
+The server mints a signed HMAC URL for each upload: it appends an `X-Upload-Expires` timestamp, an `X-Upload-Zone` name, and an HMAC-SHA256 signature over the request. The Edge Script rejects anything whose signature doesn't verify against its `SHARED_SECRET`, so `edge.secret` must match the secret the script was deployed with. Each zone's storage credentials live in their own `ZONE_<NAME>` script secret, so zones are added and removed independently — re-deploying to add a zone never touches the other zones' secrets or the shared `SHARED_SECRET`.
 
 ## Access control
 

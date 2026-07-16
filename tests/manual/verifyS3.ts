@@ -1,14 +1,25 @@
+import { cac } from 'cac'
 import { S3mini } from 's3mini'
 
-import { getFlag, parseFlags } from '../../src/bin/flags.js'
 import { deleteStorageFileS3, getS3Endpoint, presignStoragePutUrl, uploadStorageFileS3 } from '../../src/storage/s3.js'
 import { log } from '../helpers/shared/log.js'
 
-const flags = parseFlags(process.argv.slice(2))
+const arg = (value: unknown): string | undefined => (value === undefined ? undefined : String(value))
 
-const zoneName = getFlag(flags, 'storage-zone') ?? process.env.BUNNY_S3_STORAGE_ZONE_NAME ?? ''
-const apiKey = getFlag(flags, 'storage-key') ?? process.env.BUNNY_S3_STORAGE_API_KEY ?? ''
-const region = getFlag(flags, 'region') ?? process.env.BUNNY_S3_STORAGE_REGION ?? ''
+const cli = cac('pnpm test:verify-s3')
+cli.option('--storage-zone <name>', 'S3 storage zone name (defaults to BUNNY_S3_STORAGE_ZONE_NAME).')
+cli.option('--storage-key <key>', 'S3 storage zone password (defaults to BUNNY_S3_STORAGE_API_KEY).')
+cli.option('--region <region>', 'S3 region (defaults to BUNNY_S3_STORAGE_REGION).')
+cli.help()
+cli.parse(['', '', ...process.argv.slice(2)], { run: false })
+if (cli.options.help) {
+  process.exit(0)
+}
+const options = cli.options
+
+const zoneName = arg(options.storageZone) ?? process.env.BUNNY_S3_STORAGE_ZONE_NAME ?? ''
+const apiKey = arg(options.storageKey) ?? process.env.BUNNY_S3_STORAGE_API_KEY ?? ''
+const region = arg(options.region) ?? process.env.BUNNY_S3_STORAGE_REGION ?? ''
 
 if (!zoneName || !apiKey || !region) {
   log.error('Need BUNNY_S3_STORAGE_ZONE_NAME, BUNNY_S3_STORAGE_API_KEY, BUNNY_S3_STORAGE_REGION (or flags).')

@@ -1,10 +1,15 @@
 import { randomBytes } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 
+import { cac, type CAC } from 'cac'
 import type { BinScript } from 'payload'
+import { findConfig } from 'payload/node'
 
-import { getBooleanFlag, getFlag, parseFlags } from '@/bin/flags.js'
+import { applyEnvFile } from '@/bin/shared/envFile.js'
+import { consoleLogger as logger } from '@/bin/shared/logger.js'
 import { EDGE_SCRIPT_SOURCE, EDGE_SCRIPT_VERSION } from '@/storage/clientUploads/edge/embedded.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
+import { PLUGIN_KEY } from '@/utils/constants.js'
 
 import {
   buildEdgeDeployPlan,
@@ -13,7 +18,25 @@ import {
   type EdgeDeployGroup,
   loadZonesFileGroup,
 } from './core.js'
-import { applyEnvFile, reloadNormalizedConfig } from './envFile.js'
+
+let reloadCounter = 0
+
+export const reloadNormalizedConfig = async (): Promise<NormalizedBunnyStorageConfig> => {
+  const configPath = findConfig()
+  const url = `${pathToFileURL(configPath).href}?psb-env-reload=${String(++reloadCounter)}`
+
+  const imported = (await import(url)) as { default: unknown }
+  const resolved = (await imported.default) as { custom?: Record<string, unknown> }
+
+  const pluginCustom = resolved.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageConfig } | undefined
+  if (!pluginCustom?.config) {
+    throw new Error(
+      `reloaded Payload config does not include the ${PLUGIN_KEY} plugin; cannot rebuild the deploy plan from --env-file`,
+    )
+  }
+
+  return pluginCustom.config
+}
 
 const maskKey = (key: string): string => (key.length <= 4 ? '…' : `…${key.slice(-4)}`)
 
@@ -23,18 +46,40 @@ const key = (text: string): string => paint('36', text)
 const str = (text: string): string => paint('32', text)
 const punc = (text: string): string => paint('2', text)
 
-export const script: BinScript = async (config) => {
-  /* eslint-disable no-console */
-  const logger = {
-    error: (message: string) => console.error(message),
-    info: (message: string) => console.log(message),
-    warn: (message: string) => console.warn(message),
-  }
-  /* eslint-enable no-console */
+const asString = (value: unknown): string | undefined => (value === undefined ? undefined : String(value))
 
-  const flags = parseFlags(process.argv.slice(3))
-  const envFilePath = getFlag(flags, 'env-file')
-  const zonesFilePath = getFlag(flags, 'zones-file')
+export const buildDeployCli = (): CAC => {
+  const cli = cac('payload bunny:deploy-edge-script')
+  cli.option('--api-key <key>', 'Bunny account API key (defaults to BUNNY_ACCOUNT_API_KEY; resolved after --env-file).')
+  cli.option('--env-file <path>', 'Load this env file (override semantics) and rebuild the deploy plan from it.')
+  cli.option('--zones-file <path>', 'Config-free deploy: take the zone map from a JSON file.')
+  cli.option('--secret <secret>', 'Explicit shared secret for the script (overrides the configured or generated one).')
+  cli.option('--script-url <url>', 'Inspect this URL with --check; also selects a deploy group when several exist.')
+  cli.option('--name <name>', 'Edge Script name (default: payload-storage-bunny-uploader).')
+  cli.option('--cdn-tier <tier>', 'Pull Zone tier: standard or volume (default: volume).')
+  cli.option('--allowed-origins <origins>', 'Comma-separated origins allowed to call the script (CORS).')
+  cli.option('--connection-limit <n>', "Per-IP connection limit on the script's Pull Zone (default: 10).")
+  cli.option('--request-limit <n>', "Per-IP request limit on the script's Pull Zone (default: 30).")
+  cli.option('--check', 'Compare deployed vs. bundled script version instead of deploying.')
+  cli.option('--new', 'Select the unassigned group (zones not yet on a script) when several groups exist.')
+  cli.option('--dry-run', 'Print what would be deployed without making changes.')
+  cli.option('--no-print-secret', 'Omit the cleartext shared secret from the success output.')
+  cli.option('--no-prune', "Additive deploy: upsert this deploy's ZONE_* secrets only, without removing others.")
+  cli.option('--skip-harden', 'Skip the Pull Zone hardening step (rate limits, origin rules).')
+  cli.help()
+  return cli
+}
+
+export const script: BinScript = async (config) => {
+  const cli = buildDeployCli()
+  cli.parse(['', '', ...process.argv.slice(3)], { run: false })
+  if (cli.options.help) {
+    return
+  }
+  const options = cli.options
+
+  const envFilePath = asString(options.envFile)
+  const zonesFilePath = asString(options.zonesFile)
 
   if (envFilePath && zonesFilePath) {
     logger.error('--env-file and --zones-file cannot be combined; use one or the other.')
@@ -42,9 +87,7 @@ export const script: BinScript = async (config) => {
     return
   }
 
-  const originalCustom = config.custom?.['@seshuk/payload-storage-bunny'] as
-    | { config?: NormalizedBunnyStorageConfig }
-    | undefined
+  const originalCustom = config.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageConfig } | undefined
 
   let normalized = originalCustom?.config
 
@@ -79,8 +122,8 @@ export const script: BinScript = async (config) => {
 
   const scriptUrls = [...new Set(plan.groups.map((g) => g.scriptUrl).filter((s): s is string => Boolean(s)))]
 
-  if (getBooleanFlag(flags, 'check')) {
-    if (!getFlag(flags, 'script-url') && scriptUrls.length > 1) {
+  if (options.check) {
+    if (!asString(options.scriptUrl) && scriptUrls.length > 1) {
       logger.error('Multiple distinct Edge Script URLs are configured; check them one at a time with --script-url:')
       for (const url of scriptUrls) {
         logger.error(`  ${url}`)
@@ -88,7 +131,7 @@ export const script: BinScript = async (config) => {
       process.exit(1)
       return
     }
-    const scriptUrl = getFlag(flags, 'script-url') ?? (scriptUrls.length === 1 ? scriptUrls[0] : undefined) ?? ''
+    const scriptUrl = asString(options.scriptUrl) ?? (scriptUrls.length === 1 ? scriptUrls[0] : undefined) ?? ''
     if (!scriptUrl) {
       logger.error('--check needs --script-url or storage.clientUploads.edge.scriptUrl.')
       process.exit(1)
@@ -102,14 +145,11 @@ export const script: BinScript = async (config) => {
       return
     }
     logger.info('Outdated — run `npx payload bunny:deploy-edge-script` to update.')
-    logger.info(
-      'This plugin version switches the script to a multi-zone ZONES env; redeploy AFTER the upgraded plugin is running in production (old mints do not carry the zone param).',
-    )
     process.exit(1)
     return
   }
 
-  const accountApiKey = getFlag(flags, 'api-key') ?? process.env.BUNNY_ACCOUNT_API_KEY
+  const accountApiKey = asString(options.apiKey) ?? process.env.BUNNY_ACCOUNT_API_KEY
   if (!accountApiKey) {
     logger.error('Missing account API key. Pass --api-key or set BUNNY_ACCOUNT_API_KEY.')
     process.exit(1)
@@ -138,8 +178,8 @@ export const script: BinScript = async (config) => {
     if (plan.groups.length === 1) {
       group = plan.groups[0]
     } else {
-      const wantNew = getBooleanFlag(flags, 'new')
-      const urlSelector = getFlag(flags, 'script-url')
+      const wantNew = Boolean(options.new)
+      const urlSelector = asString(options.scriptUrl)
       const selected = wantNew
         ? plan.groups.find((g) => g.scriptUrl === undefined)
         : urlSelector
@@ -159,7 +199,7 @@ export const script: BinScript = async (config) => {
       group = selected
     }
 
-    if (group.secretConflict && !getFlag(flags, 'secret')) {
+    if (group.secretConflict && !asString(options.secret)) {
       logger.error(
         `storage zones [${group.zoneNames.join(', ')}] configure different \`clientUploads.edge.secret\` values; a shared Edge Script needs one secret — align them (or pass --secret to override)`,
       )
@@ -174,9 +214,9 @@ export const script: BinScript = async (config) => {
     }
   }
 
-  const cdnTier = getFlag(flags, 'cdn-tier') === 'standard' ? 'standard' : 'volume'
-  const sharedSecret = getFlag(flags, 'secret') ?? group.sharedSecret ?? randomBytes(16).toString('hex')
-  const name = getFlag(flags, 'name') ?? 'payload-storage-bunny-uploader'
+  const cdnTier = asString(options.cdnTier) === 'standard' ? 'standard' : 'volume'
+  const sharedSecret = asString(options.secret) ?? group.sharedSecret ?? randomBytes(16).toString('hex')
+  const name = asString(options.name) ?? 'payload-storage-bunny-uploader'
 
   logger.info(`Deploying Edge Script "${name}" with account key ${maskKey(accountApiKey)}`)
   logger.info(`Target zones: ${group.zoneNames.join(', ')}`)
@@ -184,16 +224,17 @@ export const script: BinScript = async (config) => {
   try {
     const result = await deployEdgeScript({
       accountApiKey,
-      allowedOrigins: getFlag(flags, 'allowed-origins'),
+      additive: !options.prune,
+      allowedOrigins: asString(options.allowedOrigins),
       cdnTier,
       code: EDGE_SCRIPT_SOURCE,
-      connectionLimit: Number(getFlag(flags, 'connection-limit') ?? 10),
-      dryRun: getBooleanFlag(flags, 'dry-run'),
+      connectionLimit: Number(options.connectionLimit ?? 10),
+      dryRun: Boolean(options.dryRun),
       logger,
       name,
-      requestLimit: Number(getFlag(flags, 'request-limit') ?? 30),
+      requestLimit: Number(options.requestLimit ?? 30),
       sharedSecret,
-      skipHarden: getBooleanFlag(flags, 'skip-harden'),
+      skipHarden: Boolean(options.skipHarden),
       zones: group.zones,
     })
 
@@ -203,7 +244,7 @@ export const script: BinScript = async (config) => {
       logger.info('')
       logger.info('Add this to storage.clientUploads of every non-s3 zone that enables client uploads')
       logger.info('(the same scriptUrl and secret are shared by all of them):')
-      if (getBooleanFlag(flags, 'no-print-secret')) {
+      if (!options.printSecret) {
         logger.info(
           `  ${key('edge')}${punc(': { ')}${key('scriptUrl')}${punc(': ')}${str(`'${result.scriptUrl}'`)}${punc(', ')}${key('secret')}${punc(': ')}${str("'<hidden — --no-print-secret>'")}${punc(' },')}`,
         )
@@ -214,7 +255,9 @@ export const script: BinScript = async (config) => {
         )
       }
       logger.info('')
-      logger.info('After changing which zones use client uploads, re-run this command to refresh the ZONES map.')
+      logger.info(
+        'After changing which zones use client uploads, re-run this command to sync the per-zone secrets (it adds new zones and removes stale ones).',
+      )
     }
   } catch (err) {
     logger.error(`${(err as Error).message}`)

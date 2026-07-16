@@ -21,6 +21,9 @@
     "type": "git",
     "url": "https://github.com/maximseshuk/payload-storage-bunny.git"
   },
+  "bin": {
+    "payload-storage-bunny": "./dist/bin/cli.js"
+  },
   "files": [
     "dist"
   ],
@@ -81,18 +84,20 @@
     "runts": "dotenv -e .env -v NODE_OPTIONS=--no-deprecation -- tsx",
     "test": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.config.ts",
     "test:coverage": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.config.ts --coverage",
-    "test:deploy-edge": "pnpm runts tests/manual/deploy-edge.ts",
+    "test:deploy-edge": "pnpm runts tests/manual/deployEdge.ts",
     "test:e2e": "dotenv -e .env -- pnpm runts tests/runE2E.ts",
     "test:e2e:ui": "dotenv -e .env -v UI_MODE=1 -- pnpm runts tests/runE2E.ts",
     "test:provision": "pnpm runts tests/manual/provision.ts",
     "test:unit": "vitest run -c tests/vitest.config.ts",
-    "test:verify-edge": "pnpm runts tests/manual/verify-edge.ts",
-    "test:verify-s3": "pnpm runts tests/manual/verify-s3.ts",
+    "test:verify-edge": "pnpm runts tests/manual/verifyEdge.ts",
+    "test:verify-s3": "pnpm runts tests/manual/verifyS3.ts",
     "test:watch": "dotenv -e .env -v NODE_ENV=development -- vitest -c tests/vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clack/prompts": "^1.7.0",
     "@payloadcms/plugin-cloud-storage": "^3.83.0",
+    "cac": "^7.0.0",
     "ky": "2.0.2",
     "s3mini": "0.9.5",
     "tus-js-client": "^4.3.1"

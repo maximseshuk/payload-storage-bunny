@@ -14,6 +14,12 @@ This guide covers upgrading between major versions of the Bunny Storage plugin.
 
 v3 has two independent parts: a set of **config changes** (which throw at startup until you rename the keys) and a **data migration** for the stored Stream metadata. Do both.
 
+<Callout type="danger" title="Back up, then run the data migration">
+
+**Take a database backup first.** v3 reads Stream metadata only from the new **`bunnyData`** field — until you run the [data migration](#migrate-your-data), every existing video looks empty (broken thumbnails, no resolutions, `videoId` queries return nothing). On Postgres/SQLite the legacy columns are dropped the moment the v3 schema is pushed, so migrate **before** that. Config renames alone are not enough.
+
+</Callout>
+
 ### Config changes (breaking)
 
 Several config keys were renamed or removed in v3. Most **throw at boot** with a targeted message, so a v2 config crashes on startup until you update it. The last three rows are the exception — they produce no boot error (they are a naming convention, silently ignored, or always overridden), but you should still clean them up:
@@ -38,12 +44,6 @@ Per-service keys are unchanged: `storage.apiKey` and `stream.apiKey` stay as the
 - [`storage.s3`](/configuration/storage#s3-mode) — S3-compatible zone access.
 - [`stream.referer`](/configuration/stream#options) — Referer header for MP4-fallback requests behind BlockNoneReferrer libraries.
 - Per-collection [`stream.tus: false`](/configuration/collection-overrides) — disable TUS for one collection.
-
-<Callout type="info">
-
-If you used a v3 pre-release with a root-level `clientUploads` (or `clientUploads.mode`), those throw a boot error now: nest the config under `storage.clientUploads` and drop `mode` — the transport is automatic.
-
-</Callout>
 
 ### What changed (data)
 
@@ -132,14 +132,14 @@ export async function up({ payload, req }) {
 
 MongoDB is schemaless, so there is no ordering constraint.
 
-If your project does not use `payload migrate`, call `migrateBunnyData({ payload })` once from any script that has a Payload instance.
+If your project doesn't use `payload migrate`, call `migrateBunnyData({ payload })` once from any script that has a Payload instance.
 
   </Tab>
   <Tab label="Postgres">
 
 <Callout type="warning">
 
-The `bunny_video_id` and `bunny_video_meta` columns are not part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
+The `bunny_video_id` and `bunny_video_meta` columns aren't part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
 
 Run `migrateBunnyData` **before** the schema change that removes them (place it first in your migration's `up()`), or take a database backup first.
 
@@ -150,7 +150,7 @@ Run `migrateBunnyData` **before** the schema change that removes them (place it 
 
 <Callout type="warning">
 
-The `bunny_video_id` and `bunny_video_meta` columns are not part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
+The `bunny_video_id` and `bunny_video_meta` columns aren't part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
 
 Run `migrateBunnyData` **before** the schema change that removes them (place it first in your migration's `up()`), or take a database backup first.
 

@@ -1,14 +1,29 @@
-import { getBooleanFlag, getFlag, parseFlags } from '../../src/bin/flags.js'
+import { cac } from 'cac'
+
 import { log } from '../helpers/shared/log.js'
 
 const BASE = 'https://api.bunny.net'
 
-const flags = parseFlags(process.argv.slice(2))
-const accountKey = getFlag(flags, 'api-key') ?? process.env.BUNNY_ACCOUNT_API_KEY ?? ''
-const prefix = getFlag(flags, 'prefix') ?? 'psb-e2e'
-const region = (getFlag(flags, 'region') ?? 'DE').toUpperCase()
-const dumpJson = getBooleanFlag(flags, 'json')
-const dryRun = getBooleanFlag(flags, 'dry-run')
+const arg = (value: unknown): string | undefined => (value === undefined ? undefined : String(value))
+
+const cli = cac('pnpm test:provision')
+cli.option('--api-key <key>', 'Bunny account API key (defaults to BUNNY_ACCOUNT_API_KEY).')
+cli.option('--prefix <prefix>', 'Resource name prefix (default: psb-e2e).')
+cli.option('--region <region>', 'Main region (default: DE).')
+cli.option('--json', 'Print the created resources as JSON.')
+cli.option('--dry-run', 'Print the plan without creating anything.')
+cli.help()
+cli.parse(['', '', ...process.argv.slice(2)], { run: false })
+if (cli.options.help) {
+  process.exit(0)
+}
+const options = cli.options
+
+const accountKey = arg(options.apiKey) ?? process.env.BUNNY_ACCOUNT_API_KEY ?? ''
+const prefix = arg(options.prefix) ?? 'psb-e2e'
+const region = (arg(options.region) ?? 'DE').toUpperCase()
+const dumpJson = Boolean(options.json)
+const dryRun = Boolean(options.dryRun)
 
 if (!accountKey) {
   log.error('Missing account API key. Pass --api-key or set BUNNY_ACCOUNT_API_KEY.')

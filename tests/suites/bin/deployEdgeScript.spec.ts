@@ -307,60 +307,136 @@ describe('loadZonesFileGroup', () => {
   })
 })
 
+type SecretCall = { body?: unknown; method: string; url: string }
+
+const nullLogger = { error: () => {}, info: () => {}, warn: () => {} }
+
+const baseDeploy = {
+  accountApiKey: 'account-key',
+  cdnTier: 'volume' as const,
+  code: 'export {}',
+  connectionLimit: 10,
+  dryRun: false,
+  logger: nullLogger,
+  name: 'test-script',
+  requestLimit: 30,
+  sharedSecret: 'the-secret',
+  skipHarden: true,
+}
+
+const mockSecrets = (existing: Array<{ Id: number; Name: string }>): SecretCall[] => {
+  const calls: SecretCall[] = []
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const url = String(input)
+    const method = init?.method ?? 'GET'
+    const body = init?.body ? JSON.parse(init.body as string) : undefined
+    calls.push({ body, method, url })
+
+    if (url.includes('/compute/script?')) {
+      return jsonResponse({
+        Items: [{ Id: 7, LinkedPullZones: [{ DefaultHostname: 'uploader.b-cdn.net', Id: 3 }], Name: 'test-script' }],
+      })
+    }
+    if (url.endsWith('/compute/script/7/secrets') && method === 'GET') {
+      return jsonResponse({ Secrets: existing })
+    }
+    return jsonResponse({})
+  })
+  return calls
+}
+
+const postedSecrets = (calls: SecretCall[]): Map<string, string> =>
+  new Map(
+    calls
+      .filter((c) => c.url.includes('/secrets') && c.method === 'POST')
+      .map((c) => [(c.body as { Name: string }).Name, (c.body as { Secret: string }).Secret]),
+  )
+
+const deletedUrls = (calls: SecretCall[]): string[] => calls.filter((c) => c.method === 'DELETE').map((c) => c.url)
+
 describe('deployEdgeScript secrets', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('writes SHARED_SECRET + ZONES and deletes stale STORAGE_* secrets', async () => {
-    const calls: Array<{ body?: unknown; method: string; url: string }> = []
-
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      const url = String(input)
-      const method = init?.method ?? 'GET'
-      const body = init?.body ? JSON.parse(init.body as string) : undefined
-      calls.push({ body, method, url })
-
-      if (url.includes('/compute/script?')) {
-        return jsonResponse({
-          Items: [{ Id: 7, LinkedPullZones: [{ DefaultHostname: 'uploader.b-cdn.net', Id: 3 }], Name: 'test-script' }],
-        })
-      }
-      if (url.endsWith('/compute/script/7/secrets') && method === 'GET') {
-        return jsonResponse({
-          Secrets: [
-            { Id: 42, Name: 'STORAGE_HOST' },
-            { Id: 43, Name: 'STORAGE_ZONE' },
-          ],
-        })
-      }
-      return jsonResponse({})
-    })
+  it('writes SHARED_SECRET + per-zone ZONE_* secrets', async () => {
+    const calls = mockSecrets([])
 
     const zones = { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } }
+    await deployEdgeScript({ ...baseDeploy, zones })
+
+    const written = postedSecrets(calls)
+    expect(written.get('SHARED_SECRET')).toBe('the-secret')
+    expect(JSON.parse(written.get('ZONE_MEDIA') as string)).toEqual({
+      accessKey: 'media-key',
+      host: 'storage.bunnycdn.com',
+    })
+  })
+
+  it('reconcile-prunes ZONE_* secrets no longer in config, leaving shared/user secrets untouched', async () => {
+    const calls = mockSecrets([
+      { Id: 10, Name: 'ZONE_MEDIA' },
+      { Id: 11, Name: 'ZONE_OLD' },
+      { Id: 12, Name: 'SHARED_SECRET' },
+      { Id: 13, Name: 'ALLOWED_ORIGINS' },
+      { Id: 14, Name: 'USER_CUSTOM' },
+    ])
+
     await deployEdgeScript({
-      accountApiKey: 'account-key',
-      cdnTier: 'volume',
-      code: 'export {}',
-      connectionLimit: 10,
-      dryRun: false,
-      logger: { error: () => {}, info: () => {}, warn: () => {} },
-      name: 'test-script',
-      requestLimit: 30,
-      sharedSecret: 'the-secret',
-      skipHarden: true,
-      zones,
+      ...baseDeploy,
+      zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
     })
 
-    const secretPosts = calls.filter((c) => c.url.includes('/secrets') && c.method === 'POST')
-    const written = new Map(
-      secretPosts.map((c) => [(c.body as { Name: string }).Name, (c.body as { Secret: string }).Secret]),
-    )
-    expect(written.get('SHARED_SECRET')).toBe('the-secret')
-    expect(written.get('ZONES')).toBe(JSON.stringify(zones))
+    const deletes = deletedUrls(calls)
+    expect(deletes).toContain('https://api.bunny.net/compute/script/7/secrets/11')
+    expect(deletes).not.toContain('https://api.bunny.net/compute/script/7/secrets/12')
+    expect(deletes).not.toContain('https://api.bunny.net/compute/script/7/secrets/13')
+    expect(deletes).not.toContain('https://api.bunny.net/compute/script/7/secrets/14')
 
-    const deletes = calls.filter((c) => c.method === 'DELETE').map((c) => c.url)
-    expect(deletes).toContain('https://api.bunny.net/compute/script/7/secrets/42')
-    expect(deletes).toContain('https://api.bunny.net/compute/script/7/secrets/43')
+    const zoneMediaPost = calls.find(
+      (c) => c.method === 'POST' && (c.body as { Name?: string } | undefined)?.Name === 'ZONE_MEDIA',
+    )
+    expect(zoneMediaPost?.url).toBe('https://api.bunny.net/compute/script/7/secrets/10')
+  })
+
+  it('does not prune ZONE_* secrets in additive mode', async () => {
+    const calls = mockSecrets([{ Id: 11, Name: 'ZONE_OLD' }])
+
+    await deployEdgeScript({
+      ...baseDeploy,
+      additive: true,
+      zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
+    })
+
+    const deletes = deletedUrls(calls)
+    expect(deletes).not.toContain('https://api.bunny.net/compute/script/7/secrets/11')
+  })
+
+  it('omits the SHARED_SECRET write when writeSharedSecret is false', async () => {
+    const calls = mockSecrets([])
+
+    await deployEdgeScript({
+      ...baseDeploy,
+      writeSharedSecret: false,
+      zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
+    })
+
+    const written = postedSecrets(calls)
+    expect(written.has('SHARED_SECRET')).toBe(false)
+    expect(written.has('ZONE_MEDIA')).toBe(true)
+  })
+
+  it('prunes only after the script is published', async () => {
+    const calls = mockSecrets([{ Id: 11, Name: 'ZONE_OLD' }])
+
+    await deployEdgeScript({
+      ...baseDeploy,
+      zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
+    })
+
+    const publishIndex = calls.findIndex((c) => c.url.endsWith('/publish') && c.method === 'POST')
+    const firstDeleteIndex = calls.findIndex((c) => c.method === 'DELETE')
+    expect(publishIndex).toBeGreaterThanOrEqual(0)
+    expect(firstDeleteIndex).toBeGreaterThan(publishIndex)
   })
 })

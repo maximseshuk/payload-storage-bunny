@@ -13,9 +13,9 @@ bunnyStorage({
 
 ## Options
 
-| Option  | Type      | Default | Description                                                                 |
-| ------- | --------- | ------- | --------------------------------------------------------------------------- |
-| `async` | `boolean` | `false` | If `true`, the upload/delete request does not wait for the purge to finish. |
+| Option  | Type      | Default | Description                                                                |
+| ------- | --------- | ------- | -------------------------------------------------------------------------- |
+| `async` | `boolean` | `false` | If `true`, the upload/delete request doesn't wait for the purge to finish. |
 
 Pass `purge: true` for defaults, `purge: false` to disable, or an object to customize:
 
@@ -42,12 +42,12 @@ Get it from your Bunny dashboard → account menu (top-right) → **Account sett
 :::warning
 Without a global `accountApiKey`, the config validator throws a startup error — including when only individual collections enable `purge`.
 
-Purging is only performed for Bunny **Storage** files — it does not apply to Stream videos, which are served from Bunny's video CDN and cached differently.
+Purging is only performed for Bunny **Storage** files — it doesn't apply to Stream videos, which are served from Bunny's video CDN and cached differently.
 :::
 
 ## Alternative: timestamp-based cache busting
 
-If you don't want to manage an account API key, [`urlTransform.appendTimestamp`](/configuration/url-transforms) or [`thumbnail.appendTimestamp`](/configuration/thumbnails) add a changing query parameter to URLs instead. This is simpler to set up, but only busts the cache for browsers that re-fetch the URL — it does not proactively clear Bunny's edge cache.
+If you don't want to manage an account API key, [`urlTransform.appendTimestamp`](/configuration/url-transforms) or [`thumbnail.appendTimestamp`](/configuration/thumbnails) add a changing query parameter to URLs instead. This is simpler to set up, but only busts the cache for browsers that re-fetch the URL — it doesn't proactively clear Bunny's edge cache.
 
 | Approach                              | Setup                 | Effect                                                       |
 | ------------------------------------- | --------------------- | ------------------------------------------------------------ |

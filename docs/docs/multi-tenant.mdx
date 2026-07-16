@@ -115,7 +115,7 @@ bunnyStorage({
 
 Resolve the tenant server-side — here from the tenant the admin panel has selected, via the plugin's public `getTenantFromCookie` helper (with `plugin-multi-tenant`, users carry a `tenants` array, not a single `tenant` field) — never from the client-supplied body, which the caller controls. The callback runs after the `storage.clientUploads.access` check, so an unauthorized caller never reaches it.
 
-The mint-time prefix decides where the file lands in the zone, and the plugin persists that same minted prefix onto the document automatically — it copies it from the client upload context on the create request that follows the upload. Deletes, reads, and URL generation then resolve to the minted path with no matching `beforeChange` hook of your own. When you use a `clientUploads.prefix` function, the plugin also injects the hidden per-document `prefix` field for you, so a static collection `prefix` is not required for client-only uploads.
+The mint-time prefix decides where the file lands in the zone, and the plugin persists that same minted prefix onto the document automatically — it copies it from the client upload context on the create request that follows the upload. Deletes, reads, and URL generation then resolve to the minted path with no matching `beforeChange` hook of your own. When you use a `clientUploads.prefix` function, the plugin also injects the hidden per-document `prefix` field for you, so a static collection `prefix` isn't required for client-only uploads.
 
 ## Isolation: how the CDN enforces it
 
@@ -139,7 +139,7 @@ bunnyStorage({
 })
 ```
 
-With `disablePayloadAccessControl: true`, each document's URL is generated from its stored `prefix` and signed. Each URL is a time-limited token bound to that exact file — a token minted for tenant A's file cannot fetch tenant B's — and files stream straight from the CDN edge. See [Signed URLs](/configuration/signed-urls).
+With `disablePayloadAccessControl: true`, each document's URL is generated from its stored `prefix` and signed. Each URL is a time-limited token bound to that exact file — a token minted for tenant A's file can't fetch tenant B's — and files stream straight from the CDN edge. See [Signed URLs](/configuration/signed-urls).
 
 ### Or serve through Payload access control
 
@@ -167,13 +167,13 @@ bunnyStorage({
 
 Both modes now key off the per-document prefix, so either isolation strategy — signed direct URLs or Payload access control — works with the shared-zone recipe. Payload access control is also the isolation for Stream, which has no path prefixes — see below.
 
-:::danger Unsigned public URLs do not isolate tenants
+:::danger Unsigned public URLs don't isolate tenants
 With `disablePayloadAccessControl: true` and no signed URLs, files are served straight from the CDN with no auth. The tenant prefix is then only an unguessable path — anyone who has or guesses a URL reads that file, across tenant boundaries. Enable signed URLs whenever tenants must not see each other's files.
 :::
 
 ## Stream has no folders
 
-Bunny Stream videos are library-scoped GUIDs; there are no per-tenant folders, so the prefix recipe does not apply to Stream. Isolate Stream two ways: keep Payload access control on (collection read rules gate the video — no prefix is involved, so unlike Storage this works), or enable signed URLs (`stream.tokenSecurityKey`), which scope the token to the individual video. Gate uploads with `stream.tus.checkAccess(req, body)` against your own tenant model.
+Bunny Stream videos are library-scoped GUIDs; there are no per-tenant folders, so the prefix recipe doesn't apply to Stream. Isolate Stream two ways: keep Payload access control on (collection read rules gate the video — no prefix is involved, so unlike Storage this works), or enable signed URLs (`stream.tokenSecurityKey`), which scope the token to the individual video. Gate uploads with `stream.tus.checkAccess(req, body)` against your own tenant model.
 
 To keep each tenant's videos tidy in the Bunny dashboard, you can drop them into a per-tenant Bunny **collection** — see [Stream collections](/stream-collections). Note that collections are organization only and do **not** isolate tenants; the two options above are what enforce isolation.
 

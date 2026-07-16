@@ -1,14 +1,28 @@
-import { getFlag, parseFlags } from '../../src/bin/flags.js'
+import { cac } from 'cac'
+
 import { mintEdgeUploadUrl, verifyEdgeUploadUrl } from '../../src/storage/clientUploads/edge/mint.js'
 import { log } from '../helpers/shared/log.js'
 
-const flags = parseFlags(process.argv.slice(2))
+const arg = (value: unknown): string | undefined => (value === undefined ? undefined : String(value))
 
-const scriptUrl = (getFlag(flags, 'script-url') ?? process.env.BUNNY_EDGE_SCRIPT_URL ?? '').replace(/\/+$/, '')
-const secret = getFlag(flags, 'secret') ?? process.env.BUNNY_EDGE_SECRET ?? ''
-const zone = getFlag(flags, 'storage-zone') ?? process.env.BUNNY_STORAGE_ZONE_NAME ?? ''
-const password = getFlag(flags, 'storage-key') ?? process.env.BUNNY_STORAGE_API_KEY ?? ''
-const storageHost = getFlag(flags, 'storage-host') ?? 'storage.bunnycdn.com'
+const cli = cac('pnpm test:verify-edge')
+cli.option('--script-url <url>', 'Edge Script URL (defaults to BUNNY_EDGE_SCRIPT_URL).')
+cli.option('--secret <secret>', 'Shared secret (defaults to BUNNY_EDGE_SECRET).')
+cli.option('--storage-zone <name>', 'Storage zone name (defaults to BUNNY_STORAGE_ZONE_NAME).')
+cli.option('--storage-key <key>', 'Storage zone password (defaults to BUNNY_STORAGE_API_KEY).')
+cli.option('--storage-host <host>', 'Storage host (default: storage.bunnycdn.com).')
+cli.help()
+cli.parse(['', '', ...process.argv.slice(2)], { run: false })
+if (cli.options.help) {
+  process.exit(0)
+}
+const options = cli.options
+
+const scriptUrl = (arg(options.scriptUrl) ?? process.env.BUNNY_EDGE_SCRIPT_URL ?? '').replace(/\/+$/, '')
+const secret = arg(options.secret) ?? process.env.BUNNY_EDGE_SECRET ?? ''
+const zone = arg(options.storageZone) ?? process.env.BUNNY_STORAGE_ZONE_NAME ?? ''
+const password = arg(options.storageKey) ?? process.env.BUNNY_STORAGE_API_KEY ?? ''
+const storageHost = arg(options.storageHost) ?? 'storage.bunnycdn.com'
 
 if (!scriptUrl || !secret || !zone || !password) {
   log.error('Need script-url, secret, storage-zone, storage-key (flags or BUNNY_EDGE_* / BUNNY_STORAGE_* env).')

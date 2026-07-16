@@ -29,7 +29,7 @@ collections: {
 | `thumbnail`                   | `boolean \| object` | inherits global  | Override thumbnail settings, or `false` to disable. See [Thumbnails](/configuration/thumbnails#collection-overrides).                                                                                                                                                                 |
 | `urlTransform`                | `boolean \| object` | inherits global  | Override URL rewriting, or `false` to disable. See [URL transforms](/configuration/url-transforms#collection-overrides).                                                                                                                                                              |
 
-`prefix` and `disablePayloadAccessControl` come from `@payloadcms/plugin-cloud-storage` and apply to every collection using this plugin. `disableLocalStorage` cannot be passed here — the plugin always sets it to `true` on managed collections.
+`prefix` and `disablePayloadAccessControl` come from `@payloadcms/plugin-cloud-storage` and apply to every collection using this plugin. `disableLocalStorage` can't be passed here — the plugin always sets it to `true` on managed collections.
 
 ## Override surface: partial vs full replacement
 
@@ -59,7 +59,7 @@ A `stream: { tus: { … } }` partial override only applies when the global `stre
 
 ## How overrides merge
 
-A **partial** override object (one without `apiKey`) is merged on top of the matching global option — it does not replace the whole block. An object that _includes_ `apiKey` is not a merge at all: it is a complete replacement of that zone/library, with every credential field required and nothing inherited — see [Own zone or library per collection](#own-zone-or-library-per-collection). For a partial override, for example:
+A **partial** override object (one without `apiKey`) is merged on top of the matching global option — it doesn't replace the whole block. An object that _includes_ `apiKey` isn't a merge at all: it is a complete replacement of that zone/library, with every credential field required and nothing inherited — see [Own zone or library per collection](#own-zone-or-library-per-collection). For a partial override, for example:
 
 ```ts
 // Global config
@@ -110,7 +110,7 @@ The rules:
 - **Signed URLs.** Provide that zone/library's own `tokenSecurityKey` when [signed URLs](/configuration/signed-urls) are enabled for the collection.
 - **Webhooks.** A per-collection stream library can carry its own `webhook.secret`; the single webhook endpoint accepts every configured secret.
 - **Cleanup.** Per-collection stream `cleanup` controls only `maxAge`. The cleanup `schedule` is global-only (one task for the whole plugin).
-- **Client uploads travel with the zone.** A full storage config's `clientUploads` (including its `edge` script and secret) belongs to that zone and does not merge with the global `storage.clientUploads`.
+- **Client uploads travel with the zone.** A full storage config's `clientUploads` (including its `edge` script and secret) belongs to that zone and doesn't merge with the global `storage.clientUploads`.
 - **Top-level optional.** Because a collection can own its whole zone/library, the top-level `storage`/`stream` are optional — a config made entirely of per-collection zones is valid.
 
 :::warning Adding `apiKey` to a small tweak turns it into a full replacement
@@ -183,9 +183,9 @@ const stream = getBunnyStreamForCollection(req.payload, 'media')
 Semantics:
 
 - **`payload`** is a running Payload instance — `req.payload` in a hook or endpoint, or the instance from `getPayload(...)` in a script.
-- **Never throws.** Each accessor returns `undefined` when the plugin is absent or disabled, the slug is not one of the plugin's `collections`, or (for a per-backend accessor) that backend is off for the collection. `getBunnyCollectionConfig` returns an object for any managed slug — a backend the collection does not use is simply absent from it.
+- **Never throws.** Each accessor returns `undefined` when the plugin is absent or disabled, the slug isn't one of the plugin's `collections`, or (for a per-backend accessor) that backend is off for the collection. `getBunnyCollectionConfig` returns an object for any managed slug — a backend the collection doesn't use is simply absent from it.
 - **`getBunnyConfig` is an escape hatch.** It returns the plugin's internal normalized shape, which may change between minor releases. Treat it as read-only and prefer the curated accessors above.
-- The curated results are fresh copies; mutating them does not affect the plugin.
+- The curated results are fresh copies; mutating them doesn't affect the plugin.
 
 :::warning Server-side only
 The returned objects contain your Bunny API keys. Use them in server code — hooks, endpoints, scripts — and never send them to the client.

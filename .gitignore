@@ -1,41 +1,21 @@
-# deps
 node_modules/
 
-# build
 dist/
 out/
+.next/
+*.tsbuildinfo
 
-# coverage
-coverage/
-
-# env
-.env
 .env*
 !.env.example
 
-# os
+*.log
 .DS_Store
 
-# logs
-*.log
-pnpm-debug.log*
-
-# next
-.next/
-
-# ts
-*.tsbuildinfo
-
-# tests
+coverage/
 tests/.next/
-tests/app/(payload)/admin/importMap.js
-tests/next-env.d.ts
 tests/node_modules/
+tests/next-env.d.ts
 tests/payload.config.ts
 tests/playwright/
+tests/app/(payload)/admin/importMap.js
 tests/**/*.d.ts
-
-# devenv
-.devenv*
-devenv.local.nix
-devenv.local.yaml

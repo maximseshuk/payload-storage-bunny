@@ -4,7 +4,8 @@ import path from 'node:path'
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { applyEnvFile, reloadNormalizedConfig } from '@/bin/deployEdgeScript/envFile.js'
+import { reloadNormalizedConfig } from '@/bin/deployEdgeScript/script.js'
+import { applyEnvFile } from '@/bin/shared/envFile.js'
 
 describe('applyEnvFile', () => {
   let dir: string
