@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Before asking:** Please check [documentation](https://github.com/maximseshuk/payload-storage-bunny#readme), [migration guide](https://github.com/maximseshuk/payload-storage-bunny/blob/main/docs/migration-guide.md), and [existing issues](https://github.com/maximseshuk/payload-storage-bunny/issues).
+        **Before asking:** Please check [documentation](https://payload-storage-bunny.seshuk.im), [migration guide](https://payload-storage-bunny.seshuk.im/migration), and [existing issues](https://github.com/maximseshuk/payload-storage-bunny/issues).
 
   - type: textarea
     id: question

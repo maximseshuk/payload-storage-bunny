@@ -1,3 +1,14 @@
+packages:
+  - docs
+
+catalog:
+  '@types/node': ^24.13.3
+  '@types/react': 19.2.17
+  '@types/react-dom': 19.2.3
+  react: 19.2.7
+  react-dom: 19.2.7
+  typescript: 6.0.3
+
 allowBuilds:
   '@swc/core': true
   esbuild: true
