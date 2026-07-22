@@ -77,7 +77,7 @@ describe('token output lock (must stay byte-identical to the verified Bunny stan
   })
 })
 
-describe('IP-locked tokens (standard scheme: key + path + expires + ip + sorted params)', () => {
+describe('IP-locked tokens (standard scheme: key + path + expires + sorted params + ip)', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -88,18 +88,18 @@ describe('IP-locked tokens (standard scheme: key + path + expires + ip + sorted 
   const userIp = '192.168.1.1'
   const sortedParams = 'token_countries=US,CA&width=500'
 
-  it('hashes the IP between expires and params', () => {
+  it('appends the IP after expires when there are no params', () => {
     const token = generateSignedToken(securityKey, signaturePath, 1700000000, undefined, userIp)
 
     expect(token).toBe(rawToken(securityKey + signaturePath + expires + userIp))
     expect(token).toBe('28C0lC5Wc2I6oClnXZMYt5cVIjN_lT8WVIGIi5Uo9sk')
   })
 
-  it('hashes the IP before sorted params when both are present', () => {
+  it('appends the IP after sorted params when both are present', () => {
     const token = generateSignedToken(securityKey, signaturePath, 1700000000, sortedParams, userIp)
 
-    expect(token).toBe(rawToken(securityKey + signaturePath + expires + userIp + sortedParams))
-    expect(token).toBe('bHSXubiYmOXgqHxcYEZBdSyZbLG_5w82_uaq3yqTIL0')
+    expect(token).toBe(rawToken(securityKey + signaturePath + expires + sortedParams + userIp))
+    expect(token).toBe('9Z9BAQyKZQE9ySUELn1hNKJ4nw9l3XtZ8DdUFRwDJVI')
   })
 
   it('produces the legacy token when IP is absent', () => {
@@ -137,7 +137,7 @@ describe('IP-locked tokens (standard scheme: key + path + expires + ip + sorted 
     )
 
     expect(url).toBe(
-      'https://cdn.example.com/file.jpg?token_countries=US%2CCA&token=ftxhlK6aaJ7ZjP6ySjcLiZrAciXB7V-hIh0Q8Sra2gs&expires=1700000000',
+      'https://cdn.example.com/file.jpg?token_countries=US%2CCA&token=KS9zPyHTop6XXm3ErGpzXFsHbh-2o_GyIADc9KebL8c&expires=1700000000',
     )
   })
 
@@ -153,7 +153,7 @@ describe('IP-locked tokens (standard scheme: key + path + expires + ip + sorted 
     )
 
     expect(url).toBe(
-      'https://stream.example.com/bcdn_token=gCCs31C4cphAaMuQ-mbtHi1IqJroLV_MMEe7tb9zNA8&token_path=%2Fvid123%2F&expires=1700000000/vid123/playlist.m3u8',
+      'https://stream.example.com/bcdn_token=k9na9ywwLzBK9IUB_b68dAymR22AL92rQJR3mTnyAkI&token_path=%2Fvid123%2F&expires=1700000000/vid123/playlist.m3u8',
     )
   })
 })

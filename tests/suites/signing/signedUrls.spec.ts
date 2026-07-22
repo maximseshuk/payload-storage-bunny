@@ -87,7 +87,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
       expect(freshDoc.url).toContain('expires=')
       expect(freshDoc.url).toContain('playlist.m3u8')
 
-      const response = await fetch(freshDoc.url as string)
+      const response = await fetch(freshDoc.url as string, { headers: { Referer: 'https://example.com/' } })
       expect(response.status).toBe(200)
 
       await payload.delete({

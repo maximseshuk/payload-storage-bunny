@@ -32,12 +32,12 @@ export const generateSignedToken = (
 
   let hashableString = securityKey + signedUrl + expiration.toString()
 
-  if (userIp) {
-    hashableString += userIp
-  }
-
   if (queryParams) {
     hashableString += queryParams
+  }
+
+  if (userIp) {
+    hashableString += userIp
   }
 
   const hash = createHash('sha256').update(hashableString).digest()
