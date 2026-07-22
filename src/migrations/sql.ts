@@ -34,14 +34,14 @@ const exec = async (payload: Payload, req: PayloadRequest | undefined, statement
 
 const affected = (result: any): number => Number(result?.rowsAffected ?? result?.rowCount ?? result?.changes ?? 0)
 
-const legacyColumnsExist = async (payload: Payload, table: string): Promise<boolean> => {
+const columnExists = async (payload: Payload, table: string, column: string): Promise<boolean> => {
   const sql = await getSql()
 
   if (payload.db.name === 'sqlite') {
     const result = await exec(
       payload,
       undefined,
-      sql.raw(`SELECT COUNT(*) AS c FROM pragma_table_info('${table}') WHERE name = '${LEGACY_VIDEO_ID_COLUMN}'`),
+      sql.raw(`SELECT COUNT(*) AS c FROM pragma_table_info('${table}') WHERE name = '${column}'`),
     )
     return Number((result.rows ?? [])[0]?.c) > 0
   }
@@ -49,10 +49,15 @@ const legacyColumnsExist = async (payload: Payload, table: string): Promise<bool
   const result = await exec(
     payload,
     undefined,
-    sql`SELECT COUNT(*) AS c FROM information_schema.columns WHERE table_name = ${table} AND column_name = ${LEGACY_VIDEO_ID_COLUMN}`,
+    sql`SELECT COUNT(*) AS c FROM information_schema.columns WHERE table_name = ${table} AND column_name = ${column}`,
   )
   return Number((result.rows ?? [])[0]?.c) > 0
 }
+
+// The legacy meta column only existed in v2 when mp4Fallback was set, so it may be absent even when
+// bunny_video_id is present. Every meta reference below is gated on its actual presence, not target.hasResolutions.
+const legacyColumnsExist = (payload: Payload, table: string): Promise<boolean> =>
+  columnExists(payload, table, LEGACY_VIDEO_ID_COLUMN)
 
 // meta { availableMp4Resolutions, highestMp4Resolution } → resolutions { available, highest }
 const forwardResolutions = (sql: SqlTag, dialect: string, meta: SqlFragment): SqlFragment => {
@@ -82,7 +87,8 @@ export const migrateSql = async (
 
   const sql = await getSql()
   const t = sql.identifier(table)
-  const setResolutions = target.hasResolutions
+  const hasMeta = target.hasResolutions && (await columnExists(payload, table, LEGACY_META_COLUMN))
+  const setResolutions = hasMeta
     ? sql`, ${sql.identifier(NEW_RESOLUTIONS_COLUMN)} = ${forwardResolutions(sql, payload.db.name, sql.identifier(LEGACY_META_COLUMN))}`
     : sql``
 
@@ -107,7 +113,8 @@ export const rollbackSql = async (
 
   const sql = await getSql()
   const t = sql.identifier(table)
-  const setMeta = target.hasResolutions
+  const hasMeta = target.hasResolutions && (await columnExists(payload, table, LEGACY_META_COLUMN))
+  const setMeta = hasMeta
     ? sql`, ${sql.identifier(LEGACY_META_COLUMN)} = ${reverseMeta(sql, payload.db.name, sql.identifier(NEW_RESOLUTIONS_COLUMN))}`
     : sql``
 
@@ -133,5 +140,7 @@ export const dropLegacySql = async (
   const sql = await getSql()
   const t = sql.identifier(table)
   await exec(payload, req, sql`ALTER TABLE ${t} DROP COLUMN ${sql.identifier(LEGACY_VIDEO_ID_COLUMN)}`)
-  await exec(payload, req, sql`ALTER TABLE ${t} DROP COLUMN ${sql.identifier(LEGACY_META_COLUMN)}`)
+  if (await columnExists(payload, table, LEGACY_META_COLUMN)) {
+    await exec(payload, req, sql`ALTER TABLE ${t} DROP COLUMN ${sql.identifier(LEGACY_META_COLUMN)}`)
+  }
 }

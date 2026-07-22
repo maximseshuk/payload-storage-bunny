@@ -238,3 +238,51 @@ describe.each(drivers)('Data migration ($label)', (driver) => {
     expect(await driver.legacyGone(payload)).toBe(true)
   })
 })
+
+describe('SQL migration without a legacy meta column (sqlite)', () => {
+  let payload: Payload
+
+  beforeAll(async () => {
+    payload = await buildPayload('migration-no-meta-sqlite', sqliteAdapter({ client: { url: ':memory:' } }))
+    await raw(payload, `ALTER TABLE ${TABLE} ADD COLUMN bunny_video_id text`)
+    await raw(
+      payload,
+      `INSERT INTO ${TABLE} (alt, filename, mime_type, updated_at, created_at, bunny_video_id) VALUES ` +
+        `('a', 'clip.mp4', 'video/mp4', '${NOW}', '${NOW}', 'e7f2-guid-1'),` +
+        `('b', 'promo.mp4', 'video/mp4', '${NOW}', '${NOW}', 'a1b2-guid-2')`,
+    )
+  })
+
+  afterAll(async () => {
+    await payload.destroy()
+  })
+
+  const changed = (result: Awaited<ReturnType<typeof migrateBunnyData>>) =>
+    result.collections.find((c) => c.slug === SLUG)?.changed
+
+  it('migrates videoId and leaves resolutions null when the meta column never existed', async () => {
+    expect(changed(await migrateBunnyData({ payload }))).toBe(2)
+
+    const rows = await raw(
+      payload,
+      `SELECT bunny_data_stream_video_id AS v, bunny_data_stream_resolutions AS r FROM ${TABLE} ORDER BY v`,
+    )
+    expect(rows.map((row) => row.v)).toEqual(['a1b2-guid-2', 'e7f2-guid-1'])
+    expect(rows.every((row) => parseJson(row.r) === null)).toBe(true)
+  })
+
+  it('rolls back without a meta column', async () => {
+    await raw(payload, `UPDATE ${TABLE} SET bunny_video_id = NULL`)
+    expect(changed(await migrateBunnyData({ payload, direction: 'rollback' }))).toBe(2)
+
+    const rows = await raw(payload, `SELECT bunny_video_id AS v FROM ${TABLE} ORDER BY v`)
+    expect(rows.map((row) => row.v)).toEqual(['a1b2-guid-2', 'e7f2-guid-1'])
+  })
+
+  it('drops the legacy id column and tolerates the missing meta column', async () => {
+    await migrateBunnyData({ payload, drop: true })
+    const cols = await columnNames(payload)
+    expect(cols).not.toContain('bunny_video_id')
+    expect(cols).not.toContain('bunny_video_meta')
+  })
+})
