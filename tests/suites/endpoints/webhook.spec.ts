@@ -34,17 +34,32 @@ const buildConfig = (mp4Fallback = true) =>
 const buildReq = (
   body: Record<string, unknown>,
   {
+    algorithm = 'hmac-sha256',
     find = vi.fn(),
     secret = 'hook-secret',
     signature,
     update = vi.fn(),
-  }: { find?: unknown; secret?: null | string; signature?: string; update?: unknown } = {},
+    version = 'v1',
+  }: {
+    algorithm?: null | string
+    find?: unknown
+    secret?: null | string
+    signature?: string
+    update?: unknown
+    version?: null | string
+  } = {},
 ) => {
   const rawBody = JSON.stringify(body)
   const headers = new Headers()
   const sig = signature !== undefined ? signature : secret ? sign(rawBody, secret) : undefined
   if (sig) {
     headers.set('x-bunnystream-signature', sig)
+  }
+  if (version) {
+    headers.set('x-bunnystream-signature-version', version)
+  }
+  if (algorithm) {
+    headers.set('x-bunnystream-signature-algorithm', algorithm)
   }
 
   return {
@@ -89,6 +104,15 @@ describe('Stream webhook endpoint', () => {
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { signature: 'nope' }))
 
     expect(res.status).toBe(401)
+  })
+
+  it('returns 401 when the signature version or algorithm is unsupported', async () => {
+    const handler = getWebhookHandler(buildConfig())
+    const body = { Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }
+
+    expect((await handler(buildReq(body, { version: 'v2' }))).status).toBe(401)
+    expect((await handler(buildReq(body, { algorithm: 'hmac-sha1' }))).status).toBe(401)
+    expect((await handler(buildReq(body, { algorithm: null, version: null }))).status).toBe(401)
   })
 
   it('returns 400 for an invalid payload', async () => {
@@ -230,6 +254,8 @@ describe('Stream webhook endpoint', () => {
       const sig = signature !== undefined ? signature : secret ? sign(rawBody, secret) : undefined
       if (sig) {
         headers.set('x-bunnystream-signature', sig)
+        headers.set('x-bunnystream-signature-version', 'v1')
+        headers.set('x-bunnystream-signature-algorithm', 'hmac-sha256')
       }
 
       return {

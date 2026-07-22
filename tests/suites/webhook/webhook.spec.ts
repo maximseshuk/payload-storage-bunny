@@ -22,7 +22,11 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
     await payload.destroy()
   })
 
-  const callWebhook = async (body: object, signSecret: null | string = WEBHOOK_SECRET) => {
+  const callWebhook = async (
+    body: object,
+    signSecret: null | string = WEBHOOK_SECRET,
+    { algorithm = 'hmac-sha256', version = 'v1' }: { algorithm?: null | string; version?: null | string } = {},
+  ) => {
     const endpoint = payload.config.endpoints?.find((e) => e.path === '/storage-bunny/stream/webhook')
     if (!endpoint) {
       throw new Error('Webhook endpoint not found')
@@ -33,6 +37,12 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
     const headers = new Headers({ 'Content-Type': 'application/json' })
     if (signSecret) {
       headers.set('x-bunnystream-signature', createHmac('sha256', signSecret).update(rawBody).digest('hex'))
+    }
+    if (version) {
+      headers.set('x-bunnystream-signature-version', version)
+    }
+    if (algorithm) {
+      headers.set('x-bunnystream-signature-algorithm', algorithm)
     }
 
     return endpoint.handler({ headers, payload, text: async () => rawBody, url } as any)
@@ -48,6 +58,24 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
 
       const wrongSecret = await callWebhook(baseBody, 'wrong')
       expect(wrongSecret.status).toBe(401)
+    })
+
+    it('should reject an unsupported signature version or algorithm', async () => {
+      const wrongVersion = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' }, WEBHOOK_SECRET, {
+        version: 'v2',
+      })
+      expect(wrongVersion.status).toBe(401)
+
+      const wrongAlgorithm = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' }, WEBHOOK_SECRET, {
+        algorithm: 'hmac-sha1',
+      })
+      expect(wrongAlgorithm.status).toBe(401)
+
+      const missingHeaders = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' }, WEBHOOK_SECRET, {
+        algorithm: null,
+        version: null,
+      })
+      expect(missingHeaders.status).toBe(401)
     })
 
     it('should reject with wrong library ID', async () => {

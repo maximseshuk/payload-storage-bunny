@@ -183,8 +183,10 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
 
           const signingSecret = webhookSecrets.get(VideoLibraryId)
           const signature = req.headers?.get('x-bunnystream-signature')
+          const signatureVersion = req.headers?.get('x-bunnystream-signature-version')
+          const signatureAlgorithm = req.headers?.get('x-bunnystream-signature-algorithm')
 
-          if (!signingSecret || !signature) {
+          if (!signingSecret || !signature || signatureVersion !== 'v1' || signatureAlgorithm !== 'hmac-sha256') {
             return jsonResponse({ error: 'Unauthorized' }, 401)
           }
 

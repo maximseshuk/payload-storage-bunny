@@ -31,7 +31,22 @@ export const tusAuthOperation: OpenApiOperation = {
 }
 
 export const streamWebhookOperation: OpenApiOperation = {
-  parameters: [{ in: 'query', name: 'secret', required: true, schema: { type: 'string' } }],
+  parameters: [
+    {
+      description: 'Lowercase-hex HMAC-SHA256 of the raw request body, keyed by the library Read-Only API key.',
+      in: 'header',
+      name: 'X-BunnyStream-Signature',
+      required: true,
+      schema: { type: 'string' },
+    },
+    { in: 'header', name: 'X-BunnyStream-Signature-Version', required: true, schema: { enum: ['v1'], type: 'string' } },
+    {
+      in: 'header',
+      name: 'X-BunnyStream-Signature-Algorithm',
+      required: true,
+      schema: { enum: ['hmac-sha256'], type: 'string' },
+    },
+  ],
   requestBody: {
     content: {
       'application/json': {
@@ -49,7 +64,7 @@ export const streamWebhookOperation: OpenApiOperation = {
   responses: {
     '200': { description: 'Acknowledged' },
     '400': { description: 'Invalid payload' },
-    '401': { description: 'Invalid secret' },
+    '401': { description: 'Missing or invalid signature, or unsupported signature version/algorithm' },
     '403': { description: 'Library ID mismatch' },
   },
   security: [],
