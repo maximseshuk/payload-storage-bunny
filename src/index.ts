@@ -24,7 +24,7 @@ import { getAfterReadHook } from './fields/bunnyGroupField.js'
 import { getFields } from './fields/getFields.js'
 import { clientUploadOperation } from './openapi.js'
 import { getClientUploadHandler } from './storage/clientUploads/endpoint.js'
-import { getPersistClientUploadPrefixHook } from './storage/clientUploads/persistPrefixHook.js'
+import { getBeforeChangeHook } from './storage/clientUploads/persistPrefixHook.js'
 import { getStreamCleanupTask } from './stream/cleanupTask.js'
 import { getStreamEndpoints } from './stream/endpoints.js'
 import { getAfterChangeHook, getBeforeValidateHook } from './stream/hooks.js'
@@ -157,7 +157,7 @@ export const bunnyStorage: BunnyStoragePlugin =
               ],
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
-                ...(hasDynamicClientUploadPrefix ? [getPersistClientUploadPrefixHook(collectionContext)] : []),
+                ...(hasDynamicClientUploadPrefix ? [getBeforeChangeHook(collectionContext)] : []),
               ],
               beforeValidate: [
                 ...(collection.hooks?.beforeValidate || []),

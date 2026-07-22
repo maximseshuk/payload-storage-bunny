@@ -3,7 +3,7 @@ import type { CollectionBeforeChangeHook } from 'payload'
 
 import type { CollectionContext } from '@/types/index.js'
 
-export const getPersistClientUploadPrefixHook =
+export const getBeforeChangeHook =
   (_context: CollectionContext): CollectionBeforeChangeHook =>
   ({ data, req }) => {
     const ctx = req.file?.clientUploadContext

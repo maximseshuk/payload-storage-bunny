@@ -1,18 +1,18 @@
 import type { PayloadRequest } from 'payload'
 import { describe, expect, it } from 'vitest'
 
-import { getPersistClientUploadPrefixHook } from '@/storage/clientUploads/persistPrefixHook.js'
+import { getBeforeChangeHook } from '@/storage/clientUploads/persistPrefixHook.js'
 import type { CollectionContext } from '@/types/index.js'
 
 const context = {} as unknown as CollectionContext
 
 const runHook = (file: unknown, data: Record<string, unknown> = {}) => {
-  const hook = getPersistClientUploadPrefixHook(context)
+  const hook = getBeforeChangeHook(context)
   const req = { file } as unknown as PayloadRequest
   return hook({ data, req } as never)
 }
 
-describe('getPersistClientUploadPrefixHook', () => {
+describe('getBeforeChangeHook', () => {
   it('writes the sanitized prefix from req.file.clientUploadContext', async () => {
     const data = await runHook({ clientUploadContext: { prefix: '/tenants/acme' } })
     expect(data.prefix).toBe('tenants/acme')
