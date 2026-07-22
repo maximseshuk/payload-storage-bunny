@@ -1,0 +1,51 @@
+---
+title: 'Payload Storage Bunny'
+description: 'Bunny.net storage adapter for Payload CMS — Storage, Stream, signed URLs, and CDN delivery wired into the admin panel.'
+mode: 'custom'
+---
+
+<div className="rp-home">
+  <div className="rp-home-grid" />
+  <div className="rp-hero">
+    <div className="rp-hero-inner">
+      <div className="rp-hero-mark">
+        <div className="rp-hero-glow" />
+        <div className="rp-hero-float">
+          <img src="/hero-mark.svg" alt="Payload Storage Bunny" noZoom />
+        </div>
+      </div>
+      <div className="rp-hero-copy">
+        <span className="rp-hero-badge">Payload storage</span>
+        <h1 className="rp-hero-title">
+          Ship media on <span className="rp-hero-grad">bunny.net</span>
+        </h1>
+        <p className="rp-hero-sub">
+          Send uploads, images, and video from your Payload collections straight to bunny.net Storage and Stream.
+          Delivered fast from the global Bunny CDN, and wired right into your admin panel.
+        </p>
+        <div className="rp-hero-actions">
+          <a className="rp-hero-btn rp-hero-btn-primary" href="/quick-start">
+            Get started
+          </a>
+          <a className="rp-hero-btn rp-hero-btn-ghost" href="/configuration/overview">
+            Read the docs
+          </a>
+        </div>
+        <code
+          className="rp-hero-cmd"
+          role="button"
+          tabIndex={0}
+          title="Click to copy"
+          onClick={(e) => {
+            navigator.clipboard?.writeText('npm install @seshuk/payload-storage-bunny')
+            const el = e.currentTarget
+            el.setAttribute('data-copied', '')
+            setTimeout(() => el.removeAttribute('data-copied'), 1400)
+          }}
+        >
+          npm install <span>@seshuk/payload-storage-bunny</span>
+        </code>
+      </div>
+    </div>
+  </div>
+</div>

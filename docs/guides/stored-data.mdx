@@ -1,0 +1,51 @@
+---
+title: 'Stored data'
+description: 'How the plugin stores Bunny Stream metadata on documents via the hidden bunnyData field, what is stored vs. computed, and how to query it.'
+---
+
+For collections that use Bunny Stream, the plugin injects a hidden group field named `bunnyData` that holds stream metadata for each document.
+
+## Shape
+
+For a video, the API returns:
+
+```json
+"bunnyData": {
+  "type": "stream",
+  "stream": {
+    "videoId": "e7f2c1a0-…",
+    "libraryId": 12345,
+    "resolutions": { "available": ["720p", "480p"], "highest": "720p" }
+  }
+}
+```
+
+For non-video documents in the same collection, `bunnyData` is `null`.
+
+- `videoId` **Stored** — stored and indexed.
+- `type` and `libraryId` **Computed** — computed on read from your config, not stored in the database.
+- `resolutions` **Stored** — `available` lists the MP4 renditions Bunny reports (unordered); `highest` is the highest of those whose MP4 file has been verified to exist. Because Bunny encodes renditions asynchronously, `highest` can be lower than the top of `available` until the higher rendition finishes.
+
+<Tip>
+**Encoding is asynchronous**
+
+`resolutions` only appears on the field when [`stream.mp4Fallback`](/configuration/stream/overview#options) is enabled. It stays empty until Bunny finishes encoding the video and calls your [webhook](/configuration/stream/webhooks) — encoding happens asynchronously, so it won't be present right after upload.
+
+</Tip>
+
+## Querying
+
+Because `videoId` is stored, you can query it directly:
+
+```ts
+await payload.find({
+  collection: 'media',
+  where: {
+    'bunnyData.stream.videoId': { equals: 'e7f2c1a0-…' },
+  },
+})
+```
+
+## Upgrading from v2
+
+In v2 this data lived in flat `bunnyVideoId` and `bunnyVideoMeta` fields. See the [migration guide](/upgrade-guide) to move existing documents into `bunnyData`.

@@ -26,6 +26,6 @@
       }
     ]
   },
-  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./tests/**/*.ts", "./tests/next-env.d.ts"],
+  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./scripts/**/*.ts", "./tests/**/*.ts", "./tests/next-env.d.ts"],
   "exclude": ["./tests/app/**/*", "./tests/payload.config.ts"]
 }

@@ -73,9 +73,10 @@
     "build": "tsdown",
     "clean": "rimraf {dist,*.tsbuildinfo}",
     "dev": "dotenv -e .env -v PAYLOAD_DROP_DATABASE=false -- pnpm runts tests/dev.ts dev",
-    "docs:build": "pnpm --dir docs build",
+    "docs:check-links": "pnpm --dir docs check-links",
     "docs:dev": "pnpm --dir docs dev",
-    "docs:preview": "pnpm --dir docs preview",
+    "docs:openapi": "tsx scripts/build-openapi.ts",
+    "docs:validate": "pnpm --dir docs validate",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint",
@@ -113,6 +114,7 @@
     "@payloadcms/translations": "^3.86.0",
     "@payloadcms/ui": "^3.86.0",
     "@playwright/test": "^1.61.1",
+    "@scalar/openapi-types": "^0.9.3",
     "@seshuk/payload-plugin-media-preview": "^1.1.1",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -153,12 +155,12 @@
     "packageManager": {
       "name": "pnpm",
       "version": "11.13.0",
-      "onFail": "warning"
+      "onFail": "warn"
     },
     "runtime": {
       "name": "node",
       "version": ">=24.14.0",
-      "onFail": "warning"
+      "onFail": "warn"
     }
   },
   "engines": {

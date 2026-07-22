@@ -1,0 +1,511 @@
+---
+title: 'Upgrade guide'
+description: 'Upgrade between major versions of the Bunny Storage plugin — config changes and the stored-data migration.'
+---
+
+This guide covers upgrading between major versions of the Bunny Storage plugin.
+
+## v2.x to v3.0
+
+v3 has two independent parts: a set of **config changes** (which throw at startup until you rename the keys) and a **data migration** for the stored Stream metadata. Do both.
+
+<Info>
+  **Requires Payload CMS 3.83.0 or later and Node.js 22 or later.** Upgrade Payload (and Node, if needed) first if you
+  are below either.
+</Info>
+
+<Warning>
+  **Back up, then run the data migration.** Take a database backup first. v3 reads Stream metadata only from the new
+  **`bunnyData`** field — until you run the [data migration](#migrate-your-data), every existing video looks empty
+  (broken thumbnails, no resolutions, `videoId` queries return nothing). On Postgres/SQLite the legacy columns are
+  dropped the moment the v3 schema is pushed, so migrate **before** that. Config renames alone are not enough.
+</Warning>
+
+### Config changes (breaking)
+
+Several config keys were renamed or removed in v3. Most **throw at boot** with a targeted message, so a v2 config crashes on startup until you update it. The last three rows are the exception — they produce no boot error (they are a naming convention, silently ignored, or always overridden), but you should still clean them up:
+
+| v2                                   | v3                      | Note                                                               |
+| ------------------------------------ | ----------------------- | ------------------------------------------------------------------ |
+| `apiKey` (top level)                 | `accountApiKey`         | Bunny account key; purge + edge deploy — throws at boot            |
+| `stream.tus.uploadTimeout`           | `stream.tus.expiresIn`  | session expiry in seconds (default 3600) — throws at boot          |
+| `stream.tus.mimeTypes`               | `stream.mimeTypes`      | moved up one level — throws at boot                                |
+| `purge.apiKey`                       | removed                 | use global `accountApiKey` — throws at boot                        |
+| `adminThumbnail`                     | removed                 | use `thumbnail` (same shape) — throws at boot                      |
+| `BUNNY_API_KEY` (conventional env)   | `BUNNY_ACCOUNT_API_KEY` | env var name read by the deploy CLI; not inspected — no boot error |
+| `experimental` (top level)           | removed                 | silently ignored — no boot error; delete the key                   |
+| per-collection `disableLocalStorage` | removed from the type   | always overridden to `true` — no boot error                        |
+
+Per-service keys are unchanged: `storage.apiKey` and `stream.apiKey` stay as they are.
+
+**New in v3** (optional, nothing to migrate — adopt when you need them):
+
+- [Client uploads](/configuration/storage/client-uploads) — browser-direct uploads, configured under `storage.clientUploads` (`storage.clientUploads: true` shorthand, or the full config). There is no `mode` option — the transport is chosen automatically (presigned S3 when the zone sets `storage.s3`, otherwise a deployed Edge Script).
+- [Per-collection zones and libraries](/configuration/collection-overrides#own-zone-or-library-per-collection) — point a collection at its own storage zone / stream library with a full config; the top-level `storage`/`stream` become optional.
+- [`storage.s3`](/configuration/storage/overview#s3-mode) — S3-compatible zone access.
+- [`stream.referer`](/configuration/stream/overview#options) — Referer header for MP4-fallback requests behind BlockNoneReferrer libraries.
+- Per-collection [`stream.tus: false`](/configuration/collection-overrides) — disable TUS for one collection.
+- [Stream webhook](/configuration/stream/webhooks) (`stream.webhook`) — v2 had no webhook; MP4-fallback resolutions were fetched lazily on the first serve (v3 still does this as a fallback). The optional webhook pre-populates `bunnyData.stream.resolutions` the moment encoding finishes instead. Set `webhook.secret` to the library's **Read-Only API key** (Bunny signs each callback with the `X-BunnyStream-Signature` HMAC header) and point your Bunny library's webhook at `/api/storage-bunny/stream/webhook`.
+
+### What changed (data)
+
+v3 stores Bunny Stream metadata in a single **`bunnyData`** group field instead of the flat `bunnyVideoId` and `bunnyVideoMeta` fields.
+
+| What        | v2.x                                                              | v3.0                                                                         |
+| ----------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Video id    | `bunnyVideoId`                                                    | `bunnyData.stream.videoId`                                                   |
+| Resolutions | `bunnyVideoMeta.availableMp4Resolutions` / `highestMp4Resolution` | `bunnyData.stream.resolutions.available` / `highest`                         |
+| API shape   | two separate fields                                               | `bunnyData: { type: 'stream', stream: { videoId, libraryId, resolutions } }` |
+
+`type` and `libraryId` are computed on read (not stored). `videoId` is stored and indexed, so queries such as `where: { 'bunnyData.stream.videoId': { equals } }` keep working.
+
+### Migrate your data
+
+The plugin ships a migration helper at `@seshuk/payload-storage-bunny/migrations`. It supports MongoDB, Postgres and SQLite and is idempotent — re-running it only touches documents that have not been migrated yet.
+
+<Steps>
+
+<Step title="Upgrade the plugin to v3">
+
+<CodeGroup>
+
+```bash npm
+npm install @seshuk/payload-storage-bunny@latest
+```
+
+```bash pnpm
+pnpm add @seshuk/payload-storage-bunny@latest
+```
+
+```bash yarn
+yarn add @seshuk/payload-storage-bunny@latest
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Create a migration file">
+
+```bash
+npx payload migrate:create bunny_v3
+```
+
+</Step>
+
+<Step title="Call the helper from it">
+
+```ts
+import { migrateBunnyData } from '@seshuk/payload-storage-bunny/migrations'
+
+export async function up({ payload, req }) {
+  await migrateBunnyData({ payload, req })
+}
+
+export async function down({ payload, req }) {
+  await migrateBunnyData({ payload, req, direction: 'rollback' })
+}
+```
+
+</Step>
+
+<Step title="Run the migration">
+
+```bash
+npx payload migrate
+```
+
+</Step>
+
+<Step title="Remove the old fields">
+
+The legacy data lives in the `bunnyVideoId` and `bunnyVideoMeta` fields (MongoDB) — the `bunny_video_id` and `bunny_video_meta` columns on SQL. You do **not** declare these in your own config: the v2 plugin added them for you, and v3 no longer declares them, so after migrating they are leftover data with no field definition behind them.
+
+Once you have verified your app reads video metadata from `bunnyData`, delete the leftovers by passing `drop: true`. This unsets the fields (MongoDB) or drops the columns (Postgres/SQLite) for every managed collection:
+
+```ts
+await migrateBunnyData({ payload, req, drop: true })
+```
+
+You can run this as a one-off from any script with a Payload instance, or fold it into the migration once you're confident:
+
+```ts
+export async function up({ payload, req }) {
+  await migrateBunnyData({ payload, req, drop: true }) // migrate, then drop the legacy fields/columns
+}
+```
+
+<Warning>
+  `drop` is destructive and one-way — the legacy fields are gone afterward, so `direction: 'rollback'` can no longer
+  copy data back. Only pass `drop: true` after you've verified the migrated data, or with a database backup in hand.
+</Warning>
+
+</Step>
+
+</Steps>
+
+### Database notes
+
+<Tabs>
+  <Tab title="MongoDB">
+
+MongoDB is schemaless, so there is no ordering constraint.
+
+If your project doesn't use `payload migrate`, call `migrateBunnyData({ payload })` once from any script that has a Payload instance.
+
+  </Tab>
+  <Tab title="Postgres">
+
+<Warning>
+The `bunny_video_id` and `bunny_video_meta` columns aren't part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
+
+Run `migrateBunnyData` **before** the schema change that removes them (place it first in your migration's `up()`), or take a database backup first.
+
+</Warning>
+
+  </Tab>
+  <Tab title="SQLite">
+
+<Warning>
+The `bunny_video_id` and `bunny_video_meta` columns aren't part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
+
+Run `migrateBunnyData` **before** the schema change that removes them (place it first in your migration's `up()`), or take a database backup first.
+
+</Warning>
+
+  </Tab>
+</Tabs>
+
+### Options
+
+| Option        | Default     | Description                                                  |
+| ------------- | ----------- | ------------------------------------------------------------ |
+| `collections` | all managed | Limit the migration to specific collection slugs.            |
+| `direction`   | `'migrate'` | `'rollback'` copies `bunnyData` back into the legacy fields. |
+| `drop`        | `false`     | Remove the legacy fields/columns after migrating.            |
+| `req`         | –           | Pass the migration's `req` to run inside its transaction.    |
+
+## v2.1.x to v2.2.0
+
+### What changed
+
+The main changes in v2.2.0:
+
+| What                        | v2.1.x                     | v2.2.0                                         |
+| --------------------------- | -------------------------- | ---------------------------------------------- |
+| Cache purging API key       | `purge: { apiKey: '...' }` | `apiKey: '...'` (plugin level)                 |
+| Cache purging config        | `purge: { apiKey, async }` | `purge: true` or `purge: { async }`            |
+| Deprecated `adminThumbnail` | Still supported with alias | Removed (use `thumbnail` instead)              |
+| Collection overrides        | `thumbnailTime` only       | `uploadTimeout`, `mp4Fallback`, `tus` and more |
+
+**Migration actions:**
+
+1. Move `purge.apiKey` to plugin-level `apiKey` (old way still works but deprecated)
+2. Replace `adminThumbnail` with `thumbnail` (required, no backward compatibility)
+3. Optionally use new collection overrides for `storage.uploadTimeout`, `stream.uploadTimeout`, `stream.mp4Fallback`, `stream.tus.uploadTimeout`
+
+<Warning>
+**Backward compatibility**
+
+- `purge.apiKey` still works in v2.2.0 but will be removed in v2.3.0 (removed in v3 — use `accountApiKey`, see [Config changes](#config-changes-breaking))
+- `adminThumbnail` is removed - you must use `thumbnail` instead
+
+</Warning>
+
+## v2.0.x to v2.1.0
+
+### What changed
+
+The main changes in v2.1.0:
+
+| What                | v2.0.x                            | v2.1.0                            |
+| ------------------- | --------------------------------- | --------------------------------- |
+| Thumbnail config    | `adminThumbnail: {...}`           | `thumbnail: {...}`                |
+| Service requirement | Storage required, stream optional | Either storage OR stream required |
+
+## v1.x to v2.x
+
+### Version requirements
+
+<Warning>
+**v2.x needs Payload CMS v3.53.0 or higher.**
+
+If you're below v3.53.0:
+
+- Upgrade Payload first, then migrate to v2.x
+- Or stay on v1.x: `npm install @seshuk/payload-storage-bunny@^1.0.0`
+
+</Warning>
+
+### What changed
+
+The main changes in v2.x:
+
+| What             | v1.x                               | v2.x                |
+| ---------------- | ---------------------------------- | ------------------- |
+| Config structure | `options: { storage: {...} }`      | `storage: {...}`    |
+| Library ID       | `libraryId: '123456'`              | `libraryId: 123456` |
+| MP4 fallback     | `mp4Fallback: { enabled: true }`   | `mp4Fallback: true` |
+| Purge setup      | `purge: { enabled: true, apiKey }` | `purge: { apiKey }` |
+| Experimental fix | `replaceSaveButtonComponent: true` | Not needed          |
+
+### How to migrate
+
+<Steps>
+
+<Step title="Update the package">
+
+<CodeGroup>
+
+```bash npm
+npm install @seshuk/payload-storage-bunny@latest
+```
+
+```bash pnpm
+pnpm add @seshuk/payload-storage-bunny@latest
+```
+
+```bash yarn
+yarn add @seshuk/payload-storage-bunny@latest
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Remove the options wrapper">
+
+<Tabs>
+  <Tab title="Before (v1.x)">
+
+```ts
+bunnyStorage({
+  collections: {/* ... */},
+  options: {
+    // Remove this
+    storage: {/* ... */},
+    stream: {/* ... */},
+    purge: {/* ... */},
+  },
+})
+```
+
+  </Tab>
+  <Tab title="After (v2.x)">
+
+```ts
+bunnyStorage({
+  collections: {/* ... */},
+  storage: {/* ... */}, // Move to top level
+  stream: {/* ... */},
+  purge: {/* ... */},
+})
+```
+
+  </Tab>
+</Tabs>
+
+</Step>
+
+<Step title="Fix stream config">
+
+<Tabs>
+  <Tab title="Before (v1.x)">
+
+```ts
+stream: {
+  libraryId: '123456',           // String
+  mp4Fallback: { enabled: true } // Object
+}
+```
+
+  </Tab>
+  <Tab title="After (v2.x)">
+
+```ts
+stream: {
+  libraryId: 123456,    // Number
+  mp4Fallback: true     // Boolean
+}
+```
+
+  </Tab>
+</Tabs>
+
+</Step>
+
+<Step title="Fix purge config">
+
+<Tabs>
+  <Tab title="Before (v1.x)">
+
+```ts
+purge: {
+  enabled: true,  // Remove this
+  apiKey: '...'
+}
+```
+
+  </Tab>
+  <Tab title="After (v2.x)">
+
+```ts
+purge: {
+  apiKey: '...' // Presence enables it
+}
+```
+
+  </Tab>
+</Tabs>
+
+</Step>
+
+<Step title="Remove experimental stuff">
+
+```ts
+// Remove this entirely:
+experimental: {
+  replaceSaveButtonComponent: true
+}
+```
+
+</Step>
+
+</Steps>
+
+### Complete example
+
+<Tabs>
+  <Tab title="Before (v1.x)">
+
+```ts
+bunnyStorage({
+  collections: {
+    media: {
+      prefix: 'uploads',
+      disablePayloadAccessControl: true,
+    },
+  },
+  options: {
+    // Remove wrapper
+    storage: {
+      apiKey: process.env.BUNNY_STORAGE_API_KEY,
+      hostname: 'example.b-cdn.net',
+      region: 'ny',
+      zoneName: 'my-zone',
+    },
+    stream: {
+      apiKey: process.env.BUNNY_STREAM_API_KEY,
+      hostname: 'vz-abc123def-456.b-cdn.net',
+      libraryId: '123456', // String
+      mp4Fallback: { enabled: true }, // Object
+      thumbnailTime: 5000,
+    },
+    purge: {
+      enabled: true, // Remove
+      apiKey: process.env.BUNNY_API_KEY,
+    },
+  },
+  experimental: {
+    // Remove
+    replaceSaveButtonComponent: true,
+  },
+})
+```
+
+  </Tab>
+  <Tab title="After (v2.x)">
+
+```ts
+bunnyStorage({
+  collections: {
+    media: {
+      prefix: 'uploads',
+      disablePayloadAccessControl: true,
+    },
+  },
+  storage: {
+    // No wrapper
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    region: 'ny',
+    zoneName: 'my-zone',
+  },
+  stream: {
+    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    hostname: 'vz-abc123def-456.b-cdn.net',
+    libraryId: 123456, // Number
+    mp4Fallback: true, // Boolean
+    thumbnailTime: 5000,
+    // New features you can add:
+    tus: true,
+    cleanup: true,
+  },
+  purge: {
+    apiKey: process.env.BUNNY_API_KEY, // No `enabled`
+  },
+})
+```
+
+  </Tab>
+</Tabs>
+
+### New features in v2.x
+
+**TUS resumable uploads** — perfect for large video files:
+
+```ts
+stream: {
+  tus: true, // Simple setup
+  // Or customize:
+  tus: {
+    autoMode: true, // Auto-enable for video files
+    uploadTimeout: 7200
+  }
+}
+```
+
+**Signed URLs** — secure file access with geo-restrictions:
+
+```ts
+signedUrls: {
+  expiresIn: 7200,
+  allowedCountries: ['US', 'ID'],
+  staticHandler: { useRedirect: true }
+}
+```
+
+**URL transform** — customize file URLs:
+
+```ts
+urlTransform: {
+  queryParams: {
+    source: 'app'
+  }
+  // Or custom function:
+  // transformUrl: ({ baseUrl, filename }) => `${baseUrl}/${filename}?custom`
+}
+```
+
+**Thumbnail control** — better admin panel thumbnails:
+
+```ts
+thumbnail: {
+  appendTimestamp: true, // Default in v2.x
+  queryParams: { w: '300', h: '300' }
+}
+```
+
+**Stream cleanup** — auto-remove failed uploads:
+
+```ts
+stream: {
+  cleanup: true // Runs daily cleanup
+}
+```
+
+## Need help?
+
+Check the [Examples](/guides/examples) page for working configurations, or [open an issue](https://github.com/maximseshuk/payload-storage-bunny/issues) if you run into problems.
+
+For Payload CMS upgrade help, see their [official docs](https://payloadcms.com/docs).

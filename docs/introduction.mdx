@@ -1,0 +1,45 @@
+---
+title: 'Introduction'
+description: 'Store and serve Payload CMS media on Bunny.net Storage and Stream, delivered from the global Bunny CDN.'
+---
+
+`@seshuk/payload-storage-bunny` stores and serves your Payload CMS media on [bunny.net](https://bunny.net?ref=fndfoymy0j). It wraps `@payloadcms/plugin-cloud-storage`, so uploads from your collections go straight to Bunny Storage and Stream and are delivered from Bunny's global CDN — wired into the admin panel with no extra glue.
+
+## Key features
+
+- **Bunny Storage** — images, documents, and any non-video file.
+- **Bunny Stream** — videos and audio with adaptive HLS/MP4 playback, thumbnails, and TUS resumable uploads.
+- **Client uploads** — send file bytes straight from the browser to Bunny, bypassing serverless body-size limits.
+- **Signed URLs** — time-limited, geo-restricted access to files and videos.
+- **Cache purging** — invalidate the CDN automatically on upload and delete.
+- **Collection overrides** — keep one plugin config and tune every option per collection.
+
+## Requirements
+
+Payload CMS 3.83.0 or later, and Node.js 22 or later.
+
+## Where to go next
+
+<Columns cols={2}>
+  <Card title="Setup wizard" icon="wand-magic-sparkles" href="/cli/init">
+    Run one command — it provisions your Bunny resources and prints a ready config.
+  </Card>
+  <Card title="Quick start" icon="rocket" href="/quick-start">
+    Install the plugin and point a collection at Bunny.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/configuration/overview">
+    Every option explained, from API keys to per-collection overrides.
+  </Card>
+  <Card title="Stream" icon="video" href="/configuration/stream/overview">
+    Serve video with HLS, MP4 fallback, and resumable TUS uploads.
+  </Card>
+  <Card title="Storage" icon="database" href="/configuration/storage/overview">
+    Store images and documents, delivered fast from the Bunny CDN.
+  </Card>
+  <Card title="Upgrade guide" icon="arrows-rotate" href="/upgrade-guide">
+    Upgrade between major plugin versions — config changes and the stored-data migration.
+  </Card>
+  <Card title="Examples" icon="code" href="/guides/examples">
+    Copy-ready configurations for common setups and real-world patterns.
+  </Card>
+</Columns>

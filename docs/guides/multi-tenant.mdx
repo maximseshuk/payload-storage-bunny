@@ -1,0 +1,204 @@
+---
+title: 'Multi-tenant'
+description: 'A recipe for multi-tenant Bunny storage using per-document path prefixes, signed URLs, and Payload access control — with no tenancy option required.'
+---
+
+This plugin has no `tenancy` option. Multi-tenant storage is a recipe built from two general-purpose pieces you already have: the per-document storage `prefix`, and Payload's own access control. Nothing here is coupled to [`@payloadcms/plugin-multi-tenant`](https://payloadcms.com/docs/plugins/multi-tenant) internals — you pass your own tenant value in, so an upstream rename can't break your uploads.
+
+The idea: put each tenant's files under their own path prefix (`tenants/<id>/...`), and pick how the CDN enforces isolation.
+
+## Two shapes of multi-tenancy
+
+- **Shared zone, prefix per tenant** (this page's main recipe) — every tenant's files live in one Bunny zone/library, separated by path prefix and isolated by signed URLs (plus, for Stream, Payload access control). Best when tenants map to documents inside shared collections.
+- **A zone or library per tenant** — when tenants map to _separate collections_, each collection can point at its OWN Bunny storage zone and stream library via a [full per-collection config](/configuration/collection-overrides#own-zone-or-library-per-collection). The config includes `apiKey`, which flags it as a full replacement: all of `apiKey`/`hostname`/`zoneName` (storage) or `apiKey`/`hostname`/`libraryId` (stream) are required, and nothing is inherited from any global config. Each tenant then needs its own `tokenSecurityKey` for signed URLs and its own `webhook.secret`:
+
+```ts
+bunnyStorage({
+  collections: {
+    tenantAMedia: {
+      storage: {
+        apiKey: process.env.TENANT_A_STORAGE_API_KEY,
+        hostname: 'tenant-a.b-cdn.net',
+        zoneName: 'tenant-a-zone',
+        tokenSecurityKey: process.env.TENANT_A_TOKEN_KEY,
+      },
+      stream: {
+        apiKey: process.env.TENANT_A_STREAM_API_KEY,
+        hostname: 'vz-tenant-a-123.b-cdn.net',
+        libraryId: 654321,
+        tokenSecurityKey: process.env.TENANT_A_STREAM_TOKEN_KEY, // required: signedUrls on this library
+        webhook: { secret: process.env.TENANT_A_WEBHOOK_SECRET },
+      },
+      // access control is on, so the stream needs a redirect (or mp4Fallback: true)
+      signedUrls: { expiresIn: 3600, staticHandler: { useRedirect: true } },
+    },
+    tenantBMedia: {
+      storage: {
+        apiKey: process.env.TENANT_B_STORAGE_API_KEY,
+        hostname: 'tenant-b.b-cdn.net',
+        zoneName: 'tenant-b-zone',
+        tokenSecurityKey: process.env.TENANT_B_TOKEN_KEY,
+      },
+    },
+  },
+})
+```
+
+Because each collection carries its whole zone/library, the top-level `storage`/`stream` can be omitted entirely. The rest of this page covers the shared-zone, prefix-per-tenant recipe.
+
+## Plugin order
+
+Register `bunnyStorage` **before** `multiTenantPlugin`. The multi-tenant plugin expects to be placed after other plugins and warns in the console when it can't find its collections.
+
+```ts payload.config.ts
+export default buildConfig({
+  plugins: [bunnyStorage({/* ... */}), multiTenantPlugin({/* ... */})],
+})
+```
+
+## Server-side uploads: prefix by tenant
+
+Files uploaded through Payload (admin panel, Local API, REST) get their path from the document's `prefix`. A short `beforeChange` hook on your upload collection writes it from the tenant field.
+
+One plugin setting is required: give the collection a static `prefix` in the plugin config. That option is what creates the hidden per-document `prefix` field (with the static value as its default) — without it, the value your hook writes is dropped on save.
+
+```ts
+bunnyStorage({
+  collections: { media: { prefix: 'tenants' } }, // creates the per-document prefix field
+  // ...
+})
+```
+
+```ts collections/Media.ts
+import type { CollectionConfig } from 'payload'
+
+export const Media: CollectionConfig = {
+  slug: 'media',
+  upload: true,
+  hooks: {
+    beforeChange: [
+      ({ data }) => {
+        // `tenant` is the field name multiTenantPlugin adds (its default)
+        const tenantId = data?.tenant
+        if (tenantId) {
+          data.prefix = `tenants/${tenantId}/media`
+        }
+        return data
+      },
+    ],
+  },
+  fields: [{ name: 'alt', type: 'text' }],
+}
+```
+
+The prefix is stored on the document, so deletes and URL generation resolve to the same path automatically. Keep the prefix stable for a document's lifetime — changing it later orphans the already-uploaded file at its old path.
+
+## Client uploads: prefix at mint time
+
+Browser-direct uploads ([`clientUploads`](/configuration/storage/client-uploads)) never run your `beforeChange` before the file lands — the path has to be decided when the upload URL is minted. Use `storage.clientUploads.prefix`, resolved server-side at mint time:
+
+```ts
+import { getTenantFromCookie } from '@payloadcms/plugin-multi-tenant/utilities'
+
+bunnyStorage({
+  collections: { media: { prefix: 'tenants' } },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+    clientUploads: {
+      // HTTP (non-S3) zones upload through a deployed Edge Script, so `edge` is required.
+      // On an S3-enabled zone (`storage.s3`), drop this block — presigned S3 is used instead.
+      edge: {
+        scriptUrl: process.env.BUNNY_EDGE_SCRIPT_URL,
+        secret: process.env.BUNNY_EDGE_SECRET,
+      },
+      prefix: ({ req }) => {
+        const tenantId = getTenantFromCookie(req.headers, req.payload.db.defaultIDType)
+        return `tenants/${tenantId}/media`
+      },
+    },
+  },
+})
+```
+
+Resolve the tenant server-side — here from the tenant the admin panel has selected, via the plugin's public `getTenantFromCookie` helper (with `plugin-multi-tenant`, users carry a `tenants` array, not a single `tenant` field) — never from the client-supplied body, which the caller controls. The callback runs after the `storage.clientUploads.access` check, so an unauthorized caller never reaches it.
+
+The mint-time prefix decides where the file lands in the zone, and the plugin persists that same minted prefix onto the document automatically — it copies it from the client upload context on the create request that follows the upload. Deletes, reads, and URL generation then resolve to the minted path with no matching `beforeChange` hook of your own. When you use a `clientUploads.prefix` function, the plugin also injects the hidden per-document `prefix` field for you, so a static collection `prefix` isn't required for client-only uploads.
+
+## Isolation: how the CDN enforces it
+
+Prefixing organizes files; it does **not** by itself keep one tenant from reading another's. Serve prefixed files as **signed direct CDN URLs**:
+
+```ts
+bunnyStorage({
+  collections: {
+    media: {
+      prefix: 'tenants',
+      disablePayloadAccessControl: true,
+      signedUrls: { expiresIn: 3600 },
+    },
+  },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+    tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
+  },
+})
+```
+
+With `disablePayloadAccessControl: true`, each document's URL is generated from its stored `prefix` and signed. Each URL is a time-limited token bound to that exact file — a token minted for tenant A's file can't fetch tenant B's — and files stream straight from the CDN edge. See [Signed URLs](/configuration/signed-urls).
+
+### Or serve through Payload access control
+
+If you prefer to gate files behind Payload's own read rules instead of signing direct CDN URLs, leave `disablePayloadAccessControl` at its default (access control on). The static handler resolves each `/api/<collection>/file/...` request to the document's **own stored `prefix`** — so a file under `tenants/<id>/media` is served correctly in both proxy and redirect modes. Your collection's read `access` (constrained by the tenant `where`) then keeps one tenant from reading another's files.
+
+```ts
+bunnyStorage({
+  collections: {
+    media: {
+      prefix: 'tenants',
+      // disablePayloadAccessControl left at its default → access control ON
+      // add signedUrls.staticHandler.useRedirect to hand off signed CDN redirects
+      // instead of proxying bytes through Payload:
+      signedUrls: { expiresIn: 3600, staticHandler: { useRedirect: true } },
+    },
+  },
+  storage: {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    hostname: 'example.b-cdn.net',
+    zoneName: 'my-zone',
+    tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
+  },
+})
+```
+
+Both modes now key off the per-document prefix, so either isolation strategy — signed direct URLs or Payload access control — works with the shared-zone recipe. Payload access control is also the isolation for Stream, which has no path prefixes — see below.
+
+<Warning>
+**Unsigned public URLs don't isolate tenants**
+
+With `disablePayloadAccessControl: true` and no signed URLs, files are served straight from the CDN with no auth. The tenant prefix is then only an unguessable path — anyone who has or guesses a URL reads that file, across tenant boundaries. Enable signed URLs whenever tenants must not see each other's files.
+
+</Warning>
+
+## Stream has no folders
+
+Bunny Stream videos are library-scoped GUIDs; there are no per-tenant folders, so the prefix recipe doesn't apply to Stream. Isolate Stream two ways: keep Payload access control on (collection read rules gate the video — no prefix is involved, so unlike Storage this works), or enable signed URLs (`stream.tokenSecurityKey`), which scope the token to the individual video. Gate uploads with `stream.tus.checkAccess(req, body)` against your own tenant model.
+
+To keep each tenant's videos tidy in the Bunny dashboard, you can drop them into a per-tenant Bunny **collection** — see [Stream collections](/guides/stream-collections). Note that collections are organization only and do **not** isolate tenants; the two options above are what enforce isolation.
+
+## Optional building blocks
+
+`@payloadcms/plugin-multi-tenant/utilities` exports a couple of helpers if you need the current tenant outside a document context — for example inside `storage.clientUploads.prefix`:
+
+- `getUserTenantIDs(user)` — every tenant ID the user belongs to.
+- `getTenantFromCookie(headers, idType)` — the tenant currently selected in the admin UI.
+
+These are the plugin's public utilities. Avoid reaching for its internals (the `payload-tenant` cookie name, the tenant field slug when customized) directly — pass those values in through your own config instead.
+
+## Caveats
+
+- **Filename collisions.** Two tenants uploading `logo.png` never overwrite each other — the prefixes alone keep the storage paths distinct. Note that Payload's filename dedupe is collection-wide, not per prefix: the second `logo.png` in the collection is renamed (`logo-1.png`) regardless of tenant.
+- **Custom tenant field name.** The recipe reads `data.tenant`. If you set `multiTenantPlugin({ tenantField: { name: '...' } })`, use that name in the `beforeChange` hook.

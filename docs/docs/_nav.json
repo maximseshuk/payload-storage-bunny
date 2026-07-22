@@ -1,6 +1,0 @@
-[
-  { "text": "Documentation", "link": "/", "activeMatch": "^/(?!.*github)" },
-  { "text": "Releases", "link": "https://github.com/maximseshuk/payload-storage-bunny/releases" },
-  { "text": "GitHub", "link": "https://github.com/maximseshuk/payload-storage-bunny" },
-  { "text": "Donate", "link": "https://ko-fi.com/seshuk" }
-]

@@ -1,0 +1,147 @@
+---
+title: 'Changelog'
+description: 'Release history for the Bunny Storage plugin for Payload CMS.'
+---
+
+Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
+
+<Update label="v3.0.0" description="Unreleased">
+  Not yet published to npm. See the [upgrade guide](/upgrade-guide#v2x-to-v30) for config changes and the data migration.
+
+**Breaking**
+
+- Requires Payload CMS 3.83.0+ and Node.js 22+.
+- Stream metadata moved to a stored `bunnyData` field, replacing `bunnyVideoId` / `bunnyVideoMeta` — needs a [data migration](/upgrade-guide#migrate-your-data).
+- Several config keys renamed or removed, and throw at startup until updated — see [config changes](/upgrade-guide#config-changes-breaking).
+
+**New features**
+
+- Per-collection storage zones and stream libraries.
+- Browser-direct client uploads (presigned S3 or a Bunny Edge Script).
+- S3-compatible zone access.
+- IP-locked signed URLs and absolute expiry.
+- Dynamic per-document storage prefix.
+- Setup wizard and edge-script deploy CLI.
+- Server-side config accessors.
+- Adapter for the [media-preview plugin](https://github.com/maximseshuk/payload-plugin-media-preview).
+- New documentation site, built with [Mintlify](https://mintlify.com) — thank you for supporting open source!
+
+If this plugin saves you time, [star it on GitHub](https://github.com/maximseshuk/payload-storage-bunny) or [support the project](https://ko-fi.com/seshuk). Thank you!
+
+</Update>
+
+<Update label="v2.2.0" description="July 12, 2026">
+  The final v2.x release before v3.0.0.
+
+**New features**
+
+- `stream.tus.checkAccess` now receives the parsed auth body (`collection`, `filename`, `filetype`, `filesize`) as a second argument, so you can gate uploads before the video is created.
+- Dynamic upload prefix: the storage prefix can be set per document via `data.prefix` from a collection hook (for example, per-tenant folders).
+
+**Bug fixes**
+
+- Fixed `applyUrlTransform` throwing on relative (access-controlled) URLs; existing query parameters are now preserved.
+- Request query parameters are preserved when proxying storage files through Payload (for example, Bunny Image Optimizer params under access control).
+- Fixed post-upload "saved" detection that compared the update event by object identity instead of `updatedAt`.
+- The plugin now fails fast with a clear error when a configured collection has no `upload` config.
+
+</Update>
+
+<Update label="v2.1.1" description="October 5, 2025">
+  **Bug fixes**
+  - Fixed user collection hooks (`beforeChange`, `afterRead`, `afterDelete`, …) being lost when the plugin initialized.
+  - Fixed collection-level `thumbnail: false` not being honored.
+
+**Other**
+
+- Added Tamil (`ta`) translations.
+- Updated development dependencies to Payload 3.57.
+
+</Update>
+
+<Update label="v2.1.0" description="September 29, 2025">
+  **New features**
+  - Stream-only support: the plugin can run with only Bunny Stream, without a Bunny Storage config.
+  - Renamed `adminThumbnail` to `thumbnail` for clarity (old key still accepted with a deprecation warning, removed in v2.2.0).
+
+**Bug fixes**
+
+- Fixed `thumbnailTime: 0` being treated as invalid.
+
+</Update>
+
+<Update label="v2.0.2" description="September 26, 2025">
+  **Improvements** - Improved build configuration (`resolveFully: true`) for better module resolution.
+
+</Update>
+
+<Update label="v2.0.1" description="September 22, 2025">
+  **New features**
+  - Admin thumbnail `sizeName` parameter, to use a specific upload size.
+  - Full internationalization across all 43 Payload-supported languages.
+
+**Bug fixes**
+
+- Fixed URL decoding in signed-URL generation for correct path handling.
+
+</Update>
+
+<Update label="v2.0.0" description="September 5, 2025">
+  A major release with breaking changes — see the [upgrade guide](/upgrade-guide#v1x-to-v2x).
+
+**Breaking**
+
+- Requires Payload CMS 3.53.0 or higher.
+- Removed the `options` wrapper — all config moves to the top level.
+- `stream.libraryId` is now a number; `stream.mp4Fallback` is now a boolean.
+- `purge.enabled` removed — purging is enabled by the presence of an API key.
+- Removed `experimental.replaceSaveButtonComponent`.
+
+**New features**
+
+- TUS resumable uploads.
+- Signed URLs with geo-restrictions and expiration.
+- Advanced URL transforms (query params or a custom function).
+- Automatic cleanup of failed upload sessions.
+
+</Update>
+
+<Update label="v1.2.2" description="August 15, 2025">
+  **New features** - Added `experimental.replaceSaveButtonComponent` as a temporary workaround for a Payload issue
+  causing unnecessary file re-downloads during field updates.
+
+</Update>
+
+<Update label="v1.2.1" description="July 16, 2025">
+  **Bug fixes** - Fixed uploads hanging in a loading state (pinned `ky` to 1.7.5 to avoid a hang on Node below 22). -
+  Fixed the main filename being set to one of the image-size filenames instead of the original.
+
+</Update>
+
+<Update label="v1.2.0" description="March 23, 2025">
+  **New features**
+  - Automatic CDN cache purging after uploads and deletions, with an async option.
+
+**Bug fixes**
+
+- Fixed errors when cropping or replacing images.
+- Fixed being unable to update metadata on an existing image.
+
+</Update>
+
+<Update label="v1.1.0" description="March 14, 2025">
+  **New features**
+  - `mp4Fallback` configuration (replaces the deprecated `mp4FallbackQuality`), with resolution detection and caching.
+  - `disablePayloadAccessControl` for more flexible file access.
+
+**Bug fixes**
+
+- Fixed non-video files returning 404 when `disablePayloadAccessControl` was not set and Stream was enabled.
+- Fixed thumbnails loading directly from the CDN instead of proxying through Payload under access control.
+
+</Update>
+
+<Update label="v1.0.1" description="January 26, 2025">
+  Initial release: Bunny Storage integration, optional Bunny Stream for video, and admin thumbnails.
+
+</Update>

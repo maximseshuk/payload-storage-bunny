@@ -1,4 +1,0 @@
-[
-  { "type": "file", "name": "init", "label": "Setup Wizard" },
-  { "type": "file", "name": "deploy-edge-script", "label": "Deploy the Edge Script" }
-]

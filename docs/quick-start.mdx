@@ -1,0 +1,104 @@
+---
+title: 'Quick start'
+description: 'Install the plugin and point a Payload collection at Bunny Storage and Stream — automatically with the wizard, or by hand.'
+---
+
+Set up automatically with the wizard, or configure by hand.
+
+## Automatic setup
+
+The [setup wizard](/cli/init) is the fastest path — it provisions the Bunny resources for you and prints a ready-to-paste plugin config plus `.env` lines, with no manual dashboard steps:
+
+```bash
+npx @seshuk/payload-storage-bunny init
+```
+
+See [Setup wizard](/cli/init) for what it asks and everything it creates.
+
+## Manual setup
+
+<Steps>
+
+<Step title="Install">
+
+<CodeGroup>
+
+```bash npm
+npm install @seshuk/payload-storage-bunny
+```
+
+```bash pnpm
+pnpm add @seshuk/payload-storage-bunny
+```
+
+```bash yarn
+yarn add @seshuk/payload-storage-bunny
+```
+
+</CodeGroup>
+
+<Info>Requires Payload CMS 3.83.0 or later and Node.js 22 or later.</Info>
+
+</Step>
+
+<Step title="Configure storage">
+
+Add the plugin to your Payload config and map an upload collection to Bunny Storage:
+
+```ts payload.config.ts
+import { bunnyStorage } from '@seshuk/payload-storage-bunny'
+
+export default buildConfig({
+  collections: [
+    // your upload collections, e.g. Media
+  ],
+  plugins: [
+    bunnyStorage({
+      collections: {
+        media: true,
+      },
+      storage: {
+        apiKey: process.env.BUNNY_STORAGE_API_KEY,
+        hostname: process.env.BUNNY_STORAGE_HOSTNAME, // e.g. my-zone.b-cdn.net
+        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,
+      },
+    }),
+  ],
+})
+```
+
+Files uploaded to the `media` collection are now stored in Bunny Storage and served from the CDN.
+
+</Step>
+
+<Step title="Add video streaming (optional)">
+
+To route video uploads to Bunny Stream, add a `stream` block. Non-video files continue to use Bunny Storage.
+
+```ts payload.config.ts
+bunnyStorage({
+  collections: { media: true },
+  storage: {/* ... */},
+  stream: {
+    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    hostname: process.env.BUNNY_STREAM_HOSTNAME, // e.g. vz-xxxx.b-cdn.net
+    libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID),
+    mp4Fallback: true,
+  },
+})
+```
+
+With Payload access control on (the default), Stream needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/configuration/stream/overview#access-control-and-mp4-fallback).
+
+Videos now upload to Bunny Stream and expose an HLS playlist through the [`bunnyData`](/guides/stored-data) field.
+
+</Step>
+
+</Steps>
+
+## Next steps
+
+- [Configuration](/configuration/overview) — every option, including signed URLs, thumbnails and cache purging
+- [Examples](/guides/examples) — complete configurations for common setups
+- [Client uploads](/configuration/storage/client-uploads) — browser-direct uploads for serverless hosts and large files
+- [Upgrading from v2?](/upgrade-guide) — the v3 config changes and data migration

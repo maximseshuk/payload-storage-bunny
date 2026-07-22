@@ -21,7 +21,7 @@ Payload CMS 3.x storage adapter for Bunny.net. Wraps `@payloadcms/plugin-cloud-s
 
 ```bash
 pnpm typecheck        # tsc --noEmit — ALWAYS run before committing
-pnpm lint             # oxlint
+pnpm lint             # oxlint — add `-f agent` for compact AI-readable output
 pnpm lint:fix         # oxlint --fix
 pnpm format           # oxfmt (write)
 pnpm format:check     # oxfmt --check
@@ -35,16 +35,21 @@ pnpm test:coverage    # vitest + coverage
 pnpm test:e2e         # live e2e against real Bunny resources (needs .env)
 
 pnpm dev              # dev/test Payload app (tests/dev.ts)
-pnpm docs:dev         # rspress docs site (docs/)
+pnpm docs:dev         # Mintlify docs site (docs/)
+pnpm docs:openapi     # regenerate docs/api-reference/openapi.json from src/openapi.ts
+pnpm docs:validate    # mint validate (MDX + build check)
 ```
 
 Run `pnpm typecheck && pnpm lint && pnpm format` before every commit. Not just typecheck.
+
+When you run the linter yourself, use **`pnpm lint -f agent`** — oxlint's compact, AI-readable format (`file:line: level rule msg`). CI needs no flag: oxlint auto-detects GitHub Actions and emits annotation (`github`) format.
 
 ## Repository Structure
 
 ```
 src/
 ├── index.ts        # Plugin entry — extends Payload config
+├── openapi.ts       # typed OpenAPI operations + full document (single source; `pnpm docs:openapi` writes docs/api-reference/openapi.json via scripts/build-openapi.ts)
 ├── types/           # config.ts (user-facing, JSDoc lives here), configNormalized.ts (internal), core.ts (CollectionContext)
 ├── config/          # normalizer.ts (APPLY OVERRIDES HERE), context.ts (wraps as CollectionContext), access.ts (public getBunny*ForCollection accessors), defaults.ts, validator.ts
 ├── adapter/          # handleUpload.ts, handleDelete.ts, generateUrl.ts, staticHandler.ts — use context, never global config
@@ -143,4 +148,4 @@ Never:
 ## References
 
 - `README.md` — user-facing overview and quick start.
-- Docs site: <https://payload-storage-bunny.seshuk.im/> (source in `docs/docs/`).
+- Docs site: <https://payload-storage-bunny.seshuk.im/> (Mintlify; source in `docs/`).

@@ -1,0 +1,61 @@
+---
+title: 'TUS uploads'
+description: 'Enable resumable, chunked TUS uploads that go browser-direct to Bunny Stream with short-lived server authorization.'
+---
+
+TUS breaks large uploads into chunks and resumes them after a dropped connection. The browser uploads directly to Bunny; your server only issues a short-lived authorization. This matters for large video files, flaky connections, and serverless hosts with tight request limits (e.g. Vercel).
+
+```ts
+stream: {
+  // ...
+  tus: true, // enables TUS with default settings
+}
+```
+
+Or configure it:
+
+```ts
+stream: {
+  tus: {
+    autoMode: true,       // auto-enable TUS for supported video/audio files (default: true)
+    expiresIn: 7200,      // seconds until the TUS session expires (default: 3600)
+    checkAccess: (req, body) => req.user?.role === 'admin',
+  },
+}
+```
+
+| Option        | Type                                         | Default        | Description                                                                                                                                                                                                                                                                                             |
+| ------------- | -------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoMode`    | `boolean`                                    | `true`         | When `true`, TUS is used automatically for supported files and the admin UI hides the mode toggle. When `false`, editors get a button to switch between standard and TUS upload.                                                                                                                        |
+| `expiresIn`   | `number`                                     | `3600`         | Seconds before the TUS upload session expires.                                                                                                                                                                                                                                                          |
+| `checkAccess` | `(req, body) => boolean \| Promise<boolean>` | built-in check | Custom authorization for the TUS auth endpoint. Receives the parsed request body (`collection`, `filename`, `filesize`, `filetype`, ...) so you can gate on file size or target collection. The default check requires admin access and create access to at least one collection managed by the plugin. |
+
+How it works:
+
+<Steps>
+
+<Step title="Request">
+
+The admin UI calls `POST /api/storage-bunny/stream/tus-auth` with the target collection and file info.
+
+</Step>
+
+<Step title="Authorize">
+
+The plugin checks access (via `checkAccess` or the default rule), creates the video in Bunny Stream, and returns a signed TUS authorization.
+
+</Step>
+
+<Step title="Upload">
+
+The browser uploads directly to Bunny using the TUS protocol.
+
+</Step>
+
+<Step title="Track (optional)">
+
+If `cleanup` is enabled, the plugin tracks the upload in a hidden `bunny-stream-upload-sessions` collection until it completes.
+
+</Step>
+
+</Steps>

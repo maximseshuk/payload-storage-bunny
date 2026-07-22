@@ -1,4 +1,0 @@
-[
-  { "type": "file", "name": "tus", "label": "TUS uploads" },
-  { "type": "file", "name": "webhooks", "label": "Webhooks" }
-]

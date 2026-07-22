@@ -1,0 +1,31 @@
+---
+title: 'API reference'
+sidebarTitle: 'Overview'
+description: 'HTTP endpoints the plugin adds to your Payload app for client uploads, TUS authorization, and the Stream webhook.'
+---
+
+The plugin registers a few HTTP endpoints on your Payload app, all under the `/api/storage-bunny` prefix. **The admin UI calls them for you** — you only need this reference if you build a custom upload flow (for example, a headless front-end that uploads directly to Bunny), or you're wiring up the Stream webhook.
+
+## Endpoints
+
+| Method & path                             | Purpose                                                                                       |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `POST /api/storage-bunny/storage/upload`  | Mint a signed URL for browser-direct [client uploads](/configuration/storage/client-uploads). |
+| `POST /api/storage-bunny/stream/tus-auth` | Authorize a [TUS resumable upload](/configuration/stream/tus) to Bunny Stream.                |
+| `POST /api/storage-bunny/stream/webhook`  | Receive Bunny Stream [encoding-status callbacks](/configuration/stream/webhooks).             |
+
+These endpoints only exist when the matching feature is configured: `storage/upload` needs `storage.clientUploads`, `stream/tus-auth` needs `stream.tus`, and `stream/webhook` needs `stream.webhook`.
+
+## Authentication
+
+- **`storage/upload` and `stream/tus-auth`** run through Payload's access control — send them with an authenticated admin session (the `payload-token` cookie). Each also enforces its own access callback (`clientUploads.access`, `tus.checkAccess`).
+- **`stream/webhook`** is not a Payload-authenticated route. Bunny signs each call, and the plugin verifies an HMAC-SHA256 `X-BunnyStream-Signature` header against the library's Read-Only API key (`stream.webhook.secret`).
+
+<Info>
+  Base your requests on your own app's origin. The `https://your-site.com` server shown on each endpoint is a
+  placeholder — replace it with where your Payload app runs.
+</Info>
+
+## Plugin config accessors
+
+Looking for the plugin's server-side helper functions (`getBunnyStreamForCollection`, `getBunnyStorageForCollection`, and friends) rather than HTTP endpoints? Those are documented under [Accessing the resolved config](/configuration/collection-overrides#accessing-the-resolved-config).

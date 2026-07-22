@@ -10,8 +10,11 @@ catalog:
   typescript: 6.0.3
 
 allowBuilds:
+  '@scarf/scarf': false
   '@swc/core': true
   esbuild: true
+  keytar: false
   mongodb-memory-server: true
   oxc-resolver: true
+  puppeteer: false
   sharp: true

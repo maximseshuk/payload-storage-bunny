@@ -1,0 +1,91 @@
+---
+title: 'Setup wizard'
+description: 'Interactive init command that provisions Bunny resources and prints a ready-to-paste plugin config and .env lines.'
+---
+
+One interactive command that provisions the Bunny resources you need and prints a ready-to-paste plugin config plus the matching `.env` lines. It never touches your `payload.config.ts`.
+
+```bash
+npx @seshuk/payload-storage-bunny init
+```
+
+No install required — `npx` fetches the package and runs the wizard. If the plugin is already installed, `npx payload-storage-bunny init` works too.
+
+## Prerequisite
+
+A Bunny **account** API key (dashboard → **Account** → **API**). This is the same key used for `accountApiKey` / the [`BUNNY_ACCOUNT_API_KEY`](/configuration/overview) env var. The wizard reads it from `--api-key`, then `BUNNY_ACCOUNT_API_KEY`, then prompts for it (masked) and verifies it before anything else.
+
+## Flags
+
+| Flag        | Description                                                                               |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| `--api-key` | Bunny account API key. Falls back to `BUNNY_ACCOUNT_API_KEY`, then an interactive prompt. |
+| `--dry-run` | Run every read-only check and print the plan, but create nothing. Exits without asking.   |
+
+The wizard is interactive and needs a TTY; it exits with a message if stdout isn't a terminal.
+
+## What it asks
+
+- **What to set up** — Storage, Stream, or both.
+- **Collection slug** — used only in the printed config block.
+- **Storage zone name** — also becomes the pull zone and CDN hostname (`{name}.b-cdn.net`).
+- **Access method** — HTTP API (default) or S3-compatible. S3 creates the zone S3-enabled (irreversible after creation) and unlocks presigned [client uploads](/configuration/storage/client-uploads).
+- **Storage tier** — Standard (HDD, cheaper) or Edge (SSD, faster).
+- **Main storage region** — for the **Standard** tier only (default Frankfurt, DE): HTTP offers 9 regions, S3 offers 8 (the 9 minus São Paulo, which S3 doesn't support). The **Edge (SSD)** tier is always created in Frankfurt (DE) — the main region is fixed and not prompted.
+- **Replication (availability) regions** — optional; excludes the main region. The list depends on access and tier (S3: 8, HTTP + Standard: 9, HTTP + Edge: 15). ⚠️ Replication regions **cannot be removed** once the zone is created — the only way is to delete and recreate the zone. You can also add them later in the Bunny dashboard.
+- **Image optimization** — optionally enables [Bunny Optimizer](https://bunny.net/optimizer/) on the pull zone (flat **$9.50/month per pull zone**, unlimited WebP/AVIF conversion, compression and `?width=`-style resizing; pairs with `thumbnail.queryParams`). Default off. CSS/JS minification is force-disabled so the CDN never rewrites your stored files. With automatic optimization on, images wider than Bunny's desktop max width are downscaled at the edge, and any query params added _after_ URL signing break signed tokens. When enabled, the printed config gets a `thumbnail: { queryParams: { width: '300' } }` starter hint.
+- **Client uploads** — browser-direct uploads for large files or serverless body-size limits. For S3 zones this is a free `clientUploads: true`. For HTTP zones it needs a Bunny Edge Script (additional Edge Scripting cost); the wizard can deploy it now or you can run [`bunny:deploy-edge-script`](/cli/deploy-edge-script) later.
+- **Video library name** — for the Stream library. Its main region is fixed at Frankfurt (DE) and can't be changed; only optional replication regions are configurable (same permanence warning).
+- **Signed URLs** — token-authenticated, time-limited links for storage and/or stream.
+- **CDN cache purge** — enables auto-purge on upload/delete (writes your account key into app env).
+
+## What it creates
+
+<Warning>
+
+**These are billable resources**
+
+The wizard shows exactly what will be created (or reused) and asks you to confirm — the default answer is **No**. Nothing is created until you confirm. It never deletes anything.
+
+</Warning>
+
+The wizard shows approximate Bunny **storage** prices at each prompt (Standard `$0.01/GB`, Edge/SSD `$0.02/GB`, replication regions add the same per-GB rate as the tier; Stream replication is `$0.00/GB` main, `$0.02/GB` first extra region, `$0.005/GB` each subsequent) purely for orientation — they aren't a billing guarantee. Stream also bills encoding + CDN delivery and Storage bills CDN delivery on top; see the current full pricing in the [bunny.net dashboard](https://dash.bunny.net/) after setup.
+
+| Resource          | Defaults                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Storage zone**  | Chosen region + tier (Edge/SSD is always Frankfurt, DE), plus any replication regions. S3-enabled when the S3 access method is picked.                                                                                                                                                                                                                                        |
+| **Pull zone**     | Origin = the storage zone, Standard delivery tier. Token auth on when signed URLs are chosen. Free hardening defaults: legacy TLS 1.0/1.1 off, whitelabel error pages, stale-while-offline on, query strings excluded from the cache key (required for signed URLs and cache-busting to coexist with edge caching). Bunny Optimizer ($9.50/mo) is added only when you opt in. |
+| **Video library** | Fixed Frankfurt (DE) main region (+ optional replication). Served straight from the Bunny CDN (`disablePayloadAccessControl: true`). Token auth on when signed URLs are chosen.                                                                                                                                                                                               |
+| **Edge Script**   | Only when you enable HTTP-zone client uploads and choose to deploy now. Reuses [`bunny:deploy-edge-script`](/cli/deploy-edge-script). Adds Bunny Edge Scripting cost.                                                                                                                                                                                                         |
+
+Videos are served CDN-direct — no MP4 fallback is enabled, which keeps stream storage minimal. If you instead need Payload access control to gate video reads, that path proxies MP4 through Payload and requires `stream.mp4Fallback` (see [Stream](/configuration/stream/overview)); it isn't what the wizard sets up.
+
+Replication regions are optional and **permanent** once the zone is created. You can add more later in the Bunny dashboard.
+
+## What it never does
+
+- It never edits `payload.config.ts` — it prints the config for you to paste.
+- It writes secrets to disk only if you opt in to appending them to `./.env`, and it never overwrites values that already exist there.
+- It never deletes any Bunny resource.
+
+## Reuse and partial failure
+
+Every step is ensure-style. Before creating anything the wizard runs read-only checks and marks each resource `create` or `reuse`:
+
+- A storage zone, pull zone, or video library that already exists **with the same name** is reused, not duplicated.
+- If a name is taken by an unrelated resource (or globally taken by another account), the wizard stops and asks you to pick a different name — it never mutates something it didn't create.
+
+If a call fails partway through, the wizard prints what was already created, then exits. Re-running `init` with the same names is safe: existing resources are reused.
+
+## After running
+
+1. Paste the printed `bunnyStorage({ … })` block into your `payload.config.ts` `plugins` array.
+2. Set the printed environment variables (or let the wizard append them to `./.env`).
+3. Restart your app.
+
+See also:
+
+- [Quick Start](/quick-start)
+- [Client uploads](/configuration/storage/client-uploads)
+- [Signed URLs](/configuration/signed-urls)
+- [Deploy the Edge Script](/cli/deploy-edge-script) — for HTTP-API zones that need browser-direct uploads

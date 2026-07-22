@@ -1,0 +1,359 @@
+/* ============================================================= */
+/* Custom landing page (hero) — ported from the rspress home page */
+/* ============================================================= */
+
+:root {
+  --bunny-font-base:
+    'Geist', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --bunny-font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --bunny-brand: #ef6126;
+  --bunny-bg: #ffffff;
+  --bunny-divider: #e5e1df;
+  --bunny-text-3: #a5a19f;
+  --bunny-hero-secondary: #1e1917;
+  --bunny-hero-title-bg: linear-gradient(85.19deg, #ff2a64 -133.27%, #ffaf48 105.93%);
+  --bunny-home-bg: radial-gradient(120% 90% at 50% 0%, #ffe8d0 0%, #fff4e8 50%, #ffffff 100%);
+}
+
+.dark {
+  --bunny-brand: #ef6126;
+  --bunny-bg: #0e0b0c;
+  --bunny-divider: rgba(255, 255, 255, 0.1);
+  --bunny-text-3: #777271;
+  --bunny-hero-secondary: #faf5f4;
+  --bunny-home-bg: radial-gradient(120% 90% at 50% 0%, #2a1710 0%, #17100c 45%, #0e0b0c 100%);
+}
+
+/* Full-bleed landing: hide the top navbar on the custom home page only */
+body:has(.rp-home) #navbar,
+body:has(.rp-home) #navbar-transition,
+body:has(.rp-home) #topbar {
+  display: none !important;
+}
+
+/* Drop any top offset the layout reserved for the (now hidden) navbar */
+body:has(.rp-home) #content-area,
+body:has(.rp-home) main {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* ---------------------------------- */
+/* Home shell + structural grid       */
+/* ---------------------------------- */
+
+.rp-home {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--bunny-font-base);
+  background: var(--bunny-home-bg);
+  overflow: hidden;
+}
+
+.rp-home-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'%3E%3Cpath d='M100 96v8M96 100h8M500 296v8M496 300h8M300 696v8M296 700h8' stroke='rgba(58,20,8,0.09)' stroke-width='1'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cline x1='100' y1='0' x2='100' y2='200' stroke='rgba(58,20,8,0.03)' stroke-width='1'/%3E%3Cline x1='0' y1='100' x2='200' y2='100' stroke='rgba(58,20,8,0.03)' stroke-width='1'/%3E%3C/svg%3E");
+  background-size:
+    600px 800px,
+    200px 200px;
+  background-position: center top;
+  -webkit-mask-image: radial-gradient(120% 85% at 50% 0%, #000 0%, #000 42%, transparent 78%);
+  mask-image: radial-gradient(120% 85% at 50% 0%, #000 0%, #000 42%, transparent 78%);
+}
+
+.dark .rp-home-grid {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'%3E%3Cpath d='M100 96v8M96 100h8M500 296v8M496 300h8M300 696v8M296 700h8' stroke='rgba(255,255,255,0.07)' stroke-width='1'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cline x1='100' y1='0' x2='100' y2='200' stroke='rgba(255,255,255,0.028)' stroke-width='1'/%3E%3Cline x1='0' y1='100' x2='200' y2='100' stroke='rgba(255,255,255,0.028)' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+/* ---------------------------------- */
+/* Hero                               */
+/* ---------------------------------- */
+
+@keyframes rp-hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes rp-hero-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+.rp-hero {
+  position: relative;
+  z-index: 1;
+  min-height: 82vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: clamp(28px, 5vh, 64px) 24px clamp(24px, 4vh, 48px);
+  font-family: var(--bunny-font-base);
+  background: transparent;
+}
+
+.rp-hero-inner {
+  position: relative;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 64px;
+  max-width: 1040px;
+  flex-wrap: wrap;
+}
+
+.rp-hero-mark {
+  position: relative;
+  width: clamp(180px, 26vw, 300px);
+  height: auto;
+  aspect-ratio: 280 / 320;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-hero-glow {
+  position: absolute;
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  filter: blur(12px);
+  background: radial-gradient(closest-side, rgba(255, 175, 72, 0.45), rgba(255, 42, 100, 0.14) 60%, transparent 72%);
+  animation: rp-hero-glow 4.4s ease-in-out infinite;
+}
+
+.rp-hero-float {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  animation: rp-hero-float 5.2s ease-in-out infinite;
+}
+
+.rp-hero-float img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.rp-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: clamp(14px, 2.2vh, 22px);
+  max-width: 520px;
+}
+
+.rp-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--bunny-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bunny-hero-secondary);
+  border: 1px solid var(--bunny-divider);
+  background: color-mix(in oklab, var(--bunny-bg) 55%, transparent);
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.rp-hero-title {
+  margin: 0;
+  font-size: clamp(40px, 6vw, 64px);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--bunny-hero-secondary);
+}
+
+.rp-hero-grad {
+  background: var(--bunny-hero-title-bg);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.rp-hero-sub {
+  margin: 0;
+  max-width: 560px;
+  font-size: clamp(15px, 1.6vw, 17px);
+  line-height: 1.65;
+  color: var(--bunny-hero-secondary);
+  opacity: 0.75;
+}
+
+.rp-hero-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.rp-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.rp-hero-btn-primary {
+  position: relative;
+  padding-right: 50px;
+  color: #fff;
+  background: var(--bunny-hero-title-bg);
+}
+
+.rp-hero-btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  width: 20px;
+  height: 13px;
+  transform: translateY(-50%);
+  background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIyMCIgZmlsbD0ibm9uZSIgdmlld0JveD0iMCAwIDMwIDIwIj48cGF0aCBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMyIgZD0ibTE4LjQ4NSAxLjUzMSA4LjQ1MyA4LjQ1My04LjQ4NSA4LjQ4NU04LjQ4NSAxLjUzMWw4LjQ1MyA4LjQ1My04LjQ4NSA4LjQ4NSIvPjwvc3ZnPg==')
+    no-repeat center / contain;
+  transition: transform 0.2s ease;
+}
+
+.rp-hero-btn-primary:hover {
+  box-shadow: 0 8px 24px rgba(255, 108, 60, 0.35);
+}
+
+.rp-hero-btn-primary:hover::after {
+  transform: translateY(-50%) translateX(4px);
+}
+
+.rp-hero-btn-ghost {
+  color: var(--bunny-hero-secondary);
+  background: color-mix(in oklab, var(--bunny-bg) 70%, transparent);
+  border: 1px solid var(--bunny-divider);
+}
+
+.rp-hero-btn-ghost:hover {
+  border-color: var(--bunny-text-3);
+  background: var(--bunny-bg);
+}
+
+.rp-hero-cmd {
+  position: relative;
+  display: inline-block;
+  font-family: var(--bunny-font-mono);
+  font-size: 13.5px;
+  color: var(--bunny-hero-secondary);
+  background: color-mix(in oklab, var(--bunny-bg) 70%, transparent);
+  border: 1px solid var(--bunny-divider);
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.rp-hero-cmd:hover {
+  border-color: var(--bunny-text-3);
+}
+
+.rp-hero-cmd span {
+  color: var(--bunny-brand);
+}
+
+/* "Copied!" feedback bubble shown after a click */
+.rp-hero-cmd::after {
+  content: 'Copied!';
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 10px;
+  font-family: var(--bunny-font-base);
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  background: #16a34a;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.rp-hero-cmd[data-copied]::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Hero mark is decorative — kill Mintlify's image zoom/lightbox on the home page */
+.rp-hero-float [data-rmiz],
+.rp-hero-float [data-rmiz] *,
+.rp-hero-float img {
+  pointer-events: none;
+}
+
+@media (max-width: 960px) {
+  .rp-hero-inner {
+    gap: 32px;
+  }
+
+  .rp-hero-copy {
+    align-items: center;
+    text-align: center;
+  }
+
+  .rp-hero-copy .rp-hero-actions {
+    justify-content: center;
+  }
+
+  .rp-hero-mark {
+    width: clamp(150px, 30vw, 240px);
+  }
+}
+
+@media (max-height: 720px) {
+  .rp-hero-mark {
+    width: min(clamp(180px, 26vw, 300px), 36vh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-hero-float,
+  .rp-hero-glow {
+    animation: none;
+  }
+}

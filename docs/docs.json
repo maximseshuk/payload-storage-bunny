@@ -1,0 +1,125 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Payload Storage Bunny",
+  "description": "Bunny.net storage adapter for Payload CMS",
+  "colors": {
+    "primary": "#ef6126",
+    "light": "#f49067",
+    "dark": "#be420e"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo.svg",
+    "dark": "/logo.svg"
+  },
+  "fonts": {
+    "family": "Geist"
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "assistant",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "grok",
+      "aistudio",
+      "devin",
+      "windsurf",
+      "mcp",
+      "add-mcp",
+      "cursor",
+      "vscode",
+      "devin-mcp",
+      "download-pdf",
+      "download-spec"
+    ],
+    "display": "header"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Documentation",
+            "pages": ["introduction", "quick-start", "upgrade-guide", "changelog"]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              {
+                "group": "Storage",
+                "icon": "database",
+                "pages": ["configuration/storage/overview", "configuration/storage/client-uploads"]
+              },
+              {
+                "group": "Stream",
+                "icon": "video",
+                "pages": ["configuration/stream/overview", "configuration/stream/tus", "configuration/stream/webhooks"]
+              },
+              "configuration/collection-overrides",
+              "configuration/signed-urls",
+              "configuration/thumbnails",
+              "configuration/cache-purge",
+              "configuration/url-transforms"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": ["cli/init", "cli/deploy-edge-script"]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/stored-data",
+              "guides/multi-tenant",
+              "guides/stream-collections",
+              "guides/media-preview",
+              "guides/examples"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "API reference",
+            "openapi": "/api-reference/openapi.json",
+            "pages": [
+              "api-reference/overview",
+              "POST /api/storage-bunny/storage/upload",
+              "POST /api/storage-bunny/stream/tus-auth",
+              "POST /api/storage-bunny/stream/webhook"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Releases",
+        "href": "https://github.com/maximseshuk/payload-storage-bunny/releases"
+      },
+      {
+        "label": "Donate",
+        "href": "https://ko-fi.com/seshuk"
+      }
+    ],
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/maximseshuk/payload-storage-bunny"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/maximseshuk/payload-storage-bunny"
+    }
+  }
+}
