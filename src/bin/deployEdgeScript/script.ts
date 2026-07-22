@@ -6,7 +6,7 @@ import type { BinScript } from 'payload'
 import { findConfig } from 'payload/node'
 
 import { applyEnvFile } from '@/bin/shared/envFile.js'
-import { consoleLogger as logger } from '@/bin/shared/logger.js'
+import type { Logger } from '@/bin/shared/logger.js'
 import { EDGE_SCRIPT_SOURCE, EDGE_SCRIPT_VERSION } from '@/storage/clientUploads/edge/embedded.js'
 import type { NormalizedBunnyStorageConfig } from '@/types/configNormalized.js'
 import { PLUGIN_KEY } from '@/utils/constants.js'
@@ -18,6 +18,10 @@ import {
   type EdgeDeployGroup,
   loadZonesFileGroup,
 } from './core.js'
+
+/* eslint-disable no-console */
+const logger: Logger = { error: console.error, info: console.log, warn: console.warn }
+/* eslint-enable no-console */
 
 let reloadCounter = 0
 
