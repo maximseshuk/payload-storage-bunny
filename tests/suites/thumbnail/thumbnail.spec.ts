@@ -86,15 +86,10 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
 
       videoFile.name = 'thumbnail-stream-static.mp4'
 
-      const createdDoc = await payload.create({
+      const doc = await payload.create({
         collection: 'thumbnail-stream-static',
         data: { alt: 'Test stream thumbnail static' },
         file: videoFile,
-      })
-
-      const doc = await payload.findByID({
-        id: createdDoc.id,
-        collection: 'thumbnail-stream-static',
       })
 
       expect(doc.id).toBeTruthy()

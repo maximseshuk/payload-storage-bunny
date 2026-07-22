@@ -6,6 +6,7 @@ import { APIError } from 'payload'
 
 import { purgeCache } from '@/cdn/purge.js'
 import { setStoredVideoId } from '@/fields/bunnyGroupField.js'
+import { getAdminThumbnail } from '@/fields/hooks.js'
 import { uploadStorageFile } from '@/storage/api.js'
 import { uploadStorageFileS3 } from '@/storage/s3.js'
 import { createStreamVideo, uploadStreamVideo } from '@/stream/api.js'
@@ -21,9 +22,6 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
 
   return async ({ clientUploadContext, collection, data, file, req }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
-
-    data.url = null
-    data.thumbnailURL = null
 
     if (clientUploadContext) {
       setStoredVideoId(data, null)
@@ -59,6 +57,11 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         })
 
         setStoredVideoId(data, video.guid)
+
+        const adminThumbnail = getAdminThumbnail(context)
+        if (adminThumbnail) {
+          data.thumbnailURL = adminThumbnail({ doc: data as Record<string, unknown>, req })
+        }
       } else if (storageConfig) {
         if (storageConfig.s3) {
           await uploadStorageFileS3({

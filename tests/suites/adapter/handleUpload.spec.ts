@@ -107,8 +107,6 @@ describe('getHandleUpload', () => {
       } as never)
 
       expect(result).toBe(data)
-      expect(data.url).toBeNull()
-      expect(data.thumbnailURL).toBeNull()
       expect((data.bunnyData as { stream: { videoId: unknown } }).stream.videoId).toBeNull()
       expect(uploadStorageFileMock).not.toHaveBeenCalled()
       expect(createStreamVideoMock).not.toHaveBeenCalled()
