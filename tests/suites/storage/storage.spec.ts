@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises'
 import path from 'node:path'
 
 import type { Payload } from 'payload'
@@ -25,8 +26,6 @@ describe.skipIf(!hasBunnyCredentials())('Storage - Upload and Delete', () => {
       showHiddenFields: true,
     })
 
-    console.log('doc', doc)
-
     expect(doc.id).toBeTruthy()
     expect(doc.filename).toBeTruthy()
     expect(doc.url).toBeTruthy()
@@ -45,14 +44,13 @@ describe.skipIf(!hasBunnyCredentials())('Storage - Upload and Delete', () => {
   })
 
   it('should upload and delete text document', async () => {
+    const buffer = await fs.readFile(path.resolve(import.meta.dirname, '../../fixtures/test-document.txt'))
     const doc = await payload.create({
       collection: 'storage-basic',
       data: { alt: 'Test document alt text' },
-      filePath: path.resolve(import.meta.dirname, '../../fixtures/test-document.txt'),
+      file: { name: 'test-document.txt', data: buffer, mimetype: 'text/plain', size: buffer.length },
       showHiddenFields: true,
     })
-
-    console.log('doc', doc)
 
     expect(doc.id).toBeTruthy()
     expect(doc.filename).toBeTruthy()

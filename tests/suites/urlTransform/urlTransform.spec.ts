@@ -64,7 +64,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
 
   describe('Stream', () => {
     it('should apply custom urlTransform.transformUrl to stream video', async () => {
-      const doc = await payload.create({
+      const created = await payload.create({
         collection: 'url-transform-custom',
         data: {
           alt: 'Test stream URL transform',
@@ -72,6 +72,8 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
         },
         filePath: path.resolve(import.meta.dirname, '../../fixtures/test-video.mp4'),
       })
+
+      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-custom' })
 
       expect(doc.id).toBeTruthy()
       expect(doc.url).toBeTruthy()
@@ -87,7 +89,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
     }, 60000)
 
     it('should serve stream video with MP4 fallback URL', async () => {
-      const doc = await payload.create({
+      const created = await payload.create({
         collection: 'url-transform-static',
         data: {
           alt: 'Test static handler for stream video',
@@ -95,6 +97,8 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
         },
         filePath: path.resolve(import.meta.dirname, '../../fixtures/test-video.mp4'),
       })
+
+      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-static' })
 
       expect(doc.id).toBeTruthy()
       expect(doc.url).toBeTruthy()
@@ -111,7 +115,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
     }, 60000)
 
     it('should apply global urlTransform to stream video', async () => {
-      const doc = await payload.create({
+      const created = await payload.create({
         collection: 'url-transform-global',
         data: {
           alt: 'Test stream signed URL',
@@ -119,6 +123,8 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
         },
         filePath: path.resolve(import.meta.dirname, '../../fixtures/test-video.mp4'),
       })
+
+      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-global' })
 
       expect(doc.id).toBeTruthy()
       expect(doc.url).toBeTruthy()

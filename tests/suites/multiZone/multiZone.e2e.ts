@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test } from '@playwright/test'
 
+import { cleanupStreamVideos } from '../../helpers/e2e/bunnyStream.js'
 import { deleteDocAndAssert, saveDocAndAssert } from '../../helpers/e2e/interactions.js'
 import { getServerUrl } from '../../helpers/e2e/server.js'
 import { hasBunnyCredentials, hasSignedBunnyCredentials } from '../../helpers/shared/credentials.js'
@@ -78,6 +79,11 @@ test.describe('Multi-zone - per-collection stream libraries (TUS auth)', () => {
   test.skip(!(hasBunnyCredentials() && hasSignedBunnyCredentials()), 'Requires BUNNY_* and BUNNY_SIGNED_* credentials')
 
   const serverUrl = getServerUrl()
+
+  test.afterAll(async () => {
+    await cleanupStreamVideos('mz-stream-signed clip', { envPrefix: 'SIGNED' })
+    await cleanupStreamVideos('mz-stream-global clip')
+  })
 
   const requestTusAuth = async (page: import('@playwright/test').Page, collection: string) => {
     await page.goto(`${serverUrl}/admin`)

@@ -19,5 +19,6 @@ export default defineConfig({
     globalSetup: path.resolve(__dirname, './helpers/int/vitestGlobalSetup.ts'),
     include: ['tests/**/*.spec.ts'],
     root: path.resolve(__dirname, '..'),
+    testTimeout: 30000,
   },
 })
