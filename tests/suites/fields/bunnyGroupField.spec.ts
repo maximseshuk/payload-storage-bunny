@@ -1,7 +1,13 @@
 import type { TypeWithID } from 'payload'
 import { describe, expect, it } from 'vitest'
 
-import { bunnyGroupField, getBunnyData, readStoredVideo, setStoredVideoId } from '@/fields/bunnyGroupField.js'
+import {
+  bunnyGroupField,
+  getBunnyData,
+  getAfterReadHook,
+  readStoredVideo,
+  setStoredVideoId,
+} from '@/fields/bunnyGroupField.js'
 import type { CollectionContext } from '@/types/index.js'
 
 const context = (streamConfig?: Partial<CollectionContext['streamConfig']>): CollectionContext =>
@@ -9,6 +15,7 @@ const context = (streamConfig?: Partial<CollectionContext['streamConfig']>): Col
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const findField = (field: any, name: string) => field.fields.find((f: any) => f.name === name)
+const run = (doc: any) => (getAfterReadHook() as any)({ doc })
 
 describe('bunnyGroupField', () => {
   describe('getBunnyData', () => {
@@ -81,16 +88,6 @@ describe('bunnyGroupField', () => {
   })
 
   describe('field afterRead hooks', () => {
-    it('group afterRead returns the value only when a videoId is stored', () => {
-      const field = bunnyGroupField(context({ libraryId: 12345 } as never)) as any
-      const hook = field.hooks.afterRead[0]
-
-      const value = { stream: { videoId: 'v1' } }
-      expect(hook({ value })).toBe(value)
-      expect(hook({ value: { stream: {} } })).toBeNull()
-      expect(hook({ value: undefined })).toBeNull()
-    })
-
     it("type virtual resolves to 'stream' or null", () => {
       const field = bunnyGroupField(context({ libraryId: 12345 } as never)) as any
       const hook = findField(field, 'type').hooks.afterRead[0]
@@ -125,6 +122,30 @@ describe('bunnyGroupField', () => {
 
       expect(findField(findField(withFallback, 'stream'), 'resolutions')).toBeDefined()
       expect(findField(findField(withoutFallback, 'stream'), 'resolutions')).toBeUndefined()
+    })
+  })
+
+  describe('getAfterReadHook', () => {
+    it('collapses bunnyData to null when there is no videoId', () => {
+      expect(run({ bunnyData: { type: null, stream: { videoId: null, libraryId: null } } }).bunnyData).toBeNull()
+    })
+
+    it('keeps bunnyData when a videoId is present', () => {
+      const bunnyData = { type: 'stream', stream: { videoId: 'v1', libraryId: 9 } }
+      expect(run({ bunnyData }).bunnyData).toBe(bunnyData)
+    })
+
+    it('collapses nested sizes[].bunnyData', () => {
+      const result = run({
+        bunnyData: { stream: { videoId: 'v1' } },
+        sizes: { thumbnail: { bunnyData: { stream: { videoId: null } } } },
+      })
+      expect(result.sizes.thumbnail.bunnyData).toBeNull()
+    })
+
+    it('leaves docs without bunnyData untouched', () => {
+      expect(run({ title: 'x' })).toEqual({ title: 'x' })
+      expect(run(null)).toBeNull()
     })
   })
 })

@@ -1,4 +1,4 @@
-import type { Field, GroupField, TypeWithID } from 'payload'
+import type { CollectionAfterReadHook, Field, GroupField, TypeWithID } from 'payload'
 
 import { bunnyDataFieldOpenApi } from '@/openapi.js'
 import type { BunnyDataInternal, CollectionContext } from '@/types/index.js'
@@ -65,14 +65,6 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
       },
       { name: 'stream', type: 'group', fields: streamFields },
     ],
-    hooks: {
-      afterRead: [
-        ({ value }) => {
-          const stored = value as StoredBunnyData | undefined
-          return stored?.stream?.videoId ? value : null
-        },
-      ],
-    },
     typescriptSchema: [
       () => ({
         oneOf: [
@@ -105,6 +97,32 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
         ],
       }),
     ],
+  }
+}
+
+const collapseStoredBunnyData = (target: unknown): void => {
+  if (!target || typeof target !== 'object') {
+    return
+  }
+  const record = target as { bunnyData?: null | StoredBunnyData }
+  if (record.bunnyData && !record.bunnyData.stream?.videoId) {
+    record.bunnyData = null
+  }
+}
+
+export const getAfterReadHook = (): CollectionAfterReadHook => {
+  return ({ doc }) => {
+    if (!doc || typeof doc !== 'object') {
+      return doc
+    }
+    collapseStoredBunnyData(doc)
+    const sizes = (doc as { sizes?: unknown }).sizes
+    if (sizes && typeof sizes === 'object') {
+      for (const size of Object.values(sizes as Record<string, unknown>)) {
+        collapseStoredBunnyData(size)
+      }
+    }
+    return doc
   }
 }
 

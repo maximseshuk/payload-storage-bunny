@@ -20,6 +20,7 @@ import {
   hasAnyStreamCleanup,
   validateNormalizedConfig,
 } from './config/index.js'
+import { getAfterReadHook } from './fields/bunnyGroupField.js'
 import { getFields } from './fields/getFields.js'
 import { clientUploadOperation } from './openapi.js'
 import { getClientUploadHandler } from './storage/clientUploads/endpoint.js'
@@ -150,6 +151,10 @@ export const bunnyStorage: BunnyStoragePlugin =
             hooks: {
               ...(collection.hooks || {}),
               afterChange: [...(collection.hooks?.afterChange || []), getAfterChangeHook(collectionContext)],
+              afterRead: [
+                ...(collection.hooks?.afterRead || []),
+                ...(collectionContext.streamConfig ? [getAfterReadHook()] : []),
+              ],
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
                 ...(hasDynamicClientUploadPrefix ? [getPersistClientUploadPrefixHook(collectionContext)] : []),
