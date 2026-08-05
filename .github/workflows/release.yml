@@ -1,4 +1,4 @@
-name: Release 🚀
+name: Release
 
 on:
   push:
@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   release:
+    name: Verify, release, publish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -43,5 +44,5 @@ jobs:
         with:
           body: ${{ steps.changelog.outputs.content }}
 
-      - name: Publish 🚀
+      - name: Publish to npm
         run: pnpm publish --access public --provenance --no-git-checks

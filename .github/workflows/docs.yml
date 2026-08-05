@@ -1,4 +1,4 @@
-name: Docs 📚
+name: Docs
 
 on:
   push:
@@ -21,23 +21,17 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate
+    name: Validate MDX and navigation
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6
 
-      - name: Set up Node
-        uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
 
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate MDX and navigation
-        run: pnpm docs:validate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm docs:validate
