@@ -1,0 +1,113 @@
+---
+title: 'Telemetry'
+description: 'Anonymous, opt-out usage telemetry: what is collected, what is never sent, and how to turn it off.'
+---
+
+The plugin sends a small, anonymous usage report once per day so the maintainer can see which Payload and plugin versions are in use and which features are worth supporting. It is **opt-out** and **disclosed**: a one-time notice prints to your server logs on first run.
+
+No secrets, IPs, keys, zone/library/bucket names, hostnames, countries, file paths, or collection names ever leave your server.
+
+## What is collected
+
+Every report is a single JSON document with these fields:
+
+| Field             | Example                 | Notes                                                    |
+| ----------------- | ----------------------- | -------------------------------------------------------- |
+| `product`         | `payload-storage-bunny` | Fixed slug for this plugin.                              |
+| `productVersion`  | `3.1.0`                 | Installed plugin version.                                |
+| `payloadVersion`  | `3.86.0`                | Installed Payload version.                               |
+| `runtime`         | `node`                  | Always Node for this plugin.                             |
+| `runtimeVersion`  | `22`                    | Node major version only.                                 |
+| `os`              | `linux`                 | `process.platform`, lowercased.                          |
+| `projectId`       | `b3f1a9c2…`             | Anonymous hash — see [below](#how-projectid-is-derived). |
+| `projectIdSource` | `git`                   | Which source produced the hash.                          |
+| `features`        | `{ "stream": true, … }` | Booleans only — see [below](#feature-flags).             |
+
+### Feature flags
+
+`features` is a flat map of booleans derived from your **resolved** configuration. It records only whether a capability is on, never any value tied to it:
+
+| Flag                       | Meaning                                                          |
+| -------------------------- | ---------------------------------------------------------------- |
+| `storage`                  | Bunny Storage is configured.                                     |
+| `storageS3`                | A storage zone uses the S3-compatible backend (vs the HTTP API). |
+| `storageClientUploads`     | Browser-direct uploads are enabled.                              |
+| `storageClientUploadsEdge` | Client uploads go through an Edge Script (vs presigned S3).      |
+| `stream`                   | Bunny Stream is configured.                                      |
+| `streamTus`                | TUS resumable uploads are enabled.                               |
+| `streamTusAutoMode`        | TUS auto-mode is on.                                             |
+| `streamCleanup`            | The incomplete-upload cleanup task is enabled.                   |
+| `streamWebhook`            | A Stream status webhook is configured.                           |
+| `thumbnail`                | Thumbnails are enabled.                                          |
+| `signedUrls`               | Signed URLs are enabled.                                         |
+| `signedUrlsCountryLock`    | Signed URLs set an allowed/blocked country list.                 |
+| `cdnPurge`                 | CDN cache purging is enabled.                                    |
+| `urlTransform`             | URL transformation is enabled.                                   |
+| `collectionOverrides`      | At least one collection uses object config (not just `true`).    |
+| `collectionZones`          | At least one collection defines its own zone/library.            |
+| `accountApiKey`            | An account-level API key is set.                                 |
+
+## How `projectId` is derived
+
+`projectId` is a one-way, irreversible hash:
+
+```
+projectId = sha256( payload.secret + rawSource )
+```
+
+`payload.secret` is used **only as a salt** and is never transmitted — it is high-entropy and private, so the digest cannot be reversed. This mirrors how Payload derives its own telemetry id.
+
+`rawSource` is the first available of, reported as `projectIdSource`:
+
+1. `git` — the repository's `remote.origin.url`
+2. `packageJSON` — your app's `package.json` `name`
+3. `serverURL` — `payload.config.serverURL`
+4. `cwd` — the process working directory
+
+Only the salted hash is sent — never the git URL, package name, or server URL themselves.
+
+## What is never sent
+
+No IP address, no `payload.secret`, no API keys, no zone / bucket / library / domain names, no file paths, no collection names, no country codes, and no URL-transform internals. `features` carries booleans only.
+
+## Opting out
+
+Telemetry is disabled automatically if **any** of these is true:
+
+- `payload.config.telemetry` is `false` (the host's own Payload opt-out)
+- the plugin's `telemetry` is `false`
+- the `BUNNY_TELEMETRY_DISABLED` or `DO_NOT_TRACK` environment variable is set to a truthy value
+- a `CI` environment is detected
+- `NODE_ENV` is `test`
+
+To opt out explicitly:
+
+```ts payload.config.ts
+bunnyStorage({
+  collections: { media: true },
+  storage: {/* ... */},
+  telemetry: false,
+})
+```
+
+Or via the environment (respects the cross-tool [Console Do Not Track](https://consoledonottrack.com/) standard):
+
+```bash
+DO_NOT_TRACK=1
+# or, plugin-specific:
+BUNNY_TELEMETRY_DISABLED=1
+```
+
+## Sending to your own collector
+
+Pass an object with an `endpoint` to point reports at a collector you control:
+
+```ts payload.config.ts
+telemetry: {
+  endpoint: 'https://telemetry.example.com/v1/collect'
+}
+```
+
+## Transport
+
+Reports are **fire-and-forget**: they never block boot, never throw, and are capped at a 2-second timeout — a telemetry failure can never affect your application. At most one report is sent per project per UTC day (best-effort, via a timestamp in the OS temp directory).

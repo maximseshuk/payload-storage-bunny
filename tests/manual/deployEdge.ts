@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto'
 
 import { cac } from 'cac'
 
-import { checkEdgeScriptVersion, deployEdgeScript } from '../../src/bin/deployEdgeScript/core.js'
-import { EDGE_SCRIPT_SOURCE, EDGE_SCRIPT_VERSION } from '../../src/storage/clientUploads/edge/embedded.js'
+import { checkEdgeScriptVersion, deployEdgeScript } from '../../src/cli/lib/deployEdgeScript.js'
+import { EDGE_SCRIPT_SOURCE, EDGE_SCRIPT_VERSION } from '../../src/server/payload/storage/clientUploads/embedded.js'
 import { log } from '../helpers/shared/log.js'
 
 const arg = (value: unknown): string | undefined => (value === undefined ? undefined : String(value))

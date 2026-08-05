@@ -1,6 +1,6 @@
 import { cac } from 'cac'
 
-import { mintEdgeUploadUrl, verifyEdgeUploadUrl } from '../../src/storage/clientUploads/edge/mint.js'
+import { mintEdgeUploadUrl, verifyEdgeUploadUrl } from '../../src/server/payload/storage/clientUploads/mint.js'
 import { log } from '../helpers/shared/log.js'
 
 const arg = (value: unknown): string | undefined => (value === undefined ? undefined : String(value))

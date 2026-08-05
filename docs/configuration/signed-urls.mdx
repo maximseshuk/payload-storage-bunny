@@ -60,6 +60,12 @@ The `tokenSecurityKey` is per zone / per library. When a collection points at [i
 
 </Info>
 
+<Note>
+
+A Bunny token covers the query string, so any parameter added after signing invalidates it. Payload's `upload.cacheTags` appends the document's `updatedAt` to admin thumbnails, which would break those links — the plugin therefore sets `cacheTags: false` on collections that hand signed CDN URLs straight to the browser (`disablePayloadAccessControl: true`). Filenames are already unique per upload, so cache busting isn't needed there.
+
+</Note>
+
 ## Proxy vs. redirect (`staticHandler`)
 
 When a collection uses Payload's access control (the default), a file request goes through Payload first. `staticHandler` controls what happens next:

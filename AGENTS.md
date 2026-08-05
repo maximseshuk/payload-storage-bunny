@@ -16,6 +16,7 @@ Payload CMS 3.x storage adapter for Bunny.net. Wraps `@payloadcms/plugin-cloud-s
 - Package manager is **pnpm**. Node.js 22+, Payload CMS 3.83+.
 - Install with `pnpm install`.
 - Runtime commands that touch Bunny read secrets from `.env` (loaded via `dotenv`); never hardcode keys.
+- Agent skills are **not vendored** — only `skills-lock.json` is committed (it pins each skill by content hash). Restore them with `npx skills experimental_install`; nothing in the build, tests or CI depends on them.
 
 ## Commands
 
@@ -36,7 +37,7 @@ pnpm test:e2e         # live e2e against real Bunny resources (needs .env)
 
 pnpm dev              # dev/test Payload app (tests/dev.ts)
 pnpm docs:dev         # Mintlify docs site (docs/)
-pnpm docs:openapi     # regenerate docs/api-reference/openapi.json from src/openapi.ts
+pnpm docs:openapi     # regenerate docs/api-reference/openapi.json from src/server/payload/openapi.ts
 pnpm docs:validate    # mint validate (MDX + build check)
 ```
 
@@ -46,25 +47,27 @@ When you run the linter yourself, use **`pnpm lint -f agent`** — oxlint's comp
 
 ## Repository Structure
 
+Three entrypoints — `index.ts` (server), `client/index.ts` (admin UI), `cli/index.ts` (bin) — and four buckets. Dependency direction inside `server/`: payload → bunny → http → shared.
+
 ```
 src/
-├── index.ts        # Plugin entry — extends Payload config
-├── openapi.ts       # typed OpenAPI operations + full document (single source; `pnpm docs:openapi` writes docs/api-reference/openapi.json via scripts/build-openapi.ts)
-├── types/           # config.ts (user-facing, JSDoc lives here), configNormalized.ts (internal), core.ts (CollectionContext)
-├── config/          # normalizer.ts (APPLY OVERRIDES HERE), context.ts (wraps as CollectionContext), access.ts (public getBunny*ForCollection accessors), defaults.ts, validator.ts
-├── adapter/          # handleUpload.ts, handleDelete.ts, generateUrl.ts, staticHandler.ts — use context, never global config
-├── storage/          # Bunny Storage API + S3 backend + client-direct uploads (clientUploads/)
-├── stream/           # Bunny Stream API, TUS auth endpoint, hooks, cleanup task, sessions collection
-├── cdn/               # Cache purging (purge.ts) + signed-URL token auth (tokenAuth.ts)
-├── fields/            # bunnyData group field + field hooks
-├── components/        # Admin UI (TUS upload button, client-upload handler)
-├── mediaPreview/       # ./media-preview subpath — Bunny Stream adapter
-├── migrations/         # ./migrations subpath — v2→v3 bunnyData migration (mongo + sql)
-├── bin/                # CLIs: cli.ts (init entry), init/ (wizard), deployEdgeScript/, shared/ (Logger, bunnyFetch, envFile — reuse, don't duplicate). CLIs parse args with `cac`
-├── exports/            # ./client subpath entry
-├── translations/       # i18n strings
-└── utils/              # shared helpers (http, mimeTypes, urlTransform, cdnUrl, constants)
+├── index.ts        # Server entry — plugin that extends Payload config
+├── shared/          # isomorphic leaf: types/ (config.ts user-facing JSDoc, configNormalized.ts, core.ts), translations/, constants.ts, mimeTypes.ts, http.ts, urlTransform.ts, zoneSecret.ts
+├── client/          # index.ts = 'use client' entry (./client subpath); TusUpload/* (upload button), ClientUploadHandler
+├── edge/            # uploader.edge.js — Bunny Edge Script for client-direct uploads
+├── cli/             # index.ts = bin entry (`init` wizard, args via `cac`); commands/ (init/ wizard, deployEdgeScript.ts), lib/ (shared Logger, bunnyFetch, envFile — reuse, don't duplicate)
+└── server/
+    ├── http/        # lowest server leaf — the shared ky client for every outbound request
+    ├── bunny/       # the only Bunny HTTP API layer — client.ts, storage.ts, s3.ts, stream.ts, cdn.ts
+    ├── payload/     # config/ (normalizer, context, access, defaults, validator), fields/, storage/ (+ clientUploads/), stream/, migrations/, openapi.ts, tokenAuth.ts, mediaPreview.ts
+    ├── telemetry/   # anonymous opt-out usage telemetry — fired from index.ts onInit; depends only on @/shared + node builtins, imported only by the plugin entry
+    ├── urls.ts      # URL builders
+    └── files.ts     # filesystem helpers
 ```
+
+The `telemetry` plugin option (`boolean | { endpoint?: string }`) reads from `config._original.telemetry`; it needs no normalizer entry. Feature flags are derived in `server/telemetry/features.ts` from the resolved `NormalizedBunnyStorageConfig` (booleans only — never zone/library/collection names or other values).
+
+`server/payload/openapi.ts` is the single source for the OpenAPI doc; `pnpm docs:openapi` writes docs/api-reference/openapi.json via scripts/build-openapi.ts. `migrations/` backs the ./migrations subpath, `mediaPreview.ts` the ./media-preview Stream adapter.
 
 ## Architecture
 
@@ -75,9 +78,9 @@ User Config → Normalizer → Collection Context → Adapter → Bunny API
 ```
 
 1. **User config** (`BunnyStorageConfig`) — what the user writes in `payload.config.ts`.
-2. **Normalizer** (`config/normalizer.ts`) — fills defaults, validates, and merges global + per-collection overrides (the `resolveCollection*Config` family). **Apply overrides here.**
-3. **Collection context** (`config/context.ts`) — wraps the already-resolved per-collection config as the runtime `CollectionContext`. No merging here.
-4. **Adapter** (`adapter/*`) — consumes the context.
+2. **Normalizer** (`server/payload/config/normalizer.ts`) — fills defaults, validates, and merges global + per-collection overrides (the `resolveCollection*Config` family). **Apply overrides here.**
+3. **Collection context** (`server/payload/config/context.ts`) — wraps the already-resolved per-collection config as the runtime `CollectionContext`. No merging here.
+4. **Adapter** (`server/payload/storage/*`, `server/payload/stream/*`) — consumes the context.
 5. **Bunny API** — Storage or Stream endpoints.
 
 ### Always use collection context
@@ -94,7 +97,7 @@ const timeout = context.storageConfig.uploadTimeout
 
 ## Coding Standards
 
-- **Comment sparingly.** Do not narrate what the code already says. Add a short comment only where the intent isn't obvious from the code or there's a real nuance (a workaround, a non-obvious constraint, a subtle edge case) that a reader would otherwise miss. JSDoc on the public config API in `src/types/config.ts` and the public accessors in `src/config/access.ts` is expected.
+- **Comment sparingly.** Do not narrate what the code already says. Add a short comment only where the intent isn't obvious from the code or there's a real nuance (a workaround, a non-obvious constraint, a subtle edge case) that a reader would otherwise miss. JSDoc on the public config API in `src/shared/types/config.ts` and the public accessors in `src/server/payload/config/access.ts` is expected.
 - **Never use global config in handlers** — use `context.storageConfig` / `context.streamConfig`, etc.
 - **Handle `false` explicitly** for options that can be disabled. `purge`, `signedUrls`, `thumbnail`, and `urlTransform` are typed `false | Config`:
 
@@ -106,21 +109,21 @@ const timeout = context.storageConfig.uploadTimeout
   purgeConfig: collectionConfig.purge || undefined
   ```
 
-- **Shared CLI helpers** live in `src/bin/shared/`. Reuse the shared `Logger`/`consoleLogger` and `bunnyFetch`/`bunnyJson`; do not duplicate types or add passthrough wrappers.
+- **Shared CLI helpers** live in `src/cli/lib/`. Reuse the shared `Logger`/`consoleLogger` and `bunnyFetch`/`bunnyJson`; do not duplicate types or add passthrough wrappers.
 - Match the surrounding code's naming and idiom.
 
 ### Adding a per-collection override
 
 Example: add a `stream.quality` override.
 
-1. `types/config.ts` — add `quality?: number` to the collection config type (with JSDoc).
-2. `config/normalizer.ts` — add it to the `mergeDefined(...)` call in `resolveCollectionStreamConfig` (undefined values are filtered automatically). For a `false | Config`-typed option, follow the explicit-`false` pattern instead (see `resolveCollectionPurgeConfig`).
+1. `src/shared/types/config.ts` — add `quality?: number` to the collection config type (with JSDoc).
+2. `src/server/payload/config/normalizer.ts` — add it to the `mergeDefined(...)` call in `resolveCollectionStreamConfig` (undefined values are filtered automatically). For a `false | Config`-typed option, follow the explicit-`false` pattern instead (see `resolveCollectionPurgeConfig`).
 3. Update `README.md` and the docs page.
 
 ## Testing
 
-- Unit tests live under `tests/suites/` and mirror the source layout. `pnpm test:unit` is the fast gate (no env needed).
-- Live e2e (`tests/manual/*`, `pnpm test:e2e`) hits real Bunny resources and needs `.env`; keep it out of the default gate.
+- Unit tests live under `tests/unit/` and mirror the `src/` layout. `pnpm test:unit` is the fast gate (no env needed).
+- Live e2e (`tests/e2e/*`, `pnpm test:e2e` → `tests/runE2E.ts`) hits real Bunny resources and needs `.env`; keep it out of the default gate.
 - Add or update tests when changing behavior.
 
 ## Commits

@@ -1,7 +1,7 @@
 <div align="center">
 
 <picture>
-  <img src="docs/docs/public/logo.svg" alt="Bunny.net Storage for Payload" height="80" />
+  <img src="docs/logo.svg" alt="Bunny.net Storage for Payload" height="80" />
 </picture>
 
 <h1>Bunny.net Storage for Payload</h1>
@@ -83,24 +83,30 @@ export default buildConfig({
 })
 ```
 
-Add `stream` for video, `purge` for cache invalidation, `signedUrls` for secure links, and more — see the [configuration reference](https://payload-storage-bunny.seshuk.im/configuration/).
+Add `stream` for video, `purge` for cache invalidation, `signedUrls` for secure links, and more — see the [configuration reference](https://payload-storage-bunny.seshuk.im/configuration/overview).
 
 ## Documentation
 
 Full docs are at **<https://payload-storage-bunny.seshuk.im/>**:
 
 - [Quick Start](https://payload-storage-bunny.seshuk.im/quick-start)
-- [Configuration reference](https://payload-storage-bunny.seshuk.im/configuration/)
+- [Configuration reference](https://payload-storage-bunny.seshuk.im/configuration/overview)
 - [Collection overrides & multi-tenant](https://payload-storage-bunny.seshuk.im/configuration/collection-overrides)
 - [Client uploads](https://payload-storage-bunny.seshuk.im/configuration/storage/client-uploads)
 - [Signed URLs](https://payload-storage-bunny.seshuk.im/configuration/signed-urls)
 - [CLI — setup wizard & Edge Script deploy](https://payload-storage-bunny.seshuk.im/cli/init)
 - [Upgrade Guide](https://payload-storage-bunny.seshuk.im/upgrade-guide)
-- [Examples](https://payload-storage-bunny.seshuk.im/examples)
+- [Examples](https://payload-storage-bunny.seshuk.im/guides/examples)
+
+## Telemetry
+
+The plugin sends an anonymous, opt-out usage report once per day: plugin, Payload, and Node versions plus which features are enabled. It never sends secrets, IPs, keys, zone/library names, hostnames, countries, file paths, or collection names. A one-time notice prints on first run.
+
+Opt out with `telemetry: false`, `DO_NOT_TRACK=1`, or `BUNNY_TELEMETRY_DISABLED=1` (also disabled automatically in CI and when `payload.config.telemetry` is `false`). See [Telemetry](https://payload-storage-bunny.seshuk.im/configuration/telemetry) for the full list of what is and isn't collected.
 
 ## Related plugins
 
-- **[@seshuk/payload-plugin-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — preview images, video, audio, and documents directly in the Payload admin panel. Works with any storage adapter; ships a [Bunny Stream adapter](https://payload-storage-bunny.seshuk.im/media-preview) for this plugin.
+- **[@seshuk/payload-plugin-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — preview images, video, audio, and documents directly in the Payload admin panel. Works with any storage adapter; ships a [Bunny Stream adapter](https://payload-storage-bunny.seshuk.im/guides/media-preview) for this plugin.
 - **[@seshuk/payload-plugin-openapi](https://github.com/maximseshuk/payload-plugin-openapi)** — OpenAPI 3.0/3.1/3.2 spec generator for Payload CMS, with Scalar / Swagger UI.
 
 ## Support

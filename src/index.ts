@@ -12,37 +12,42 @@ import { initClientUploads } from '@payloadcms/plugin-cloud-storage/utilities'
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { BinScriptConfig, Config } from 'payload'
 
-import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './adapter/index.js'
 import {
   createCollectionContext,
   createNormalizedConfig,
   hasAnyStorage,
   hasAnyStreamCleanup,
   validateNormalizedConfig,
-} from './config/index.js'
-import { getAfterReadHook } from './fields/bunnyGroupField.js'
-import { getFields } from './fields/getFields.js'
-import { clientUploadOperation } from './openapi.js'
-import { getClientUploadHandler } from './storage/clientUploads/endpoint.js'
-import { getBeforeChangeHook } from './storage/clientUploads/persistPrefixHook.js'
-import { getStreamCleanupTask } from './stream/cleanupTask.js'
-import { getStreamEndpoints } from './stream/endpoints.js'
-import { getAfterChangeHook, getBeforeValidateHook } from './stream/hooks.js'
-import { getStreamUploadSessionsCollection } from './stream/sessionsCollection.js'
-import { translations } from './translations/index.js'
-import type { PluginDefaultTranslationsObject } from './translations/types.js'
-import type { NormalizedBunnyStorageConfig } from './types/configNormalized.js'
-import type { BunnyStorageConfig, BunnyStoragePlugin } from './types/index.js'
-import { PLUGIN_KEY } from './utils/constants.js'
+} from './server/payload/config/index.js'
+import { getAfterReadHook } from './server/payload/fields/bunnyGroupField.js'
+import { getFields } from './server/payload/fields/getFields.js'
+import { clientUploadOperation } from './server/payload/openapi.js'
+import { getClientUploadHandler } from './server/payload/storage/clientUploads/endpoint.js'
+import { getBeforeChangeHook } from './server/payload/storage/clientUploads/persistPrefixHook.js'
+import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './server/payload/storage/index.js'
+import { getStreamCleanupTask } from './server/payload/stream/cleanupTask.js'
+import { getStreamEndpoints } from './server/payload/stream/endpoints.js'
+import { getAfterChangeHook, getBeforeValidateHook } from './server/payload/stream/hooks.js'
+import { getStreamUploadSessionsCollection } from './server/payload/stream/sessionsCollection.js'
+import { reportTelemetry } from './server/telemetry/index.js'
+import { PLUGIN_KEY } from './shared/constants.js'
+import { translations } from './shared/translations/index.js'
+import type { PluginDefaultTranslationsObject } from './shared/translations/types.js'
+import type { NormalizedBunnyStorageConfig } from './shared/types/configNormalized.js'
+import type { BunnyStorageConfig, BunnyStoragePlugin } from './shared/types/index.js'
 
 export {
   getBunnyCollectionConfig,
   getBunnyConfig,
   getBunnyStorageForCollection,
   getBunnyStreamForCollection,
-} from './config/access.js'
-export type { BunnyCollectionConfig, BunnyCollectionStorage, BunnyCollectionStream } from './config/access.js'
-export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from './types/configNormalized.js'
+} from './server/payload/config/access.js'
+export type {
+  BunnyCollectionConfig,
+  BunnyCollectionStorage,
+  BunnyCollectionStream,
+} from './server/payload/config/access.js'
+export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from './shared/types/configNormalized.js'
 
 export const bunnyStorage: BunnyStoragePlugin =
   (pluginConfig: BunnyStorageConfig) =>
@@ -74,7 +79,12 @@ export const bunnyStorage: BunnyStoragePlugin =
 
     const dirname = path.dirname(fileURLToPath(import.meta.url))
     const pluginBin: BinScriptConfig[] = hasAnyStorage(config)
-      ? [{ key: 'bunny:deploy-edge-script', scriptPath: path.resolve(dirname, 'bin/deployEdgeScript/script.js') }]
+      ? [
+          {
+            key: 'bunny:deploy-edge-script',
+            scriptPath: path.resolve(dirname, 'cli/commands/deployEdgeScript.js'),
+          },
+        ]
       : []
     const existingBin = incomingConfig.bin ?? []
 
@@ -174,7 +184,10 @@ export const bunnyStorage: BunnyStoragePlugin =
             upload: {
               ...(typeof collection.upload === 'object' ? collection.upload : {}),
               adminThumbnail: undefined,
-              ...(collectionContext.thumbnail?.appendTimestamp
+              // Payload appends ?<updatedAt> to admin thumbnails. Bunny signs the query
+              // string, so on direct CDN URLs that extra param invalidates the token.
+              ...(collectionContext.thumbnail?.appendTimestamp ||
+              (collectionContext.signedUrls && !collectionContext.usePayloadAccessControl)
                 ? {
                     cacheTags: false,
                   }
@@ -221,6 +234,10 @@ export const bunnyStorage: BunnyStoragePlugin =
               tasks: [...(incomingConfig.jobs?.tasks || []), cleanupTask],
             }
           : {}),
+      },
+      onInit: async (payload) => {
+        await incomingConfig.onInit?.(payload)
+        void reportTelemetry({ config, payload }).catch(() => {})
       },
     }
 

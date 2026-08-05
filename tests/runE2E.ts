@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.resolve(__dirname, '..')
 
-const suitesDir = path.join(__dirname, 'suites')
+const suitesDir = path.join(__dirname, 'e2e')
 
 const hasE2ETests = (suiteDir: string): boolean => {
   const files = fs.readdirSync(suiteDir)
@@ -61,7 +61,7 @@ const uiMode = process.env.UI_MODE === '1' || args.includes('--ui')
 const suiteArg = args.find((arg) => !arg.startsWith('--'))
 
 if (availableSuites.length === 0) {
-  log.error('No test suites found in tests/suites/')
+  log.error('No test suites found in tests/e2e/')
   process.exit(1)
 }
 
@@ -119,7 +119,7 @@ const runSuite = async (suite: string, isUIMode: boolean): Promise<TestResult> =
 
     const playwrightBin = path.resolve(projectRoot, 'node_modules/.bin/playwright')
     const playwrightConfig = path.resolve(__dirname, 'playwright.config.ts')
-    const testPath = `suites/${suite}/`
+    const testPath = `e2e/${suite}/`
 
     const playwrightArgs = ['test', '-c', playwrightConfig, ...(isUIMode ? ['--ui'] : []), testPath]
 

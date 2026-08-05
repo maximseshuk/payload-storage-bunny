@@ -19,3 +19,6 @@ tests/payload.config.ts
 tests/playwright/
 tests/app/(payload)/admin/importMap.js
 tests/**/*.d.ts
+
+.agents/skills/
+.claude/skills/

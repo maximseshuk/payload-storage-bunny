@@ -65,7 +65,8 @@
               "configuration/signed-urls",
               "configuration/thumbnails",
               "configuration/cache-purge",
-              "configuration/url-transforms"
+              "configuration/url-transforms",
+              "configuration/telemetry"
             ]
           },
           {

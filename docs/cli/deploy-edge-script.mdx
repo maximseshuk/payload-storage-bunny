@@ -19,7 +19,7 @@ Add this to storage.clientUploads of every non-s3 zone that enables client uploa
   edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: '…' },
 ```
 
-Paste that **same** `edge: { scriptUrl, secret }` into `storage.clientUploads` of every non-s3 zone that enables client uploads — the one script (one `scriptUrl`, one shared `secret`) handles all of them. Each zone's credentials live in a separate `ZONE_<NAME>` script secret, so re-running the command is incremental: it adds a `ZONE_*` secret for each new zone and removes the `ZONE_*` secrets for zones no longer in your config. Adding a zone with `bunny:init` no longer requires a full redeploy — it upserts just that zone's secret. S3 zones need no Edge Script at all.
+Paste that **same** `edge: { scriptUrl, secret }` into `storage.clientUploads` of every non-s3 zone that enables client uploads — the one script (one `scriptUrl`, one shared `secret`) handles all of them. Each zone's credentials live in a separate `ZONE_<NAME>` script secret, so re-running the command is incremental: it adds a `ZONE_*` secret for each new zone and removes the `ZONE_*` secrets for zones no longer in your config. Adding a zone with the `npx @seshuk/payload-storage-bunny init` wizard no longer requires a full redeploy — it upserts just that zone's secret. S3 zones need no Edge Script at all.
 
 ## Deploying with the right environment
 

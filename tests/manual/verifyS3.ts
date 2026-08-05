@@ -1,7 +1,12 @@
 import { cac } from 'cac'
 import { S3mini } from 's3mini'
 
-import { deleteStorageFileS3, getS3Endpoint, presignStoragePutUrl, uploadStorageFileS3 } from '../../src/storage/s3.js'
+import {
+  deleteStorageFileS3,
+  getS3Endpoint,
+  presignStoragePutUrl,
+  uploadStorageFileS3,
+} from '../../src/server/bunny/s3.js'
 import { log } from '../helpers/shared/log.js'
 
 const arg = (value: unknown): string | undefined => (value === undefined ? undefined : String(value))
