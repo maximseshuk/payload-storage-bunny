@@ -177,7 +177,7 @@ export const openApiDocument: OpenAPIV3_1.Document = {
     description:
       'HTTP endpoints the plugin registers on your Payload app under `/api`. The admin UI calls these for you; document and drive them yourself only if you build a custom upload flow.',
     title: 'Payload Storage Bunny — Plugin API',
-    version: '3.0.0',
+    version: '3.0.1',
   },
   openapi: '3.1.0',
   paths: {
