@@ -126,8 +126,8 @@ describe('bunnyGroupField', () => {
   })
 
   describe('getAfterReadHook', () => {
-    it('collapses bunnyData to null when there is no videoId', () => {
-      expect(run({ bunnyData: { type: null, stream: { videoId: null, libraryId: null } } }).bunnyData).toBeNull()
+    it('removes bunnyData when there is no videoId', () => {
+      expect(run({ bunnyData: { type: null, stream: { videoId: null, libraryId: null } } }).bunnyData).toBeUndefined()
     })
 
     it('keeps bunnyData when a videoId is present', () => {
@@ -140,7 +140,7 @@ describe('bunnyGroupField', () => {
         bunnyData: { stream: { videoId: 'v1' } },
         sizes: { thumbnail: { bunnyData: { stream: { videoId: null } } } },
       })
-      expect(result.sizes.thumbnail.bunnyData).toBeNull()
+      expect(result.sizes.thumbnail.bunnyData).toBeUndefined()
     })
 
     it('leaves docs without bunnyData untouched', () => {

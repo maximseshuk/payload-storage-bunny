@@ -158,7 +158,7 @@ export const clientUploadOperation: OpenAPIV3_1.OperationObject = {
 
 export const bunnyDataFieldOpenApi: OpenAPIV3_1.SchemaObject = {
   description:
-    'Bunny-managed metadata for this upload. `null` when no video is attached; otherwise a discriminated union keyed by `type` (currently only `"stream"`).',
+    'Bunny-managed metadata for this upload. Omitted when no video is attached; otherwise a discriminated union keyed by `type` (currently only `"stream"`).',
 }
 
 export const openApiDocument: OpenAPIV3_1.Document = {

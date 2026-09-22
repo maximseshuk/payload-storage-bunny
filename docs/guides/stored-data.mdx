@@ -20,7 +20,7 @@ For a video, the API returns:
 }
 ```
 
-For non-video documents in the same collection, `bunnyData` is `null`.
+For non-video documents in the same collection, `bunnyData` is omitted from the response.
 
 - `videoId` **Stored** — stored and indexed.
 - `type` and `libraryId` **Computed** — computed on read from your config, not stored in the database.

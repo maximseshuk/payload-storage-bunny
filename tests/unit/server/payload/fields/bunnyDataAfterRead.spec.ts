@@ -29,13 +29,13 @@ describe('bunnyData afterRead — non-video doc in a stream-enabled collection',
 
   it('create, read, list and delete of a doc without a videoId do not throw', async () => {
     const created = await payload.create({ collection: SLUG, data: { title: 'no video' } })
-    expect(created.bunnyData).toBeNull()
+    expect(created.bunnyData).toBeUndefined()
 
     const read = await payload.findByID({ collection: SLUG, id: created.id })
-    expect(read.bunnyData).toBeNull()
+    expect(read.bunnyData).toBeUndefined()
 
     const list = await payload.find({ collection: SLUG, where: { id: { equals: created.id } } })
-    expect(list.docs[0]?.bunnyData).toBeNull()
+    expect(list.docs[0]?.bunnyData).toBeUndefined()
 
     const deleted = await payload.delete({ collection: SLUG, id: created.id })
     expect(deleted.id).toBe(created.id)
