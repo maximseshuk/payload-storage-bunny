@@ -106,7 +106,7 @@ const collapseStoredBunnyData = (target: unknown): void => {
   }
   const record = target as { bunnyData?: null | StoredBunnyData }
   if (record.bunnyData && !record.bunnyData.stream?.videoId) {
-    record.bunnyData = null
+    delete record.bunnyData
   }
 }
 
