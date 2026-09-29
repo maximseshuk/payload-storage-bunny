@@ -42,6 +42,13 @@ const orphanFindImpl: FindImpl = async (args) => {
   return { docs: [], totalDocs: 0 }
 }
 
+const sessionFindImpl: FindImpl = async (args) => {
+  if ((args.where as { libraryId?: { equals?: string } }).libraryId?.equals === '111') {
+    return { docs: [{ id: 's-1', videoId: 'v1' }], totalDocs: 1 }
+  }
+  return { docs: [], totalDocs: 0 }
+}
+
 describe('stream cleanup task', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -108,6 +115,43 @@ describe('stream cleanup task', () => {
 
     expect(deleteDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 'orphan-1' }))
     expect(warn).toHaveBeenCalled()
+  })
+
+  describe('encoded videos', () => {
+    const config = createNormalizedConfig({
+      collections: {
+        alpha: { disablePayloadAccessControl: true, stream: createOwnStream(111, { cleanup: true }) },
+        beta: { disablePayloadAccessControl: true, stream: createOwnStream(222, { cleanup: true }) },
+      },
+    } as never)
+
+    beforeEach(() => {
+      getVideoMock.mockResolvedValue({ status: BunnyStreamVideoStatus.Finished })
+    })
+
+    it('deletes a video that no document references', async () => {
+      const count = vi.fn().mockResolvedValue({ totalDocs: 0 })
+      const deleteDoc = vi.fn().mockResolvedValue({})
+
+      await runHandler(getStreamCleanupTask(config)!, buildReq(sessionFindImpl, { count, delete: deleteDoc }))
+
+      expect(count).toHaveBeenCalledTimes(1)
+      expect(count).toHaveBeenCalledWith(
+        expect.objectContaining({ collection: 'alpha', where: { 'bunnyData.stream.videoId': { equals: 'v1' } } }),
+      )
+      expect(deleteVideoMock).toHaveBeenCalledWith(expect.objectContaining({ libraryId: 111, videoId: 'v1' }))
+      expect(deleteDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 's-1' }))
+    })
+
+    it('keeps a video that a document references and drops only its session', async () => {
+      const count = vi.fn().mockResolvedValue({ totalDocs: 1 })
+      const deleteDoc = vi.fn().mockResolvedValue({})
+
+      await runHandler(getStreamCleanupTask(config)!, buildReq(sessionFindImpl, { count, delete: deleteDoc }))
+
+      expect(deleteVideoMock).not.toHaveBeenCalled()
+      expect(deleteDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 's-1' }))
+    })
   })
 
   describe('task registration', () => {

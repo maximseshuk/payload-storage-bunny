@@ -67,3 +67,5 @@ Payload's bulk upload drawer opens from the list view's **Bulk Upload** button a
 This covers collections that store files only in Stream (`storage: false`). A collection that also stores files in Bunny Storage needs [client uploads](/configuration/storage/client-uploads) enabled for the same effect, because the handler must take every file, not only videos. Without them, those saves upload through your server as before.
 
 These uploads show Payload's own progress overlay and don't resume after a dropped connection. Use TUS mode in the edit view for that.
+
+If the save fails after the video has uploaded, the video stays in your Stream library. Enable [cleanup](/configuration/stream/overview#cleanup) to remove such videos automatically.

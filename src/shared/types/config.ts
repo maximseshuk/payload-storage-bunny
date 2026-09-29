@@ -196,12 +196,12 @@ export type StreamConfig = {
   /** Bunny Stream API key */
   apiKey: string
   /**
-   * Automatic cleanup of incomplete uploads that failed or were abandoned
+   * Automatic cleanup of videos from uploads that never finished or whose document was never saved
    */
   cleanup?:
     | {
         /**
-         * Time in seconds after which incomplete uploads are considered dead
+         * Time in seconds after which unsaved uploads are considered dead
          * @default 86400
          */
         maxAge?: number
