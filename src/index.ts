@@ -26,6 +26,7 @@ import { getClientUploadHandler } from './server/payload/storage/clientUploads/e
 import { getBeforeChangeHook } from './server/payload/storage/clientUploads/persistPrefixHook.js'
 import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './server/payload/storage/index.js'
 import { getStreamCleanupTask } from './server/payload/stream/cleanupTask.js'
+import { hasStreamClientUploads } from './server/payload/stream/clientUploads.js'
 import { getStreamEndpoints } from './server/payload/stream/endpoints.js'
 import { getAfterChangeHook, getBeforeValidateHook } from './server/payload/stream/hooks.js'
 import { getStreamUploadSessionsCollection } from './server/payload/stream/sessionsCollection.js'
@@ -34,7 +35,12 @@ import { PLUGIN_KEY } from './shared/constants.js'
 import { translations } from './shared/translations/index.js'
 import type { PluginDefaultTranslationsObject } from './shared/translations/types.js'
 import type { NormalizedBunnyStorageConfig } from './shared/types/configNormalized.js'
-import type { BunnyStorageConfig, BunnyStoragePlugin } from './shared/types/index.js'
+import type {
+  BunnyClientUploadExtra,
+  BunnyStorageConfig,
+  BunnyStoragePlugin,
+  CollectionContext,
+} from './shared/types/index.js'
 
 export {
   getBunnyCollectionConfig,
@@ -241,18 +247,19 @@ export const bunnyStorage: BunnyStoragePlugin =
       },
     }
 
-    const clientUploadCollections = [...config.collections.entries()].filter(
-      ([, collection]) => collection.storage?.clientUploads,
-    )
+    const clientUploadContexts = (finalConfig.collections || [])
+      .filter((collection) => collectionsWithAdapter[collection.slug])
+      .map((collection) => createCollectionContext(config, collection))
+      .filter(hasClientUploads)
 
-    if (clientUploadCollections.length > 0) {
+    if (clientUploadContexts.length > 0) {
       initClientUploads({
         clientHandler: '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler',
-        collections: Object.fromEntries(
-          clientUploadCollections.map(([slug, collection]) => [slug, { prefix: collection.prefix }]),
-        ),
+        collections: Object.fromEntries(clientUploadContexts.map((context) => [context.collection.slug, context])),
         config: finalConfig,
         enabled: true,
+        extraClientHandlerProps: (context): BunnyClientUploadExtra =>
+          hasStreamClientUploads(context) ? { streamMimeTypes: context.streamConfig?.mimeTypes } : {},
         serverHandler: getClientUploadHandler(config),
         serverHandlerPath: '/storage-bunny/storage/upload',
       })
@@ -270,13 +277,16 @@ export const bunnyStorage: BunnyStoragePlugin =
     })(finalConfig)
   }
 
+const hasClientUploads = (context: CollectionContext): boolean =>
+  !!context.storageConfig?.clientUploads || hasStreamClientUploads(context)
+
 const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => {
   return ({ collection, prefix }): GeneratedAdapter => {
     const collectionContext = createCollectionContext(config, collection, prefix)
 
     return {
       name: 'bunny',
-      ...(collectionContext.storageConfig?.clientUploads ? { clientUploads: true } : {}),
+      ...(hasClientUploads(collectionContext) ? { clientUploads: true } : {}),
       fields: [],
       generateURL: getGenerateUrl(collectionContext),
       handleDelete: getHandleDelete(collectionContext),

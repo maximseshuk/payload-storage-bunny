@@ -59,3 +59,13 @@ If `cleanup` is enabled, the plugin tracks the upload in a hidden `bunny-stream-
 </Step>
 
 </Steps>
+
+## Bulk uploads and form saves
+
+Payload's bulk upload drawer opens from the list view's **Bulk Upload** button and whenever a file is dropped or pasted on an upload field. The drawer has no TUS controls. Instead, videos saved there, and videos saved from the edit view without switching to TUS mode, go to Bunny Stream over TUS through Payload's client upload handler. The document is created only after the upload finishes. Video bytes never pass through your server, so a request body cap (Vercel's 4.5 MB) doesn't apply.
+
+This covers collections that store files only in Stream (`storage: false`). A collection that also stores files in Bunny Storage needs [client uploads](/configuration/storage/client-uploads) enabled for the same effect, because the handler must take every file, not only videos. Without them, those saves upload through your server as before.
+
+These uploads show Payload's own progress overlay and don't resume after a dropped connection. Use TUS mode in the edit view for that.
+
+If the save fails after the video has uploaded, the video stays in your Stream library. Enable [cleanup](/configuration/stream/overview#cleanup) to remove such videos automatically.

@@ -36,7 +36,7 @@ Files whose MIME type matches `mimeTypes` are routed to Bunny Stream. Everything
 | `tokenSecurityKey` | `string`             | Optional | –                                | Security key for signing stream URLs. Required if you enable [signed URLs](/configuration/signed-urls) for stream.                                                                                                                                                                                |
 | `uploadTimeout`    | `number`             | Optional | `300000` (ms)                    | Upload timeout for standard (non-TUS) uploads.                                                                                                                                                                                                                                                    |
 | `tus`              | `boolean \| object`  | Optional | disabled                         | Enable resumable TUS uploads. See [TUS uploads](/configuration/stream/tus).                                                                                                                                                                                                                       |
-| `cleanup`          | `boolean \| object`  | Optional | disabled                         | Automatically remove incomplete uploads. See [Cleanup](/configuration/stream/overview#cleanup).                                                                                                                                                                                                   |
+| `cleanup`          | `boolean \| object`  | Optional | disabled                         | Automatically remove videos from unfinished or unsaved uploads. See [Cleanup](/configuration/stream/overview#cleanup).                                                                                                                                                                            |
 | `webhook`          | `{ secret: string }` | Optional | disabled                         | Receive status updates from Bunny Stream. See [Webhook](/configuration/stream/webhooks).                                                                                                                                                                                                          |
 
 Default `mimeTypes` cover the common video and audio formats: MP4, MKV, WebM, FLV, AVI, MOV, WMV, MPEG, TS, MXF, and MP3/OGG/WAV audio.
@@ -64,7 +64,9 @@ When Payload proxies the MP4 fallback, it fetches the file from Bunny server-sid
 
 ## Cleanup
 
-Uploads that start but never finish (abandoned tabs, failed TUS sessions) leave orphaned videos in your library. Enable `cleanup` to remove them on a schedule.
+Some uploads leave videos in your library that no document uses. This happens when an upload stops halfway, for example after a closed tab or a failed TUS session. It also happens when the upload finishes but the document is never saved, for example when a bulk upload save fails. Enable `cleanup` to remove these videos on a schedule.
+
+Cleanup only checks uploads that this plugin started. Before it deletes a fully uploaded video, it makes sure no document references it. It never touches videos that other services or the Bunny dashboard add to the same library. Keep `maxAge` longer than an editor might leave an upload unsaved, because a document saved after cleanup has run points to a deleted video.
 
 ```ts
 stream: {
@@ -78,16 +80,16 @@ Or customize:
 ```ts
 stream: {
   cleanup: {
-    maxAge: 86400,                              // seconds before an incomplete upload is considered dead (default)
+    maxAge: 86400,                              // seconds before an unsaved upload is considered dead (default)
     schedule: { cron: '0 2 * * *', queue: 'storage-bunny' }, // default: daily at 2am
   },
 }
 ```
 
-| Option     | Type     | Default                                         | Description                                                  |
-| ---------- | -------- | ----------------------------------------------- | ------------------------------------------------------------ |
-| `maxAge`   | `number` | `86400`                                         | Seconds after which an incomplete upload is considered dead. |
-| `schedule` | object   | `{ cron: '0 2 * * *', queue: 'storage-bunny' }` | Cron schedule for the cleanup job.                           |
+| Option     | Type     | Default                                         | Description                                               |
+| ---------- | -------- | ----------------------------------------------- | --------------------------------------------------------- |
+| `maxAge`   | `number` | `86400`                                         | Seconds after which an unsaved upload is considered dead. |
+| `schedule` | object   | `{ cron: '0 2 * * *', queue: 'storage-bunny' }` | Cron schedule for the cleanup job.                        |
 
 Cleanup registers a Payload job task, so your project needs [Jobs Queue](https://payloadcms.com/docs/jobs-queue/overview) configured and the queue processed (e.g. via a cron endpoint or `payload jobs:run`).
 

@@ -11,6 +11,14 @@ export default buildConfigWithDefaults({
       slug: 'stream-manual',
       upload: { mimeTypes: ['image/*', 'video/mp4'] },
     }),
+    createMediaCollection({
+      slug: 'stream-only',
+      upload: { mimeTypes: ['video/*'] },
+    }),
+    {
+      slug: 'posts',
+      fields: [{ name: 'video', type: 'upload', relationTo: 'stream-only' }],
+    },
   ],
   jobs: {
     autoRun: [
@@ -42,6 +50,17 @@ export default buildConfigWithDefaults({
           stream: {
             mp4Fallback: true,
             thumbnailTime: 3000,
+            tus: {
+              autoMode: false,
+            },
+          },
+        },
+        'stream-only': {
+          disablePayloadAccessControl: true,
+          signedUrls: false,
+          storage: false,
+          stream: {
+            mp4Fallback: false,
             tus: {
               autoMode: false,
             },

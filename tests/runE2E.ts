@@ -101,6 +101,7 @@ const runSuite = async (suite: string, isUIMode: boolean): Promise<TestResult> =
       cwd: projectRoot,
       detached: true,
       env: {
+        MAX_REQUEST_BODY_SIZE: '4500000',
         ...process.env,
         PORT: String(port),
       },

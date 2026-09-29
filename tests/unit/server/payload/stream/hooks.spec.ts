@@ -73,6 +73,30 @@ describe('stream hooks', () => {
       expect(getVideoMock).not.toHaveBeenCalled()
     })
 
+    it('stores the videoId of a client-direct TUS upload after checking it against the library', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-client', status: 1 })
+
+      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const file = { clientUploadContext: { head: '', videoId: 'v-client' }, name: 'big.mp4' }
+
+      const result = (await hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)) as Record<
+        string,
+        any
+      >
+
+      expect(getVideoMock).toHaveBeenCalledWith({ apiKey: 'stream-key', libraryId: 12345, videoId: 'v-client' })
+      expect(result.bunnyData.stream.videoId).toBe('v-client')
+    })
+
+    it('rejects a client-direct upload whose video is not in the library', async () => {
+      getVideoMock.mockRejectedValue(new Error('404'))
+
+      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const file = { clientUploadContext: { videoId: 'foreign' }, name: 'big.mp4' }
+
+      await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toThrow('404')
+    })
+
     it('processes a TUS video on create when a videoId is supplied without a file', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-123', status: 4, storageSize: 4096, title: 'Great Video' })
       isProcessedMock.mockReturnValue(true)

@@ -17,9 +17,9 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 export const waitForVideoProcessed = async (
   videoId: string,
-  options: { envPrefix?: string; interval?: number; timeout?: number } = {},
+  options: { envPrefix?: string; interval?: number; timeout?: number; until?: 'processed' | 'uploaded' } = {},
 ): Promise<boolean> => {
-  const { envPrefix, interval = 2000, timeout = 120000 } = options
+  const { envPrefix, interval = 2000, timeout = 120000, until = 'processed' } = options
   const credentials = getCredentials(envPrefix)
 
   if (!credentials) {
@@ -41,6 +41,11 @@ export const waitForVideoProcessed = async (
       if (video.status === BunnyStreamVideoStatus.Error || video.status === BunnyStreamVideoStatus.UploadFailed) {
         log.error(`Video ${videoId} failed with status: ${video.status}`)
         return false
+      }
+
+      if (until === 'uploaded' && video.status !== BunnyStreamVideoStatus.Created) {
+        log.success(`Video ${videoId} fully uploaded (status: ${video.status})`)
+        return true
       }
 
       log.info(`Waiting for video ${videoId} to process (status: ${video.status})...`)

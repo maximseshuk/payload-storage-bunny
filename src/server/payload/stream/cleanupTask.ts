@@ -6,10 +6,41 @@ import { collectStreamConfigs } from '@/server/payload/config/inspect.js'
 import { streamUploadSessionsCollectionSlug } from '@/server/payload/stream/sessionsCollection.js'
 import type { NormalizedBunnyStorageConfig, NormalizedStreamConfig } from '@/shared/types/index.js'
 
+const isVideoSaved = async ({
+  collectionSlugs,
+  req,
+  videoId,
+}: {
+  collectionSlugs: string[]
+  req: PayloadRequest
+  videoId: string
+}): Promise<boolean> => {
+  for (const collection of collectionSlugs) {
+    const { totalDocs } = await req.payload.count({
+      collection,
+      overrideAccess: true,
+      req,
+      where: {
+        'bunnyData.stream.videoId': {
+          equals: videoId,
+        },
+      },
+    })
+
+    if (totalDocs > 0) {
+      return true
+    }
+  }
+
+  return false
+}
+
 const processLibrarySessions = async ({
+  collectionSlugs,
   req,
   streamConfig,
 }: {
+  collectionSlugs: string[]
   req: PayloadRequest
   streamConfig: NormalizedStreamConfig
 }): Promise<{ deletedCount: number; errorCount: number }> => {
@@ -57,7 +88,8 @@ const processLibrarySessions = async ({
         video.status === BunnyStreamVideoStatus.Created ||
         video.status === BunnyStreamVideoStatus.Uploaded ||
         video.status === BunnyStreamVideoStatus.UploadFailed ||
-        video.status === BunnyStreamVideoStatus.Error
+        video.status === BunnyStreamVideoStatus.Error ||
+        !(await isVideoSaved({ collectionSlugs, req, videoId }))
       ) {
         req.payload.logger.debug({ msg: `[bunny:stream] cleanup: deleting orphan video ${videoId}` })
         await deleteStreamVideo({
@@ -124,7 +156,10 @@ export const getStreamCleanupTask = (
       let errorCount = 0
 
       for (const streamConfig of cleanupConfigs) {
-        const result = await processLibrarySessions({ req, streamConfig })
+        const collectionSlugs = [...config.collections]
+          .filter(([, collection]) => collection.stream?.libraryId === streamConfig.libraryId)
+          .map(([slug]) => slug)
+        const result = await processLibrarySessions({ collectionSlugs, req, streamConfig })
         deletedCount += result.deletedCount
         errorCount += result.errorCount
       }
