@@ -13,6 +13,7 @@ import {
   deriveVideoLibraryName,
   PRICING,
   replicationOptions,
+  requiresStorageReplication,
   storageMainRegionOptions,
   storageReplicationRegionOptions,
   storageTierPrice,
@@ -51,7 +52,12 @@ const must = <T>(value: T | symbol): T => {
   return value as T
 }
 
-const pickReplication = async (all: RegionOption[], mainCode: string, priceNote: string): Promise<string[]> => {
+const pickReplication = async (
+  all: RegionOption[],
+  mainCode: string,
+  priceNote: string,
+  required = false,
+): Promise<string[]> => {
   const options = replicationOptions(all, mainCode)
   if (options.length === 0) {
     return []
@@ -60,9 +66,11 @@ const pickReplication = async (all: RegionOption[], mainCode: string, priceNote:
   note(priceNote, 'Replication pricing (approx)')
   return must(
     await multiselect<string>({
-      message: 'Add replication (availability) regions? Optional — space to toggle, enter to confirm.',
+      message: required
+        ? 'Add replication (availability) regions? This main region needs at least one — space to toggle, enter to confirm.'
+        : 'Add replication (availability) regions? Optional — space to toggle, enter to confirm.',
       options: options.map((option) => ({ label: option.label, value: option.code })),
-      required: false,
+      required,
     }),
   )
 }
@@ -243,7 +251,8 @@ export const runWizard = async (accountApiKey: string): Promise<InitAnswers> => 
     storageReplication = await pickReplication(
       storageReplicationRegionOptions(storageAccess, storageTier),
       region,
-      `Storage replication: each additional region adds +${storageTierPrice(storageTier)} on top of the main region's ${storageTierPrice(storageTier)}.`,
+      `Storage replication: main region ${storageTierPrice(storageTier)}, the first additional region +${PRICING.storageReplicaPerGb[storageTier].first}, each subsequent +${PRICING.storageReplicaPerGb[storageTier].additional}.`,
+      requiresStorageReplication(storageTier, region),
     )
 
     note(
