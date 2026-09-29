@@ -17,6 +17,10 @@ export const PRICING = {
     edge: '$0.02/GB',
     standard: '$0.01/GB',
   },
+  storageReplicaPerGb: {
+    edge: { additional: '$0.02/GB', first: '$0.02/GB' },
+    standard: { additional: '$0.005/GB', first: '$0.01/GB' },
+  },
   streamAdditionalReplicaPerGb: '$0.005/GB',
   streamFirstReplicaPerGb: '$0.02/GB',
   streamMainPerGb: '$0.00/GB',
@@ -25,7 +29,7 @@ export const PRICING = {
 export const storageTierPrice = (tier: StorageTier): string => PRICING.storagePerGb[tier]
 
 export const PRICING_NOTE =
-  'Prices shown are Bunny storage only (approx, for orientation). Stream also bills encoding + CDN delivery; Storage bills CDN delivery. See current full pricing in the bunny.net dashboard after setup.'
+  'Prices shown are approximate Bunny storage prices only. Storage and Stream also charge for CDN delivery. Stream encoding is free, but the optional Premium Encoding costs extra. Check the full, current pricing in the bunny.net dashboard after setup.'
 
 const REGION_LABELS: Record<string, string> = {
   br: 'São Paulo, BR',
@@ -42,7 +46,7 @@ const REGION_LABELS: Record<string, string> = {
   sg: 'Singapore, SG',
   syd: 'Sydney, SYD',
   uk: 'London, UK',
-  wa: 'Washington, DC, US',
+  wa: 'Seattle, US',
 }
 
 const HDD_REGION_CODES = ['de', 'uk', 'se', 'ny', 'la', 'sg', 'syd', 'br', 'jh']
@@ -68,6 +72,11 @@ export const streamRegionOptions = (): RegionOption[] => toRegionOptions(STREAM_
 
 export const replicationOptions = (all: RegionOption[], mainCode: string): RegionOption[] =>
   all.filter((option) => option.code !== mainCode)
+
+const REPLICATION_REQUIRED_STANDARD_REGIONS = ['la']
+
+export const requiresStorageReplication = (tier: StorageTier, region: string): boolean =>
+  tier === 'standard' && REPLICATION_REQUIRED_STANDARD_REGIONS.includes(region)
 
 export type InitAnswers = {
   clientUploads: boolean
@@ -110,6 +119,8 @@ export type InitPlan = {
   stream?: StreamPlanStep
 }
 
+export const STORAGE_ZONE_NAME_MIN = 4
+
 export const STORAGE_ZONE_NAME_MAX = 20
 
 const PULL_ZONE_TIER_STANDARD = 0
@@ -130,7 +141,7 @@ export const sanitizeName = (input: string): string => {
 
 export const deriveBaseName = (packageName?: string): string => {
   const sanitized = packageName ? sanitizeName(packageName) : ''
-  return sanitized || 'media'
+  return sanitized.length >= STORAGE_ZONE_NAME_MIN ? sanitized : 'media'
 }
 
 export const deriveVideoLibraryName = (baseName: string): string => `${baseName}-stream`
@@ -138,6 +149,9 @@ export const deriveVideoLibraryName = (baseName: string): string => `${baseName}
 export const validateStorageZoneName = (name: string): string | undefined => {
   if (name.length === 0) {
     return 'Storage zone name is required.'
+  }
+  if (name.length < STORAGE_ZONE_NAME_MIN) {
+    return `Storage zone names must be at least ${STORAGE_ZONE_NAME_MIN} characters (Bunny limit).`
   }
   if (name.length > STORAGE_ZONE_NAME_MAX) {
     return `Storage zone names must be ${STORAGE_ZONE_NAME_MAX} characters or fewer (Bunny limit).`

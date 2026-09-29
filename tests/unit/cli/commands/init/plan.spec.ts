@@ -5,6 +5,7 @@ import {
   buildInitPlan,
   deriveBaseName,
   deriveVideoLibraryName,
+  requiresStorageReplication,
   sanitizeName,
   storageMainRegionOptions,
   storageReplicationRegionOptions,
@@ -56,6 +57,10 @@ describe('deriveBaseName / deriveVideoLibraryName', () => {
     expect(deriveBaseName('@acme/!!!')).toBe('media')
   })
 
+  it('falls back to "media" when the package name is shorter than a storage zone name allows', () => {
+    expect(deriveBaseName('app')).toBe('media')
+  })
+
   it('appends -stream for the video library name', () => {
     expect(deriveVideoLibraryName('my-app')).toBe('my-app-stream')
   })
@@ -66,10 +71,19 @@ describe('validateStorageZoneName', () => {
     expect(validateStorageZoneName('my-app')).toBeUndefined()
   })
 
-  it('rejects empty, too-long and invalid-character names', () => {
+  it('rejects empty, too-short, too-long and invalid-character names', () => {
     expect(validateStorageZoneName('')).toMatch(/required/)
+    expect(validateStorageZoneName('abc')).toMatch(/at least 4/)
     expect(validateStorageZoneName('a'.repeat(21))).toMatch(/20 characters/)
     expect(validateStorageZoneName('My App')).toMatch(/lowercase/)
+  })
+})
+
+describe('requiresStorageReplication', () => {
+  it('requires a replica only for a Standard zone in Los Angeles', () => {
+    expect(requiresStorageReplication('standard', 'la')).toBe(true)
+    expect(requiresStorageReplication('standard', 'de')).toBe(false)
+    expect(requiresStorageReplication('edge', 'la')).toBe(false)
   })
 })
 
