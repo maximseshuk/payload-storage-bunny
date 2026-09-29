@@ -9,6 +9,8 @@ import { getServerUrl } from '../../helpers/e2e/server.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const PROCESSING_TIMEOUT = 900000
+
 test.afterAll(async () => {
   await cleanupStreamVideos([
     'stream-auto-video',
@@ -163,7 +165,7 @@ test.describe('Stream - TUS File Replacement', () => {
   const secondVideoFilename = 'stream-replace-second.mp4'
 
   test('should upload first file, remove it, upload second file, then save', async ({ page }) => {
-    test.setTimeout(600000)
+    test.setTimeout(PROCESSING_TIMEOUT + 300000)
 
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
@@ -226,7 +228,7 @@ test.describe('Stream - TUS File Replacement', () => {
     expect(doc.bunnyData.stream.videoId).toBeTruthy()
 
     const videoId = doc.bunnyData.stream.videoId
-    const processed = await waitForVideoProcessed(videoId, { timeout: 300000 })
+    const processed = await waitForVideoProcessed(videoId, { timeout: PROCESSING_TIMEOUT })
     expect(processed).toBeTruthy()
 
     const mp4Url = `${serverUrl}/api/stream-manual/file/${doc.filename}`
@@ -247,7 +249,7 @@ test.describe('Stream - MP4 Fallback', () => {
   })
 
   test('should serve MP4 with correct content-type after processing', async ({ page }) => {
-    test.setTimeout(600000)
+    test.setTimeout(PROCESSING_TIMEOUT + 300000)
 
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
@@ -287,7 +289,7 @@ test.describe('Stream - MP4 Fallback', () => {
     expect(doc.bunnyData.type).toBe('stream')
 
     const videoId = doc.bunnyData.stream.videoId
-    const processed = await waitForVideoProcessed(videoId, { timeout: 300000 })
+    const processed = await waitForVideoProcessed(videoId, { timeout: PROCESSING_TIMEOUT })
     expect(processed).toBeTruthy()
 
     const mp4Url = `${serverUrl}/api/stream-manual/file/${doc.filename}`

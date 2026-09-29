@@ -5,6 +5,7 @@ import { getStreamVideo, isVideoProcessed } from '@/server/bunny/stream.js'
 import { getSafeFileName } from '@/server/files.js'
 import { readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { getHandleDelete } from '@/server/payload/storage/handleDelete.js'
+import { getStreamClientUpload } from '@/server/payload/stream/clientUploads.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
@@ -24,6 +25,16 @@ export const getBeforeValidateHook = ({
 
     if (operation === 'create' && filesRequiredOnCreate && !readStoredVideo(data)?.videoId && !file) {
       throw new MissingFile(req.t)
+    }
+
+    const streamClientUpload = getStreamClientUpload(file?.clientUploadContext)
+    if (streamClientUpload && data && context.streamConfig) {
+      await getStreamVideo({
+        apiKey: context.streamConfig.apiKey,
+        libraryId: context.streamConfig.libraryId,
+        videoId: streamClientUpload.videoId,
+      })
+      setStoredVideoId(data, streamClientUpload.videoId)
     }
 
     if (data && !readStoredVideo(data)?.videoId) {

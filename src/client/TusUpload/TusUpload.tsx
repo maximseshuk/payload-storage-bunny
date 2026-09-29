@@ -5,6 +5,7 @@ import {
   useBulkUpload,
   useConfig,
   useDocumentInfo,
+  useModal,
   useUploadControls,
   useUploadEdits,
 } from '@payloadcms/ui'
@@ -26,6 +27,7 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
   const { resetUploadEdits } = useUploadEdits()
   const { setUploadControlFile, setUploadControlFileName, setUploadControlFileUrl } = useUploadControls()
   const bulkUploadContext = useBulkUpload()
+  const { isModalOpen } = useModal()
 
   const [isTusMode, setIsTusMode] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -45,7 +47,7 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
   }, [customCollectionConfig])
 
   const collectionSlug = collectionConfig?.slug || ''
-  const isBulkUpload = !!bulkUploadContext?.collectionSlug
+  const isBulkUpload = !!bulkUploadContext?.collectionSlug && isModalOpen(bulkUploadContext.drawerSlug)
   const isAutoModeEnabled = customCollectionConfig?.stream?.tus?.autoMode === true && !isBulkUpload
   const isTusEnabled = customCollectionConfig?.stream?.tus !== undefined && !isBulkUpload
 

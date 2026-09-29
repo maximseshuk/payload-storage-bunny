@@ -61,6 +61,19 @@ beforeEach(() => {
 })
 
 describe('getStaticHandler dispatch', () => {
+  it('answers a client-direct Stream upload with the head bytes the browser sent, untyped', async () => {
+    const handler = getStaticHandler(context())
+    const head = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70])
+    const res = await handler(makeReq(), {
+      params: { clientUploadContext: { head: head.toString('base64'), videoId: 'v1' }, filename: 'big.mp4' },
+    })
+
+    expect(Buffer.from(await res.arrayBuffer())).toEqual(head)
+    expect(res.headers.get('Content-Type')).toBeNull()
+    expect(streamHandlerMock).not.toHaveBeenCalled()
+    expect(storageHandlerMock).not.toHaveBeenCalled()
+  })
+
   it('routes a bunny:stream thumbnail.jpg filename to the thumbnail handler', async () => {
     const handler = getStaticHandler(context())
     const res = await handler(makeReq(), { doc: undefined, params: { filename: 'bunny:stream:vid1:thumbnail.jpg' } })

@@ -52,3 +52,44 @@ describe('upload.cacheTags wiring', () => {
     expect(upload.cacheTags).toBe(false)
   })
 })
+
+describe('client upload handler registration', () => {
+  const stream = { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, mp4Fallback: true, tus: true }
+
+  const getHandlerProviders = (media: MediaOptions): Array<{ clientProps: Record<string, unknown> }> => {
+    const incoming = {
+      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { media },
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: { region: 'de' }, zoneName: 'zone' },
+      stream,
+    } as BunnyStorageConfig)(incoming) as Config
+
+    return (result.admin?.components?.providers ?? []).filter(
+      (provider) =>
+        typeof provider === 'object' &&
+        provider.path === '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler',
+    ) as Array<{ clientProps: Record<string, unknown> }>
+  }
+
+  it('routes Stream-only TUS collections through the handler with their video types', () => {
+    const [provider] = getHandlerProviders({ disablePayloadAccessControl: true, storage: false })
+
+    expect(provider?.clientProps.collectionSlug).toBe('media')
+    const { streamMimeTypes } = provider!.clientProps.extra as { streamMimeTypes: string[] }
+    expect(streamMimeTypes).toContain('video/mp4')
+    expect(streamMimeTypes.some((type) => type.startsWith('image/'))).toBe(false)
+  })
+
+  it('routes videos over TUS when the collection also has Storage client uploads', () => {
+    const [provider] = getHandlerProviders({ storage: { clientUploads: true } })
+
+    expect(provider?.clientProps.extra).toHaveProperty('streamMimeTypes')
+  })
+
+  it('leaves Storage + Stream collections without client uploads on server uploads', () => {
+    expect(getHandlerProviders(true)).toEqual([])
+  })
+})

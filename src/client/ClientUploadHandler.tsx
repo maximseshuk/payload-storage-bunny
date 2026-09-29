@@ -2,8 +2,21 @@
 
 import { createClientUploadHandler } from '@payloadcms/plugin-cloud-storage/client'
 
-export const BunnyClientUploadHandler = createClientUploadHandler({
-  handler: async ({ apiRoute, collectionSlug, file, serverHandlerPath, serverURL, updateFilename }) => {
+import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
+import type { BunnyClientUploadExtra } from '@/shared/types/index.js'
+
+import { uploadStreamVideo } from './uploadStreamVideo.js'
+
+const MIME_SNIFF_BYTES = 4100
+
+export const BunnyClientUploadHandler = createClientUploadHandler<BunnyClientUploadExtra>({
+  handler: async ({ apiRoute, collectionSlug, extra, file, serverHandlerPath, serverURL, updateFilename }) => {
+    if (extra?.streamMimeTypes?.some((pattern) => matchesMimeTypePattern(file.type, pattern))) {
+      const videoId = await uploadStreamVideo({ apiRoute, collectionSlug, file, serverURL })
+      const head = new Uint8Array(await file.slice(0, MIME_SNIFF_BYTES).arrayBuffer())
+      return { head: btoa(String.fromCharCode(...head)), videoId }
+    }
+
     const response = await fetch(`${serverURL}${apiRoute}${serverHandlerPath}`, {
       body: JSON.stringify({
         collectionSlug,

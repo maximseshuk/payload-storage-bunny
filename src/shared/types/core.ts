@@ -52,6 +52,10 @@ type StreamTusAuthUploaded = {
 
 export type StreamTusAuthResponse = StreamTusAuthUpload | StreamTusAuthUploaded
 
+export type BunnyClientUploadExtra = {
+  streamMimeTypes?: string[]
+}
+
 export type BunnyStreamData = {
   libraryId: number
   resolutions?: {

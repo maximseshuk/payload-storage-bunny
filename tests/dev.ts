@@ -28,6 +28,8 @@ const shouldStartMemoryDB = process.argv.includes('--start-memory-db') || proces
 
 const enableTurbo = !process.argv.includes('--no-turbo')
 
+const maxRequestBodySize = Number(process.env.MAX_REQUEST_BODY_SIZE) || undefined
+
 const setupSuite = (suiteName: string) => {
   const suiteDir = getSuiteDir(suiteName)
   const symlinkPath = path.join(__dirname, 'payload.config.ts')
@@ -97,6 +99,12 @@ const startDev = async () => {
   await app.prepare()
 
   const server = createServer(async (req, res) => {
+    if (maxRequestBodySize && Number(req.headers['content-length']) > maxRequestBodySize) {
+      req.resume()
+      res.writeHead(413, { 'Content-Type': 'text/plain' }).end('FUNCTION_PAYLOAD_TOO_LARGE')
+      return
+    }
+
     const parsedUrl = parse(req.url || '', true)
     await handle(req, res, parsedUrl)
   }).listen(port, () => {
@@ -108,6 +116,9 @@ const startDev = async () => {
   log.blank()
   log.ready(`http://localhost:${port}/admin`)
   log.info(`Suite: ${suite}`)
+  if (maxRequestBodySize) {
+    log.info(`Request body limit: ${maxRequestBodySize} bytes`)
+  }
   log.blank()
 
   void fetch(`http://localhost:${port}/admin`)
