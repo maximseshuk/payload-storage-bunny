@@ -32,6 +32,7 @@ jobs:
         (github.event_name == 'pull_request_target' && needs.approve.result == 'success')
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     concurrency:
       group: e2e
       cancel-in-progress: false
