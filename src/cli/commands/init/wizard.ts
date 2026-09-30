@@ -44,12 +44,12 @@ const STORAGE_TIER_OPTIONS = [
 const REPLICATION_WARNING =
   'Replication zones cannot be removed later. Once the zone is created with replication regions, Bunny does not let you remove them — the only way is to delete and recreate the zone. Choose carefully.'
 
-const must = <T>(value: T | symbol): T => {
+const must = <T>(value: T | symbol): Exclude<T, symbol> => {
   if (isCancel(value)) {
     cancel('Cancelled — nothing was created.')
     process.exit(1)
   }
-  return value as T
+  return value as Exclude<T, symbol>
 }
 
 const pickReplication = async (
