@@ -72,8 +72,12 @@ test.describe('Stream - bulk upload behind a request body limit', () => {
 
     await page.goto(`${serverUrl}/admin/collections/stream-only`)
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Bulk Upload' }).click()
-    await page.locator('.bulk-upload--add-files__hidden-input').setInputFiles({
+    const fileInput = page.locator('.bulk-upload--add-files__hidden-input')
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Bulk Upload' }).click({ timeout: 5000 })
+      await expect(fileInput).toBeAttached({ timeout: 5000 })
+    }).toPass({ timeout: 60000 })
+    await fileInput.setInputFiles({
       buffer: largeVideo,
       mimeType: 'video/mp4',
       name: 'stream-bulk-list.mp4',
