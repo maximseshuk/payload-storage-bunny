@@ -4,7 +4,7 @@ import { HTTPError } from '@/server/http/index.js'
 import { getBunnyData } from '@/server/payload/fields/bunnyGroupField.js'
 import { resolveStoragePrefix } from '@/server/payload/storage/resolvePrefix.js'
 import { storageStaticHandler } from '@/server/payload/storage/serveFile.js'
-import { getStreamClientUpload } from '@/server/payload/stream/clientUploads.js'
+import { getStreamClientUpload, trimToCompleteIsoBoxes } from '@/server/payload/stream/clientUploads.js'
 import { streamStaticHandler } from '@/server/payload/stream/serveStream.js'
 import { streamThumbnailStaticHandler } from '@/server/payload/stream/serveThumbnail.js'
 import type { CollectionContext } from '@/shared/types/index.js'
@@ -21,7 +21,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
       if (streamConfig) {
         const streamClientUpload = getStreamClientUpload(clientUploadContext)
         if (streamClientUpload) {
-          return new Response(Buffer.from(streamClientUpload.head, 'base64'))
+          return new Response(trimToCompleteIsoBoxes(Buffer.from(streamClientUpload.head, 'base64')))
         }
 
         if (filename?.startsWith('bunny:stream:')) {

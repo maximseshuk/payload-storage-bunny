@@ -61,14 +61,18 @@ beforeEach(() => {
 })
 
 describe('getStaticHandler dispatch', () => {
-  it('answers a client-direct Stream upload with the head bytes the browser sent, untyped', async () => {
+  it('answers a client-direct Stream upload with the complete boxes of the head the browser sent, untyped', async () => {
     const handler = getStaticHandler(context())
-    const head = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70])
+    const ftyp = Buffer.from('00000010667479706973736f00000200', 'hex')
+    const truncatedMoov = Buffer.from(`000010006d6f6f76${'00'.repeat(32)}`, 'hex')
     const res = await handler(makeReq(), {
-      params: { clientUploadContext: { head: head.toString('base64'), videoId: 'v1' }, filename: 'big.mp4' },
+      params: {
+        clientUploadContext: { head: Buffer.concat([ftyp, truncatedMoov]).toString('base64'), videoId: 'v1' },
+        filename: 'big.mp4',
+      },
     })
 
-    expect(Buffer.from(await res.arrayBuffer())).toEqual(head)
+    expect(Buffer.from(await res.arrayBuffer())).toEqual(Buffer.concat([ftyp, Buffer.from('0000000866726565', 'hex')]))
     expect(res.headers.get('Content-Type')).toBeNull()
     expect(streamHandlerMock).not.toHaveBeenCalled()
     expect(storageHandlerMock).not.toHaveBeenCalled()
