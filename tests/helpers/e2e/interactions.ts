@@ -37,6 +37,7 @@ export const saveDocAndAssert = async (
   expectation: 'error' | 'success' = 'success',
   options?: {
     disableDismissAllToasts?: boolean
+    timeout?: number
   },
 ): Promise<void> => {
   await wait(500)
@@ -47,7 +48,7 @@ export const saveDocAndAssert = async (
   await page.click(selector, { delay: 100 })
 
   if (expectation === 'success') {
-    await expect(page.locator('.payload-toast-container')).toContainText('successfully')
+    await expect(page.locator('.payload-toast-container')).toContainText('successfully', { timeout: options?.timeout })
     await expect.poll(() => page.url(), { timeout: POLL_TOPASS_TIMEOUT }).not.toContain('/create')
   } else {
     await expect(page.locator('.payload-toast-container .toast-error')).toBeVisible()
