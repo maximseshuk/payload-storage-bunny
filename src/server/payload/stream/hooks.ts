@@ -1,3 +1,6 @@
+import { posix } from 'node:path'
+
+import type { TypeWithPrefix } from '@payloadcms/plugin-cloud-storage/types'
 import type { CollectionAfterChangeHook, CollectionBeforeValidateHook, FileData, JsonObject, TypeWithID } from 'payload'
 import { MissingFile } from 'payload'
 
@@ -121,13 +124,15 @@ export const getAfterChangeHook = (context: CollectionContext): CollectionAfterC
       }
 
       const handleDelete = getHandleDelete(context)
+      const doc = oldDoc as FileData & JsonObject & TypeWithID & TypeWithPrefix
 
       try {
         await handleDelete({
           collection: context.collection,
-          doc: oldDoc as FileData & JsonObject & TypeWithID,
+          doc,
           filename: oldDoc.filename,
           req,
+          storageFilePath: posix.join(doc.prefix || '', oldDoc.filename),
         })
 
         req.payload.logger.debug({
