@@ -36,9 +36,20 @@ updates:
       dev:
         dependency-type: development
         update-types: [minor, patch]
+        exclude-patterns:
+          - payload
+          - '@payloadcms/*'
+          - next
+          - '@next/*'
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
       runtime:
         dependency-type: production
         update-types: [minor, patch]
+        exclude-patterns:
+          - '@payloadcms/*'
 
   - package-ecosystem: github-actions
     directory: /
