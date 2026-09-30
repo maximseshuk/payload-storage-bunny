@@ -257,9 +257,6 @@ importers:
       chalk:
         specifier: ^6.0.0
         version: 6.0.1
-      dotenv:
-        specifier: ^18.0.4
-        version: 18.0.4
       dotenv-cli:
         specifier: ^11.0.0
         version: 11.0.0
@@ -3672,11 +3669,6 @@ packages:
   dotenv@17.4.2:
     resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
-
-  dotenv@18.0.4:
-    resolution: {integrity: sha512-jGt9uI5BIxpVO15kvy+iEFqNAwxYClKWnkptLjSNPnFLC003Imd0ofr3aEVsbpHdSBdSsbcApNIlz4nbyGMwdA==}
-    engines: {node: '>=12'}
-    hasBin: true
 
   drizzle-kit@0.31.7:
     resolution: {integrity: sha512-hOzRGSdyKIU4FcTSFYGKdXEjFsncVwHZ43gY3WU5Bz9j5Iadp6Rh6hxLSQ1IWXpKLBKt/d5y1cpSPcV+FcoQ1A==}
@@ -10590,8 +10582,6 @@ snapshots:
   dotenv@16.6.1: {}
 
   dotenv@17.4.2: {}
-
-  dotenv@18.0.4: {}
 
   drizzle-kit@0.31.7(supports-color@7.2.0):
     dependencies:

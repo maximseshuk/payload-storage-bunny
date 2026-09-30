@@ -1,5 +1,8 @@
+import { existsSync } from 'node:fs'
+
 import { defineConfig, devices } from '@playwright/test'
-import 'dotenv/config'
+
+if (existsSync('.env')) process.loadEnvFile()
 
 const suiteName = process.env.E2E_SUITE_NAME || 'default'
 
