@@ -1,0 +1,53 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    cooldown:
+      default-days: 2
+    commit-message:
+      prefix: chore
+      include: scope
+    ignore:
+      - dependency-name: payload
+        update-types: [version-update:semver-major]
+      - dependency-name: '@payloadcms/*'
+        update-types: [version-update:semver-major]
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
+    groups:
+      payload:
+        patterns:
+          - payload
+          - '@payloadcms/*'
+          - next
+          - '@next/*'
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+      dev:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    cooldown:
+      default-days: 2
+    groups:
+      actions:
+        patterns: ['*']
