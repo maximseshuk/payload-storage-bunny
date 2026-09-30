@@ -1,8 +1,12 @@
-import { createHash } from 'crypto'
+import { createHash, createHmac } from 'crypto'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { generateStreamTusUploadSignature } from '@/server/payload/stream/tusSignature.js'
+import {
+  generateStreamTusUploadSignature,
+  signStreamVideoToken,
+  verifyStreamVideoToken,
+} from '@/server/payload/stream/tusSignature.js'
 import { generateSignedToken, generateSignedUrl } from '@/server/payload/tokenAuth.js'
 
 const rawToken = (hashable: string) =>
@@ -379,5 +383,37 @@ describe('generateStreamTusUploadSignature', () => {
         videoId: '',
       }),
     ).toThrow('Library ID, API key, expiration time, and video ID are required')
+  })
+})
+
+describe('stream video token', () => {
+  const input = { collection: 'media', libraryId: 12345, secret: 'payload-secret', videoId: 'video-1' }
+
+  it('is an HMAC-SHA256 of the collection, library and video keyed by the Payload secret', () => {
+    const expected = createHmac('sha256', 'payload-secret').update('stream-video:media:12345:video-1').digest('hex')
+    expect(signStreamVideoToken(input)).toBe(expected)
+  })
+
+  it('verifies a token signed for the same video', () => {
+    expect(verifyStreamVideoToken({ ...input, token: signStreamVideoToken(input) })).toBe(true)
+  })
+
+  it.each([
+    ['another collection', { collection: 'other' }],
+    ['another library', { libraryId: 1 }],
+    ['another video', { videoId: 'video-2' }],
+    ['another secret', { secret: 'other-secret' }],
+  ])('rejects a token signed for %s', (_label, change) => {
+    const token = signStreamVideoToken({ ...input, ...change })
+    expect(verifyStreamVideoToken({ ...input, token })).toBe(false)
+  })
+
+  it.each([undefined, '', 42, 'short'])('rejects a missing or malformed token (%s)', (token) => {
+    expect(verifyStreamVideoToken({ ...input, token })).toBe(false)
+  })
+
+  it('rejects any token when the video id is empty', () => {
+    const token = signStreamVideoToken({ ...input, videoId: '' })
+    expect(verifyStreamVideoToken({ ...input, token, videoId: '' })).toBe(false)
   })
 })

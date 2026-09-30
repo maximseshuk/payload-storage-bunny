@@ -109,28 +109,45 @@ BunnySDK.net.http.serve(async (request) => {
   }
 
   const maxSize = Number(url.searchParams.get('X-Upload-Max-Size'))
-  const contentLength = Number(request.headers.get('Content-Length'))
+  const sizeParam = url.searchParams.get('X-Upload-Size') ?? ''
+  const size = /^\d+$/.test(sizeParam) ? Number(sizeParam) : NaN
+  const type = url.searchParams.get('X-Upload-Type') ?? ''
+  if (!Number.isSafeInteger(size) || !type) {
+    return withCors(new Response('Invalid upload parameters', { status: 400 }), request)
+  }
+  if (Number.isFinite(maxSize) && size > maxSize) {
+    return withCors(new Response('File too large', { status: 413 }), request)
+  }
 
-  if (Number.isFinite(maxSize)) {
-    if (!Number.isFinite(contentLength)) {
-      return withCors(new Response('Content-Length required', { status: 411 }), request)
-    }
-    if (contentLength > maxSize) {
-      return withCors(new Response('File too large', { status: 413 }), request)
-    }
+  const contentLength = request.headers.get('Content-Length')
+  if (contentLength === null) {
+    return withCors(new Response('Content-Length required', { status: 411 }), request)
+  }
+  if (Number(contentLength) !== size) {
+    return withCors(new Response('Content-Length does not match the signed size', { status: 400 }), request)
+  }
+
+  const target = 'https://' + zone.host + '/' + zoneName + '/' + path
+  const existing = await fetch(target, { headers: { AccessKey: zone.accessKey } })
+  await existing.body?.cancel()
+  if (existing.ok) {
+    return withCors(new Response('File already exists', { status: 409 }), request)
+  }
+  if (existing.status !== 404) {
+    return withCors(new Response('Could not check the upload path', { status: 502 }), request)
   }
 
   let body = request.body
   let sizeExceeded = false
-  if (Number.isFinite(maxSize) && body) {
+  if (body) {
     let transferred = 0
     body = body.pipeThrough(
       new TransformStream({
         transform(chunk, controller) {
           transferred += chunk.byteLength
-          if (transferred > maxSize) {
+          if (transferred > size) {
             sizeExceeded = true
-            controller.error(new Error('max-size exceeded'))
+            controller.error(new Error('size exceeded'))
             return
           }
           controller.enqueue(chunk)
@@ -141,13 +158,13 @@ BunnySDK.net.http.serve(async (request) => {
 
   let upstream
   try {
-    upstream = await fetch('https://' + zone.host + '/' + zoneName + '/' + path, {
+    upstream = await fetch(target, {
       method: 'PUT',
       body,
       duplex: 'half',
       headers: {
         AccessKey: zone.accessKey,
-        'Content-Type': request.headers.get('Content-Type') ?? 'application/octet-stream',
+        'Content-Type': type,
       },
     })
   } catch (err) {

@@ -190,9 +190,6 @@ importers:
       '@clack/prompts':
         specifier: ^1.7.0
         version: 1.8.1
-      '@payloadcms/plugin-cloud-storage':
-        specifier: ^3.90.2
-        version: 3.90.2(@types/react@19.3.0)(monaco-editor@0.52.2)(next@16.3.6(@playwright/test@1.63.0)(@types/node@26.1.2)(babel-plugin-macros@3.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.77.4))(payload@3.90.2(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@7.2.0)(typescript@7.0.2)
       cac:
         specifier: ^7.0.0
         version: 7.0.0
@@ -227,6 +224,9 @@ importers:
       '@payloadcms/next':
         specifier: ^3.90.2
         version: 3.90.2(@types/react@19.3.0)(graphql@16.11.0)(monaco-editor@0.52.2)(next@16.3.6(@playwright/test@1.63.0)(@types/node@26.1.2)(babel-plugin-macros@3.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.77.4))(payload@3.90.2(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@7.2.0)(typescript@7.0.2)
+      '@payloadcms/plugin-cloud-storage':
+        specifier: ^3.90.2
+        version: 3.90.2(@types/react@19.3.0)(monaco-editor@0.52.2)(next@16.3.6(@playwright/test@1.63.0)(@types/node@26.1.2)(babel-plugin-macros@3.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.77.4))(payload@3.90.2(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@7.2.0)(typescript@7.0.2)
       '@payloadcms/translations':
         specifier: ^3.90.2
         version: 3.90.2

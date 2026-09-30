@@ -1,7 +1,7 @@
 import * as tus from 'tus-js-client'
 
 import { BUNNY_API } from '@/shared/constants.js'
-import type { StreamTusAuthResponse } from '@/shared/types/index.js'
+import type { StreamClientUploadContext, StreamTusAuthResponse } from '@/shared/types/index.js'
 
 import { TUS_RETRY_DELAYS } from './TusUpload/Upload/Upload.constants.js'
 
@@ -9,6 +9,7 @@ type UploadStreamVideoArgs = {
   apiRoute: string
   collectionSlug: string
   file: File
+  head: string
   serverURL: string
 }
 
@@ -16,14 +17,16 @@ export const uploadStreamVideo = async ({
   apiRoute,
   collectionSlug,
   file,
+  head,
   serverURL,
-}: UploadStreamVideoArgs): Promise<string> => {
+}: UploadStreamVideoArgs): Promise<StreamClientUploadContext> => {
   const response = await fetch(`${serverURL}${apiRoute}/storage-bunny/stream/tus-auth`, {
     body: JSON.stringify({
       collection: collectionSlug,
       filename: file.name,
       filesize: file.size,
       filetype: file.type,
+      head,
     }),
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -35,8 +38,12 @@ export const uploadStreamVideo = async ({
   }
 
   const authData = (await response.json()) as StreamTusAuthResponse
+  const { clientUploadContext } = authData
+  if (!clientUploadContext) {
+    throw new Error('Bunny Stream upload response is missing the client upload context')
+  }
   if (authData.type !== 'upload') {
-    return authData.videoId
+    return clientUploadContext
   }
 
   await new Promise<void>((resolve, reject) => {
@@ -52,6 +59,7 @@ export const uploadStreamVideo = async ({
         filetype: file.type,
         title: file.name,
         videoId: authData.videoId,
+        videoToken: authData.videoToken,
         ...(typeof authData.thumbnailTime === 'number' && { thumbnailTime: authData.thumbnailTime.toString() }),
       },
       onError: reject,
@@ -61,5 +69,5 @@ export const uploadStreamVideo = async ({
     }).start()
   })
 
-  return authData.videoId
+  return clientUploadContext
 }

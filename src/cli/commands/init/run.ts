@@ -127,6 +127,10 @@ const printLedger = (ledger: Ledger): void => {
 
 const renderOutput = (envBlock: string, configBlock: string): string =>
   [
+    'Install the plugin and its peer dependency:',
+    '',
+    'pnpm add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage',
+    '',
     'Environment variables (add to your .env):',
     '',
     envBlock,

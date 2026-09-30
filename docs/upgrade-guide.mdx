@@ -3,7 +3,62 @@ title: 'Upgrade guide'
 description: 'Upgrade between major versions of the Bunny Storage plugin — config changes and the stored-data migration.'
 ---
 
-This guide covers upgrading between major versions of the Bunny Storage plugin.
+This guide covers upgrading between versions of the Bunny Storage plugin.
+
+## v3.0.x to v3.1.0
+
+v3.1.0 needs no config changes, but it has new install and upload requirements. Most apps only need steps 1 and 2.
+
+v3.1.0 requires Payload CMS 3.90.2 or later. If you are on v3.0.1 with an older Payload version, upgrade Payload first. Staying on v3.0.1 is not recommended, because it lacks the security fixes in v3.1.0.
+
+### 1. Install the cloud storage plugin
+
+`@payloadcms/plugin-cloud-storage` is now a peer dependency. Add it next to the plugin, in the version that matches your Payload version:
+
+```bash
+pnpm add @payloadcms/plugin-cloud-storage
+```
+
+### 2. Redeploy the Edge Script
+
+If you use [client uploads](/configuration/storage/client-uploads) with an Edge Script (HTTP API zones), redeploy it:
+
+```bash
+npx payload bunny:deploy-edge-script
+```
+
+The new script checks the signed file size and MIME type and does not overwrite existing files. An older script still accepts upload URLs minted by v3.1.0, but it skips these checks. S3 zones do not use the script.
+
+### 3. Stricter client uploads
+
+The `/api/storage-bunny/storage/upload` endpoint now has these requirements:
+
+- Without a custom `clientUploads.access` function, the user needs `create` or `update` access to the collection.
+- `filesize` is required, next to `collectionSlug`, `filename` and `mimeType`.
+- HTML, JavaScript, SVG and XML files are rejected, unless the collection sets `upload.allowRestrictedFileTypes: true`.
+- The upload URL only accepts the declared size and MIME type.
+- It returns `409` when a file already exists at the path.
+
+The admin UI already follows these rules. Payload's own rename logic keeps file names unique, so `409` is rare in practice.
+
+### 4. Custom upload clients
+
+This step only applies if you wrote your own upload client. The admin UI needs no changes.
+
+- **Client uploads.** Send the `headers` from the upload endpoint response with the `PUT`. Send the `clientUploadContext` from the same response unchanged with the document. Payload now requires its signed receipt, and the plugin takes the prefix, file size and MIME type from it.
+- **TUS and Stream.** `tus-auth` returns a `videoToken` with every `videoId`. Send it as `bunnyData.stream.videoToken` when you save a document with a `videoId`, and send `videoId` with `videoToken` to resume an upload. Without a valid token, Payload ignores the `videoId` on save, and `tus-auth` creates a new video.
+- **Stream client uploads.** Send the file head as `head` to `tus-auth`, and send the returned `clientUploadContext` unchanged with the document.
+- **Read-only fields.** The injected `prefix` field and `bunnyData.stream.resolutions` no longer accept values from the REST or GraphQL API. Server code that uses the Local API is not affected.
+
+See the [API reference](/api-reference/overview) for the request and response shapes.
+
+### 5. Check static plus mint-time prefixes
+
+This step only applies to collections that set both a static `prefix` and a `clientUploads.prefix` callback that returns a path outside the static prefix. For example, the static prefix `uploads` and the callback result `tenants/acme`.
+
+v3.0.x uploaded such files to `tenants/acme/<file>`, but stored `uploads/tenants/acme` on the document. So URLs and deletes pointed to a path with no file. v3.1.0 uploads new files to `uploads/tenants/acme/<file>`, which matches the stored prefix.
+
+To fix files uploaded with v3.0.x, move each file (and its image sizes) from `<callback result>/<file>` to `<static prefix>/<callback result>/<file>`. You can move files with any S3 client on an S3 zone, or download and re-upload them in the Bunny dashboard. The stored documents need no change. Collections that use only one of the two prefixes are not affected.
 
 ## v2.x to v3.0
 

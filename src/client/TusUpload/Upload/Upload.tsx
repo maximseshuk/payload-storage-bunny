@@ -64,9 +64,10 @@ export const Upload: React.FC<UploadProps> = ({
   }, [])
 
   const updateVideoFields = useCallback(
-    (videoId: string, file: File) => {
+    ({ videoId, videoToken }: StreamTusAuthResponse, file: File) => {
       const fields = [
         { path: 'bunnyData.stream.videoId', value: videoId },
+        { path: 'bunnyData.stream.videoToken', value: videoToken },
         { path: 'mimeType', value: state.tusData?.metadata?.filetype || file.type },
         { path: 'filesize', value: state.tusData?.size || file.size },
         { path: 'filename', value: state.tusData?.metadata?.title || file.name },
@@ -84,7 +85,7 @@ export const Upload: React.FC<UploadProps> = ({
   )
 
   const getAuthData = useCallback(
-    async (file: File, existingVideoId?: string): Promise<StreamTusAuthResponse> => {
+    async (file: File, existingVideoId?: string, existingVideoToken?: string): Promise<StreamTusAuthResponse> => {
       const filesize = state.tusData?.size || file.size
 
       const response = await ky
@@ -96,6 +97,7 @@ export const Upload: React.FC<UploadProps> = ({
             filetype: file.type,
             title: state.fileName,
             videoId: existingVideoId,
+            videoToken: existingVideoToken,
           },
         })
         .json<StreamTusAuthResponse>()
@@ -135,13 +137,13 @@ export const Upload: React.FC<UploadProps> = ({
           if (currentUploads.length > 0) {
             updateState({ tusData: currentUploads[0] })
           }
-          updateVideoFields(authData.videoId, file)
+          updateVideoFields(authData, file)
           void cleanupTusLocalStorage(file, authData.videoId)
         })
         .catch((err) => {
           // eslint-disable-next-line no-console
           console.error('Error getting upload data:', err)
-          updateVideoFields(authData.videoId, file)
+          updateVideoFields(authData, file)
           void cleanupTusLocalStorage(file, authData.videoId)
         })
     },
@@ -166,6 +168,7 @@ export const Upload: React.FC<UploadProps> = ({
           filetype: file.type,
           title: state.fileName || file.name,
           videoId: authData.videoId,
+          videoToken: authData.videoToken,
           ...(typeof authData.thumbnailTime === 'number' && { thumbnailTime: authData.thumbnailTime.toString() }),
         },
         onError: (err) => {
@@ -219,7 +222,7 @@ export const Upload: React.FC<UploadProps> = ({
         uploadStatus: 'completed',
       })
       setBackgroundProcessing(false)
-      updateVideoFields(authData.videoId, file)
+      updateVideoFields(authData, file)
       void cleanupTusLocalStorage(file, authData.videoId)
     },
     [setBackgroundProcessing, updateState, updateVideoFields],
@@ -273,7 +276,7 @@ export const Upload: React.FC<UploadProps> = ({
         }
 
         try {
-          const authData = await getAuthData(file, previousUpload.metadata.videoId)
+          const authData = await getAuthData(file, previousUpload.metadata.videoId, previousUpload.metadata.videoToken)
 
           await handleVideoIdMismatch(file, previousUpload.metadata.videoId, authData.videoId)
 
@@ -313,7 +316,11 @@ export const Upload: React.FC<UploadProps> = ({
           uploadStatus: 'preparing',
         })
 
-        const authData = await getAuthData(state.selectedFile, existingVideoId)
+        const authData = await getAuthData(
+          state.selectedFile,
+          existingVideoId,
+          existingVideoId ? state.tusData?.metadata?.videoToken : undefined,
+        )
 
         if (existingVideoId) {
           await handleVideoIdMismatch(state.selectedFile, existingVideoId, authData.videoId)
@@ -354,6 +361,7 @@ export const Upload: React.FC<UploadProps> = ({
     },
     [
       state.selectedFile,
+      state.tusData,
       getAuthData,
       createTusUpload,
       updateState,

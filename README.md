@@ -35,6 +35,9 @@
 
 Requires **Payload CMS 3.90.2 or later** and **Node.js 22 or later**.
 
+> [!WARNING]
+> On Payload 3.83.0 to 3.90.1, only `@seshuk/payload-storage-bunny@3.0.1` works. We do not recommend it, because it lacks the security fixes in v3.1.0. Upgrade Payload instead.
+
 > [!IMPORTANT]
 > **Upgrading from v2?** v3 renames/removes several config keys (the plugin throws a clear error at startup) **and requires a one-time data migration** of stored Stream metadata into the new `bunnyData` field. Back up your database and follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/upgrade-guide) — skipping the migration leaves existing videos with broken thumbnails and empty metadata.
 
@@ -51,10 +54,12 @@ See the [Setup Wizard](https://payload-storage-bunny.seshuk.im/cli/init) docs. P
 ### Install
 
 ```bash
-npm install @seshuk/payload-storage-bunny
-yarn add @seshuk/payload-storage-bunny
-pnpm add @seshuk/payload-storage-bunny
+npm install @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
+yarn add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
+pnpm add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
 ```
+
+`@payloadcms/plugin-cloud-storage` is a peer dependency. Install the version that matches your Payload version.
 
 ### Configure
 

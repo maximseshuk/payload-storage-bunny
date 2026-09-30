@@ -40,10 +40,13 @@ vi.mock('@/server/payload/stream/sessionsCollection.js', () => ({
   createStreamVideoSession: createSessionMock,
 }))
 
-vi.mock('@/server/payload/stream/tusSignature.js', () => ({
+vi.mock('@/server/payload/stream/tusSignature.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/payload/stream/tusSignature.js')>()),
   generateStreamTusUploadSignature: signMock,
 }))
 
+const { verifyClientUploadReceipt } = await import('payload/internal')
+const { signStreamVideoToken } = await import('@/server/payload/stream/tusSignature.js')
 const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
 const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
 
@@ -68,10 +71,14 @@ const buildReq = (body: Record<string, unknown>, overrides: Record<string, unkno
     payload: {
       collections: { media: { config: collection } },
       logger: { debug: vi.fn(), error: vi.fn() },
+      secret: 'payload-secret',
     },
     t: (key: string) => key,
     ...overrides,
   }) as never
+
+const tokenFor = (videoId: string, collectionSlug = 'media', libraryId = 12345) =>
+  signStreamVideoToken({ collection: collectionSlug, libraryId, secret: 'payload-secret', videoId })
 
 const getTusHandler = (config: ReturnType<typeof buildConfig>) => {
   const endpoint = getStreamEndpoints(config).find((e) => e.path === '/storage-bunny/stream/tus-auth')
@@ -158,7 +165,7 @@ describe('TUS auth endpoint', () => {
     isProcessedMock.mockReturnValue(true)
 
     const handler = getTusHandler(buildConfig())
-    const res = await handler(buildReq({ ...validBody, videoId: 'existing-1' }))
+    const res = await handler(buildReq({ ...validBody, videoId: 'existing-1', videoToken: tokenFor('existing-1') }))
     const json = await res.json()
 
     expect(json.type).toBe('uploaded')
@@ -174,11 +181,68 @@ describe('TUS auth endpoint', () => {
     canUploadToVideoMock.mockReturnValue(true)
 
     const handler = getTusHandler(buildConfig())
-    const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1' }))
+    const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }))
     const json = await res.json()
 
     expect(json.type).toBe('upload')
     expect(json.videoId).toBe('reuse-1')
+    expect(createVideoMock).not.toHaveBeenCalled()
+  })
+
+  it('returns a video token bound to the collection and library', async () => {
+    const handler = getTusHandler(buildConfig())
+    const json = await (await handler(buildReq(validBody))).json()
+
+    expect(json.videoToken).toBe(tokenFor('new-video-1'))
+    expect(json.clientUploadContext).toBeUndefined()
+  })
+
+  it('returns a video token with an already processed video', async () => {
+    getVideoMock.mockResolvedValue({ status: 4, title: 'Existing Title' })
+    isErrorMock.mockReturnValue(false)
+    isProcessedMock.mockReturnValue(true)
+
+    const handler = getTusHandler(buildConfig())
+    const res = await handler(buildReq({ ...validBody, videoId: 'existing-1', videoToken: tokenFor('existing-1') }))
+    const json = await res.json()
+
+    expect(json.videoToken).toBe(tokenFor('existing-1'))
+  })
+
+  it.each([
+    ['no token', undefined],
+    ['a forged token', 'f'.repeat(64)],
+    ['a token for another collection', tokenFor('reuse-1', 'other')],
+    ['a token for another library', tokenFor('reuse-1', 'media', 999)],
+    ['a token for another video', tokenFor('other-video')],
+  ])('creates a new video when the videoId comes with %s', async (_label, videoToken) => {
+    canUploadToVideoMock.mockReturnValue(true)
+
+    const handler = getTusHandler(buildConfig())
+    const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
+    const json = await res.json()
+
+    expect(getVideoMock).not.toHaveBeenCalled()
+    expect(createVideoMock).toHaveBeenCalled()
+    expect(json.videoId).toBe('new-video-1')
+    expect(json.videoToken).toBe(tokenFor('new-video-1'))
+  })
+
+  it('returns a signed client upload context when the file head is sent', async () => {
+    const handler = getTusHandler(buildConfig())
+    const req = buildReq({ ...validBody, head: 'AAAA' }, { user: { collection: 'users', id: 'user-1' } })
+    const json = await (await handler(req)).json()
+
+    const { signedReceipt, ...context } = json.clientUploadContext
+    expect(context).toEqual({ head: 'AAAA', videoId: 'new-video-1', videoToken: tokenFor('new-video-1') })
+    const receipt = verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt })
+    expect(receipt.filename).toBe('clip.mp4')
+    expect(receipt.context).toEqual(context)
+  })
+
+  it('rejects an oversized file head', async () => {
+    const handler = getTusHandler(buildConfig())
+    await expect(handler(buildReq({ ...validBody, head: 'A'.repeat(8193) }))).rejects.toMatchObject({ status: 400 })
     expect(createVideoMock).not.toHaveBeenCalled()
   })
 
@@ -188,7 +252,7 @@ describe('TUS auth endpoint', () => {
     isProcessedMock.mockReturnValue(false)
 
     const handler = getTusHandler(buildConfig())
-    const res = await handler(buildReq({ ...validBody, videoId: 'broken-1' }))
+    const res = await handler(buildReq({ ...validBody, videoId: 'broken-1', videoToken: tokenFor('broken-1') }))
     const json = await res.json()
 
     expect(json.videoId).toBe('new-video-1')
@@ -199,7 +263,7 @@ describe('TUS auth endpoint', () => {
     getVideoMock.mockRejectedValue(new Error('not found'))
 
     const handler = getTusHandler(buildConfig())
-    const res = await handler(buildReq({ ...validBody, videoId: 'missing-1' }))
+    const res = await handler(buildReq({ ...validBody, videoId: 'missing-1', videoToken: tokenFor('missing-1') }))
     const json = await res.json()
 
     expect(json.videoId).toBe('new-video-1')
@@ -267,6 +331,7 @@ describe('TUS auth endpoint', () => {
           payload: {
             collections: { alpha: { config: alpha }, beta: { config: beta } },
             logger: { debug: vi.fn(), error: vi.fn() },
+            secret: 'payload-secret',
           },
           t: (key: string) => key,
         }) as never
@@ -343,6 +408,7 @@ describe('TUS auth endpoint', () => {
         payload: {
           collections: { alpha: { config: alpha }, beta: { config: beta } },
           logger: { debug: vi.fn(), error: vi.fn() },
+          secret: 'payload-secret',
         },
         t: (key: string) => key,
       }) as never
@@ -378,7 +444,7 @@ describe('TUS auth endpoint', () => {
       canUploadToVideoMock.mockReturnValue(true)
 
       const handler = getTusHandler(buildMultiConfig())
-      await handler(buildMultiReq({ ...betaBody, videoId: 'reuse-b' }))
+      await handler(buildMultiReq({ ...betaBody, videoId: 'reuse-b', videoToken: tokenFor('reuse-b', 'beta', 222) }))
 
       expect(getVideoMock).toHaveBeenCalledWith(
         expect.objectContaining({ apiKey: 'beta-key', libraryId: 222, videoId: 'reuse-b' }),

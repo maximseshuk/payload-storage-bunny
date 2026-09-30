@@ -1,6 +1,7 @@
-import type { CollectionAfterReadHook, Field, GroupField, TypeWithID } from 'payload'
+import type { CollectionAfterReadHook, Field, FieldAccess, GroupField, TypeWithID } from 'payload'
 
 import { bunnyDataFieldOpenApi } from '@/server/payload/openapi.js'
+import { verifyStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 import type { BunnyDataInternal, CollectionContext } from '@/shared/types/index.js'
 
 type StoredResolutions = {
@@ -18,8 +19,32 @@ type StoredBunnyData = {
 }
 
 export const bunnyGroupField = (context: CollectionContext): GroupField => {
+  const canWriteVideoId: FieldAccess = ({ req, siblingData }) => {
+    const videoId = siblingData?.videoId
+    if (!videoId) {
+      return true
+    }
+    return (
+      !!context.streamConfig &&
+      typeof videoId === 'string' &&
+      verifyStreamVideoToken({
+        collection: context.collection.slug,
+        libraryId: context.streamConfig.libraryId,
+        secret: req.payload.secret,
+        token: siblingData?.videoToken,
+        videoId,
+      })
+    )
+  }
+
   const streamFields: Field[] = [
-    { name: 'videoId', type: 'text', index: true },
+    {
+      name: 'videoId',
+      type: 'text',
+      access: { create: canWriteVideoId, update: canWriteVideoId },
+      index: true,
+    },
+    { name: 'videoToken', type: 'text', admin: { hidden: true }, virtual: true },
     {
       name: 'libraryId',
       type: 'number',
@@ -40,7 +65,7 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
   ]
 
   if (context.streamConfig?.mp4Fallback) {
-    streamFields.push({ name: 'resolutions', type: 'json' })
+    streamFields.push({ name: 'resolutions', type: 'json', access: { create: () => false, update: () => false } })
   }
 
   return {

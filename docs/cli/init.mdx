@@ -85,9 +85,10 @@ If a call fails partway through, the wizard prints what was already created, the
 
 ## After running
 
-1. Paste the printed `bunnyStorage({ … })` block into your `payload.config.ts` `plugins` array.
-2. Set the printed environment variables (or let the wizard append them to `./.env`).
-3. Restart your app.
+1. Install the plugin and its peer dependency, as the wizard prints: `pnpm add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage`.
+2. Paste the printed `bunnyStorage({ … })` block into your `payload.config.ts` `plugins` array.
+3. Set the printed environment variables (or let the wizard append them to `./.env`).
+4. Restart your app.
 
 See also:
 

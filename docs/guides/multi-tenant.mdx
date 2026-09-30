@@ -124,7 +124,7 @@ bunnyStorage({
 
 Resolve the tenant server-side — here from the tenant the admin panel has selected, via the plugin's public `getTenantFromCookie` helper (with `plugin-multi-tenant`, users carry a `tenants` array, not a single `tenant` field) — never from the client-supplied body, which the caller controls. The callback runs after the `storage.clientUploads.access` check, so an unauthorized caller never reaches it.
 
-The mint-time prefix decides where the file lands in the zone, and the plugin persists that same minted prefix onto the document automatically — it copies it from the client upload context on the create request that follows the upload. Deletes, reads, and URL generation then resolve to the minted path with no matching `beforeChange` hook of your own. When you use a `clientUploads.prefix` function, the plugin also injects the hidden per-document `prefix` field for you, so a static collection `prefix` isn't required for client-only uploads.
+The mint-time prefix decides where the file lands in the zone, and the plugin persists that same minted prefix onto the document automatically. It reads the prefix from the signed receipt that Payload verifies on the create request that follows the upload. Deletes, reads, and URL generation then resolve to the minted path with no matching `beforeChange` hook of your own. When you use a `clientUploads.prefix` function, the plugin also injects the hidden per-document `prefix` field for you, so a static collection `prefix` isn't required for client-only uploads.
 
 ## Isolation: how the CDN enforces it
 
@@ -201,4 +201,6 @@ These are the plugin's public utilities. Avoid reaching for its internals (the `
 ## Caveats
 
 - **Filename collisions.** Two tenants uploading `logo.png` never overwrite each other — the prefixes alone keep the storage paths distinct. Note that Payload's filename dedupe is collection-wide, not per prefix: the second `logo.png` in the collection is renamed (`logo-1.png`) regardless of tenant.
+- **SVG and XML files.** The admin UI uploads SVG and XML files through the Payload server, not through client uploads, so `clientUploads.prefix` never runs for them. Keep the [`beforeChange` hook from the server-side recipe](#server-side-uploads-prefix-by-tenant) as well, so these files also land in the tenant folder.
+- **Static and mint-time prefix together.** If `clientUploads.prefix` returns a path outside the collection's static `prefix`, the plugin places it under the static prefix. `tenants` plus `acme/media` gives `tenants/acme/media`.
 - **Custom tenant field name.** The recipe reads `data.tenant`. If you set `multiTenantPlugin({ tenantField: { name: '...' } })`, use that name in the `beforeChange` hook.

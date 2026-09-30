@@ -23,7 +23,10 @@ import { getAfterReadHook } from './server/payload/fields/bunnyGroupField.js'
 import { getFields } from './server/payload/fields/getFields.js'
 import { clientUploadOperation } from './server/payload/openapi.js'
 import { getClientUploadHandler } from './server/payload/storage/clientUploads/endpoint.js'
-import { getBeforeChangeHook } from './server/payload/storage/clientUploads/persistPrefixHook.js'
+import {
+  getBeforeChangeHook,
+  getBeforeOperationHook,
+} from './server/payload/storage/clientUploads/persistPrefixHook.js'
 import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './server/payload/storage/index.js'
 import { getStreamCleanupTask } from './server/payload/stream/cleanupTask.js'
 import { hasStreamClientUploads } from './server/payload/stream/clientUploads.js'
@@ -123,9 +126,6 @@ export const bunnyStorage: BunnyStoragePlugin =
 
           const fields = getFields(collection, collectionContext, collection.fields)
 
-          const hasDynamicClientUploadPrefix =
-            typeof collectionContext.storageConfig?.clientUploads?.prefix === 'function'
-
           return {
             ...collection,
             admin: {
@@ -173,7 +173,11 @@ export const bunnyStorage: BunnyStoragePlugin =
               ],
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
-                ...(hasDynamicClientUploadPrefix ? [getBeforeChangeHook(collectionContext)] : []),
+                ...(collectionContext.storageConfig?.clientUploads ? [getBeforeChangeHook(collectionContext)] : []),
+              ],
+              beforeOperation: [
+                ...(collection.hooks?.beforeOperation || []),
+                ...(collectionContext.storageConfig?.clientUploads ? [getBeforeOperationHook(collectionContext)] : []),
               ],
               beforeValidate: [
                 ...(collection.hooks?.beforeValidate || []),
@@ -287,6 +291,7 @@ const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => 
     return {
       name: 'bunny',
       ...(hasClientUploads(collectionContext) ? { clientUploads: true } : {}),
+      requiresClientUploadReceipt: true,
       fields: [],
       generateURL: getGenerateUrl(collectionContext),
       handleDelete: getHandleDelete(collectionContext),

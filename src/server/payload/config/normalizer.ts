@@ -1,3 +1,4 @@
+import { trimTrailingSlashes } from '@/shared/http.js'
 import type {
   BunnyStorageCollectionConfig,
   BunnyStorageConfig,
@@ -69,7 +70,7 @@ const normalizeClientUploadsConfig = ({
   if (config.edge) {
     normalized.edge = {
       maxSize: config.edge.maxSize ?? CONFIG_DEFAULTS.clientUploads.edge.maxSize,
-      scriptUrl: config.edge.scriptUrl.replace(/\/+$/, ''),
+      scriptUrl: trimTrailingSlashes(config.edge.scriptUrl),
       secret: config.edge.secret,
     }
   }
@@ -359,7 +360,7 @@ const resolveCollectionClientUploadsConfig = ({
     merged.edge = {
       maxSize:
         collectionOverride.edge.maxSize ?? globalValue.edge?.maxSize ?? CONFIG_DEFAULTS.clientUploads.edge.maxSize,
-      scriptUrl: collectionOverride.edge.scriptUrl.replace(/\/+$/, ''),
+      scriptUrl: trimTrailingSlashes(collectionOverride.edge.scriptUrl),
       secret: collectionOverride.edge.secret,
     }
   }

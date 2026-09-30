@@ -37,13 +37,13 @@ mode: 'custom'
           tabIndex={0}
           title="Click to copy"
           onClick={(e) => {
-            navigator.clipboard?.writeText('npm install @seshuk/payload-storage-bunny')
+            navigator.clipboard?.writeText('npm install @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage')
             const el = e.currentTarget
             el.setAttribute('data-copied', '')
             setTimeout(() => el.removeAttribute('data-copied'), 1400)
           }}
         >
-          npm install <span>@seshuk/payload-storage-bunny</span>
+          npm install <span>@seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage</span>
         </code>
       </div>
     </div>

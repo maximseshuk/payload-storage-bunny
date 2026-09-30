@@ -12,8 +12,17 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
             filename: { description: 'Original file name.', type: 'string' },
             filesize: { description: 'File size in bytes.', type: 'number' },
             filetype: { description: 'File MIME type.', type: 'string' },
+            head: {
+              description:
+                'Base64 of the first bytes of the file (at most 8192 characters). When sent, the response includes a `clientUploadContext` for a client-direct upload.',
+              type: 'string',
+            },
             title: { description: 'Video title. Required when creating a new video.', type: 'string' },
-            videoId: { description: 'Existing Bunny video GUID, to resume an upload.', type: 'string' },
+            videoId: {
+              description: 'Existing Bunny video GUID, to resume an upload. Used only with a matching `videoToken`.',
+              type: 'string',
+            },
+            videoToken: { description: 'The `videoToken` returned with `videoId`.', type: 'string' },
           },
           required: ['collection', 'filename', 'filesize', 'filetype'],
           type: 'object',
@@ -33,6 +42,17 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
                 type: 'number',
               },
               authorizationSignature: { description: 'SHA-256 TUS authorization signature.', type: 'string' },
+              clientUploadContext: {
+                description:
+                  'Returned when the request includes `head`. Send it unchanged as the `clientUploadContext` of the Payload upload.',
+                properties: {
+                  head: { type: 'string' },
+                  signedReceipt: { type: 'string' },
+                  videoId: { type: 'string' },
+                  videoToken: { type: 'string' },
+                },
+                type: 'object',
+              },
               libraryId: { description: 'Bunny Stream library the video lives in.', type: 'number' },
               thumbnailTime: { description: 'Thumbnail capture time (ms), when configured.', type: 'number' },
               type: {
@@ -41,6 +61,11 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
                 type: 'string',
               },
               videoId: { description: 'Bunny video GUID.', type: 'string' },
+              videoToken: {
+                description:
+                  'Token bound to `videoId`. Send it as `bunnyData.stream.videoToken` when saving the document, and with `videoId` to resume.',
+                type: 'string',
+              },
             },
             type: 'object',
           },
@@ -49,7 +74,7 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
       description:
         'TUS authorization for a new/resumed upload, or an `uploaded` short-circuit when the video is already processed.',
     },
-    '400': { description: 'Missing required fields, or a missing title for a new video.' },
+    '400': { description: 'Missing required fields, an invalid `head`, or a missing title for a new video.' },
     '403': { description: 'Access denied.' },
     '500': { description: 'Bunny Stream is not configured for the collection.' },
   },
@@ -113,7 +138,7 @@ export const streamWebhookOperation: OpenAPIV3_1.OperationObject = {
 
 export const clientUploadOperation: OpenAPIV3_1.OperationObject = {
   description:
-    "Returns a short-lived signed (edge) or presigned (S3) URL so the browser can `PUT` file bytes straight to Bunny. Runs the collection's `clientUploads.access` check and validates the file against `upload.mimeTypes` and `upload.limits.fileSize`. See [Client uploads](/configuration/storage/client-uploads).",
+    'Returns a short-lived signed (edge) or presigned (S3) URL so the browser can `PUT` file bytes straight to Bunny. Runs `clientUploads.access`, or requires collection create or update access when it is not set. Validates the file against `upload.mimeTypes`, `upload.limits.fileSize` and the restricted file types. The URL only accepts the declared size and MIME type and never overwrites an existing file. See [Client uploads](/configuration/storage/client-uploads).',
   requestBody: {
     content: {
       'application/json': {
@@ -121,10 +146,10 @@ export const clientUploadOperation: OpenAPIV3_1.OperationObject = {
           properties: {
             collectionSlug: { description: 'Target upload collection.', type: 'string' },
             filename: { description: 'Original file name.', type: 'string' },
-            filesize: { description: 'File size in bytes.', type: 'number' },
+            filesize: { description: 'File size in bytes.', type: 'integer' },
             mimeType: { description: 'File MIME type.', type: 'string' },
           },
-          required: ['collectionSlug', 'filename', 'mimeType'],
+          required: ['collectionSlug', 'filename', 'filesize', 'mimeType'],
           type: 'object',
         },
       },
@@ -137,7 +162,20 @@ export const clientUploadOperation: OpenAPIV3_1.OperationObject = {
         'application/json': {
           schema: {
             properties: {
+              clientUploadContext: {
+                description: 'Send it unchanged as the `clientUploadContext` of the Payload upload.',
+                properties: {
+                  prefix: { type: 'string' },
+                  signedReceipt: { type: 'string' },
+                },
+                type: 'object',
+              },
               filename: { description: 'Sanitized file name.', type: 'string' },
+              headers: {
+                additionalProperties: { type: 'string' },
+                description: 'Headers to send with the `PUT`. The storage rejects the upload without them.',
+                type: 'object',
+              },
               method: { examples: ['PUT'], type: 'string' },
               prefix: { description: 'Resolved storage path prefix the file lands under.', type: 'string' },
               url: { description: 'Signed/presigned URL to `PUT` the file to.', type: 'string' },
@@ -148,9 +186,11 @@ export const clientUploadOperation: OpenAPIV3_1.OperationObject = {
       },
       description: 'Signed upload URL and the resolved storage path.',
     },
+    '400': { description: 'Missing or invalid file name, size or MIME type, or an SVG or XML file.' },
     '403': { description: 'Client uploads disabled for the collection, or access denied.' },
+    '409': { description: 'A file already exists at the resolved path (S3 mode).' },
     '413': { description: 'File exceeds the size limit.' },
-    '415': { description: 'Disallowed MIME type.' },
+    '415': { description: 'Disallowed or restricted file type.' },
   },
   summary: 'Mint a client-upload URL',
   tags: ['Bunny Storage'],

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { ctorMock, deleteObjectMock, getPresignedUrlMock, putAnyObjectMock } = vi.hoisted(() => ({
+const { ctorMock, deleteObjectMock, getPresignedUrlMock, objectExistsMock, putAnyObjectMock } = vi.hoisted(() => ({
   ctorMock: vi.fn(),
   deleteObjectMock: vi.fn(),
   getPresignedUrlMock: vi.fn(),
+  objectExistsMock: vi.fn(),
   putAnyObjectMock: vi.fn(),
 }))
 
@@ -11,6 +12,7 @@ vi.mock('s3mini', () => ({
   S3mini: class {
     deleteObject = deleteObjectMock
     getPresignedUrl = getPresignedUrlMock
+    objectExists = objectExistsMock
     putAnyObject = putAnyObjectMock
 
     constructor(args: unknown) {
@@ -19,7 +21,7 @@ vi.mock('s3mini', () => ({
   },
 }))
 
-const { deleteStorageFileS3, getS3Endpoint, presignStoragePutUrl, uploadStorageFileS3 } =
+const { deleteStorageFileS3, getS3Endpoint, presignStoragePutUrl, storageObjectExistsS3, uploadStorageFileS3 } =
   await import('@/server/bunny/s3.js')
 
 const credentials = {
@@ -32,6 +34,7 @@ beforeEach(() => {
   ctorMock.mockReset()
   deleteObjectMock.mockReset()
   getPresignedUrlMock.mockReset()
+  objectExistsMock.mockReset()
   putAnyObjectMock.mockReset()
 })
 
@@ -129,22 +132,46 @@ describe('Storage S3 backend', () => {
     })
   })
 
+  describe('storageObjectExistsS3', () => {
+    it('reports an existing object', async () => {
+      objectExistsMock.mockResolvedValue(true)
+
+      await expect(storageObjectExistsS3({ ...credentials, path: 'a.jpg' })).resolves.toBe(true)
+      expect(objectExistsMock).toHaveBeenCalledWith('a.jpg')
+    })
+
+    it('reports a missing object', async () => {
+      objectExistsMock.mockResolvedValue(false)
+
+      await expect(storageObjectExistsS3({ ...credentials, path: 'a.jpg' })).resolves.toBe(false)
+    })
+
+    it('treats an inconclusive answer as existing', async () => {
+      objectExistsMock.mockResolvedValue(null)
+
+      await expect(storageObjectExistsS3({ ...credentials, path: 'a.jpg' })).resolves.toBe(true)
+    })
+  })
+
   describe('presignStoragePutUrl', () => {
-    it('requests a presigned PUT URL with the given expiry', async () => {
+    const file = { contentLength: 1234, contentType: 'image/jpeg' }
+    const signedHeaders = { 'Content-Length': '1234', 'Content-Type': 'image/jpeg', 'If-None-Match': '*' }
+
+    it('requests a presigned PUT URL with the given expiry and signed headers', async () => {
       getPresignedUrlMock.mockResolvedValue('https://de-s3.storage.bunnycdn.com/my-zone/a.jpg?X-Amz-Signature=abc')
 
-      const url = await presignStoragePutUrl({ ...credentials, expiresIn: 900, path: 'a.jpg' })
+      const url = await presignStoragePutUrl({ ...credentials, ...file, expiresIn: 900, path: 'a.jpg' })
 
       expect(url).toBe('https://de-s3.storage.bunnycdn.com/my-zone/a.jpg?X-Amz-Signature=abc')
-      expect(getPresignedUrlMock).toHaveBeenCalledWith('PUT', 'a.jpg', 900)
+      expect(getPresignedUrlMock).toHaveBeenCalledWith('PUT', 'a.jpg', 900, {}, signedHeaders)
     })
 
     it('defaults the expiry to 600 seconds', async () => {
       getPresignedUrlMock.mockResolvedValue('https://signed')
 
-      await presignStoragePutUrl({ ...credentials, path: 'a.jpg' })
+      await presignStoragePutUrl({ ...credentials, ...file, path: 'a.jpg' })
 
-      expect(getPresignedUrlMock).toHaveBeenCalledWith('PUT', 'a.jpg', 600)
+      expect(getPresignedUrlMock).toHaveBeenCalledWith('PUT', 'a.jpg', 600, {}, signedHeaders)
     })
   })
 })

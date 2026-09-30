@@ -28,15 +28,26 @@ export type StreamTusAuthRequest = {
   filename: string
   filesize: number
   filetype: string
+  head?: string
   thumbnailTime?: number
   title?: string
   videoId?: string
+  videoToken?: string
+}
+
+export type StreamClientUploadContext = {
+  head: string
+  signedReceipt: string
+  videoId: string
+  videoToken: string
 }
 
 type StreamTusAuthBase = {
+  clientUploadContext?: StreamClientUploadContext
   libraryId: number
   thumbnailTime?: number
   videoId: string
+  videoToken: string
 }
 
 type StreamTusAuthUpload = {

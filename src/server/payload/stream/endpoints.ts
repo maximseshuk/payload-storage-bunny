@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import type { Endpoint } from 'payload'
 import { APIError, getAccessResults } from 'payload'
+import { createClientUploadReceipt } from 'payload/internal'
 
 import {
   canUploadToVideo,
@@ -16,11 +17,17 @@ import { createCollectionContext } from '@/server/payload/config/context.js'
 import { collectStreamConfigs, collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/config/inspect.js'
 import { streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
 import { createStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
-import { generateStreamTusUploadSignature } from '@/server/payload/stream/tusSignature.js'
+import {
+  generateStreamTusUploadSignature,
+  signStreamVideoToken,
+  verifyStreamVideoToken,
+} from '@/server/payload/stream/tusSignature.js'
 import { jsonResponse } from '@/shared/http.js'
 import type { PluginStorageBunnyTFunction } from '@/shared/translations/index.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import type { StreamTusAuthRequest, StreamTusAuthResponse } from '@/shared/types/index.js'
+
+const MAX_HEAD_LENGTH = 8192
 
 export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoint[] => {
   const webhookSecrets = collectWebhookSecrets(config)
@@ -38,6 +45,10 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
 
           if (!body.collection || !body.filename || !body.filetype || !body.filesize) {
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorMissingRequiredFields'), 400, undefined, true)
+          }
+
+          if (body.head !== undefined && (typeof body.head !== 'string' || body.head.length > MAX_HEAD_LENGTH)) {
+            throw new APIError('Invalid file head', 400, undefined, true)
           }
 
           const collection = req.payload.collections[body.collection]?.config
@@ -69,7 +80,31 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 403, undefined, true)
           }
 
-          let videoId = body.videoId
+          const tokenInput = {
+            collection: body.collection,
+            libraryId: collectionStreamConfig.libraryId,
+            secret: req.payload.secret,
+          }
+          const withVideoToken = (videoId: string) => {
+            const videoToken = signStreamVideoToken({ ...tokenInput, videoId })
+            const head = body.head
+            if (head === undefined) {
+              return { videoId, videoToken }
+            }
+            const context = { head, videoId, videoToken }
+            const signedReceipt = createClientUploadReceipt({
+              collectionSlug: body.collection,
+              context,
+              filename: body.filename,
+              req,
+            })
+            return { clientUploadContext: { ...context, signedReceipt }, videoId, videoToken }
+          }
+
+          let videoId =
+            body.videoId && verifyStreamVideoToken({ ...tokenInput, token: body.videoToken, videoId: body.videoId })
+              ? body.videoId
+              : undefined
           let videoData = null
 
           if (videoId) {
@@ -90,7 +125,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
                   libraryId: collectionStreamConfig.libraryId,
                   thumbnailTime: collectionStreamConfig.thumbnailTime,
                   title: videoData.title || body.filename,
-                  videoId,
+                  ...withVideoToken(videoId),
                 } as StreamTusAuthResponse)
               } else if (!canUploadToVideo(videoStatus)) {
                 videoId = undefined
@@ -141,7 +176,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             authorizationSignature: signature,
             libraryId: collectionStreamConfig.libraryId,
             thumbnailTime: collectionStreamConfig.thumbnailTime,
-            videoId,
+            ...withVideoToken(videoId),
           } as StreamTusAuthResponse)
         } catch (err) {
           if (err instanceof APIError) {

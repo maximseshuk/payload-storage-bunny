@@ -28,3 +28,18 @@ export const intersectMimeTypes = (arr1?: string[], arr2?: string[]): string[] |
 
   return matches.size > 0 ? Array.from(matches) : undefined
 }
+
+const RESTRICTED_EXTENSIONS = new Set(['htm', 'html', 'js', 'mjs', 'shtml', 'xhtml'])
+const RESTRICTED_MIME_TYPES = new Set([
+  'application/javascript',
+  'application/xhtml+xml',
+  'text/html',
+  'text/javascript',
+])
+
+export const isRestrictedFileType = (filename: string, mimeType: string): boolean => {
+  const dot = filename.lastIndexOf('.')
+  const extension = dot === -1 ? '' : filename.slice(dot + 1).toLowerCase()
+  const essence = mimeType.split(';')[0].trim().toLowerCase()
+  return RESTRICTED_EXTENSIONS.has(extension) || RESTRICTED_MIME_TYPES.has(essence)
+}
