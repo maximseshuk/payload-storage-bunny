@@ -38,6 +38,14 @@ describe('getFields prefix injection', () => {
     expect(prefixField.defaultValue).toBe('')
   })
 
+  it('does not accept a prefix from create or update input', () => {
+    const fields = getFields(collection, context({ storageConfig: dynamicPrefixStorage } as never), [])
+
+    const prefixField = getField(fields, 'prefix') as { access?: Record<string, () => boolean> }
+    expect(prefixField.access?.create?.()).toBe(false)
+    expect(prefixField.access?.update?.()).toBe(false)
+  })
+
   it('uses the static collection prefix as the field defaultValue', () => {
     const fields = getFields(collection, context({ prefix: 'media', storageConfig: dynamicPrefixStorage } as never), [])
 

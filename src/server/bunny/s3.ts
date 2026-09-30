@@ -57,14 +57,32 @@ export const deleteStorageFileS3 = async ({
   }
 }
 
+export const storageObjectExistsS3 = async ({
+  apiKey,
+  path,
+  s3,
+  zoneName,
+}: { path: string } & BunnyStorageS3Credentials): Promise<boolean> =>
+  (await createS3Client({ apiKey, s3, zoneName }, TIMEOUTS.DEFAULT).objectExists(path)) !== false
+
 export const presignStoragePutUrl = ({
   apiKey,
+  contentLength,
+  contentType,
   expiresIn,
   path,
   s3,
   zoneName,
 }: {
+  contentLength: number
+  contentType: string
   expiresIn?: number
   path: string
 } & BunnyStorageS3Credentials): Promise<string> =>
-  createS3Client({ apiKey, s3, zoneName }).getPresignedUrl('PUT', path, expiresIn ?? 600)
+  createS3Client({ apiKey, s3, zoneName }).getPresignedUrl(
+    'PUT',
+    path,
+    expiresIn ?? 600,
+    {},
+    { 'Content-Length': String(contentLength), 'Content-Type': contentType, 'If-None-Match': '*' },
+  )

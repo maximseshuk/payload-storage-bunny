@@ -12,9 +12,9 @@ const MIME_SNIFF_BYTES = 4100
 export const BunnyClientUploadHandler = createClientUploadHandler<BunnyClientUploadExtra>({
   handler: async ({ apiRoute, collectionSlug, extra, file, serverHandlerPath, serverURL, updateFilename }) => {
     if (extra?.streamMimeTypes?.some((pattern) => matchesMimeTypePattern(file.type, pattern))) {
-      const videoId = await uploadStreamVideo({ apiRoute, collectionSlug, file, serverURL })
-      const head = new Uint8Array(await file.slice(0, MIME_SNIFF_BYTES).arrayBuffer())
-      return { head: btoa(String.fromCharCode(...head)), videoId }
+      const headBytes = new Uint8Array(await file.slice(0, MIME_SNIFF_BYTES).arrayBuffer())
+      const head = btoa(String.fromCharCode(...headBytes))
+      return uploadStreamVideo({ apiRoute, collectionSlug, file, head, serverURL })
     }
 
     const response = await fetch(`${serverURL}${apiRoute}${serverHandlerPath}`, {
@@ -33,10 +33,11 @@ export const BunnyClientUploadHandler = createClientUploadHandler<BunnyClientUpl
       throw new Error(`Failed to prepare Bunny upload (${response.status})`)
     }
 
-    const { filename, method, prefix, url } = (await response.json()) as {
+    const { clientUploadContext, filename, headers, method, url } = (await response.json()) as {
+      clientUploadContext: Record<string, unknown>
       filename: string
+      headers?: Record<string, string>
       method?: string
-      prefix?: string
       url: string
     }
 
@@ -46,7 +47,7 @@ export const BunnyClientUploadHandler = createClientUploadHandler<BunnyClientUpl
 
     const uploadResponse = await fetch(url, {
       body: file,
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      headers: headers ?? { 'Content-Type': file.type || 'application/octet-stream' },
       method: method ?? 'PUT',
     })
 
@@ -54,6 +55,6 @@ export const BunnyClientUploadHandler = createClientUploadHandler<BunnyClientUpl
       throw new Error(`Bunny upload failed (${uploadResponse.status})`)
     }
 
-    return { prefix }
+    return clientUploadContext
   },
 })

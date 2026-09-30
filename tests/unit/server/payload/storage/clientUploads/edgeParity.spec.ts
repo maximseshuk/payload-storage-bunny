@@ -69,6 +69,8 @@ const base = {
   path: 'media/photo.jpg',
   scriptUrl: 'https://uploader.b-cdn.net',
   secret: 'shared-secret',
+  size: 512,
+  type: 'image/jpeg',
   zoneName: 'media',
 }
 const now = 1_700_000_000_000

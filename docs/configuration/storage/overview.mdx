@@ -107,6 +107,8 @@ The plugin validates these on startup and throws a clear error if any fails:
 - If you turn on [signed URLs](/configuration/signed-urls) anywhere `storage` is active, `tokenSecurityKey` becomes required.
 - `s3.region` is required when S3 mode is enabled.
 
+Set `serverURL` in your Payload config. Cropping, changing the focal point and duplicating a document make Payload download the stored file again. Without `serverURL`, Payload may call the wrong origin, or call it without the editor's session, and these operations fail when the collection uses Payload access control.
+
 ## Collection overrides
 
 A collection's `storage` can be one of three things:

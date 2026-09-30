@@ -24,20 +24,28 @@ See [Setup wizard](/cli/init) for what it asks and everything it creates.
 <CodeGroup>
 
 ```bash npm
-npm install @seshuk/payload-storage-bunny
+npm install @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
 ```
 
 ```bash pnpm
-pnpm add @seshuk/payload-storage-bunny
+pnpm add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
 ```
 
 ```bash yarn
-yarn add @seshuk/payload-storage-bunny
+yarn add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
 ```
 
 </CodeGroup>
 
-<Info>Requires Payload CMS 3.90.2 or later and Node.js 22 or later.</Info>
+<Info>
+  Requires Payload CMS 3.90.2 or later and Node.js 22 or later. `@payloadcms/plugin-cloud-storage` is a peer dependency.
+  Install the version that matches your Payload version.
+</Info>
+
+<Warning>
+  On Payload 3.83.0 to 3.90.1, only `@seshuk/payload-storage-bunny@3.0.1` works. We do not recommend it, because it
+  lacks the security fixes in v3.1.0. Upgrade Payload instead.
+</Warning>
 
 </Step>
 
@@ -97,6 +105,11 @@ Videos now upload to Bunny Stream and expose an HLS playlist through the [`bunny
 </Steps>
 
 ## Next steps
+
+<Tip>
+  Set `serverURL` in your Payload config. Payload needs it to crop images, change the focal point and duplicate
+  documents.
+</Tip>
 
 - [Configuration](/configuration/overview) — every option, including signed URLs, thumbnails and cache purging
 - [Examples](/guides/examples) — complete configurations for common setups

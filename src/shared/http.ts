@@ -11,8 +11,12 @@ export const jsonResponse = <T>(data: T, status = 200): Response => {
   })
 }
 
-export const sanitizePrefix = (value: string): string => {
-  return value.replace(/^\/+|\/+$/g, '')
+export const trimTrailingSlashes = (value: string): string => {
+  let end = value.length
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end--
+  }
+  return value.slice(0, end)
 }
 
 export const createProxyResponse = (

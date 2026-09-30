@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { bunnyStorage } from '@/index.js'
 import { verifyEdgeUploadUrl } from '@/server/payload/storage/clientUploads/mint.js'
 
-const buildResult = (): Config => {
+const edgeClientUploads = { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } }
+
+const buildResult = (clientUploads: false | typeof edgeClientUploads = edgeClientUploads): Config => {
   const incoming = {
     collections: [
       { slug: 'users', auth: true, fields: [] },
@@ -20,12 +22,14 @@ const buildResult = (): Config => {
     collections: { media: true },
     storage: {
       apiKey: 'zone-pw',
-      clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
+      ...(clientUploads ? { clientUploads } : {}),
       hostname: 'cdn.b-cdn.net',
       zoneName: 'zone',
     },
   })(incoming) as Config
 }
+
+const findMedia = (config: Config) => config.collections?.find((collection) => collection.slug === 'media')
 
 describe('client uploads plugin wiring', () => {
   it('registers the client-upload endpoint', () => {
@@ -67,11 +71,14 @@ describe('client uploads plugin wiring', () => {
     const req = {
       json: async () => ({ collectionSlug: 'media', filename: 'photo.jpg', filesize: 1000, mimeType: 'image/jpeg' }),
       payload: {
-        collections: { media: { config: { slug: 'media', upload: { mimeTypes: ['image/*'] } } } },
+        collections: {
+          media: { config: { slug: 'media', access: { create: () => true }, upload: { mimeTypes: ['image/*'] } } },
+        },
         config: { upload: { limits: { fileSize: 5_000_000 } } },
         db: { findOne: async () => null },
+        secret: 'payload-secret',
       },
-      user: { id: 'user-1' },
+      user: { collection: 'users', id: 'user-1' },
     }
 
     const response = await endpoint!.handler(req as never)
@@ -79,6 +86,26 @@ describe('client uploads plugin wiring', () => {
 
     expect((response as Response).status).toBe(200)
     expect(verifyEdgeUploadUrl(json.url, 'shared').valid).toBe(true)
+    expect(json.clientUploadContext.signedReceipt).toEqual(expect.any(String))
+  })
+
+  it('requires a signed client upload receipt and persists the verified prefix', () => {
+    const withClientUploads = findMedia(buildResult())
+    const withoutClientUploads = findMedia(buildResult(false))
+
+    expect(
+      (withClientUploads?.upload as { requiresClientUploadReceipt?: boolean } | undefined)?.requiresClientUploadReceipt,
+    ).toBe(true)
+    expect(
+      (withoutClientUploads?.upload as { requiresClientUploadReceipt?: boolean } | undefined)
+        ?.requiresClientUploadReceipt,
+    ).toBe(true)
+    expect(withClientUploads?.hooks?.beforeChange?.length).toBe(
+      (withoutClientUploads?.hooks?.beforeChange?.length ?? 0) + 1,
+    )
+    expect(withClientUploads?.hooks?.beforeOperation?.length).toBe(
+      (withoutClientUploads?.hooks?.beforeOperation?.length ?? 0) + 1,
+    )
   })
 
   it('denies unauthenticated requests through the registered endpoint', async () => {

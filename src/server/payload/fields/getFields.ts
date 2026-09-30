@@ -82,6 +82,7 @@ export const getFields = (
     const prefixField: TextField = {
       name: 'prefix',
       type: 'text',
+      access: { create: () => false, update: () => false },
       admin: {
         hidden: true,
         readOnly: true,

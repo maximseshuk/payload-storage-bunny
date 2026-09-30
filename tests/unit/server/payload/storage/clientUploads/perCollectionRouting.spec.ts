@@ -7,6 +7,7 @@ const { getSafeFileNameMock, presignMock } = vi.hoisted(() => ({
 
 vi.mock('@/server/bunny/s3.js', () => ({
   presignStoragePutUrl: presignMock,
+  storageObjectExistsS3: async () => false,
 }))
 
 vi.mock('@/server/files.js', () => ({
@@ -18,9 +19,9 @@ const { getClientUploadHandler } = await import('@/server/payload/storage/client
 const { verifyEdgeUploadUrl } = await import('@/server/payload/storage/clientUploads/mint.js')
 
 const collections = {
-  ownEdge: { slug: 'ownEdge', upload: { mimeTypes: ['image/*'] } },
-  ownS3: { slug: 'ownS3', upload: { mimeTypes: ['image/*'] } },
-  sibling: { slug: 'sibling', upload: { mimeTypes: ['image/*'] } },
+  ownEdge: { slug: 'ownEdge', access: { create: () => true }, upload: { mimeTypes: ['image/*'] } },
+  ownS3: { slug: 'ownS3', access: { create: () => true }, upload: { mimeTypes: ['image/*'] } },
+  sibling: { slug: 'sibling', access: { create: () => true }, upload: { mimeTypes: ['image/*'] } },
 }
 
 const config = createNormalizedConfig({
@@ -63,8 +64,9 @@ const buildRequest = (collectionSlug: string, filename = 'photo.jpg') => ({
       sibling: { config: collections.sibling },
     },
     config: { upload: { limits: { fileSize: 5_000_000 } } },
+    secret: 'payload-secret',
   },
-  user: { id: 'user-1' },
+  user: { collection: 'users', id: 'user-1' },
 })
 
 describe('per-collection client upload routing', () => {

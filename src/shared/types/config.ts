@@ -152,7 +152,7 @@ export type ClientUploadsEdgeConfig = {
 export type ClientUploadsConfig = {
   /**
    * Determines who may request an upload URL.
-   * @default any authenticated user
+   * @default an authenticated user with create or update access to the collection
    */
   access?: ClientUploadsAccess
   /**
@@ -163,6 +163,7 @@ export type ClientUploadsConfig = {
   /**
    * Resolve the storage path prefix at mint time, server-side, before the file is uploaded.
    * Use it for date/user folders, or a tenant segment in multi-tenant apps.
+   * When the collection also has a static prefix, a result outside it is placed under it.
    * @default the collection's static prefix
    */
   prefix?: ClientUploadsPrefix

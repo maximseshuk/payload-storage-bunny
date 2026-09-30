@@ -1,4 +1,4 @@
-import { MissingFile } from 'payload'
+import { Forbidden, MissingFile } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { deleteSessionMock, getSafeFileNameMock, getVideoMock, handleDeleteMock, isProcessedMock } = vi.hoisted(() => ({
@@ -27,6 +27,7 @@ vi.mock('@/server/files.js', () => ({
 }))
 
 const { getAfterChangeHook, getBeforeValidateHook } = await import('@/server/payload/stream/hooks.js')
+const { signStreamVideoToken } = await import('@/server/payload/stream/tusSignature.js')
 
 import type { CollectionContext } from '@/shared/types/index.js'
 
@@ -39,9 +40,12 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
     ...overrides,
   }) as unknown as CollectionContext
 
+const tokenFor = (videoId: string, collection = 'media') =>
+  signStreamVideoToken({ collection, libraryId: 12345, secret: 'payload-secret', videoId })
+
 const buildReq = (overrides: Record<string, unknown> = {}) =>
   ({
-    payload: { logger: { debug: vi.fn(), error: vi.fn() } },
+    payload: { logger: { debug: vi.fn(), error: vi.fn() }, secret: 'payload-secret' },
     t: (key: string) => key,
     ...overrides,
   }) as never
@@ -77,7 +81,10 @@ describe('stream hooks', () => {
       getVideoMock.mockResolvedValue({ guid: 'v-client', status: 1 })
 
       const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
-      const file = { clientUploadContext: { head: '', videoId: 'v-client' }, name: 'big.mp4' }
+      const file = {
+        clientUploadContext: { head: '', videoId: 'v-client', videoToken: tokenFor('v-client') },
+        name: 'big.mp4',
+      }
 
       const result = (await hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)) as Record<
         string,
@@ -92,9 +99,24 @@ describe('stream hooks', () => {
       getVideoMock.mockRejectedValue(new Error('404'))
 
       const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
-      const file = { clientUploadContext: { videoId: 'foreign' }, name: 'big.mp4' }
+      const file = { clientUploadContext: { videoId: 'missing', videoToken: tokenFor('missing') }, name: 'big.mp4' }
 
       await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toThrow('404')
+    })
+
+    it.each([
+      ['no video token', undefined],
+      ['a forged video token', 'f'.repeat(64)],
+      ['a video token for another video', tokenFor('other-video')],
+      ['a video token for another collection', tokenFor('v-client', 'other')],
+    ])('requires a valid video token for a client-direct upload (%s)', async (_label, videoToken) => {
+      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const file = { clientUploadContext: { head: '', videoId: 'v-client', videoToken }, name: 'big.mp4' }
+
+      await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toBeInstanceOf(
+        Forbidden,
+      )
+      expect(getVideoMock).not.toHaveBeenCalled()
     })
 
     it('processes a TUS video on create when a videoId is supplied without a file', async () => {

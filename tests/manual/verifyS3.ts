@@ -73,14 +73,34 @@ const main = async (): Promise<void> => {
   log.header('client upload (presignStoragePutUrl → direct PUT)')
   const clientPath = `s3-verify/client-${stamp}.txt`
   const clientPayload = `client upload ${stamp}`
-  const url = await presignStoragePutUrl({ apiKey, path: clientPath, s3, zoneName })
+  const signed = { contentLength: Buffer.byteLength(clientPayload), contentType: 'text/plain' }
+  const url = await presignStoragePutUrl({ ...signed, apiKey, path: clientPath, s3, zoneName })
+  const headers = { 'Content-Type': 'text/plain', 'If-None-Match': '*' }
+  const wrongType = await fetch(url, {
+    body: clientPayload,
+    headers: { ...headers, 'Content-Type': 'text/html' },
+    method: 'PUT',
+  })
+  check('PUT with a Content-Type other than the signed one rejected', !wrongType.ok, `status ${wrongType.status}`)
+  await wrongType.text().catch(() => undefined)
+  const wrongLength = await fetch(url, {
+    body: `${clientPayload}!`,
+    headers,
+    method: 'PUT',
+  })
+  check('PUT with a length other than the signed one rejected', !wrongLength.ok, `status ${wrongLength.status}`)
+  await wrongLength.text().catch(() => undefined)
   check('presigned URL is a Bunny S3 URL', url.startsWith(`${getS3Endpoint(region)}/${zoneName}/`), url.split('?')[0])
-  const put = await fetch(url, { body: clientPayload, headers: { 'Content-Type': 'text/plain' }, method: 'PUT' })
+  const put = await fetch(url, { body: clientPayload, headers, method: 'PUT' })
   check('direct PUT to presigned URL accepted', put.ok, `status ${put.status}`)
   if (put.body) {
     await put.text().catch(() => undefined)
   }
   check('presigned object bytes match', (await reader.getObject(clientPath)) === clientPayload)
+  const replay = await fetch(url, { body: clientPayload.replace('c', 'C'), headers, method: 'PUT' })
+  check('repeated PUT to the same URL rejected', replay.status === 412, `status ${replay.status}`)
+  await replay.text().catch(() => undefined)
+  check('object unchanged after repeated PUT', (await reader.getObject(clientPath)) === clientPayload)
   await deleteStorageFileS3({ apiKey, path: clientPath, s3, zoneName })
   check('presigned object cleaned up', (await reader.objectExists(clientPath)) === false)
 

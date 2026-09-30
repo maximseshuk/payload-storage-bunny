@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { copyHeaders, createProxyResponse, jsonResponse, sanitizePrefix } from '@/shared/http.js'
+import { copyHeaders, createProxyResponse, jsonResponse, trimTrailingSlashes } from '@/shared/http.js'
 
 describe('http utils', () => {
   describe('copyHeaders', () => {
@@ -41,16 +41,21 @@ describe('http utils', () => {
     })
   })
 
-  describe('sanitizePrefix', () => {
-    it('strips leading and trailing slashes', () => {
-      expect(sanitizePrefix('/foo/')).toBe('foo')
-      expect(sanitizePrefix('//a/b//')).toBe('a/b')
+  describe('trimTrailingSlashes', () => {
+    it('strips every trailing slash', () => {
+      expect(trimTrailingSlashes('a///')).toBe('a')
+      expect(trimTrailingSlashes('https://x.b-cdn.net/')).toBe('https://x.b-cdn.net')
+      expect(trimTrailingSlashes('///')).toBe('')
     })
 
-    it('leaves inner slashes and slash-free values untouched', () => {
-      expect(sanitizePrefix('a/b/c')).toBe('a/b/c')
-      expect(sanitizePrefix('no-slash')).toBe('no-slash')
-      expect(sanitizePrefix('')).toBe('')
+    it('leaves leading and inner slashes untouched', () => {
+      expect(trimTrailingSlashes('/a/b/c')).toBe('/a/b/c')
+      expect(trimTrailingSlashes('no-slash')).toBe('no-slash')
+      expect(trimTrailingSlashes('')).toBe('')
+    })
+
+    it('handles a long run of slashes', () => {
+      expect(trimTrailingSlashes(`a${'/'.repeat(100_000)}b${'/'.repeat(100_000)}`)).toBe(`a${'/'.repeat(100_000)}b`)
     })
   })
 

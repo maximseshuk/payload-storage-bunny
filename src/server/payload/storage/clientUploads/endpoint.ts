@@ -1,13 +1,18 @@
-import { posix } from 'node:path'
-
+import { buildUploadStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
 import type { PayloadHandler, PayloadRequest } from 'payload'
+import {
+  assertClientUploadAccess,
+  assertClientUploadAllowed,
+  assertClientUploadFileSize,
+  createClientUploadReceipt,
+} from 'payload/internal'
 import sanitize from 'sanitize-filename'
 
-import { presignStoragePutUrl } from '@/server/bunny/s3.js'
+import { presignStoragePutUrl, storageObjectExistsS3 } from '@/server/bunny/s3.js'
 import { getSafeFileName } from '@/server/files.js'
 import { createCollectionContext } from '@/server/payload/config/context.js'
-import { jsonResponse, sanitizePrefix } from '@/shared/http.js'
-import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
+import { jsonResponse } from '@/shared/http.js'
+import { isRestrictedFileType, matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 
 import { mintEdgeUploadUrl } from './mint.js'
@@ -15,7 +20,7 @@ import { mintEdgeUploadUrl } from './mint.js'
 type ClientUploadRequestBody = {
   collectionSlug?: string
   filename?: string
-  filesize?: number
+  filesize?: unknown
   mimeType?: string
 }
 
@@ -46,9 +51,27 @@ export const getClientUploadHandler =
       return jsonResponse({ error: `Client uploads are not enabled for "${collectionSlug}"` }, 403)
     }
 
-    const hasAccess = clientUploads.access ? await clientUploads.access({ collectionSlug, req }) : Boolean(req.user)
+    const hasAccess = clientUploads.access
+      ? await clientUploads.access({ collectionSlug, req })
+      : await assertClientUploadAccess({ collectionSlug, req }).then(
+          () => true,
+          () => false,
+        )
     if (!hasAccess) {
       return jsonResponse({ error: 'Forbidden' }, 403)
+    }
+
+    try {
+      assertClientUploadFileSize(filesize)
+      assertClientUploadAllowed({ collection, filename, mimeType })
+    } catch (err) {
+      return jsonResponse({ error: (err as Error).message }, 400)
+    }
+    const size = filesize as number
+
+    const allowRestrictedFileTypes = typeof collection.upload === 'object' && collection.upload.allowRestrictedFileTypes
+    if (!allowRestrictedFileTypes && isRestrictedFileType(sanitize(filename), mimeType)) {
+      return jsonResponse({ error: `File type "${mimeType}" is not allowed` }, 415)
     }
 
     const allowedMimeTypes = typeof collection.upload === 'object' ? collection.upload.mimeTypes : undefined
@@ -61,19 +84,16 @@ export const getClientUploadHandler =
     }
 
     const sizeLimit = req.payload.config.upload?.limits?.fileSize
-    if (typeof filesize === 'number') {
-      if (typeof sizeLimit === 'number' && filesize > sizeLimit) {
-        return jsonResponse({ error: 'File exceeds the configured size limit' }, 413)
-      }
-      if (!storage.s3 && clientUploads.edge && filesize > clientUploads.edge.maxSize) {
-        return jsonResponse({ error: 'File exceeds the configured size limit' }, 413)
-      }
+    if (
+      (typeof sizeLimit === 'number' && size > sizeLimit) ||
+      (!storage.s3 && clientUploads.edge && size > clientUploads.edge.maxSize)
+    ) {
+      return jsonResponse({ error: 'File exceeds the configured size limit' }, 413)
     }
 
-    const resolvedPrefix = clientUploads.prefix
+    const docPrefix = clientUploads.prefix
       ? await clientUploads.prefix({ collectionSlug, req })
       : (context.prefix ?? '')
-    const prefix = sanitizePrefix(resolvedPrefix)
 
     const safeFilename = await getSafeFileName({
       collectionSlug,
@@ -82,16 +102,28 @@ export const getClientUploadHandler =
       staticPath: '',
     })
 
-    const path = prefix ? posix.join(prefix, safeFilename) : safeFilename
+    const { sanitizedDocPrefix: prefix, storageFilePath: path } = buildUploadStoragePathData({
+      collectionPrefix: context.prefix,
+      docPrefix,
+      filename: safeFilename,
+    })
 
     let url: string
+    const headers: Record<string, string> = { 'Content-Type': mimeType }
     if (storage.s3) {
+      const credentials = { apiKey: storage.apiKey, s3: storage.s3, zoneName: storage.zoneName }
+      if (await storageObjectExistsS3({ ...credentials, path })) {
+        return jsonResponse({ error: 'A file already exists at this path' }, 409)
+      }
       url = await presignStoragePutUrl({
-        apiKey: storage.apiKey,
+        ...credentials,
+        contentLength: size,
+        contentType: mimeType,
         path,
         s3: storage.s3,
         zoneName: storage.zoneName,
       })
+      headers['If-None-Match'] = '*'
     } else {
       if (!clientUploads.edge) {
         return jsonResponse({ error: 'Edge uploads are not configured for this collection' }, 500)
@@ -101,9 +133,25 @@ export const getClientUploadHandler =
         path,
         scriptUrl: clientUploads.edge.scriptUrl,
         secret: clientUploads.edge.secret,
+        size,
+        type: mimeType,
         zoneName: storage.zoneName,
       })
     }
 
-    return jsonResponse({ filename: safeFilename, method: 'PUT', prefix, url })
+    const signedReceipt = createClientUploadReceipt({
+      collectionSlug,
+      context: { filesize: size, mimeType, prefix },
+      filename: safeFilename,
+      req,
+    })
+
+    return jsonResponse({
+      clientUploadContext: { prefix, signedReceipt },
+      filename: safeFilename,
+      headers,
+      method: 'PUT',
+      prefix,
+      url,
+    })
   }

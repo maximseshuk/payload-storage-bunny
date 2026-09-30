@@ -44,8 +44,20 @@ const main = async (): Promise<void> => {
   const key = `edge-verify/hello-${Date.now()}.txt`
   const payload = `edge upload at ${new Date().toISOString()}`
 
-  const url = mintEdgeUploadUrl({ maxSize: 1_000_000, path: key, scriptUrl, secret, zoneName: zone })
+  const file = { maxSize: 1_000_000, scriptUrl, secret, size: Buffer.byteLength(payload), type: 'text/plain' }
+  const url = mintEdgeUploadUrl({ ...file, path: key, zoneName: zone })
   check('local signature verifies', verifyEdgeUploadUrl(url, secret).valid)
+
+  const sizeMismatch = await fetch(mintEdgeUploadUrl({ ...file, path: `${key}.size`, zoneName: zone }), {
+    body: `${payload}!`,
+    method: 'PUT',
+  })
+  check(
+    'PUT with a body larger than the signed size rejected',
+    sizeMismatch.status === 400,
+    `status ${sizeMismatch.status}`,
+  )
+  await sizeMismatch.text().catch(() => undefined)
 
   const put = await fetch(url, { body: payload, headers: { 'Content-Type': 'text/plain' }, method: 'PUT' })
   check('signed PUT through edge accepted', put.ok, `status ${put.status}`)
@@ -57,6 +69,11 @@ const main = async (): Promise<void> => {
   const got = get.ok ? await get.text() : ''
   check('object readable from storage', get.ok, `status ${get.status}`)
   check('stored bytes match uploaded bytes', got === payload)
+  check('stored Content-Type is the signed type', (get.headers.get('Content-Type') ?? '').startsWith('text/plain'))
+
+  const again = await fetch(mintEdgeUploadUrl({ ...file, path: key, zoneName: zone }), { body: payload, method: 'PUT' })
+  check('PUT to an existing path rejected', again.status === 409, `status ${again.status}`)
+  await again.text().catch(() => undefined)
 
   const unsignedUrl = `${scriptUrl}/upload?X-Upload-Path=${encodeURIComponent(key)}&X-Upload-Max-Size=1000000&X-Upload-Expires=${Date.now() + 60000}`
   const unsigned = await fetch(unsignedUrl, { body: 'nope', headers: { 'Content-Type': 'text/plain' }, method: 'PUT' })
@@ -65,13 +82,7 @@ const main = async (): Promise<void> => {
     await unsigned.text().catch(() => undefined)
   }
 
-  const unknownZoneUrl = mintEdgeUploadUrl({
-    maxSize: 1_000_000,
-    path: key,
-    scriptUrl,
-    secret,
-    zoneName: `no-such-zone-${Date.now()}`,
-  })
+  const unknownZoneUrl = mintEdgeUploadUrl({ ...file, path: key, zoneName: `no-such-zone-${Date.now()}` })
   const unknownZone = await fetch(unknownZoneUrl, {
     body: 'nope',
     headers: { 'Content-Type': 'text/plain' },

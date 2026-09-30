@@ -18,7 +18,7 @@
   "paths": {
     "/api/storage-bunny/storage/upload": {
       "post": {
-        "description": "Returns a short-lived signed (edge) or presigned (S3) URL so the browser can `PUT` file bytes straight to Bunny. Runs the collection's `clientUploads.access` check and validates the file against `upload.mimeTypes` and `upload.limits.fileSize`. See [Client uploads](/configuration/storage/client-uploads).",
+        "description": "Returns a short-lived signed (edge) or presigned (S3) URL so the browser can `PUT` file bytes straight to Bunny. Runs `clientUploads.access`, or requires collection create or update access when it is not set. Validates the file against `upload.mimeTypes`, `upload.limits.fileSize` and the restricted file types. The URL only accepts the declared size and MIME type and never overwrites an existing file. See [Client uploads](/configuration/storage/client-uploads).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34,14 +34,14 @@
                   },
                   "filesize": {
                     "description": "File size in bytes.",
-                    "type": "number"
+                    "type": "integer"
                   },
                   "mimeType": {
                     "description": "File MIME type.",
                     "type": "string"
                   }
                 },
-                "required": ["collectionSlug", "filename", "mimeType"],
+                "required": ["collectionSlug", "filename", "filesize", "mimeType"],
                 "type": "object"
               }
             }
@@ -54,9 +54,28 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "clientUploadContext": {
+                      "description": "Send it unchanged as the `clientUploadContext` of the Payload upload.",
+                      "properties": {
+                        "prefix": {
+                          "type": "string"
+                        },
+                        "signedReceipt": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "filename": {
                       "description": "Sanitized file name.",
                       "type": "string"
+                    },
+                    "headers": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Headers to send with the `PUT`. The storage rejects the upload without them.",
+                      "type": "object"
                     },
                     "method": {
                       "examples": ["PUT"],
@@ -77,14 +96,20 @@
             },
             "description": "Signed upload URL and the resolved storage path."
           },
+          "400": {
+            "description": "Missing or invalid file name, size or MIME type, or an SVG or XML file."
+          },
           "403": {
             "description": "Client uploads disabled for the collection, or access denied."
+          },
+          "409": {
+            "description": "A file already exists at the resolved path (S3 mode)."
           },
           "413": {
             "description": "File exceeds the size limit."
           },
           "415": {
-            "description": "Disallowed MIME type."
+            "description": "Disallowed or restricted file type."
           }
         },
         "summary": "Mint a client-upload URL",
@@ -115,12 +140,20 @@
                     "description": "File MIME type.",
                     "type": "string"
                   },
+                  "head": {
+                    "description": "Base64 of the first bytes of the file (at most 8192 characters). When sent, the response includes a `clientUploadContext` for a client-direct upload.",
+                    "type": "string"
+                  },
                   "title": {
                     "description": "Video title. Required when creating a new video.",
                     "type": "string"
                   },
                   "videoId": {
-                    "description": "Existing Bunny video GUID, to resume an upload.",
+                    "description": "Existing Bunny video GUID, to resume an upload. Used only with a matching `videoToken`.",
+                    "type": "string"
+                  },
+                  "videoToken": {
+                    "description": "The `videoToken` returned with `videoId`.",
                     "type": "string"
                   }
                 },
@@ -145,6 +178,24 @@
                       "description": "SHA-256 TUS authorization signature.",
                       "type": "string"
                     },
+                    "clientUploadContext": {
+                      "description": "Returned when the request includes `head`. Send it unchanged as the `clientUploadContext` of the Payload upload.",
+                      "properties": {
+                        "head": {
+                          "type": "string"
+                        },
+                        "signedReceipt": {
+                          "type": "string"
+                        },
+                        "videoId": {
+                          "type": "string"
+                        },
+                        "videoToken": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "libraryId": {
                       "description": "Bunny Stream library the video lives in.",
                       "type": "number"
@@ -161,6 +212,10 @@
                     "videoId": {
                       "description": "Bunny video GUID.",
                       "type": "string"
+                    },
+                    "videoToken": {
+                      "description": "Token bound to `videoId`. Send it as `bunnyData.stream.videoToken` when saving the document, and with `videoId` to resume.",
+                      "type": "string"
                     }
                   },
                   "type": "object"
@@ -170,7 +225,7 @@
             "description": "TUS authorization for a new/resumed upload, or an `uploaded` short-circuit when the video is already processed."
           },
           "400": {
-            "description": "Missing required fields, or a missing title for a new video."
+            "description": "Missing required fields, an invalid `head`, or a missing title for a new video."
           },
           "403": {
             "description": "Access denied."

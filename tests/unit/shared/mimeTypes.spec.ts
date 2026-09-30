@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { intersectMimeTypes, isImage, matchesMimeTypePattern } from '@/shared/mimeTypes.js'
+import { intersectMimeTypes, isImage, isRestrictedFileType, matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 
 describe('isImage', () => {
   it('returns true for image/* types', () => {
@@ -84,5 +84,25 @@ describe('intersectMimeTypes', () => {
 
   it('does not duplicate matching items', () => {
     expect(intersectMimeTypes(['video/mp4'], ['video/mp4'])).toEqual(['video/mp4'])
+  })
+})
+
+describe('isRestrictedFileType', () => {
+  it('rejects restricted extensions whatever the declared type', () => {
+    for (const filename of ['page.html', 'page.HTM', 'page.shtml', 'page.xhtml', 'app.js', 'app.mjs']) {
+      expect(isRestrictedFileType(filename, 'image/png')).toBe(true)
+    }
+  })
+
+  it('rejects restricted MIME types whatever the extension', () => {
+    for (const mimeType of ['text/html', 'Text/HTML; charset=utf-8', 'application/xhtml+xml', 'text/javascript']) {
+      expect(isRestrictedFileType('photo.png', mimeType)).toBe(true)
+    }
+  })
+
+  it('allows regular files', () => {
+    expect(isRestrictedFileType('photo.jpg', 'image/jpeg')).toBe(false)
+    expect(isRestrictedFileType('report.pdf', 'application/pdf')).toBe(false)
+    expect(isRestrictedFileType('noextension', 'application/octet-stream')).toBe(false)
   })
 })

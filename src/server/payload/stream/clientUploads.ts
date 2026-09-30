@@ -3,6 +3,7 @@ import type { CollectionContext } from '@/shared/types/index.js'
 type StreamClientUpload = {
   head: string
   videoId: string
+  videoToken: string
 }
 
 export const hasStreamClientUploads = (context: CollectionContext): boolean =>
@@ -12,11 +13,15 @@ export const getStreamClientUpload = (clientUploadContext: unknown): StreamClien
   if (typeof clientUploadContext !== 'object' || clientUploadContext === null) {
     return undefined
   }
-  const { head, videoId } = clientUploadContext as Partial<Record<keyof StreamClientUpload, unknown>>
+  const { head, videoId, videoToken } = clientUploadContext as Partial<Record<keyof StreamClientUpload, unknown>>
   if (typeof videoId !== 'string' || !videoId) {
     return undefined
   }
-  return { head: typeof head === 'string' ? head : '', videoId }
+  return {
+    head: typeof head === 'string' ? head : '',
+    videoId,
+    videoToken: typeof videoToken === 'string' ? videoToken : '',
+  }
 }
 
 const ISO_BOX_HEADER_SIZE = 8

@@ -5,6 +5,7 @@ import { bunnyFetch } from '@/cli/lib/bunnyApi.js'
 import type { Logger } from '@/cli/lib/logger.js'
 import { httpFetch } from '@/server/http/index.js'
 import { collectStorageConfigs } from '@/server/payload/config/inspect.js'
+import { trimTrailingSlashes } from '@/shared/http.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import { ZONE_SECRET_PATTERN, zoneSecretName } from '@/shared/zoneSecret.js'
 
@@ -158,7 +159,7 @@ export const edgeScriptExists = async (accountApiKey: string, name: string): Pro
 
 export const checkEdgeScriptVersion = async (scriptUrl: string): Promise<string | undefined> => {
   try {
-    const res = await httpFetch(`${scriptUrl.replace(/\/+$/, '')}/upload`, {
+    const res = await httpFetch(`${trimTrailingSlashes(scriptUrl)}/upload`, {
       method: 'options',
       throwHttpErrors: false,
     })
@@ -234,7 +235,7 @@ const toScriptUrl = (host?: string): string => {
   if (!host) {
     return ''
   }
-  return /^https?:\/\//i.test(host) ? host.replace(/\/+$/, '') : `https://${host}`
+  return /^https?:\/\//i.test(host) ? trimTrailingSlashes(host) : `https://${host}`
 }
 
 const hardenPullZone = async (options: DeployEdgeScriptOptions, pullZoneId: number): Promise<void> => {

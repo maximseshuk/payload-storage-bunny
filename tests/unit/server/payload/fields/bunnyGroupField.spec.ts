@@ -8,6 +8,7 @@ import {
   readStoredVideo,
   setStoredVideoId,
 } from '@/server/payload/fields/bunnyGroupField.js'
+import { signStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
 const context = (streamConfig?: Partial<CollectionContext['streamConfig']>): CollectionContext =>
@@ -16,6 +17,8 @@ const context = (streamConfig?: Partial<CollectionContext['streamConfig']>): Col
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const findField = (field: any, name: string) => field.fields.find((f: any) => f.name === name)
 const run = (doc: any) => (getAfterReadHook() as any)({ doc })
+const tokenFor = (videoId: string, collection = 'media') =>
+  signStreamVideoToken({ collection, libraryId: 12345, secret: 'payload-secret', videoId })
 
 describe('bunnyGroupField', () => {
   describe('getBunnyData', () => {
@@ -122,6 +125,56 @@ describe('bunnyGroupField', () => {
 
       expect(findField(findField(withFallback, 'stream'), 'resolutions')).toBeDefined()
       expect(findField(findField(withoutFallback, 'stream'), 'resolutions')).toBeUndefined()
+    })
+  })
+
+  describe('stream field access', () => {
+    const streamContext = {
+      collection: { slug: 'media' },
+      streamConfig: { libraryId: 12345, mp4Fallback: true },
+    } as unknown as CollectionContext
+    const req = { payload: { secret: 'payload-secret' } }
+    const streamGroup = findField(bunnyGroupField(streamContext), 'stream')
+    const videoId = findField(streamGroup, 'videoId')
+
+    it('adds a hidden virtual videoToken field', () => {
+      expect(findField(streamGroup, 'videoToken')).toMatchObject({ admin: { hidden: true }, virtual: true })
+    })
+
+    it('accepts a videoId written with its video token', () => {
+      const siblingData = { videoId: 'v1', videoToken: tokenFor('v1') }
+      expect(videoId.access.create({ req, siblingData })).toBe(true)
+      expect(videoId.access.update({ req, siblingData })).toBe(true)
+    })
+
+    it('accepts an empty videoId without a token', () => {
+      expect(videoId.access.create({ req, siblingData: { videoId: null } })).toBe(true)
+      expect(videoId.access.update({ req, siblingData: {} })).toBe(true)
+      expect(videoId.access.update({ req })).toBe(true)
+    })
+
+    it.each([
+      ['no token', undefined],
+      ['a forged token', 'f'.repeat(64)],
+      ['a token for another video', tokenFor('v2')],
+      ['a token for another collection', tokenFor('v1', 'other')],
+    ])('rejects a videoId written with %s', (_label, videoToken) => {
+      const siblingData = { videoId: 'v1', videoToken }
+      expect(videoId.access.create({ req, siblingData })).toBe(false)
+      expect(videoId.access.update({ req, siblingData })).toBe(false)
+    })
+
+    it('rejects a videoId when the collection has no stream config', () => {
+      const field = bunnyGroupField({ collection: { slug: 'media' } } as unknown as CollectionContext)
+      const noStreamVideoId = findField(findField(field, 'stream'), 'videoId')
+      const siblingData = { videoId: 'v1', videoToken: tokenFor('v1') }
+      expect(noStreamVideoId.access.create({ req, siblingData })).toBe(false)
+    })
+
+    it('does not accept resolutions from create or update input', () => {
+      const resolutions = findField(streamGroup, 'resolutions')
+      expect(resolutions.access.create()).toBe(false)
+      expect(resolutions.access.update()).toBe(false)
     })
   })
 

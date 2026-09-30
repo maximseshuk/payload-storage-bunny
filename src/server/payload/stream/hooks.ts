@@ -2,7 +2,7 @@ import { posix } from 'node:path'
 
 import type { TypeWithPrefix } from '@payloadcms/plugin-cloud-storage/types'
 import type { CollectionAfterChangeHook, CollectionBeforeValidateHook, FileData, JsonObject, TypeWithID } from 'payload'
-import { MissingFile } from 'payload'
+import { Forbidden, MissingFile } from 'payload'
 
 import { getStreamVideo, isVideoProcessed } from '@/server/bunny/stream.js'
 import { getSafeFileName } from '@/server/files.js'
@@ -10,6 +10,7 @@ import { readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunny
 import { getHandleDelete } from '@/server/payload/storage/handleDelete.js'
 import { getStreamClientUpload } from '@/server/payload/stream/clientUploads.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
+import { verifyStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
 type BeforeValidateArgs = {
@@ -32,6 +33,16 @@ export const getBeforeValidateHook = ({
 
     const streamClientUpload = getStreamClientUpload(file?.clientUploadContext)
     if (streamClientUpload && data && context.streamConfig) {
+      const tokenValid = verifyStreamVideoToken({
+        collection: context.collection.slug,
+        libraryId: context.streamConfig.libraryId,
+        secret: req.payload.secret,
+        token: streamClientUpload.videoToken,
+        videoId: streamClientUpload.videoId,
+      })
+      if (!tokenValid) {
+        throw new Forbidden(req.t)
+      }
       await getStreamVideo({
         apiKey: context.streamConfig.apiKey,
         libraryId: context.streamConfig.libraryId,

@@ -7,6 +7,8 @@ const base = {
   path: 'media/photo.jpg',
   scriptUrl: 'https://uploader.b-cdn.net',
   secret: 'shared-secret',
+  size: 512,
+  type: 'image/jpeg',
   zoneName: 'media',
 }
 
@@ -57,6 +59,23 @@ describe('edge upload URL mint/verify', () => {
     const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
     expect(new URL(url).searchParams.get('X-Upload-Zone')).toBe('media')
     expect(verifyEdgeUploadUrl(url, base.secret, now + 1000)).toEqual({ valid: true })
+  })
+
+  it('signs the file size and type into the minted URL', () => {
+    const now = 1_700_000_000_000
+    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
+    const params = new URL(url).searchParams
+    expect(params.get('X-Upload-Size')).toBe('512')
+    expect(params.get('X-Upload-Type')).toBe('image/jpeg')
+  })
+
+  it('rejects a URL whose size or type was changed after minting', () => {
+    const now = 1_700_000_000_000
+    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
+    const biggerFile = url.replace('X-Upload-Size=512', 'X-Upload-Size=1024')
+    const otherType = url.replace('X-Upload-Type=image%2Fjpeg', 'X-Upload-Type=text%2Fhtml')
+    expect(verifyEdgeUploadUrl(biggerFile, base.secret, now + 1000).valid).toBe(false)
+    expect(verifyEdgeUploadUrl(otherType, base.secret, now + 1000).valid).toBe(false)
   })
 
   it('rejects a URL whose zone was re-pointed after minting', () => {
