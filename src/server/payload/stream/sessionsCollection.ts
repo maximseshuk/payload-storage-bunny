@@ -36,6 +36,7 @@ export const getStreamUploadSessionsCollection = (): CollectionConfig => {
     ],
     lockDocuments: false,
     timestamps: true,
+    versions: false,
   }
 }
 
@@ -54,6 +55,7 @@ export const createStreamVideoSession = async ({
       libraryId: libraryId.toString(),
       videoId,
     },
+    overrideAccess: true,
   })) as unknown as StreamUploadSession
 }
 
@@ -68,6 +70,7 @@ export const deleteStreamVideoSession = async ({
 }): Promise<void> => {
   await payload.delete({
     collection: streamUploadSessionsCollectionSlug,
+    overrideAccess: true,
     where: {
       libraryId: {
         equals: libraryId.toString(),

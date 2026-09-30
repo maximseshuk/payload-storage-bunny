@@ -253,6 +253,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
                 const docs = await req.payload.find({
                   collection: collectionSlug,
                   limit: 1,
+                  overrideAccess: true,
                   where: {
                     'bunnyData.stream.videoId': {
                       equals: VideoGuid,
@@ -286,6 +287,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
                             },
                           },
                         },
+                        overrideAccess: true,
                       })
 
                       req.payload.logger.debug({
