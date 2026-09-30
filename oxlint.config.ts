@@ -25,6 +25,7 @@ export default defineConfig({
       plugins: ['vitest'],
       rules: {
         'no-console': 'off',
+        'unicorn/consistent-function-scoping': 'off',
         'vitest/no-conditional-expect': 'off',
         'vitest/require-mock-type-parameters': 'off',
       },
