@@ -85,6 +85,16 @@ const readPackageName = (): string | undefined => {
   }
 }
 
+const repromptStorageZoneName = async (message: string): Promise<string> => {
+  log.warn(message)
+  return must(
+    await text({
+      message: 'Choose a different storage zone name',
+      validate: (value) => validateStorageZoneName(value ?? ''),
+    }),
+  )
+}
+
 const resolveStorageZoneName = async (accountApiKey: string, initial: string): Promise<string> => {
   const check = async (candidate: string) => {
     const s = spinner()
@@ -105,17 +115,7 @@ const resolveStorageZoneName = async (accountApiKey: string, initial: string): P
     }
   }
 
-  const reprompt = async (message: string): Promise<string> => {
-    log.warn(message)
-    return must(
-      await text({
-        message: 'Choose a different storage zone name',
-        validate: (value) => validateStorageZoneName(value ?? ''),
-      }),
-    )
-  }
-
-  const resolved = await resolveAvailableName(initial, check, reprompt)
+  const resolved = await resolveAvailableName(initial, check, repromptStorageZoneName)
   return resolved.name
 }
 
