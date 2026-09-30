@@ -50,6 +50,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
           const result = await req.payload.find({
             collection: collection.slug,
             limit: 1,
+            overrideAccess: true,
             where: {
               'bunnyData.stream.videoId': { exists: true },
               filename: { equals: filename },

@@ -101,6 +101,7 @@ const processLibrarySessions = async ({
         await req.payload.delete({
           id: session.id,
           collection: streamUploadSessionsCollectionSlug,
+          overrideAccess: true,
           req,
         })
 
@@ -109,6 +110,7 @@ const processLibrarySessions = async ({
         await req.payload.delete({
           id: session.id,
           collection: streamUploadSessionsCollectionSlug,
+          overrideAccess: true,
           req,
         })
       }
@@ -120,6 +122,7 @@ const processLibrarySessions = async ({
           await req.payload.delete({
             id: session.id,
             collection: streamUploadSessionsCollectionSlug,
+            overrideAccess: true,
             req,
           })
         } catch (deleteErr) {
@@ -193,6 +196,7 @@ export const getStreamCleanupTask = (
             await req.payload.delete({
               id: session.id,
               collection: streamUploadSessionsCollectionSlug,
+              overrideAccess: true,
               req,
             })
             deletedCount++
@@ -214,7 +218,6 @@ export const getStreamCleanupTask = (
 
       return {
         output: {},
-        state: 'succeeded',
       }
     },
     schedule: [schedule],

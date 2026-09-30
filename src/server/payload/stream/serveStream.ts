@@ -155,6 +155,7 @@ export const streamStaticHandler = async ({
             },
           },
         },
+        overrideAccess: true,
       })
     } catch (err) {
       if (!(err instanceof NotFound)) {
