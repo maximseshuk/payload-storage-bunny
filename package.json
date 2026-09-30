@@ -102,7 +102,7 @@
     "@clack/prompts": "^1.7.0",
     "@payloadcms/plugin-cloud-storage": "^3.90.2",
     "cac": "^7.0.0",
-    "ky": "2.0.2",
+    "ky": "2.1.0",
     "s3mini": "0.9.5",
     "tus-js-client": "^4.3.1"
   },
