@@ -1,12 +1,27 @@
 name: E2E
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+      - '.github/workflows/e2e.yml'
   pull_request_target:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+      - '.github/workflows/e2e.yml'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -28,7 +43,7 @@ jobs:
       !cancelled() && (
         github.event_name == 'push' ||
         github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+        (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]') ||
         (github.event_name == 'pull_request_target' && needs.approve.result == 'success')
       )
     runs-on: ubuntu-latest

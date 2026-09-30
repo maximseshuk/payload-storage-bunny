@@ -94,7 +94,7 @@ If users will notice the change, update `README.md` and the matching page in `do
 - Keep each PR focused on one change. Open it against `main`.
 - Fill in the PR template: what changed, why, and how you tested it. Link the issue (`Closes #123`).
 - CI must pass. It runs lint, typecheck, format check, unit tests and the build on Node 22 and 24.
-- E2E runs against real Bunny resources. It starts automatically for branches in this repository. For a PR from a fork, a maintainer approves the run after reading the diff, because the tests run with the project's Bunny keys.
+- E2E runs against real Bunny resources. It starts automatically for branches in this repository when a PR changes code, tests or dependencies. For a PR from a fork, a maintainer approves the run after reading the diff, because the tests run with the project's Bunny keys. Dependabot PRs skip e2e; every release runs it once before publishing.
 - All review threads need to be resolved before merge.
 
 ## License

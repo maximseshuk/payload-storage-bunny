@@ -5,13 +5,20 @@ on:
     tags: ['v*.*.*']
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
+  e2e:
+    uses: ./.github/workflows/e2e.yml
+    secrets: inherit
+
   release:
     name: Verify, release, publish
+    needs: e2e
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
