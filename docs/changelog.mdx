@@ -5,6 +5,16 @@ description: 'Release history for the Bunny Storage plugin for Payload CMS.'
 
 Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
 
+<Update label="v3.0.2" description="September 30, 2026">
+  **Fixes**
+
+- Bulk uploads of large videos to Stream collections no longer hit the request body limit. Videos go to Bunny over TUS ([#22](https://github.com/maximseshuk/payload-storage-bunny/issues/22)).
+- Client-direct Stream uploads work on Payload 3.90, which rejects incomplete MP4 and MOV files.
+- Stream videos are deleted when their document is never saved.
+- The `init` wizard shows correct replication pricing and zone name rules.
+
+</Update>
+
 <Update label="v3.0.1" description="September 23, 2026">
   **Fixes**
 
