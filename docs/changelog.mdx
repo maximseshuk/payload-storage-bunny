@@ -5,6 +5,22 @@ description: 'Release history for the Bunny Storage plugin for Payload CMS.'
 
 Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
 
+<Update label="v3.1.0" description="October 1, 2026">
+  This release contains security fixes. Upgrade as soon as possible. See the [upgrade guide](/upgrade-guide#v30x-to-v310), and redeploy the Edge Script if you use client uploads over the HTTP API.
+
+**Security**
+
+- Client uploads are bound to the declared file size and MIME type, never overwrite an existing file, and are confirmed with a server-signed receipt.
+- Stream `videoId` values are only accepted together with a server-issued `videoToken`.
+
+**Changes**
+
+- `@payloadcms/plugin-cloud-storage` is now a peer dependency. Install it next to the plugin.
+- A dynamic `prefix` is placed under the collection's static prefix.
+- The `prefix` field and `bunnyData.stream.resolutions` are read-only over the REST and GraphQL APIs.
+
+</Update>
+
 <Update label="v3.0.3" description="September 30, 2026">
   **Fixes**
 
