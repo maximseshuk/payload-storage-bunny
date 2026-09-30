@@ -6,11 +6,10 @@ export default defineConfig({
   semi: false,
   singleQuote: true,
   sortImports: {
-    customGroups: [{ elementNamePattern: ['@/**'], groupName: 'internal' }],
     groups: [
       ['value-builtin', 'type-builtin'],
       ['value-external', 'type-external'],
-      'internal',
+      ['value-internal', 'type-internal'],
       ['value-parent', 'type-parent', 'value-sibling', 'type-sibling', 'value-index', 'type-index'],
       'unknown',
     ],
