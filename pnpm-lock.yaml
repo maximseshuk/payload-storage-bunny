@@ -200,8 +200,8 @@ importers:
         specifier: 2.1.0
         version: 2.1.0
       s3mini:
-        specifier: 0.9.5
-        version: 0.9.5
+        specifier: 1.0.2
+        version: 1.0.2
       tus-js-client:
         specifier: ^4.3.1
         version: 4.3.1
@@ -6315,8 +6315,8 @@ packages:
   rxjs@7.8.2:
     resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
 
-  s3mini@0.9.5:
-    resolution: {integrity: sha512-TQ6RXz4eFzCAappzwHSfjgZ4YZMrJ/+mtVcSlc7tkL1wrPf/INZ3eOcVPJk65MAYZf7ueMbHCYjYmzkdkCAPSg==}
+  s3mini@1.0.2:
+    resolution: {integrity: sha512-/c/dlK7JDijEbCmrXQ6M/Z6uiRpYTw2XKX01RzZwVuwE0x3ORo+Cyf1t99cIEBXvv3L9iqRQD7INy/wAXLLY2A==}
     engines: {node: '>=20'}
 
   safe-array-concat@1.1.4:
@@ -14084,7 +14084,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  s3mini@0.9.5: {}
+  s3mini@1.0.2: {}
 
   safe-array-concat@1.1.4:
     dependencies:
