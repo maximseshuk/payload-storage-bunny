@@ -46,7 +46,7 @@ footer = ""
 conventional_commits = true
 filter_unconventional = false
 split_commits = false
-commit_preprocessors = [{ pattern = '\s*\(#\d+\)$', replace = "" }]
+commit_preprocessors = [{ pattern = '(?m)\s*\(#\d+\)$', replace = "" }]
 commit_parsers = [
   { field = "breaking", pattern = "true", group = "<!-- 00 -->⚠️ Breaking Changes" },
   { message = "^feat", group = "<!-- 01 -->🚀 Features" },
