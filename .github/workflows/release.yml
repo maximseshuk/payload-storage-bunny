@@ -8,13 +8,37 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          prev=$(git describe --tags --abbrev=0 --match 'v*.*.*' HEAD^ 2>/dev/null || true)
+          if [ -z "$prev" ] \
+            || ! git diff --quiet "$prev" HEAD -- src tests pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json .github/workflows/e2e.yml \
+            || [ "$(git show "$prev:package.json" | jq -S 'del(.version)')" != "$(jq -S 'del(.version)' package.json)" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Previous tag: ${prev:-none}"
+
   e2e:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     uses: ./.github/workflows/e2e.yml
     secrets: inherit
 
   release:
     name: Verify, release, publish
-    needs: e2e
+    needs: [changes, e2e]
+    if: ${{ !cancelled() && needs.changes.result == 'success' && (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
