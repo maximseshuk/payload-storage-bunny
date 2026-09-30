@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { expect, test } from '@playwright/test'
@@ -23,10 +24,14 @@ test.describe('Client Uploads - S3 mode', () => {
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.click('text=Select a file')
     const fileChooser = await fileChooserPromise
-    await fileChooser.setFiles(path.join(fixturesDir, 'test-image.jpg'))
+    await fileChooser.setFiles({
+      buffer: readFileSync(path.join(fixturesDir, 'test-image.jpg')),
+      mimeType: 'image/jpeg',
+      name: `test-image-${Date.now()}.jpg`,
+    })
 
     await page.fill('#field-alt', 'S3 client upload')
-    await saveDocAndAssert(page)
+    await saveDocAndAssert(page, '#action-save', 'success', { timeout: 30_000 })
 
     const mint = responses.find((r) => r.method === 'POST' && r.url.includes('/storage-bunny/storage/upload'))
     const directPut = responses.find((r) => r.method === 'PUT' && r.url.includes(s3Host))
