@@ -100,7 +100,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
-    "@payloadcms/plugin-cloud-storage": "^3.87.0",
+    "@payloadcms/plugin-cloud-storage": "^3.90.2",
     "cac": "^7.0.0",
     "ky": "2.0.2",
     "s3mini": "0.9.5",
@@ -143,9 +143,9 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@payloadcms/translations": "^3.83.0",
+    "@payloadcms/translations": "^3.90.2",
     "@seshuk/payload-plugin-media-preview": "^1.0.0",
-    "payload": "^3.83.0",
+    "payload": "^3.90.2",
     "sanitize-filename": "1.6.4"
   },
   "peerDependenciesMeta": {

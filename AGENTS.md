@@ -13,7 +13,7 @@ Payload CMS 3.x storage adapter for Bunny.net. Wraps `@payloadcms/plugin-cloud-s
 
 ## Environment
 
-- Package manager is **pnpm**. Node.js 22+, Payload CMS 3.83+.
+- Package manager is **pnpm**. Node.js 22+, Payload CMS 3.90.2+.
 - Install with `pnpm install`.
 - Runtime commands that touch Bunny read secrets from `.env` (loaded via `dotenv`); never hardcode keys.
 - Agent skills are **not vendored** — only `skills-lock.json` is committed (it pins each skill by content hash). Restore them with `npx skills experimental_install`; nothing in the build, tests or CI depends on them.

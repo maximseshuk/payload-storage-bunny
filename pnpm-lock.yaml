@@ -191,7 +191,7 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0
       '@payloadcms/plugin-cloud-storage':
-        specifier: ^3.87.0
+        specifier: ^3.90.2
         version: 3.90.2(@types/react@19.2.18)(monaco-editor@0.52.2)(next@16.3.6(@playwright/test@1.62.1)(@types/node@26.1.2)(babel-plugin-macros@3.1.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.77.4))(payload@3.90.2(graphql@16.11.0)(supports-color@7.2.0)(typescript@6.0.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@7.2.0)(typescript@6.0.3)
       cac:
         specifier: ^7.0.0

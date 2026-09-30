@@ -33,7 +33,7 @@
 
 ## Quick start
 
-Requires **Payload CMS 3.83.0 or later** and **Node.js 22 or later**.
+Requires **Payload CMS 3.90.2 or later** and **Node.js 22 or later**.
 
 > [!IMPORTANT]
 > **Upgrading from v2?** v3 renames/removes several config keys (the plugin throws a clear error at startup) **and requires a one-time data migration** of stored Stream metadata into the new `bunnyData` field. Back up your database and follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/upgrade-guide) — skipping the migration leaves existing videos with broken thumbnails and empty metadata.
