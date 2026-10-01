@@ -137,7 +137,7 @@ export const getBeforeValidateHook = ({
       }
     }
 
-    if (operation === 'update' && originalDoc && data) {
+    if (operation === 'update' && originalDoc && data && !req.context?.skipCloudStorage) {
       const incomingVideoId = readStoredVideo(data)?.videoId
       if (!file && incomingVideoId && incomingVideoId !== readStoredVideo(originalDoc)?.videoId) {
         if (!req.context) {
