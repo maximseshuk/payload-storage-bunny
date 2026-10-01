@@ -19,7 +19,7 @@ const suite = process.argv[2] || process.env.SUITE
 
 if (!suite) {
   log.error('Usage: pnpm dev <suite>')
-  log.info('Example: pnpm dev thumbnail')
+  log.info('Example: pnpm dev storage')
   process.exit(1)
 }
 
