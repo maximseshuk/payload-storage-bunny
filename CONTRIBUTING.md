@@ -62,7 +62,6 @@ pnpm test:unit      # fast unit tests, no .env needed
 pnpm test           # integration tests against Bunny (needs .env)
 pnpm test:e2e       # browser e2e against Bunny (needs .env)
 pnpm dev            # dev Payload app
-pnpm docs:dev       # docs site
 ```
 
 Run `pnpm typecheck && pnpm lint && pnpm format && pnpm test:unit` before you push.
@@ -86,7 +85,7 @@ Run `pnpm typecheck && pnpm lint && pnpm format && pnpm test:unit` before you pu
 
 ## Docs
 
-If users will notice the change, update `README.md` and the matching page in `docs/`. If you change `src/server/payload/openapi.ts`, run `pnpm docs:openapi`.
+If users will notice the change, update `README.md`. The docs live on `main`: fix the v3 page at the root of `docs/` in a pull request against `main`.
 
 ## Commits and pull requests
 

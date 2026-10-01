@@ -1,6 +1,6 @@
 # Bunny.net Storage for Payload
 
-Payload CMS 3.x storage adapter for Bunny.net. Wraps `@payloadcms/plugin-cloud-storage` and adds:
+Payload 3.x storage adapter for Bunny.net. Wraps `@payloadcms/plugin-cloud-storage` and adds:
 
 - **Bunny Storage** — files, images, documents (HTTP API or S3-compatible).
 - **Bunny Stream** — video with HLS/MP4, thumbnails, TUS resumable uploads.
@@ -13,7 +13,7 @@ Payload CMS 3.x storage adapter for Bunny.net. Wraps `@payloadcms/plugin-cloud-s
 
 ## Environment
 
-- Package manager is **pnpm**. Node.js 22+, Payload CMS 3.90.2+.
+- Package manager is **pnpm**. Node.js 22+, Payload 3.90.2+.
 - Install with `pnpm install`.
 - Runtime commands that touch Bunny read secrets from `.env` (loaded via `dotenv`); never hardcode keys.
 - Agent skills are **not vendored** — only `skills-lock.json` is committed (it pins each skill by content hash). Restore them with `npx skills experimental_install`; nothing in the build, tests or CI depends on them.
@@ -36,9 +36,6 @@ pnpm test:coverage    # vitest + coverage
 pnpm test:e2e         # live e2e against real Bunny resources (needs .env)
 
 pnpm dev              # dev/test Payload app (tests/dev.ts)
-pnpm docs:dev         # Mintlify docs site (docs/)
-pnpm docs:openapi     # regenerate docs/api-reference/openapi.json from src/server/payload/openapi.ts
-pnpm docs:validate    # mint validate (MDX + build check)
 ```
 
 Run `pnpm typecheck && pnpm lint && pnpm format` before every commit. Not just typecheck.
@@ -67,7 +64,7 @@ src/
 
 The `telemetry` plugin option (`boolean | { endpoint?: string }`) reads from `config._original.telemetry`; it needs no normalizer entry. Feature flags are derived in `server/telemetry/features.ts` from the resolved `NormalizedBunnyStorageConfig` (booleans only — never zone/library/collection names or other values).
 
-`server/payload/openapi.ts` is the single source for the OpenAPI doc; `pnpm docs:openapi` writes docs/api-reference/openapi.json via scripts/build-openapi.ts. `migrations/` backs the ./migrations subpath, `mediaPreview.ts` the ./media-preview Stream adapter.
+`server/payload/openapi.ts` holds the OpenAPI metadata attached to the plugin endpoints and fields. `migrations/` backs the ./migrations subpath, `mediaPreview.ts` the ./media-preview Stream adapter.
 
 ## Architecture
 
@@ -118,7 +115,7 @@ Example: add a `stream.quality` override.
 
 1. `src/shared/types/config.ts` — add `quality?: number` to the collection config type (with JSDoc).
 2. `src/server/payload/config/normalizer.ts` — add it to the `mergeDefined(...)` call in `resolveCollectionStreamConfig` (undefined values are filtered automatically). For a `false | Config`-typed option, follow the explicit-`false` pattern instead (see `resolveCollectionPurgeConfig`).
-3. Update `README.md` and the docs page.
+3. Update `README.md`. The docs live on `main` under `docs/`.
 
 ## Testing
 
@@ -148,7 +145,19 @@ Never:
 - Push, force-push, or run destructive git operations without an explicit request.
 - Bypass the collection-context rule or the explicit-`false` handling.
 
+## Releases
+
+`3.x` takes only critical and high-severity security fixes, cherry-picked from `main`. Release workflow and dist-tags match `main` (see `AGENTS.md` there): stable `3.Y.Z` gets npm tag `latest-3` once `4.0.0` is out, `latest` before that.
+
+1. Bump `version` in `package.json`.
+2. Gate: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:unit && pnpm build && pnpm test:e2e`.
+3. Commit `chore(release): vX.Y.Z`. Create lightweight tag `vX.Y.Z` on it.
+4. Push `3.x`, then the tag (only when asked).
+5. On `main`, add an `<Update>` entry to `docs/changelog.mdx` (and `docs/upgrade-guide.mdx` if needed).
+
+Changes to `.github/workflows/release.yml` on `main` must be cherry-picked here too: a tag runs the workflow from its own commit.
+
 ## References
 
 - `README.md` — user-facing overview and quick start.
-- Docs site: <https://payload-storage-bunny.seshuk.im/> (Mintlify; source in `docs/`).
+- Docs site: <https://payload-storage-bunny.seshuk.im/> (Mintlify). The source is on `main`: v3 pages at the root of `docs/`, v4 pages in `docs/v4/`.

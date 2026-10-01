@@ -61,12 +61,22 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm build
 
+      - name: Resolve changelog range
+        id: range
+        run: |
+          prev=$(git describe --tags --abbrev=0 --match 'v*.*.*' --exclude 'v*-*' HEAD^ 2>/dev/null || true)
+          if [[ "$GITHUB_REF_NAME" == *-* || -z "$prev" ]]; then
+            echo "args=--latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=$prev..$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate changelog
         uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
         id: changelog
         with:
           config: cliff.toml
-          args: --latest --strip header --github-repo ${{ github.repository }}
+          args: ${{ steps.range.outputs.args }} --strip header --github-repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

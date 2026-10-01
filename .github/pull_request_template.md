@@ -14,5 +14,5 @@
 
 - [ ] `pnpm typecheck && pnpm lint && pnpm format && pnpm test:unit` pass
 - [ ] Tests added or updated for the behavior change
-- [ ] `README.md` and `docs/` updated if users will notice the change
+- [ ] `README.md` updated if users will notice the change
 - [ ] Commit subjects follow Conventional Commits (`fix: ...`, `feat: ...`)

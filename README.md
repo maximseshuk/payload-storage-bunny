@@ -1,14 +1,14 @@
 <div align="center">
 
 <picture>
-  <img src="docs/logo.svg" alt="Bunny.net Storage for Payload" height="80" />
+  <img src="media/logo.svg" alt="Bunny.net Storage for Payload" height="80" />
 </picture>
 
 <h1>Bunny.net Storage for Payload</h1>
 
 <a href="https://bunny.net?ref=fndfoymy0j"><img src="media/bunny-banner.png" alt="Bunny.net — Fast Global CDN" /></a>
 
-<p>Store files and stream video from Payload CMS on Bunny's fast global CDN.</p>
+<p>Store files and stream video from Payload on Bunny's fast global CDN.</p>
 
 <a href="https://github.com/maximseshuk/payload-storage-bunny/releases/"><img src="https://img.shields.io/github/v/release/maximseshuk/payload-storage-bunny?style=flat-square&logo=github" alt="GitHub release" /></a>
 <a href="https://www.npmjs.com/package/@seshuk/payload-storage-bunny"><img src="https://img.shields.io/npm/v/@seshuk/payload-storage-bunny?style=flat-square&logo=npm" alt="npm version" /></a>
@@ -33,7 +33,7 @@
 
 ## Quick start
 
-Requires **Payload CMS 3.90.2 or later** and **Node.js 22 or later**.
+Requires **Payload 3.90.2 or later** and **Node.js 22 or later**.
 
 > [!WARNING]
 > On Payload 3.83.0 to 3.90.1, only `@seshuk/payload-storage-bunny@3.0.1` works. We do not recommend it, because it lacks the security fixes in v3.1.0. Upgrade Payload instead.
@@ -112,11 +112,11 @@ Opt out with `telemetry: false`, `DO_NOT_TRACK=1`, or `BUNNY_TELEMETRY_DISABLED=
 ## Related plugins
 
 - **[@seshuk/payload-plugin-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — preview images, video, audio, and documents directly in the Payload admin panel. Works with any storage adapter; ships a [Bunny Stream adapter](https://payload-storage-bunny.seshuk.im/guides/media-preview) for this plugin.
-- **[@seshuk/payload-plugin-openapi](https://github.com/maximseshuk/payload-plugin-openapi)** — OpenAPI 3.0/3.1/3.2 spec generator for Payload CMS, with Scalar / Swagger UI.
+- **[@seshuk/payload-plugin-openapi](https://github.com/maximseshuk/payload-plugin-openapi)** — OpenAPI 3.0/3.1/3.2 spec generator for Payload, with Scalar / Swagger UI.
 
 ## Support
 
-Bug reports, feature requests, and questions go to [GitHub Issues](https://github.com/maximseshuk/payload-storage-bunny/issues). For Payload itself, see the [Payload CMS docs](https://payloadcms.com/docs) and [Discord](https://discord.gg/payloadcms).
+Bug reports, feature requests, and questions go to [GitHub Issues](https://github.com/maximseshuk/payload-storage-bunny/issues). For Payload itself, see the [Payload docs](https://payloadcms.com/docs) and [Discord](https://discord.gg/payloadcms).
 
 ## License
 
@@ -124,7 +124,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## Credits
 
-Built by [Maxim Seshuk](https://github.com/maximseshuk) for the Payload CMS community.
+Built by [Maxim Seshuk](https://github.com/maximseshuk) for the Payload community.
 
 If this plugin saves you time, you can [buy me a coffee](https://ko-fi.com/seshuk) ☕
 

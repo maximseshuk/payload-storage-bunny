@@ -205,31 +205,3 @@ export const bunnyDataFieldOpenApi: OpenAPIV3_1.SchemaObject = {
   description:
     'Bunny-managed metadata for this upload. Omitted when no video is attached; otherwise a discriminated union keyed by `type` (currently only `"stream"`).',
 }
-
-export const openApiDocument: OpenAPIV3_1.Document = {
-  components: {
-    securitySchemes: {
-      payloadToken: {
-        description:
-          'Payload authentication cookie. These endpoints run Payload access control; an authenticated admin session is required.',
-        in: 'cookie',
-        name: 'payload-token',
-        type: 'apiKey',
-      },
-    },
-  },
-  info: {
-    description:
-      'HTTP endpoints the plugin registers on your Payload app under `/api`. The admin UI calls these for you; document and drive them yourself only if you build a custom upload flow.',
-    title: 'Payload Storage Bunny — Plugin API',
-    version: '3.1.2',
-  },
-  openapi: '3.1.0',
-  paths: {
-    '/api/storage-bunny/storage/upload': { post: clientUploadOperation },
-    '/api/storage-bunny/stream/tus-auth': { post: tusAuthOperation },
-    '/api/storage-bunny/stream/webhook': { post: streamWebhookOperation },
-  },
-  security: [{ payloadToken: [] }],
-  servers: [{ description: 'Your Payload app origin', url: 'https://your-site.com' }],
-}
