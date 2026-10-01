@@ -79,8 +79,18 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Integration tests
+      - name: Integration tests (SQLite)
         run: pnpm test:int
+
+      - name: Integration tests (Postgres)
+        run: pnpm test:int
+        env:
+          TEST_DB: postgres
+
+      - name: Integration tests (MongoDB)
+        run: pnpm test:int
+        env:
+          TEST_DB: mongodb
 
       - name: Browser e2e
         run: pnpm test:e2e
