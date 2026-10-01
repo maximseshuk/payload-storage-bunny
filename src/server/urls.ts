@@ -1,8 +1,22 @@
-import { posix } from 'node:path'
+import { buildStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
 
-export const buildStorageCdnUrl = (hostname: string, prefix: string, filename: string, encode = false): string => {
-  const path = posix.join(prefix, filename)
-  return `https://${hostname}/${encode ? encodeURI(path) : path}`
+type StorageCdnUrlArgs = {
+  collectionPrefix?: string
+  encode?: boolean
+  filename: string
+  hostname: string
+  prefix?: string
+}
+
+export const buildStorageCdnUrl = ({
+  collectionPrefix,
+  encode = false,
+  filename,
+  hostname,
+  prefix,
+}: StorageCdnUrlArgs): string => {
+  const { storageFilePath } = buildStoragePathData({ collectionPrefix, docPrefix: prefix, filename })
+  return `https://${hostname}/${encode ? encodeURI(storageFilePath) : storageFilePath}`
 }
 
 export const buildStreamCdnUrl = (hostname: string, videoId: string, asset: string): string => {

@@ -5,7 +5,7 @@ import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDef
 import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
 
 export default buildConfigWithDefaults({
-  collections: [createMediaCollection({ slug: 'media' })],
+  collections: [createMediaCollection({ slug: 'media' }), createMediaCollection({ slug: 'manual' })],
   jobs: {
     autoRun: [
       {
@@ -14,7 +14,7 @@ export default buildConfigWithDefaults({
       },
     ],
   },
-  plugins: [
+  storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {
@@ -22,6 +22,11 @@ export default buildConfigWithDefaults({
           disablePayloadAccessControl: true,
           prefix: 'media',
           stream: {},
+        },
+        manual: {
+          disablePayloadAccessControl: true,
+          prefix: 'manual',
+          stream: { tus: { autoMode: false } },
         },
       },
       enabled: true,

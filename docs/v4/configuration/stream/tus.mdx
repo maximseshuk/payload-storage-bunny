@@ -1,0 +1,79 @@
+---
+title: 'TUS uploads'
+description: 'Enable resumable, chunked TUS uploads that go browser-direct to Bunny Stream with short-lived server authorization.'
+---
+
+TUS breaks large uploads into chunks and resumes them after a dropped connection. The browser uploads directly to Bunny; your server only issues a short-lived authorization. This matters for large video files, flaky connections, and serverless hosts with tight request limits (e.g. Vercel).
+
+```ts
+stream: {
+  // ...
+  tus: true, // enables TUS with default settings
+}
+```
+
+Or configure it:
+
+```ts
+stream: {
+  tus: {
+    autoMode: true,       // auto-enable TUS for supported video/audio files (default: true)
+    expiresIn: 7200,      // seconds until the TUS session expires (default: 3600)
+    checkAccess: (req, body) => req.user?.role === 'admin',
+  },
+}
+```
+
+| Option        | Type                                         | Default        | Description                                                                                                                                                                                                                                                                                             |
+| ------------- | -------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoMode`    | `boolean`                                    | `true`         | When `true`, TUS is used automatically for supported files and the admin UI hides the mode toggle. When `false`, editors get a button to switch between standard and TUS upload.                                                                                                                        |
+| `expiresIn`   | `number`                                     | `3600`         | Seconds before the TUS upload session expires.                                                                                                                                                                                                                                                          |
+| `checkAccess` | `(req, body) => boolean \| Promise<boolean>` | built-in check | Custom authorization for the TUS auth endpoint. Receives the parsed request body (`collection`, `filename`, `filesize`, `filetype`, ...) so you can gate on file size or target collection. The default check requires admin access and create access to at least one collection managed by the plugin. |
+
+How it works:
+
+<Steps>
+
+<Step title="Request">
+
+The admin UI calls `POST /api/storage-bunny/stream/tus-auth` with the target collection and file info.
+
+</Step>
+
+<Step title="Authorize">
+
+The plugin checks access (via `checkAccess` or the default rule) and the file. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type (HTML, scripts, SVG or XML) and a file over Payload's `upload.limits.fileSize`, whatever `checkAccess` returns. Then it creates the video in Bunny Stream and returns a signed TUS authorization. The response also contains a `videoToken` that is bound to the video, the collection, the library and the signed-in user. It expires after 24 hours.
+
+</Step>
+
+<Step title="Upload">
+
+The browser uploads directly to Bunny using the TUS protocol.
+
+</Step>
+
+<Step title="Save">
+
+The admin UI saves the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken`. Payload only accepts a `videoId` that comes with a matching `videoToken`. To resume an upload, send both values to `tus-auth` again. Without a valid token, `tus-auth` creates a new video. Payload also rejects a `videoId` that another document in a Stream collection of the same library already uses.
+
+</Step>
+
+<Step title="Track (optional)">
+
+If `cleanup` is enabled, the plugin tracks the upload in a hidden `bunny-stream-upload-sessions` collection until it completes.
+
+</Step>
+
+</Steps>
+
+## Bulk uploads and form saves
+
+Payload's bulk upload drawer opens from the list view's **Bulk Upload** button and whenever a file is dropped or pasted on an upload field. The drawer has no TUS controls. Instead, videos saved there, and videos saved from the edit view without switching to TUS mode, go to Bunny Stream over TUS through Payload's client upload handler. The document is created only after the upload finishes. Video bytes never pass through your server, so a request body cap (Vercel's 4.5 MB) doesn't apply.
+
+This covers collections that store files only in Stream (`storage: false`). A collection that also stores files in Bunny Storage needs [client uploads](/v4/configuration/storage/client-uploads) enabled for the same effect, because the handler must take every file, not only videos. Without them, those saves upload through your server as before.
+
+Uploads through your server are multipart form data. Payload limits them to 20 MB per file and 50 MB per request by default. Change them with `upload.limits.fileSize` and `upload.requestSizeLimit` in your Payload config, or use TUS or client uploads for large files.
+
+These uploads show Payload's own progress overlay and don't resume after a dropped connection. Use TUS mode in the edit view for that.
+
+If the save fails after the video has uploaded, the video stays in your Stream library. Enable [cleanup](/v4/configuration/stream/overview#cleanup) to remove such videos automatically.

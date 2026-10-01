@@ -1,5 +1,6 @@
+import { posix } from 'node:path'
+
 import type { TypeWithPrefix } from '@payloadcms/plugin-cloud-storage/types'
-import { buildStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
 import type {
   CollectionAfterChangeHook,
   CollectionBeforeValidateHook,
@@ -9,15 +10,14 @@ import type {
   TypeWithID,
   Where,
 } from 'payload'
-import { Forbidden, MissingFile, ValidationError } from 'payload'
+import { MissingFile, ValidationError } from 'payload'
 
 import { getStreamVideo, isVideoProcessed } from '@/server/bunny/stream.js'
 import { getSafeFileName } from '@/server/files.js'
 import { readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
+import { readClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import { getHandleDelete } from '@/server/payload/storage/handleDelete.js'
-import { getStreamClientUpload } from '@/server/payload/stream/clientUploads.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
-import { verifyStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
@@ -75,25 +75,21 @@ export const getBeforeValidateHook = ({
       throw new MissingFile(req.t)
     }
 
-    const streamClientUpload = getStreamClientUpload(file?.clientUploadContext)
-    if (streamClientUpload && data && context.streamConfig) {
-      const tokenValid = verifyStreamVideoToken({
-        collection: context.collection.slug,
-        libraryId: context.streamConfig.libraryId,
-        secret: req.payload.secret,
-        token: streamClientUpload.videoToken,
-        user: req.user,
-        videoId: streamClientUpload.videoId,
-      })
-      if (!tokenValid) {
-        throw new Forbidden(req.t)
-      }
+    const clientVideoId =
+      file &&
+      readClientUpload({
+        collectionSlug: context.collection.slug,
+        filename: file.name,
+        req,
+        uploadReference: file.uploadReference,
+      })?.videoId
+    if (clientVideoId && data && context.streamConfig) {
       await getStreamVideo({
         apiKey: context.streamConfig.apiKey,
         libraryId: context.streamConfig.libraryId,
-        videoId: streamClientUpload.videoId,
+        videoId: clientVideoId,
       })
-      setStoredVideoId(data, streamClientUpload.videoId)
+      setStoredVideoId(data, clientVideoId)
     }
 
     if (data && !readStoredVideo(data)?.videoId) {
@@ -172,7 +168,7 @@ export const getAfterChangeHook = (context: CollectionContext): CollectionAfterC
     if (context.streamConfig?.cleanup && videoId) {
       await deleteStreamVideoSession({
         libraryId: context.streamConfig.libraryId,
-        payload: req.payload,
+        req,
         videoId,
       })
     }
@@ -193,11 +189,7 @@ export const getAfterChangeHook = (context: CollectionContext): CollectionAfterC
           doc,
           filename: oldDoc.filename,
           req,
-          storageFilePath: buildStoragePathData({
-            collectionPrefix: context.prefix,
-            docPrefix: doc.prefix,
-            filename: oldDoc.filename,
-          }).storageFilePath,
+          storageFilePath: posix.join(doc.prefix || '', oldDoc.filename),
         })
 
         req.payload.logger.debug({

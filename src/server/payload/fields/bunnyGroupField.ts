@@ -91,7 +91,7 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
       },
       { name: 'stream', type: 'group', fields: streamFields },
     ],
-    typescriptSchema: [
+    jsonSchema: [
       () => ({
         oneOf: [
           {

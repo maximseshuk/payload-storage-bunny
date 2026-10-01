@@ -39,6 +39,7 @@ vi.mock('@/server/bunny/cdn.js', () => ({
   purgeCache: purgeCacheMock,
 }))
 
+const { buildUploadStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
 const { getHandleUpload } = await import('@/server/payload/storage/handleUpload.js')
 
 const t = (key: string, vars?: Record<string, unknown>): string => (vars ? `${key}:${JSON.stringify(vars)}` : key)
@@ -93,26 +94,6 @@ beforeEach(() => {
 })
 
 describe('getHandleUpload', () => {
-  describe('client uploads', () => {
-    it('short-circuits when clientUploadContext is present', async () => {
-      const handler = getHandleUpload(buildContext({ storageConfig } as unknown as Partial<CollectionContext>))
-      const data: Record<string, unknown> = {}
-
-      const result = await handler({
-        clientUploadContext: { some: 'ctx' },
-        collection: { slug: 'media' },
-        data,
-        file: createFile(),
-        req: createReq(),
-      } as never)
-
-      expect(result).toBe(data)
-      expect((data.bunnyData as { stream: { videoId: unknown } }).stream.videoId).toBeNull()
-      expect(uploadStorageFileMock).not.toHaveBeenCalled()
-      expect(createStreamVideoMock).not.toHaveBeenCalled()
-    })
-  })
-
   describe('stream path', () => {
     it('creates and uploads a stream video for a matching mime type (no cleanup)', async () => {
       createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
@@ -231,7 +212,7 @@ describe('getHandleUpload', () => {
       expect(uploadStorageFileMock).not.toHaveBeenCalled()
     })
 
-    it('uploads to the storageFilePath resolved by cloud-storage, not data.prefix', async () => {
+    it('writes to the storage path cloud-storage resolved', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
 
       const handler = getHandleUpload(
@@ -240,13 +221,41 @@ describe('getHandleUpload', () => {
 
       await handler({
         collection: { slug: 'media' },
-        data: { prefix: '' },
+        data: { prefix: 'uploads/tenants/acme' },
         file: createFile(),
         req: createReq(),
-        storageFilePath: 'uploads/photo.jpg',
+        storageFilePath: 'uploads/tenants/acme/photo.jpg',
       } as never)
 
-      expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('uploads/photo.jpg')
+      expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('uploads/tenants/acme/photo.jpg')
+    })
+
+    it('keeps an empty document prefix under the collection prefix', async () => {
+      uploadStorageFileMock.mockResolvedValue(undefined)
+      purgeCacheMock.mockResolvedValue(undefined)
+
+      const handler = getHandleUpload(
+        buildContext({
+          prefix: 'media',
+          purgeConfig: { async: false },
+          storageConfig,
+        } as unknown as Partial<CollectionContext>),
+      )
+      const data = { prefix: '' }
+
+      await handler({
+        collection: { slug: 'media' },
+        data,
+        file: createFile(),
+        req: createReq(),
+        storageFilePath: buildUploadStoragePathData({ collectionPrefix: 'media', docPrefix: '', filename: 'photo.jpg' })
+          .storageFilePath,
+      } as never)
+
+      expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('media/photo.jpg')
+      expect(purgeCacheMock).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg' }),
+      )
     })
   })
 
@@ -265,6 +274,7 @@ describe('getHandleUpload', () => {
         data: {},
         file: createFile(),
         req,
+        storageFilePath: 'photo.jpg',
       } as never)
 
       expect(purgeCacheMock).toHaveBeenCalledWith({
@@ -291,6 +301,7 @@ describe('getHandleUpload', () => {
         data,
         file: createFile(),
         req,
+        storageFilePath: 'photo.jpg',
       } as never)
 
       expect(result).toBe(data)
@@ -316,6 +327,7 @@ describe('getHandleUpload', () => {
         data: {},
         file: createFile(),
         req: createReq(),
+        storageFilePath: 'photo.jpg',
       } as never)
 
       expect(purgeCacheMock).not.toHaveBeenCalled()
@@ -333,6 +345,7 @@ describe('getHandleUpload', () => {
           data: {},
           file: createFile(),
           req,
+          storageFilePath: 'photo.jpg',
         } as never),
       ).rejects.toThrow('@seshuk/payload-storage-bunny:errorUploadFileFailed')
 
@@ -352,6 +365,7 @@ describe('getHandleUpload', () => {
           data: {},
           file: createFile(),
           req,
+          storageFilePath: 'photo.jpg',
         } as never),
       ).rejects.toThrow('@seshuk/payload-storage-bunny:errorUploadFileFailed')
 

@@ -6,7 +6,7 @@ import { createMediaCollection } from '../../helpers/shared/createMediaCollectio
 
 export default buildConfigWithDefaults({
   collections: [createMediaCollection({ slug: 'storage-basic' })],
-  plugins: [
+  storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {

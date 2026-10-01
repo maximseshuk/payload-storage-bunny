@@ -1,8 +1,13 @@
 import { FILE_FIELD_REMOVE_BUTTON_SELECTOR } from './TusUpload.constants.js'
 
-export const clickFileFieldRemoveButton = (timeoutMs = 5000): Promise<boolean> => {
+export const clickFileFieldRemoveButton = (root: HTMLElement | null, timeoutMs = 5000): Promise<boolean> => {
   return new Promise((resolve) => {
-    const existingButton = document.querySelector(FILE_FIELD_REMOVE_BUTTON_SELECTOR)
+    if (!root) {
+      resolve(false)
+      return
+    }
+
+    const existingButton = root.querySelector(FILE_FIELD_REMOVE_BUTTON_SELECTOR)
     if (existingButton) {
       ;(existingButton as HTMLButtonElement).click()
       resolve(true)
@@ -10,7 +15,7 @@ export const clickFileFieldRemoveButton = (timeoutMs = 5000): Promise<boolean> =
     }
 
     const observer = new MutationObserver(() => {
-      const button = document.querySelector(FILE_FIELD_REMOVE_BUTTON_SELECTOR)
+      const button = root.querySelector(FILE_FIELD_REMOVE_BUTTON_SELECTOR)
       if (button) {
         observer.disconnect()
         clearTimeout(timeoutId)
@@ -20,7 +25,7 @@ export const clickFileFieldRemoveButton = (timeoutMs = 5000): Promise<boolean> =
       }
     })
 
-    observer.observe(document.body, {
+    observer.observe(root, {
       childList: true,
       subtree: true,
     })

@@ -18,13 +18,8 @@ import { getGenerateUrl } from './generateUrl.js'
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
   const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
 
-  return async ({ clientUploadContext, collection, data, file, req, storageFilePath }) => {
+  return async ({ collection, data, file, req, storageFilePath: path }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
-
-    if (clientUploadContext) {
-      setStoredVideoId(data, null)
-      return data
-    }
 
     try {
       const fileName = file.filename
@@ -64,7 +59,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             apiKey: storageConfig.apiKey,
             buffer: file.buffer,
             mimeType: file.mimeType,
-            path: storageFilePath,
+            path,
             s3: storageConfig.s3,
             timeout: storageConfig.uploadTimeout,
             zoneName: storageConfig.zoneName,
@@ -74,7 +69,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             apiKey: storageConfig.apiKey,
             buffer: file.buffer,
             mimeType: file.mimeType,
-            path: storageFilePath,
+            path,
             region: storageConfig.region,
             timeout: storageConfig.uploadTimeout,
             zoneName: storageConfig.zoneName,

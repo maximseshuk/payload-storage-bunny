@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import type { Endpoint } from 'payload'
 import { APIError, getAccessResults } from 'payload'
-import { createClientUploadReceipt } from 'payload/internal'
+import sanitize from 'sanitize-filename'
 
 import {
   canUploadToVideo,
@@ -13,10 +13,15 @@ import {
   isVideoProcessed,
   parseMp4Resolutions,
 } from '@/server/bunny/stream.js'
+import { getSafeFileName } from '@/server/files.js'
 import { createCollectionContext } from '@/server/payload/config/context.js'
 import { collectStreamConfigs, collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/config/inspect.js'
 import { streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
-import { assertClientUploadFile } from '@/server/payload/storage/clientUploads/endpoint.js'
+import { signClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
+import {
+  assertClientUploadFile,
+  resolveClientUploadPrefix,
+} from '@/server/payload/storage/clientUploads/uploadInstructions.js'
 import { createStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
 import {
   generateStreamTusUploadSignature,
@@ -99,20 +104,30 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             secret: req.payload.secret,
             user: req.user,
           }
-          const withVideoToken = (videoId: string) => {
+          const withVideoToken = async (videoId: string) => {
             const videoToken = signStreamVideoToken({ ...tokenInput, videoId })
             const head = body.head
             if (head === undefined) {
               return { videoId, videoToken }
             }
-            const context = { filesize: body.filesize, head, mimeType: body.filetype, videoId, videoToken }
-            const signedReceipt = createClientUploadReceipt({
+            const filename = await getSafeFileName({
               collectionSlug: body.collection,
-              context,
-              filename: body.filename,
+              desiredFilename: sanitize(body.filename),
+              req,
+              staticPath: '',
+            })
+            const signedReceipt = signClientUpload({
+              claims: { filesize: body.filesize, head, mimeType: body.filetype, videoId },
+              collectionSlug: body.collection,
+              filename,
+              prefix: await resolveClientUploadPrefix(collectionContext, {
+                collectionSlug: body.collection,
+                filename,
+                req,
+              }),
               req,
             })
-            return { clientUploadContext: { ...context, signedReceipt }, videoId, videoToken }
+            return { filename, signedReceipt, videoId, videoToken }
           }
 
           let videoId =
@@ -139,7 +154,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
                   libraryId: collectionStreamConfig.libraryId,
                   thumbnailTime: collectionStreamConfig.thumbnailTime,
                   title: videoData.title || body.filename,
-                  ...withVideoToken(videoId),
+                  ...(await withVideoToken(videoId)),
                 } as StreamTusAuthResponse)
               } else if (!canUploadToVideo(videoStatus)) {
                 videoId = undefined
@@ -190,7 +205,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             authorizationSignature: signature,
             libraryId: collectionStreamConfig.libraryId,
             thumbnailTime: collectionStreamConfig.thumbnailTime,
-            ...withVideoToken(videoId),
+            ...(await withVideoToken(videoId)),
           } as StreamTusAuthResponse)
         } catch (err) {
           if (err instanceof APIError) {

@@ -1,8 +1,22 @@
 'use client'
 
-import { Button, Dropzone, useConfig, useDocumentEvents, useForm, useTranslation } from '@payloadcms/ui'
+import {
+  Button,
+  Dropzone,
+  ErrorIcon,
+  Spinner,
+  SuccessIcon,
+  TextInput,
+  toast,
+  useConfig,
+  useDocumentEvents,
+  useForm,
+  useTranslation,
+} from '@payloadcms/ui'
+import { VideoPreview } from '@payloadcms/ui/elements/FileManager/FilePreview/VideoPreview'
 import ky from 'ky'
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { formatFilesize } from 'payload/shared'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as tus from 'tus-js-client'
 
 import { BUNNY_API, TUS_MIME_TYPES } from '@/shared/constants.js'
@@ -11,19 +25,28 @@ import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys
 import type { StreamTusAuthResponse } from '@/shared/types/index.js'
 
 import { ToggleButton } from '../ToggleButton/ToggleButton.js'
-import { BASE_CLASS, INITIAL_STATE, TUS_RETRY_DELAYS } from './Upload.constants.js'
-import type { UploadState } from './Upload.types.js'
-import './Upload.scss'
-import { cleanupTusLocalStorage, findPreviousTusUploads } from './Upload.utils.js'
+import { BASE_CLASS, INITIAL_STATE, TUS_RETRY_DELAYS } from './FileManager.constants.js'
+import type { UploadState } from './FileManager.types.js'
+import './FileManager.css'
+import { cleanupTusLocalStorage, findPreviousTusUploads } from './FileManager.utils.js'
 
-type UploadProps = {
+type StatusView = {
+  actions?: React.ReactNode
+  icon?: React.ReactNode
+  meta: string
+  progress?: number
+  text: string
+  tone?: 'danger' | 'placeholder' | 'success'
+}
+
+type FileManagerProps = {
   collectionSlug: string
   isAutoMode?: boolean
   onDisableTus: () => void
   preSelectedFile?: File | null
 }
 
-export const Upload: React.FC<UploadProps> = ({
+export const FileManager: React.FC<FileManagerProps> = ({
   collectionSlug,
   isAutoMode = false,
   onDisableTus,
@@ -386,7 +409,7 @@ export const Upload: React.FC<UploadProps> = ({
     )
 
     if (!isMimeTypeAllowed) {
-      updateState({ uploadError: t('@seshuk/payload-storage-bunny:tusUploadErrorFileType') })
+      toast.error(t('@seshuk/payload-storage-bunny:tusUploadErrorFileType'))
       return
     }
 
@@ -513,59 +536,19 @@ export const Upload: React.FC<UploadProps> = ({
     prevUpdatedAtRef.current = mostRecentUpdate?.updatedAt ?? null
   }, [mostRecentUpdate, state.uploadStatus, state.authData, onDisableTus])
 
-  const renderUploadControls = () => {
-    const { canRestore, uploadProgress, uploadStatus } = state
+  const [previewSrc, setPreviewSrc] = useState<null | string>(null)
 
-    if (canRestore && uploadStatus === 'idle') {
-      return (
-        <>
-          <Button buttonStyle="pill" margin={false} onClick={restoreUpload} size="small">
-            {t('@seshuk/payload-storage-bunny:tusUploadResume')}
-          </Button>
-          <Button buttonStyle="pill" margin={false} onClick={startNewUpload} size="small">
-            {t('@seshuk/payload-storage-bunny:tusUploadStartOver')}
-          </Button>
-        </>
-      )
+  useEffect(() => {
+    if (!state.selectedFile) {
+      setPreviewSrc(null)
+      return
     }
 
-    const statusButtonMap = {
-      checking: (
-        <Button buttonStyle="pill" disabled margin={false} size="small">
-          {t('@seshuk/payload-storage-bunny:tusUploadChecking')}
-        </Button>
-      ),
-      error: (
-        <Button buttonStyle="pill" margin={false} onClick={startNewUpload} size="small">
-          {t('@seshuk/payload-storage-bunny:tusUploadRetry')}
-        </Button>
-      ),
-      idle: !canRestore && (
-        <Button buttonStyle="pill" margin={false} onClick={startNewUpload} size="small">
-          {t('@seshuk/payload-storage-bunny:tusUploadStartUpload')}
-        </Button>
-      ),
-      paused: (
-        <Button buttonStyle="pill" margin={false} onClick={resumeUpload} size="small">
-          {t('@seshuk/payload-storage-bunny:tusUploadResume')}
-        </Button>
-      ),
-      preparing: (
-        <Button buttonStyle="pill" disabled margin={false} size="small">
-          {t('@seshuk/payload-storage-bunny:tusUploadPreparing')}
-        </Button>
-      ),
-      uploading: (
-        <Button buttonStyle="pill" disabled={uploadProgress >= 99} margin={false} onClick={pauseUpload} size="small">
-          {uploadProgress >= 99
-            ? t('@seshuk/payload-storage-bunny:tusUploadFinalizing')
-            : t('@seshuk/payload-storage-bunny:tusUploadPause')}
-        </Button>
-      ),
-    }
+    const src = URL.createObjectURL(state.selectedFile)
+    setPreviewSrc(src)
 
-    return statusButtonMap[uploadStatus as keyof typeof statusButtonMap] || null
-  }
+    return () => URL.revokeObjectURL(src)
+  }, [state.selectedFile])
 
   const formatTimeRemaining = (seconds: number): string => {
     const s = t('@seshuk/payload-storage-bunny:tusUploadTimeSeconds')
@@ -585,111 +568,212 @@ export const Upload: React.FC<UploadProps> = ({
     return remainingMinutes > 0 ? `${hours}${h} ${remainingMinutes}${m}` : `${hours}${h}`
   }
 
-  const renderProgressText = () => {
+  const renderStatus = (file: File): StatusView => {
     const { canRestore, estimatedTimeRemaining, uploadError, uploadProgress, uploadStatus } = state
+    const progress = Math.floor(uploadProgress)
+    const hint = t('@seshuk/payload-storage-bunny:tusUploadHint')
+    const transferred = t('@seshuk/payload-storage-bunny:tusUploadProgress', {
+      total: formatFilesize(file.size),
+      uploaded: formatFilesize(Math.round((file.size * uploadProgress) / 100)),
+    })
 
-    if (uploadError) {
-      return uploadError
+    switch (uploadStatus) {
+      case 'checking':
+        return {
+          icon: <Spinner loadingText={null} size="sm" />,
+          meta: hint,
+          text: t('@seshuk/payload-storage-bunny:tusUploadStatusChecking'),
+          tone: 'placeholder',
+        }
+      case 'completed':
+        return {
+          icon: <SuccessIcon />,
+          meta: t('@seshuk/payload-storage-bunny:tusUploadSaveToFinish'),
+          progress: 100,
+          text: t('@seshuk/payload-storage-bunny:tusUploadStatusCompleted'),
+          tone: 'success',
+        }
+      case 'error':
+        return {
+          actions: (
+            <Button buttonStyle="primary" margin={false} onClick={startNewUpload}>
+              {t('@seshuk/payload-storage-bunny:tusUploadRetry')}
+            </Button>
+          ),
+          icon: <ErrorIcon />,
+          meta: uploadError ?? hint,
+          progress: progress > 0 ? progress : undefined,
+          text:
+            progress > 0
+              ? t('@seshuk/payload-storage-bunny:tusUploadStatusFailedAt', { progress })
+              : t('@seshuk/payload-storage-bunny:tusUploadStatusFailed'),
+          tone: 'danger',
+        }
+      case 'idle':
+        return canRestore
+          ? {
+              actions: (
+                <>
+                  <Button buttonStyle="ghost" margin={false} onClick={startNewUpload}>
+                    {t('@seshuk/payload-storage-bunny:tusUploadStartOver')}
+                  </Button>
+                  <Button buttonStyle="primary" margin={false} onClick={restoreUpload}>
+                    {t('@seshuk/payload-storage-bunny:tusUploadResume')}
+                  </Button>
+                </>
+              ),
+              meta: t('@seshuk/payload-storage-bunny:tusUploadResumeHint'),
+              text: t('@seshuk/payload-storage-bunny:tusUploadStatusIdleWithRestore'),
+              tone: 'placeholder',
+            }
+          : {
+              actions: (
+                <Button buttonStyle="primary" margin={false} onClick={startNewUpload}>
+                  {t('@seshuk/payload-storage-bunny:tusUploadStartUpload')}
+                </Button>
+              ),
+              meta: hint,
+              text: t('@seshuk/payload-storage-bunny:tusUploadStatusIdle'),
+              tone: 'placeholder',
+            }
+      case 'paused':
+        return {
+          actions: (
+            <Button buttonStyle="primary" margin={false} onClick={resumeUpload}>
+              {t('@seshuk/payload-storage-bunny:tusUploadResume')}
+            </Button>
+          ),
+          meta: transferred,
+          progress,
+          text: t('@seshuk/payload-storage-bunny:tusUploadStatusPaused', { progress }),
+        }
+      case 'preparing':
+        return {
+          icon: <Spinner loadingText={null} size="sm" />,
+          meta: hint,
+          text: t('@seshuk/payload-storage-bunny:tusUploadPreparing'),
+          tone: 'placeholder',
+        }
+      case 'uploading':
+        return uploadProgress >= 99
+          ? {
+              icon: <Spinner loadingText={null} size="sm" />,
+              meta: transferred,
+              progress,
+              text: t('@seshuk/payload-storage-bunny:tusUploadStatusFinalizing'),
+            }
+          : {
+              actions: (
+                <Button buttonStyle="secondary" margin={false} onClick={pauseUpload}>
+                  {t('@seshuk/payload-storage-bunny:tusUploadPause')}
+                </Button>
+              ),
+              meta: estimatedTimeRemaining
+                ? `${transferred} · ${t('@seshuk/payload-storage-bunny:tusUploadTimeLeft', {
+                    time: formatTimeRemaining(estimatedTimeRemaining),
+                  })}`
+                : transferred,
+              progress,
+              text: t('@seshuk/payload-storage-bunny:tusUploadStatusUploading', { progress }),
+            }
     }
+  }
 
-    const statusTextMap = {
-      checking: t('@seshuk/payload-storage-bunny:tusUploadStatusChecking'),
-      completed: t('@seshuk/payload-storage-bunny:tusUploadStatusCompleted'),
-      idle: canRestore
-        ? t('@seshuk/payload-storage-bunny:tusUploadStatusIdleWithRestore')
-        : t('@seshuk/payload-storage-bunny:tusUploadStatusIdle'),
-      paused: t('@seshuk/payload-storage-bunny:tusUploadStatusPaused', {
-        progress: uploadProgress.toFixed(1),
-      }),
-      preparing: t('@seshuk/payload-storage-bunny:tusUploadPreparing'),
-      uploading:
-        uploadProgress >= 99
-          ? t('@seshuk/payload-storage-bunny:tusUploadStatusFinalizing')
-          : (() => {
-              const baseText = t('@seshuk/payload-storage-bunny:tusUploadStatusUploading', {
-                progress: uploadProgress.toFixed(1),
-              })
-              return `${baseText}${estimatedTimeRemaining ? ` (~${formatTimeRemaining(estimatedTimeRemaining)})` : ''}`
-            })(),
-    }
+  const renderStatusField = (file: File) => {
+    const { actions, icon, meta, progress, text, tone } = renderStatus(file)
 
-    return statusTextMap[uploadStatus as keyof typeof statusTextMap] || null
+    return (
+      <div className={`${BASE_CLASS}__status-field`}>
+        <div
+          aria-label={text}
+          aria-valuemax={progress === undefined ? undefined : 100}
+          aria-valuemin={progress === undefined ? undefined : 0}
+          aria-valuenow={progress}
+          className={`${BASE_CLASS}__status-box${tone === 'danger' ? ` ${BASE_CLASS}__status-box--danger` : ''}`}
+          role={progress === undefined ? 'group' : 'progressbar'}
+        >
+          {progress !== undefined && (
+            <div
+              className={`${BASE_CLASS}__status-fill${tone === 'danger' || tone === 'success' ? ` ${BASE_CLASS}__status-fill--${tone}` : ''}`}
+              style={{ width: `${progress}%` }}
+            />
+          )}
+          <output className={`${BASE_CLASS}__status${tone ? ` ${BASE_CLASS}__status--${tone}` : ''}`}>
+            {icon}
+            {text}
+          </output>
+          {actions && <div className={`${BASE_CLASS}__actions`}>{actions}</div>}
+        </div>
+        <span className={`${BASE_CLASS}__meta${tone === 'danger' ? ` ${BASE_CLASS}__meta--danger` : ''}`}>{meta}</span>
+      </div>
+    )
   }
 
   return (
-    <div className={`${BASE_CLASS} ${BASE_CLASS}--${state.uploadStatus}`}>
-      <div className={`${BASE_CLASS}__upload`}>
-        {!state.selectedFile && (
-          <Dropzone onChange={handleFileSelection}>
-            <div className={`${BASE_CLASS}__dropzoneContent`}>
-              <div className={`${BASE_CLASS}__dropzoneButtons`}>
-                <Button buttonStyle="pill" onClick={() => inputRef.current?.click()} size="small">
-                  {t('upload:selectFile')}
-                </Button>
-                <input
-                  accept={acceptMimeTypes}
-                  className={`${BASE_CLASS}__hidden-input`}
-                  hidden
-                  onChange={(e) => {
-                    if (e.target.files?.length) {
-                      void handleFileSelection(e.target.files)
-                    }
-                  }}
-                  ref={inputRef}
-                  type="file"
-                />
-                <ToggleButton isEnabled={true} onToggle={onDisableTus} />
-              </div>
-              <p className={`${BASE_CLASS}__dragAndDropText`}>
-                {t('general:or')} {t('upload:dragAndDrop')}
-              </p>
-            </div>
-          </Dropzone>
-        )}
+    <div className={`field-type file-manager ${BASE_CLASS} ${BASE_CLASS}--${state.uploadStatus}`}>
+      <div className="file-manager__panel">
+        <div className="file-manager__content">
+          <div className="file-manager__upload">
+            {!state.selectedFile && (
+              <Dropzone onChange={handleFileSelection}>
+                <div className="upload-dropzone-content">
+                  <div className={`upload-dropzone-content__buttons ${BASE_CLASS}__dropzoneButtons`}>
+                    <Button buttonStyle="secondary" onClick={() => inputRef.current?.click()} size="medium">
+                      {t('upload:selectFile')}
+                    </Button>
+                    <input
+                      accept={acceptMimeTypes}
+                      hidden
+                      onChange={(e) => {
+                        if (e.target.files?.length) {
+                          void handleFileSelection(e.target.files)
+                        }
+                      }}
+                      ref={inputRef}
+                      type="file"
+                    />
+                    <ToggleButton isEnabled={true} onToggle={onDisableTus} />
+                  </div>
+                  <p className="upload-dropzone-content__drag-text">
+                    {t('general:or')} {t('upload:dragAndDrop')}
+                  </p>
+                </div>
+              </Dropzone>
+            )}
 
-        {state.selectedFile && (
-          <Fragment>
-            <div className={`${BASE_CLASS}__file-container`}>
-              <div className={`${BASE_CLASS}__filename-section`}>
-                {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-                <input
-                  className={`${BASE_CLASS}__filename`}
-                  disabled={!state.isFileNameEditable}
-                  onChange={handleFileNameChange}
-                  title={state.fileName}
-                  type="text"
-                  value={state.fileName}
-                />
+            {state.selectedFile && (
+              <>
                 <Button
-                  buttonStyle="icon-label"
-                  className={`${BASE_CLASS}__remove`}
+                  buttonStyle="secondary"
+                  className={`file-manager__remove ${BASE_CLASS}__remove`}
                   icon="x"
-                  iconStyle="with-border"
                   onClick={handleFileRemoval}
                   round
                   tooltip={t('general:cancel')}
                 />
-              </div>
-
-              <div className={`${BASE_CLASS}__file-header`}>
-                <div className={`${BASE_CLASS}__tus-controls`}>{renderUploadControls()}</div>
-
-                <span className={`${BASE_CLASS}__file-size`}>
-                  {t('@seshuk/payload-storage-bunny:tusUploadFileSize', {
-                    size: (state.selectedFile.size / 1024 / 1024).toFixed(2),
-                  })}
-                </span>
-              </div>
-              <div
-                className={`${BASE_CLASS}__progress-bar ${BASE_CLASS}__progress-bar--${state.uploadStatus}`}
-                style={{ '--upload-progress': `${state.uploadProgress}%` } as React.CSSProperties}
-              >
-                <div className={`${BASE_CLASS}__progress-fill`}></div>
-                <div className={`${BASE_CLASS}__progress-text`}>{renderProgressText()}</div>
-              </div>
-            </div>
-          </Fragment>
-        )}
+                {previewSrc && (
+                  <div className="file-manager__selected-preview">
+                    <VideoPreview fileSrc={previewSrc} />
+                  </div>
+                )}
+                <div className="file-manager__file-adjustments">
+                  <TextInput
+                    id={`field-${BASE_CLASS}-filename`}
+                    label={t('upload:fileName')}
+                    onChange={handleFileNameChange}
+                    path="filename"
+                    readOnly={!state.isFileNameEditable}
+                    value={state.fileName}
+                  />
+                  <span className="file-manager__selected-meta">
+                    {[formatFilesize(state.selectedFile.size), state.selectedFile.type].filter(Boolean).join(' – ')}
+                  </span>
+                  {renderStatusField(state.selectedFile)}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

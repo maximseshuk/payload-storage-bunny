@@ -2,9 +2,10 @@ import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
 
 import { HTTPError } from '@/server/http/index.js'
 import { getBunnyData } from '@/server/payload/fields/bunnyGroupField.js'
+import { readClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import { resolveStoragePrefix } from '@/server/payload/storage/resolvePrefix.js'
 import { storageStaticHandler } from '@/server/payload/storage/serveFile.js'
-import { getStreamClientUpload, trimToCompleteIsoBoxes } from '@/server/payload/stream/clientUploads.js'
+import { trimToCompleteIsoBoxes } from '@/server/payload/stream/clientUploads.js'
 import { streamStaticHandler } from '@/server/payload/stream/serveStream.js'
 import { streamThumbnailStaticHandler } from '@/server/payload/stream/serveThumbnail.js'
 import type { CollectionContext } from '@/shared/types/index.js'
@@ -16,12 +17,12 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
     try {
       const {
         doc,
-        params: { clientUploadContext, filename, prefix: prefixQueryParam },
+        params: { filename, prefix: prefixQueryParam, uploadReference },
       } = data
+      const clientUpload = readClientUpload({ collectionSlug: collection.slug, filename, req, uploadReference })
       if (streamConfig) {
-        const streamClientUpload = getStreamClientUpload(clientUploadContext)
-        if (streamClientUpload) {
-          return new Response(trimToCompleteIsoBoxes(Buffer.from(streamClientUpload.head, 'base64')))
+        if (clientUpload?.videoId) {
+          return new Response(trimToCompleteIsoBoxes(Buffer.from(clientUpload.head ?? '', 'base64')))
         }
 
         if (filename?.startsWith('bunny:stream:')) {
@@ -51,6 +52,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
             collection: collection.slug,
             limit: 1,
             overrideAccess: true,
+            req,
             where: {
               'bunnyData.stream.videoId': { exists: true },
               filename: { equals: filename },
@@ -82,17 +84,18 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
       }
 
       const resolvedPrefix = await resolveStoragePrefix({
-        clientUploadContext,
         collection,
         doc,
         fallbackPrefix: prefix,
         filename,
         prefixQueryParam,
         req,
+        uploadPrefix: clientUpload?.prefix,
       })
 
       return await storageStaticHandler({
         collection,
+        collectionPrefix: prefix,
         filename,
         prefix: resolvedPrefix,
         req,

@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Payload Storage Bunny",
-  "description": "Bunny.net storage adapter for Payload CMS",
+  "description": "Bunny.net storage adapter for Payload",
   "colors": {
     "primary": "#ef6126",
     "light": "#f49067",
@@ -39,63 +39,148 @@
     "display": "header"
   },
   "navigation": {
-    "tabs": [
+    "versions": [
       {
-        "tab": "Documentation",
-        "groups": [
+        "version": "v3",
+        "default": true,
+        "tabs": [
           {
-            "group": "Documentation",
-            "pages": ["introduction", "quick-start", "upgrade-guide", "changelog"]
-          },
-          {
-            "group": "Configuration",
-            "pages": [
-              "configuration/overview",
+            "tab": "Documentation",
+            "groups": [
               {
-                "group": "Storage",
-                "icon": "database",
-                "pages": ["configuration/storage/overview", "configuration/storage/client-uploads"]
+                "group": "Documentation",
+                "pages": ["introduction", "quick-start", "upgrade-guide", "changelog"]
               },
               {
-                "group": "Stream",
-                "icon": "video",
-                "pages": ["configuration/stream/overview", "configuration/stream/tus", "configuration/stream/webhooks"]
+                "group": "Configuration",
+                "pages": [
+                  "configuration/overview",
+                  {
+                    "group": "Storage",
+                    "icon": "database",
+                    "pages": ["configuration/storage/overview", "configuration/storage/client-uploads"]
+                  },
+                  {
+                    "group": "Stream",
+                    "icon": "video",
+                    "pages": [
+                      "configuration/stream/overview",
+                      "configuration/stream/tus",
+                      "configuration/stream/webhooks"
+                    ]
+                  },
+                  "configuration/collection-overrides",
+                  "configuration/signed-urls",
+                  "configuration/thumbnails",
+                  "configuration/cache-purge",
+                  "configuration/url-transforms",
+                  "configuration/telemetry"
+                ]
               },
-              "configuration/collection-overrides",
-              "configuration/signed-urls",
-              "configuration/thumbnails",
-              "configuration/cache-purge",
-              "configuration/url-transforms",
-              "configuration/telemetry"
+              {
+                "group": "CLI",
+                "pages": ["cli/init", "cli/deploy-edge-script"]
+              },
+              {
+                "group": "Guides",
+                "pages": [
+                  "guides/stored-data",
+                  "guides/multi-tenant",
+                  "guides/stream-collections",
+                  "guides/media-preview",
+                  "guides/examples"
+                ]
+              }
             ]
           },
           {
-            "group": "CLI",
-            "pages": ["cli/init", "cli/deploy-edge-script"]
-          },
-          {
-            "group": "Guides",
-            "pages": [
-              "guides/stored-data",
-              "guides/multi-tenant",
-              "guides/stream-collections",
-              "guides/media-preview",
-              "guides/examples"
+            "tab": "API reference",
+            "groups": [
+              {
+                "group": "API reference",
+                "openapi": {
+                  "source": "/api-reference/openapi.json",
+                  "directory": "api-reference"
+                },
+                "pages": [
+                  "api-reference/overview",
+                  "POST /api/storage-bunny/storage/upload",
+                  "POST /api/storage-bunny/stream/tus-auth",
+                  "POST /api/storage-bunny/stream/webhook"
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
-        "groups": [
+        "version": "v4",
+        "tag": "Beta",
+        "tabs": [
           {
-            "group": "API reference",
-            "openapi": "/api-reference/openapi.json",
-            "pages": [
-              "api-reference/overview",
-              "POST /api/storage-bunny/storage/upload",
-              "POST /api/storage-bunny/stream/tus-auth",
-              "POST /api/storage-bunny/stream/webhook"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Documentation",
+                "pages": ["v4/introduction", "v4/quick-start", "v4/upgrade-guide", "changelog"]
+              },
+              {
+                "group": "Configuration",
+                "pages": [
+                  "v4/configuration/overview",
+                  {
+                    "group": "Storage",
+                    "icon": "database",
+                    "pages": ["v4/configuration/storage/overview", "v4/configuration/storage/client-uploads"]
+                  },
+                  {
+                    "group": "Stream",
+                    "icon": "video",
+                    "pages": [
+                      "v4/configuration/stream/overview",
+                      "v4/configuration/stream/tus",
+                      "v4/configuration/stream/webhooks"
+                    ]
+                  },
+                  "v4/configuration/collection-overrides",
+                  "v4/configuration/signed-urls",
+                  "v4/configuration/thumbnails",
+                  "v4/configuration/cache-purge",
+                  "v4/configuration/url-transforms",
+                  "v4/configuration/telemetry"
+                ]
+              },
+              {
+                "group": "CLI",
+                "pages": ["v4/cli/init", "v4/cli/deploy-edge-script"]
+              },
+              {
+                "group": "Guides",
+                "pages": [
+                  "v4/guides/stored-data",
+                  "v4/guides/multi-tenant",
+                  "v4/guides/stream-collections",
+                  "v4/guides/media-preview",
+                  "v4/guides/examples"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "API reference",
+            "groups": [
+              {
+                "group": "API reference",
+                "openapi": {
+                  "source": "/v4/api-reference/openapi.json",
+                  "directory": "v4/api-reference"
+                },
+                "pages": [
+                  "v4/api-reference/overview",
+                  "POST /api/storage-bunny/stream/tus-auth",
+                  "POST /api/storage-bunny/stream/webhook"
+                ]
+              }
             ]
           }
         ]

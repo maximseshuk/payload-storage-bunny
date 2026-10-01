@@ -1,6 +1,6 @@
 ---
 title: 'Changelog'
-description: 'Release history for the Bunny Storage plugin for Payload CMS.'
+description: 'Release history for the Bunny Storage plugin for Payload.'
 ---
 
 Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
@@ -42,7 +42,7 @@ Notable changes per release. For the full commit-level history, see the [GitHub 
 <Update label="v3.0.3" description="September 30, 2026">
   **Fixes**
 
-- Requires Payload CMS 3.90.2 or later. Older Payload versions now fail at install with a peer dependency error instead of crashing at runtime.
+- Requires Payload 3.90.2 or later. Older Payload versions now fail at install with a peer dependency error instead of crashing at runtime.
 
 </Update>
 
@@ -68,7 +68,7 @@ Notable changes per release. For the full commit-level history, see the [GitHub 
 
 **Breaking**
 
-- Requires Payload CMS 3.83.0+ and Node.js 22+.
+- Requires Payload 3.83.0+ and Node.js 22+.
 - Stream metadata moved to a stored `bunnyData` field, replacing `bunnyVideoId` / `bunnyVideoMeta` — needs a [data migration](/upgrade-guide#migrate-your-data).
 - Several config keys renamed or removed, and throw at startup until updated — see [config changes](/upgrade-guide#config-changes-breaking).
 
@@ -149,7 +149,7 @@ If this plugin saves you time, [star it on GitHub](https://github.com/maximseshu
 
 **Breaking**
 
-- Requires Payload CMS 3.53.0 or higher.
+- Requires Payload 3.53.0 or higher.
 - Removed the `options` wrapper — all config moves to the top level.
 - `stream.libraryId` is now a number; `stream.mp4Fallback` is now a boolean.
 - `purge.enabled` removed — purging is enabled by the presence of an API key.

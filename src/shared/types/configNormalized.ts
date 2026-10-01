@@ -81,7 +81,7 @@ export interface NormalizedCollectionConfig {
   urlTransform?: NormalizedUrlTransformConfig
 }
 
-export interface NormalizedBunnyStorageConfig extends Pick<BunnyStorageConfig, 'i18n'> {
+export interface NormalizedBunnyStorageConfig {
   _original: BunnyStorageConfig
   accountApiKey?: string
   collections: Map<string, NormalizedCollectionConfig>

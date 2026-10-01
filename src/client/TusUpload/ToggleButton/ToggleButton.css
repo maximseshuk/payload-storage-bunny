@@ -1,0 +1,11 @@
+.upload-dropzone-content__buttons:has(> .upload-dropzone-content__pasteFromClipboard):has(
+    > .storage-bunny-tus-upload__toggle
+  ) {
+  > .storage-bunny-tus-upload__toggle-or {
+    order: 1;
+  }
+
+  > .upload-dropzone-content__pasteFromClipboard {
+    order: 2;
+  }
+}

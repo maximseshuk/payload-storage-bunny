@@ -46,6 +46,7 @@ vi.mock('@/server/payload/stream/tusSignature.js', async (importOriginal) => ({
 }))
 
 const { verifyClientUploadReceipt } = await import('payload/internal')
+const { readClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
 const { signStreamVideoToken } = await import('@/server/payload/stream/tusSignature.js')
 const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
 const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
@@ -201,7 +202,7 @@ describe('TUS auth endpoint', () => {
     const json = await (await handler(buildReq(validBody))).json()
 
     expect(json.videoToken).toBe(tokenFor('new-video-1'))
-    expect(json.clientUploadContext).toBeUndefined()
+    expect(json.signedReceipt).toBeUndefined()
   })
 
   it('returns a video token with an already processed video', async () => {
@@ -260,22 +261,89 @@ describe('TUS auth endpoint', () => {
     }
   })
 
-  it('returns a signed client upload context when the file head is sent', async () => {
+  it('returns a signed upload reference bound to the video and head when the file head is sent', async () => {
     const handler = getTusHandler(buildConfig())
-    const req = buildReq({ ...validBody, head: 'AAAA' }, { user: { collection: 'users', id: 'user-1' } })
+    const req = buildReq(
+      { ...validBody, head: 'AAAA' },
+      {
+        payload: {
+          config: { upload: {} },
+          collections: { media: { config: collection } },
+          db: { findOne: async () => null },
+          logger: { debug: vi.fn(), error: vi.fn() },
+          secret: 'payload-secret',
+        },
+        user: { collection: 'users', id: 'user-1' },
+      },
+    )
     const json = await (await handler(req)).json()
 
-    const { signedReceipt, ...context } = json.clientUploadContext
-    expect(context).toEqual({
-      filesize: 1000,
-      head: 'AAAA',
-      mimeType: 'video/mp4',
-      videoId: 'new-video-1',
-      videoToken: json.videoToken,
-    })
-    const receipt = verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt })
+    expect(json.filename).toBe('clip.mp4')
+    const receipt = verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt: json.signedReceipt })
     expect(receipt.filename).toBe('clip.mp4')
-    expect(receipt.context).toEqual(context)
+    expect(
+      readClientUpload({
+        collectionSlug: 'media',
+        filename: 'clip.mp4',
+        req,
+        uploadReference: { signedReceipt: json.signedReceipt },
+      }),
+    ).toEqual({ filesize: 1000, head: 'AAAA', mimeType: 'video/mp4', prefix: '', videoId: 'new-video-1' })
+  })
+
+  it('signs the collection prefix, never the zone root', async () => {
+    const config = createNormalizedConfig({
+      collections: { media: { disablePayloadAccessControl: true, prefix: 'media' } },
+      stream: {
+        apiKey: 'stream-key',
+        hostname: 'stream.b-cdn.net',
+        libraryId: 12345,
+        tus: { checkAccess: () => true },
+      },
+    } as never)
+    const req = buildReq(
+      { ...validBody, head: 'AAAA' },
+      {
+        payload: {
+          config: { upload: {} },
+          collections: { media: { config: collection } },
+          db: { findOne: async () => null },
+          logger: { debug: vi.fn(), error: vi.fn() },
+          secret: 'payload-secret',
+        },
+      },
+    )
+    const json = await (await getTusHandler(config)(req)).json()
+
+    expect(
+      verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt: json.signedReceipt }).filePrefix,
+    ).toBe('media')
+  })
+
+  it('binds the upload reference to a unique file name', async () => {
+    const handler = getTusHandler(buildConfig())
+    const taken = new Set(['clip.mp4'])
+    const req = buildReq(
+      { ...validBody, head: 'AAAA' },
+      {
+        payload: {
+          config: { upload: {} },
+          collections: { media: { config: collection } },
+          db: {
+            findOne: async ({ where }: { where: { filename: { equals: string } } }) =>
+              taken.has(where.filename.equals) || null,
+          },
+          logger: { debug: vi.fn(), error: vi.fn() },
+          secret: 'payload-secret',
+        },
+      },
+    )
+    const json = await (await handler(req)).json()
+
+    expect(json.filename).toBe('clip-1.mp4')
+    expect(
+      verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt: json.signedReceipt }).filename,
+    ).toBe('clip-1.mp4')
   })
 
   describe('file checks', () => {

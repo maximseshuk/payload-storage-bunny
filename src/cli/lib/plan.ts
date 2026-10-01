@@ -53,9 +53,9 @@ const HDD_REGION_CODES = ['de', 'uk', 'se', 'ny', 'la', 'sg', 'syd', 'br', 'jh']
 
 const SSD_EXTRA_REGION_CODES = ['cz', 'es', 'mi', 'wa', 'hk', 'jp']
 
-export const SSD_REGION_CODES = [...HDD_REGION_CODES, ...SSD_EXTRA_REGION_CODES]
+const SSD_REGION_CODES = [...HDD_REGION_CODES, ...SSD_EXTRA_REGION_CODES]
 
-export const S3_REGION_CODES = ['de', 'uk', 'se', 'ny', 'la', 'sg', 'syd', 'jh']
+const S3_REGION_CODES = ['de', 'uk', 'se', 'ny', 'la', 'sg', 'syd', 'jh']
 
 const STREAM_REGION_CODES = ['de', 'uk', 'se', 'la', 'ny', 'sg', 'syd', 'br', 'jh']
 
@@ -119,9 +119,9 @@ export type InitPlan = {
   stream?: StreamPlanStep
 }
 
-export const STORAGE_ZONE_NAME_MIN = 4
+const STORAGE_ZONE_NAME_MIN = 4
 
-export const STORAGE_ZONE_NAME_MAX = 20
+const STORAGE_ZONE_NAME_MAX = 20
 
 const PULL_ZONE_TIER_STANDARD = 0
 

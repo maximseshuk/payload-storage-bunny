@@ -15,7 +15,7 @@ import { getGenerateUrl } from './generateUrl.js'
 export const getHandleDelete = (context: CollectionContext): HandleDelete => {
   const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
 
-  return async ({ collection, doc, filename, req, storageFilePath }) => {
+  return async ({ collection, doc, filename, req, storageFilePath: path }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     try {
@@ -27,7 +27,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
           collection,
           data: doc,
           filename,
-          prefix: doc.prefix,
+          prefix: doc.prefix || '',
         })
       }
 
@@ -41,14 +41,14 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
         if (storageConfig.s3) {
           await deleteStorageFileS3({
             apiKey: storageConfig.apiKey,
-            path: storageFilePath,
+            path,
             s3: storageConfig.s3,
             zoneName: storageConfig.zoneName,
           })
         } else {
           await deleteStorageFile({
             apiKey: storageConfig.apiKey,
-            path: storageFilePath,
+            path,
             region: storageConfig.region,
             zoneName: storageConfig.zoneName,
           })

@@ -28,26 +28,27 @@ describe('bunnyData afterRead — non-video doc in a stream-enabled collection',
   })
 
   it('create, read, list and delete of a doc without a videoId do not throw', async () => {
-    const created = await payload.create({ collection: SLUG, data: { title: 'no video' } })
+    const created = await payload.create({ collection: SLUG, overrideAccess: true, data: { title: 'no video' } })
     expect(created.bunnyData).toBeUndefined()
 
-    const read = await payload.findByID({ collection: SLUG, id: created.id })
+    const read = await payload.findByID({ collection: SLUG, overrideAccess: true, id: created.id })
     expect(read.bunnyData).toBeUndefined()
 
-    const list = await payload.find({ collection: SLUG, where: { id: { equals: created.id } } })
+    const list = await payload.find({ collection: SLUG, overrideAccess: true, where: { id: { equals: created.id } } })
     expect(list.docs[0]?.bunnyData).toBeUndefined()
 
-    const deleted = await payload.delete({ collection: SLUG, id: created.id })
+    const deleted = await payload.delete({ collection: SLUG, overrideAccess: true, id: created.id })
     expect(deleted.id).toBe(created.id)
   })
 
   it('keeps bunnyData for a doc that has a videoId', async () => {
     const created = await payload.create({
       collection: SLUG,
+      overrideAccess: true,
       data: { title: 'has video', bunnyData: { stream: { videoId: 'vid-123' } } },
     })
     expect(created.bunnyData).toMatchObject({ type: 'stream', stream: { videoId: 'vid-123', libraryId: 4242 } })
 
-    await payload.delete({ collection: SLUG, id: created.id })
+    await payload.delete({ collection: SLUG, overrideAccess: true, id: created.id })
   })
 })

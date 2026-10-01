@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
 import { bunnyGroupField } from '@/server/payload/fields/bunnyGroupField.js'
-import {
-  bunnyDataFieldOpenApi,
-  clientUploadOperation,
-  streamWebhookOperation,
-  tusAuthOperation,
-} from '@/server/payload/openapi.js'
+import { bunnyDataFieldOpenApi, streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
 import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
@@ -41,6 +36,5 @@ describe('openapi metadata', () => {
     expect(tusAuthOperation.summary).toBeDefined()
     expect(tusAuthOperation.tags).toEqual(['Bunny Stream'])
     expect(streamWebhookOperation.tags).toEqual(['Bunny Stream'])
-    expect(clientUploadOperation.tags).toEqual(['Bunny Storage'])
   })
 })

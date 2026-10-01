@@ -114,6 +114,21 @@ describe('file utils', () => {
       expect(result).toBe('a-1.a')
     })
 
+    it('never probes the filesystem root when the static path is empty', async () => {
+      const findOne = vi.fn().mockResolvedValue(null)
+      accessMock.mockResolvedValueOnce(undefined)
+
+      const result = await getSafeFileName({
+        collectionSlug: 'media',
+        desiredFilename: 'etc',
+        req: buildReq(findOne),
+        staticPath: '',
+      })
+
+      expect(result).toBe('etc')
+      expect(accessMock).not.toHaveBeenCalled()
+    })
+
     it('increments when the collision comes from the filesystem branch', async () => {
       const findOne = vi.fn().mockResolvedValue(null)
       accessMock.mockResolvedValueOnce(undefined).mockRejectedValue(new Error('ENOENT'))

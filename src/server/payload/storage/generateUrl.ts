@@ -2,7 +2,6 @@ import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
 import type { PayloadRequest } from 'payload'
 
 import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
-import { getStoragePrefix } from '@/server/payload/storage/resolvePrefix.js'
 import { maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/server/urls.js'
 import type { CollectionContext } from '@/shared/types/index.js'
@@ -41,8 +40,13 @@ export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlA
       return ''
     }
 
-    const storagePrefix = getStoragePrefix({ collectionPrefix, docPrefix: prefix })
-    let baseUrl = buildStorageCdnUrl(storageConfig.hostname, storagePrefix, filename, true)
+    let baseUrl = buildStorageCdnUrl({
+      collectionPrefix,
+      encode: true,
+      filename,
+      hostname: storageConfig.hostname,
+      prefix,
+    })
 
     if (urlTransform) {
       baseUrl = applyUrlTransform({
@@ -50,7 +54,7 @@ export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlA
         config: urlTransform,
         data,
         filename,
-        prefix: storagePrefix,
+        prefix,
         url: baseUrl,
       })
     }

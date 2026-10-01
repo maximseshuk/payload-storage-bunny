@@ -3,14 +3,25 @@ import type { CollectionBeforeChangeHook, CollectionBeforeOperationHook } from '
 
 import type { CollectionContext } from '@/shared/types/index.js'
 
-const PREFIX_CONTEXT_KEY = 'bunnyClientUploadPrefix'
+import { readClientUpload, type VerifiedClientUpload } from './receipt.js'
+
+const CLIENT_UPLOAD_CONTEXT_KEY = 'bunnyClientUpload'
+
+type StoredClientUpload = { collection: string } & VerifiedClientUpload
 
 export const getBeforeOperationHook =
   (context: CollectionContext): CollectionBeforeOperationHook =>
   ({ args, operation, req }) => {
-    const prefix = (req.file?.clientUploadContext as Record<string, unknown> | undefined)?.prefix
-    if ((operation === 'create' || operation === 'update') && typeof prefix === 'string') {
-      req.context[PREFIX_CONTEXT_KEY] = { collection: context.collection.slug, prefix }
+    if ((operation === 'create' || operation === 'update') && req.file) {
+      const clientUpload = readClientUpload({
+        collectionSlug: context.collection.slug,
+        filename: req.file.name,
+        req,
+        uploadReference: req.file.uploadReference,
+      })
+      if (clientUpload) {
+        req.context[CLIENT_UPLOAD_CONTEXT_KEY] = { ...clientUpload, collection: context.collection.slug }
+      }
     }
     return args
   }
@@ -21,20 +32,19 @@ export const getBeforeChangeHook =
     if (!req.file) {
       return data
     }
-    const stored = req.context?.[PREFIX_CONTEXT_KEY] as { collection: string; prefix: string } | undefined
-    if (stored?.collection === context.collection.slug) {
-      data.prefix = sanitizePrefix(stored.prefix)
-    }
-    const ctx = req.file.clientUploadContext
-    if (!ctx || typeof ctx !== 'object') {
+    const stored = req.context?.[CLIENT_UPLOAD_CONTEXT_KEY] as StoredClientUpload | undefined
+    if (stored?.collection !== context.collection.slug) {
       return data
     }
-    const { filesize, mimeType } = ctx as Record<string, unknown>
-    if (typeof filesize === 'number') {
-      data.filesize = filesize
+    data.prefix = sanitizePrefix(stored.prefix)
+    if (!req.file.uploadReference) {
+      return data
     }
-    if (typeof mimeType === 'string') {
-      data.mimeType = mimeType
+    if (typeof stored.filesize === 'number') {
+      data.filesize = stored.filesize
+    }
+    if (typeof stored.mimeType === 'string') {
+      data.mimeType = stored.mimeType
     }
     return data
   }

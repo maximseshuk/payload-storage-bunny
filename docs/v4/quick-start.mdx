@@ -1,0 +1,113 @@
+---
+title: 'Quick start'
+description: 'Install the plugin and point a Payload collection at Bunny Storage and Stream — automatically with the wizard, or by hand.'
+---
+
+Set up automatically with the wizard, or configure by hand.
+
+## Automatic setup
+
+The [setup wizard](/v4/cli/init) is the fastest path — it provisions the Bunny resources for you and prints a ready-to-paste plugin config plus `.env` lines, with no manual dashboard steps:
+
+```bash
+npx @seshuk/payload-storage-bunny@beta init
+```
+
+See [Setup wizard](/v4/cli/init) for what it asks and everything it creates.
+
+## Manual setup
+
+<Steps>
+
+<Step title="Install">
+
+<CodeGroup>
+
+```bash npm
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+```
+
+```bash pnpm
+pnpm add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+```
+
+```bash yarn
+yarn add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+```
+
+</CodeGroup>
+
+<Info>
+  Requires Payload 4 and Node.js 24.15 or later. v4 is in beta under the `beta` npm tag, and Payload 4 is published
+  under `canary`. `@payloadcms/plugin-cloud-storage` is a peer dependency: pin it to the same version as your `payload`
+  package. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
+</Info>
+
+</Step>
+
+<Step title="Configure storage">
+
+Add the adapter to the `storage` array of your Payload config and map an upload collection to Bunny Storage:
+
+```ts payload.config.ts
+import { bunnyStorage } from '@seshuk/payload-storage-bunny'
+
+export default buildConfig({
+  collections: [
+    // your upload collections, e.g. Media
+  ],
+  storage: [
+    bunnyStorage({
+      collections: {
+        media: true,
+      },
+      storage: {
+        apiKey: process.env.BUNNY_STORAGE_API_KEY,
+        hostname: process.env.BUNNY_STORAGE_HOSTNAME, // e.g. my-zone.b-cdn.net
+        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,
+      },
+    }),
+  ],
+})
+```
+
+Files uploaded to the `media` collection are now stored in Bunny Storage and served from the CDN.
+
+</Step>
+
+<Step title="Add video streaming (optional)">
+
+To route video uploads to Bunny Stream, add a `stream` block. Non-video files continue to use Bunny Storage.
+
+```ts payload.config.ts
+bunnyStorage({
+  collections: { media: true },
+  storage: {/* ... */},
+  stream: {
+    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    hostname: process.env.BUNNY_STREAM_HOSTNAME, // e.g. vz-xxxx.b-cdn.net
+    libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID),
+    mp4Fallback: true,
+  },
+})
+```
+
+With Payload access control on (the default), Stream needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/v4/configuration/stream/overview#access-control-and-mp4-fallback).
+
+Videos now upload to Bunny Stream and expose an HLS playlist through the [`bunnyData`](/v4/guides/stored-data) field.
+
+</Step>
+
+</Steps>
+
+## Next steps
+
+<Tip>
+  Set `serverURL` in your Payload config. Payload needs it to crop images, change the focal point and duplicate
+  documents.
+</Tip>
+
+- [Configuration](/v4/configuration/overview) — every option, including signed URLs, thumbnails and cache purging
+- [Examples](/v4/guides/examples) — complete configurations for common setups
+- [Client uploads](/v4/configuration/storage/client-uploads) — browser-direct uploads for serverless hosts and large files
+- [Upgrading from v3?](/v4/upgrade-guide) — the v4 changes, including the `prefix` column migration

@@ -35,7 +35,6 @@ export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedB
     _original: options,
     accountApiKey: options.accountApiKey,
     collections: new Map(),
-    i18n: options.i18n,
     purge: options.purge
       ? normalizePurgeConfig({ accountApiKey: options.accountApiKey, purge: options.purge })
       : undefined,

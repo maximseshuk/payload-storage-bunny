@@ -135,7 +135,7 @@ const renderOutput = (envBlock: string, configBlock: string): string =>
     '',
     envBlock,
     '',
-    'Plugin config (paste into payload.config.ts):',
+    'Storage adapter config (add to the `storage` array in payload.config.ts):',
     '',
     configBlock,
   ].join('\n')

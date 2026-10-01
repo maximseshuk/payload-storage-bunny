@@ -2,22 +2,14 @@ import { sanitizePrefix } from '@payloadcms/plugin-cloud-storage/utilities'
 import type { CollectionConfig, PayloadRequest, TypeWithID } from 'payload'
 
 type ResolveStoragePrefixArgs = {
-  clientUploadContext?: unknown
   collection: CollectionConfig
   doc?: null | TypeWithID
   fallbackPrefix?: string
   filename: string
   prefixQueryParam?: string
   req: PayloadRequest
+  uploadPrefix?: string
 }
-
-export const getStoragePrefix = ({
-  collectionPrefix,
-  docPrefix,
-}: {
-  collectionPrefix?: string
-  docPrefix?: unknown
-}): string => sanitizePrefix(typeof docPrefix === 'string' ? docPrefix : '') || sanitizePrefix(collectionPrefix ?? '')
 
 const hasStringPrefix = (value: unknown): value is { prefix: string } =>
   typeof value === 'object' &&
@@ -26,24 +18,24 @@ const hasStringPrefix = (value: unknown): value is { prefix: string } =>
   typeof (value as { prefix: unknown }).prefix === 'string'
 
 export const resolveStoragePrefix = async ({
-  clientUploadContext,
   collection,
   doc,
   fallbackPrefix,
   filename,
   prefixQueryParam,
   req,
+  uploadPrefix,
 }: ResolveStoragePrefixArgs): Promise<string> => {
   if (typeof prefixQueryParam === 'string') {
-    return getStoragePrefix({ collectionPrefix: fallbackPrefix, docPrefix: prefixQueryParam })
+    return sanitizePrefix(prefixQueryParam)
   }
 
-  if (hasStringPrefix(clientUploadContext)) {
-    return getStoragePrefix({ collectionPrefix: fallbackPrefix, docPrefix: clientUploadContext.prefix })
+  if (typeof uploadPrefix === 'string') {
+    return sanitizePrefix(uploadPrefix)
   }
 
   if (hasStringPrefix(doc)) {
-    return getStoragePrefix({ collectionPrefix: fallbackPrefix, docPrefix: doc.prefix })
+    return sanitizePrefix(doc.prefix)
   }
 
   const hasPrefixField = (collection.fields || []).some((field) => 'name' in field && field.name === 'prefix')
@@ -57,6 +49,7 @@ export const resolveStoragePrefix = async ({
       limit: 1,
       overrideAccess: true,
       pagination: false,
+      req,
       where: {
         or: [
           { filename: { equals: filename } },
@@ -67,8 +60,11 @@ export const resolveStoragePrefix = async ({
       },
     })
 
-    return getStoragePrefix({ collectionPrefix: fallbackPrefix, docPrefix: files?.docs?.[0]?.prefix })
+    const foundPrefix = files?.docs?.[0]?.prefix
+    if (typeof foundPrefix === 'string') {
+      return sanitizePrefix(foundPrefix)
+    }
   }
 
-  return getStoragePrefix({ collectionPrefix: fallbackPrefix })
+  return fallbackPrefix ?? ''
 }

@@ -1,4 +1,5 @@
 import { Forbidden, MissingFile, ValidationError } from 'payload'
+import { createClientUploadReceipt } from 'payload/internal'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { deleteSessionMock, getSafeFileNameMock, getVideoMock, handleDeleteMock, isProcessedMock } = vi.hoisted(() => ({
@@ -27,7 +28,7 @@ vi.mock('@/server/files.js', () => ({
 }))
 
 const { getAfterChangeHook, getBeforeValidateHook } = await import('@/server/payload/stream/hooks.js')
-const { signStreamVideoToken } = await import('@/server/payload/stream/tusSignature.js')
+const { signClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
 
 import type { CollectionContext } from '@/shared/types/index.js'
 
@@ -40,8 +41,19 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
     ...overrides,
   }) as unknown as CollectionContext
 
-const tokenFor = (videoId: string, collection = 'media') =>
-  signStreamVideoToken({ collection, libraryId: 12345, secret: 'payload-secret', user: null, videoId })
+const receiptFor = (videoId: string, { collectionSlug = 'media', filename = 'big.mp4' } = {}) =>
+  signClientUpload({
+    claims: { head: '', videoId },
+    collectionSlug,
+    filename,
+    prefix: '',
+    req: { payload: { secret: 'payload-secret' } } as never,
+  })
+
+const clientUpload = (signedReceipt?: string) => ({
+  name: 'big.mp4',
+  uploadReference: { prefix: '', ...(signedReceipt !== undefined && { signedReceipt }) },
+})
 
 const emptyConfig = { collections: new Map() } as never
 
@@ -88,10 +100,7 @@ describe('stream hooks', () => {
       getVideoMock.mockResolvedValue({ guid: 'v-client', status: 1 })
 
       const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
-      const file = {
-        clientUploadContext: { head: '', videoId: 'v-client', videoToken: tokenFor('v-client') },
-        name: 'big.mp4',
-      }
+      const file = clientUpload(receiptFor('v-client'))
 
       const result = (await hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)) as Record<
         string,
@@ -106,19 +115,29 @@ describe('stream hooks', () => {
       getVideoMock.mockRejectedValue(new Error('404'))
 
       const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
-      const file = { clientUploadContext: { videoId: 'missing', videoToken: tokenFor('missing') }, name: 'big.mp4' }
+      const file = clientUpload(receiptFor('missing'))
 
       await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toThrow('404')
     })
 
     it.each([
-      ['no video token', undefined],
-      ['a forged video token', 'f'.repeat(64)],
-      ['a video token for another video', tokenFor('other-video')],
-      ['a video token for another collection', tokenFor('v-client', 'other')],
-    ])('requires a valid video token for a client-direct upload (%s)', async (_label, videoToken) => {
+      ['no receipt', undefined],
+      ['a forged receipt', `${Buffer.from(JSON.stringify({ videoId: 'v-client' })).toString('base64url')}.forged`],
+      ['a receipt for another file', receiptFor('v-client', { filename: 'other.mp4' })],
+      ['a receipt for another collection', receiptFor('v-client', { collectionSlug: 'other' })],
+      [
+        'a receipt signed with another secret',
+        createClientUploadReceipt({
+          collectionSlug: 'media',
+          filename: 'big.mp4',
+          filePrefix: '',
+          req: { payload: { secret: 'other-secret' } } as never,
+          storageFilePath: JSON.stringify({ videoId: 'v-client' }),
+        }),
+      ],
+    ])('requires a valid signed receipt for a client-direct upload (%s)', async (_label, signedReceipt) => {
       const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
-      const file = { clientUploadContext: { head: '', videoId: 'v-client', videoToken }, name: 'big.mp4' }
+      const file = clientUpload(signedReceipt)
 
       await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toBeInstanceOf(
         Forbidden,
@@ -262,12 +281,7 @@ describe('stream hooks', () => {
         filesRequiredOnCreate: true,
       })
       const { req } = buildOwnershipReq({ clips: 'doc-9' })
-      Object.assign(req, {
-        file: {
-          clientUploadContext: { head: '', videoId: 'v-shared', videoToken: tokenFor('v-shared') },
-          name: 'big.mp4',
-        },
-      })
+      Object.assign(req, { file: clientUpload(receiptFor('v-shared')) })
 
       await expect(hook({ data: {}, operation: 'create', req } as never)).rejects.toBeInstanceOf(ValidationError)
     })
@@ -319,9 +333,10 @@ describe('stream hooks', () => {
       const hook = getAfterChangeHook(
         buildContext({ streamConfig: { apiKey: 'k', cleanup: true, libraryId: 12345 } as never }),
       )
-      await hook({ data: { bunnyData: { stream: { videoId: 'v1' } } }, req: buildReq() } as never)
+      const req = buildReq()
+      await hook({ data: { bunnyData: { stream: { videoId: 'v1' } } }, req } as never)
 
-      expect(deleteSessionMock).toHaveBeenCalledWith(expect.objectContaining({ libraryId: 12345, videoId: 'v1' }))
+      expect(deleteSessionMock).toHaveBeenCalledWith({ libraryId: 12345, req, videoId: 'v1' })
     })
 
     it('deletes the old file after a TUS upload replaces it', async () => {

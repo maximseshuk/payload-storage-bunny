@@ -1,0 +1,74 @@
+---
+title: 'Overview'
+description: 'Configure the payload-storage-bunny plugin with a single bunnyStorage() call, covering top-level options and startup requirements.'
+---
+
+You configure the plugin with a single `bunnyStorage(...)` call in your Payload config.
+
+```ts payload.config.ts
+bunnyStorage({
+  collections: { media: true },
+  storage: {/* Bunny Storage credentials */},
+  stream: {/* Bunny Stream credentials, optional */},
+})
+```
+
+## Top-level options
+
+| Option          | Type                | Required          | Notes                                                                                                                                                                                                                                                                                          |
+| --------------- | ------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `collections`   | `object`            | Required          | Which upload collections use Bunny, and their overrides. See [Collection overrides](/v4/configuration/collection-overrides).                                                                                                                                                                   |
+| `storage`       | `object`            | storage or stream | Bunny Storage credentials, including [`clientUploads`](/v4/configuration/storage/client-uploads). See [Storage](/v4/configuration/storage/overview).                                                                                                                                           |
+| `stream`        | `object`            | storage or stream | Bunny Stream credentials. See [Stream](/v4/configuration/stream/overview).                                                                                                                                                                                                                     |
+| `accountApiKey` | `string`            | Optional          | Bunny **account** API key (AccessKey). Required for [cache purging](/v4/configuration/cache-purge). The same key — passed via the `BUNNY_ACCOUNT_API_KEY` env var or `--api-key` — is what the [edge-script deploy CLI](/v4/cli/deploy-edge-script) needs (it doesn't read this config field). |
+| `purge`         | `boolean \| object` | Optional          | Invalidate the CDN on upload and delete. See [Cache purging](/v4/configuration/cache-purge).                                                                                                                                                                                                   |
+| `signedUrls`    | `boolean \| object` | Optional          | Serve time-limited signed URLs. See [Signed URLs](/v4/configuration/signed-urls).                                                                                                                                                                                                              |
+| `thumbnail`     | `boolean \| object` | Optional          | Admin thumbnails for images and Stream videos. See [Thumbnails](/v4/configuration/thumbnails).                                                                                                                                                                                                 |
+| `urlTransform`  | `boolean \| object` | Optional          | Rewrite generated public URLs. See [URL transforms](/v4/configuration/url-transforms).                                                                                                                                                                                                         |
+| `enabled`       | `boolean`           | Optional          | Set to `false` to turn the whole plugin off. The hidden storage fields such as `prefix` stay, so the schema matches. Default `true`.                                                                                                                                                           |
+
+Provide `storage`, `stream`, or both at the top level — or omit both and give each collection [its own zone or library](/v4/configuration/collection-overrides#own-zone-or-library-per-collection). The plugin only requires that every collection resolves to at least one active service.
+
+## Requirements the plugin enforces
+
+The plugin validates your config on startup and throws a clear error if any of these are missing:
+
+- Every collection listed under `collections` must end up with at least one active service (storage or stream) after overrides are applied — either from the top-level `storage`/`stream` or from a per-collection zone/library.
+- A per-collection full config must be complete: storage needs `apiKey`/`hostname`/`zoneName`; stream needs `apiKey`/`hostname`/`libraryId`.
+- `purge` (globally or on any collection) requires the global `accountApiKey`.
+- `storage.clientUploads` requires Bunny Storage enabled for that collection. A zone with `storage.s3` presigns directly; a zone without `s3` requires `storage.clientUploads.edge.scriptUrl` and `edge.secret`. Non-s3 zones sharing one `edge.scriptUrl` must use the same `edge.secret`. See [Client uploads](/v4/configuration/storage/client-uploads).
+- `storage.hostname` must be your Pull Zone hostname, not `storage.bunnycdn.com`.
+- If `signedUrls` is enabled and `storage` is configured, `storage.tokenSecurityKey` is required.
+- If `signedUrls` is enabled and `stream` is configured, `stream.tokenSecurityKey` is required.
+- Any collection using Payload's access control (the default — `disablePayloadAccessControl` isn't `true`) and Stream needs either `mp4Fallback: true` or signed URLs with `staticHandler.useRedirect: true`. See [Stream](/v4/configuration/stream/overview#access-control-and-mp4-fallback).
+
+## Translations
+
+The admin UI ships in all 44 languages Payload supports. To change a label, override it in Payload's own `i18n.translations` under the `@seshuk/payload-storage-bunny` key. Your values win over the plugin's defaults, and keys you leave out keep the default text. The key names are in the [English locale file](https://github.com/maximseshuk/payload-storage-bunny/blob/main/src/shared/translations/locales/en.ts).
+
+```ts
+export default buildConfig({
+  i18n: {
+    translations: {
+      en: {
+        '@seshuk/payload-storage-bunny': {
+          tusUploadEnableMode: 'Upload large video',
+        },
+      },
+    },
+  },
+})
+```
+
+## Where to go next
+
+- [Storage](/v4/configuration/storage/overview) — Bunny Storage credentials and options
+- [Stream](/v4/configuration/stream/overview) — Bunny Stream, TUS uploads, webhooks, cleanup
+- [Client uploads](/v4/configuration/storage/client-uploads) — browser-direct uploads for serverless hosts and large files
+- [Signed URLs](/v4/configuration/signed-urls) — time-limited, geo-restricted access
+- [Thumbnails](/v4/configuration/thumbnails) — admin thumbnails for images and videos
+- [Cache purging](/v4/configuration/cache-purge) — invalidate the CDN on change
+- [URL transforms](/v4/configuration/url-transforms) — rewrite generated URLs
+- [Collection overrides](/v4/configuration/collection-overrides) — tune every option per collection
+
+For copy-ready configurations, see [Examples](/v4/guides/examples).

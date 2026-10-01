@@ -134,6 +134,23 @@ describe('getGenerateUrl', () => {
       expect(result).toBe('signed:transformed:https://storage.b-cdn.net/photo.jpg')
     })
 
+    it('resolves an empty document prefix under the collection prefix', () => {
+      const generate = getGenerateUrl(buildContext({ prefix: 'media', storageConfig } as Partial<CollectionContext>))
+
+      expect(generate({ data: {}, filename: 'photo.jpg', prefix: '' })).toBe(
+        'signed:https://storage.b-cdn.net/media/photo.jpg',
+      )
+      expect(generate({ data: {}, filename: 'photo.jpg' })).toBe('signed:https://storage.b-cdn.net/media/photo.jpg')
+    })
+
+    it('keeps a stored prefix that differs from the collection prefix', () => {
+      const generate = getGenerateUrl(buildContext({ prefix: 'media', storageConfig } as Partial<CollectionContext>))
+
+      expect(generate({ data: {}, filename: 'photo.jpg', prefix: 'legacy/folder' })).toBe(
+        'signed:https://storage.b-cdn.net/legacy/folder/photo.jpg',
+      )
+    })
+
     it('falls through to the storage branch when a videoId exists but no streamConfig is set', () => {
       const generate = getGenerateUrl(buildContext({ storageConfig } as Partial<CollectionContext>))
 

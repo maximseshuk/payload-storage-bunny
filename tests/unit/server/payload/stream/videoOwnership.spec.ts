@@ -28,7 +28,7 @@ describe('a Stream video belongs to one document', () => {
           createMediaCollection({ slug: SECOND_SLUG }),
           createMediaCollection({ slug: OTHER_LIBRARY_SLUG }),
         ],
-        plugins: [
+        storage: [
           bunnyStorage({
             collections: {
               [FIRST_SLUG]: { disablePayloadAccessControl: true },

@@ -11,7 +11,7 @@ export default buildConfigWithDefaults({
       upload: { mimeTypes: ['image/*'] },
     }),
   ],
-  plugins: [
+  storage: [
     bunnyStorage({
       collections: {
         'client-uploads-edge': {

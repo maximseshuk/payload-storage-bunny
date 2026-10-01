@@ -6,6 +6,11 @@ import type { BunnyStorageConfig } from '@/shared/types/index.js'
 
 type MediaOptions = BunnyStorageConfig['collections'][string]
 
+type UploadInstructions = {
+  generate: (args: Record<string, unknown>) => Promise<unknown>
+  useInAdmin: boolean
+}
+
 const buildMediaUpload = (media: MediaOptions, options: Partial<BunnyStorageConfig> = {}): Record<string, unknown> => {
   const incoming = {
     collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
@@ -20,7 +25,7 @@ const buildMediaUpload = (media: MediaOptions, options: Partial<BunnyStorageConf
       zoneName: 'zone',
     },
     ...options,
-  } as BunnyStorageConfig)(incoming) as Config
+  } as BunnyStorageConfig).init(incoming) as Config
 
   const collection = result.collections?.find((entry) => entry.slug === 'media')
 
@@ -65,7 +70,7 @@ describe('client upload handler registration', () => {
       collections: { media },
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: { region: 'de' }, zoneName: 'zone' },
       stream,
-    } as BunnyStorageConfig)(incoming) as Config
+    } as BunnyStorageConfig).init(incoming) as Config
 
     return (result.admin?.components?.providers ?? []).filter(
       (provider) =>
@@ -78,18 +83,134 @@ describe('client upload handler registration', () => {
     const [provider] = getHandlerProviders({ disablePayloadAccessControl: true, storage: false })
 
     expect(provider?.clientProps.collectionSlug).toBe('media')
-    const { streamMimeTypes } = provider!.clientProps.extra as { streamMimeTypes: string[] }
-    expect(streamMimeTypes).toContain('video/mp4')
-    expect(streamMimeTypes.some((type) => type.startsWith('image/'))).toBe(false)
   })
 
   it('routes videos over TUS when the collection also has Storage client uploads', () => {
     const [provider] = getHandlerProviders({ storage: { clientUploads: true } })
 
-    expect(provider?.clientProps.extra).toHaveProperty('streamMimeTypes')
+    expect(provider?.clientProps.collectionSlug).toBe('media')
   })
 
   it('leaves Storage + Stream collections without client uploads on server uploads', () => {
     expect(getHandlerProviders(true)).toEqual([])
+  })
+
+  it('dispatches only Stream videos to the handler of a Stream-only TUS collection', async () => {
+    const incoming = {
+      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
+    } as unknown as Config
+    const result = bunnyStorage({
+      collections: { media: { disablePayloadAccessControl: true, storage: false } },
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: { region: 'de' }, zoneName: 'zone' },
+      stream,
+    } as BunnyStorageConfig).init(incoming) as Config
+    const media = result.collections?.find((entry) => entry.slug === 'media')
+    const { generate, useInAdmin } = (media!.upload as { uploadInstructions: UploadInstructions }).uploadInstructions
+    const req = {
+      payload: { collections: { media: { config: media } }, config: { upload: {} } },
+      t: (key: string) => key,
+    }
+    const upload = (filename: string, mimeType: string) =>
+      generate({ collectionSlug: 'media', filename, filesize: 1000, mimeType, overrideAccess: true, req })
+
+    expect(useInAdmin).toBe(true)
+    expect(await upload('clip.mp4', 'video/mp4')).toMatchObject({ name: 'bunny', type: 'dispatch' })
+    await expect(upload('photo.jpg', 'image/jpeg')).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe('schema when the plugin is disabled', () => {
+  const fieldNames = (enabled: boolean): string[] => {
+    const incoming = {
+      collections: [
+        { slug: 'media', fields: [], upload: { imageSizes: [{ name: 'thumb', width: 100 }] } },
+        { slug: 'posts', fields: [] },
+      ],
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { media: { prefix: 'media' } },
+      enabled,
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+    } as BunnyStorageConfig).init(incoming) as Config
+
+    expect(result.collections?.find((entry) => entry.slug === 'posts')?.fields).toEqual([])
+
+    return (result.collections?.find((entry) => entry.slug === 'media')?.fields ?? []).flatMap((field) =>
+      'name' in field ? [field.name] : [],
+    )
+  }
+
+  it('still inserts the prefix and object key fields', () => {
+    const fields = fieldNames(false)
+
+    expect(fields).toEqual(expect.arrayContaining(['prefix', '_objectKey', 'url', 'sizes']))
+  })
+
+  it('keeps the same storage columns as the enabled plugin', () => {
+    const storageFields = ['prefix', '_objectKey', 'url', 'sizes']
+
+    expect(fieldNames(false).filter((name) => storageFields.includes(name))).toEqual(
+      fieldNames(true).filter((name) => storageFields.includes(name)),
+    )
+  })
+
+  it('defaults the prefix to the collection prefix', () => {
+    const incoming = { collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config
+    const result = bunnyStorage({
+      collections: { media: { prefix: 'media' } },
+      enabled: false,
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+    } as BunnyStorageConfig).init(incoming) as Config
+    const prefix = result.collections?.[0]?.fields.find((field) => 'name' in field && field.name === 'prefix')
+
+    expect(prefix).toMatchObject({ type: 'text', defaultValue: 'media' })
+  })
+
+  it('does not wire the adapter, hooks or plugin config', () => {
+    const incoming = { collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config
+    const result = bunnyStorage({
+      collections: { media: true },
+      enabled: false,
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+    } as BunnyStorageConfig).init(incoming) as Config
+
+    expect(result.collections?.[0]?.upload).toBe(true)
+    expect(result.collections?.[0]?.hooks).toBeUndefined()
+    expect(result.custom).toBeUndefined()
+  })
+})
+
+describe('translations', () => {
+  const getTranslations = (i18n?: Config['i18n']) => {
+    const incoming = {
+      collections: [{ slug: 'media', fields: [], upload: true }],
+      i18n,
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { media: true },
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+    } as BunnyStorageConfig).init(incoming) as Config
+
+    return result.i18n?.translations as Record<string, Record<string, Record<string, string>>>
+  }
+
+  it('keeps labels the app overrides under the plugin key', () => {
+    const translations = getTranslations({
+      translations: { en: { '@seshuk/payload-storage-bunny': { tusUploadEnableMode: 'Use TUS' } } },
+    } as unknown as Config['i18n'])
+
+    expect(translations.en['@seshuk/payload-storage-bunny'].tusUploadEnableMode).toBe('Use TUS')
+    expect(translations.en['@seshuk/payload-storage-bunny'].tusUploadDisableMode).toBe('Disable TUS mode')
+  })
+
+  it('keeps the app translations of other namespaces', () => {
+    const translations = getTranslations({
+      translations: { en: { general: { cancel: 'Abort' } } },
+    } as unknown as Config['i18n'])
+
+    expect(translations.en.general.cancel).toBe('Abort')
+    expect(translations.en['@seshuk/payload-storage-bunny'].tusUploadEnableMode).toBe('Enable TUS mode')
   })
 })

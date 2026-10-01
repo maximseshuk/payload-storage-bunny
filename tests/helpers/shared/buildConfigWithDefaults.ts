@@ -61,6 +61,7 @@ export const buildConfigWithDefaults = async (config?: Partial<Config>): Promise
     onInit: async (payload) => {
       const existingUser = await payload.find({
         collection: 'users',
+        overrideAccess: true,
         where: {
           email: {
             equals: devUser.email,
@@ -74,6 +75,7 @@ export const buildConfigWithDefaults = async (config?: Partial<Config>): Promise
 
       await payload.create({
         collection: 'users',
+        overrideAccess: true,
         data: devUser,
       })
     },

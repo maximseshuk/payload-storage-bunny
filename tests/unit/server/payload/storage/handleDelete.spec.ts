@@ -25,6 +25,7 @@ vi.mock('@/server/bunny/cdn.js', () => ({
   purgeCache: purgeCacheMock,
 }))
 
+const { buildStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
 const { getHandleDelete } = await import('@/server/payload/storage/handleDelete.js')
 
 const t = (key: string, vars?: Record<string, unknown>): string => (vars ? `${key}:${JSON.stringify(vars)}` : key)
@@ -170,6 +171,7 @@ describe('getHandleDelete', () => {
           doc: storageDoc,
           filename: 'photo.jpg',
           req,
+          storageFilePath: 'photo.jpg',
         } as never),
       ).resolves.toBeUndefined()
 
@@ -223,6 +225,33 @@ describe('getHandleDelete', () => {
       })
     })
 
+    it('deletes and purges a document with an empty prefix under the collection prefix', async () => {
+      deleteStorageFileMock.mockResolvedValue(undefined)
+      purgeCacheMock.mockResolvedValue(undefined)
+
+      const handler = getHandleDelete(
+        buildContext({ prefix: 'media', purgeConfig: { async: false }, storageConfig } as Partial<CollectionContext>),
+      )
+      const doc = { ...storageDoc, prefix: '' }
+
+      await handler({
+        collection: { slug: 'media' },
+        doc,
+        filename: 'photo.jpg',
+        req: createReq(),
+        storageFilePath: buildStoragePathData({
+          collectionPrefix: 'media',
+          docPrefix: doc.prefix,
+          filename: 'photo.jpg',
+        }).storageFilePath,
+      } as never)
+
+      expect(deleteStorageFileMock).toHaveBeenCalledWith(expect.objectContaining({ path: 'media/photo.jpg' }))
+      expect(purgeCacheMock).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg' }),
+      )
+    })
+
     it('does not purge when purgeConfig is absent', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
 
@@ -233,6 +262,7 @@ describe('getHandleDelete', () => {
         doc: storageDoc,
         filename: 'photo.jpg',
         req: createReq(),
+        storageFilePath: 'photo.jpg',
       } as never)
 
       expect(deleteStorageFileMock).toHaveBeenCalled()
@@ -250,6 +280,7 @@ describe('getHandleDelete', () => {
         doc: storageDoc,
         filename: 'photo.jpg',
         req,
+        storageFilePath: 'photo.jpg',
       } as never)
 
       expect(deleteStorageFileMock).not.toHaveBeenCalled()
@@ -275,6 +306,7 @@ describe('getHandleDelete', () => {
           doc: storageDoc,
           filename: 'photo.jpg',
           req,
+          storageFilePath: 'photo.jpg',
         } as never),
       ).rejects.toThrow('@seshuk/payload-storage-bunny:errorDeleteFileFailed')
 

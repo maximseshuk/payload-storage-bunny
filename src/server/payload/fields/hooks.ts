@@ -2,7 +2,6 @@ import type { FieldHook, PayloadRequest } from 'payload'
 
 import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
 import { getGenerateUrl } from '@/server/payload/storage/generateUrl.js'
-import { getStoragePrefix } from '@/server/payload/storage/resolvePrefix.js'
 import { maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/server/urls.js'
 import { isImage } from '@/shared/mimeTypes.js'
@@ -59,7 +58,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
       if (requestedSize && requestedSize.filename && typeof requestedSize.filename === 'string') {
         const sizeFilename = requestedSize.filename
-        const prefix = getStoragePrefix({ collectionPrefix: context.prefix, docPrefix: doc.prefix })
+        const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
 
         if (context.usePayloadAccessControl) {
           const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(sizeFilename)}`
@@ -70,7 +69,12 @@ export const getAdminThumbnail = (context: CollectionContext) => {
           return null
         }
 
-        const baseUrl = buildStorageCdnUrl(storageConfig.hostname, prefix, sizeFilename)
+        const baseUrl = buildStorageCdnUrl({
+          collectionPrefix: context.prefix,
+          filename: sizeFilename,
+          hostname: storageConfig.hostname,
+          prefix,
+        })
         const transformedUrl = applyTransform(thumbnail, context, doc, sizeFilename, prefix, baseUrl)
         return maybeGenerateSignedUrl(transformedUrl, {
           collection,
@@ -84,7 +88,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
     if (doc.mimeType && isImage(doc.mimeType as string) && doc.filename && typeof doc.filename === 'string') {
       const filename = doc.filename
-      const prefix = getStoragePrefix({ collectionPrefix: context.prefix, docPrefix: doc.prefix })
+      const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
 
       if (context.usePayloadAccessControl) {
         const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(filename)}`
@@ -95,7 +99,12 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         return null
       }
 
-      const baseUrl = buildStorageCdnUrl(storageConfig.hostname, prefix, filename)
+      const baseUrl = buildStorageCdnUrl({
+        collectionPrefix: context.prefix,
+        filename,
+        hostname: storageConfig.hostname,
+        prefix,
+      })
       const transformedUrl = applyTransform(thumbnail, context, doc, filename, prefix, baseUrl)
       return maybeGenerateSignedUrl(transformedUrl, {
         collection,

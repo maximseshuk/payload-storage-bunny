@@ -8,6 +8,7 @@ import type { NormalizedSignedUrlsConfig, NormalizedStorageConfig } from '@/shar
 
 type Args = {
   collection: CollectionConfig
+  collectionPrefix?: string
   filename: string
   prefix?: string
   req: PayloadRequest
@@ -18,6 +19,7 @@ type Args = {
 
 export const storageStaticHandler = async ({
   collection,
+  collectionPrefix,
   filename,
   prefix,
   req,
@@ -25,7 +27,7 @@ export const storageStaticHandler = async ({
   storageConfig,
   usePayloadAccessControl,
 }: Args): Promise<Response> => {
-  let baseUrl = buildStorageCdnUrl(storageConfig.hostname, prefix || '', filename)
+  let baseUrl = buildStorageCdnUrl({ collectionPrefix, filename, hostname: storageConfig.hostname, prefix })
 
   if (req.url) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)

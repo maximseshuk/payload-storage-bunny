@@ -203,66 +203,6 @@ describe('Config Validator', () => {
     })
   })
 
-  describe('removed aliases (v3)', () => {
-    it('throws a boot error for the removed `adminThumbnail` alias', () => {
-      const config = {
-        adminThumbnail: { appendTimestamp: true },
-        collections: { media: true },
-        storage: createBaseStorage(),
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'Config error: "adminThumbnail" was removed in v3. Rename it to "thumbnail" (same shape).',
-      )
-    })
-
-    it('throws a boot error for the removed `stream.tus.mimeTypes` alias', () => {
-      const config = {
-        collections: { media: { disablePayloadAccessControl: true } },
-        stream: { ...createBaseStream(), tus: { mimeTypes: ['video/mp4'] } },
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'Config error: "stream.tus.mimeTypes" was removed in v3. Move the array to "stream.mimeTypes".',
-      )
-    })
-
-    it('throws a boot error for the removed `stream.tus.uploadTimeout` alias', () => {
-      const config = {
-        collections: { media: { disablePayloadAccessControl: true } },
-        stream: { ...createBaseStream(), tus: { uploadTimeout: 3600 } },
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        `Config error: "stream.tus.uploadTimeout" was removed in v3. Rename it to "stream.tus.expiresIn" (it's a session expiry in seconds).`,
-      )
-    })
-
-    it('throws a boot error for the removed `purge.apiKey` alias', () => {
-      const config = {
-        collections: { media: true },
-        purge: { apiKey: 'purge-api-key' },
-        storage: createBaseStorage(),
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'Config error: "purge.apiKey" was removed in v3. Use the global `accountApiKey` instead.',
-      )
-    })
-
-    it('throws a boot error for the removed top-level `apiKey` alias', () => {
-      const config = {
-        apiKey: 'account-api-key',
-        collections: { media: true },
-        storage: createBaseStorage(),
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'Config error: "apiKey" was removed in v3. Rename it to "accountApiKey".',
-      )
-    })
-  })
-
   describe('storage hostname validation', () => {
     it('throws if storage hostname includes storage.bunnycdn.com', () => {
       const config: BunnyStorageConfig = {

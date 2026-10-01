@@ -8,21 +8,18 @@
   --bunny-font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --bunny-brand: #ef6126;
-  --bunny-bg: #ffffff;
-  --bunny-divider: #e5e1df;
-  --bunny-text-3: #a5a19f;
-  --bunny-hero-secondary: #1e1917;
-  --bunny-hero-title-bg: linear-gradient(85.19deg, #ff2a64 -133.27%, #ffaf48 105.93%);
-  --bunny-home-bg: radial-gradient(120% 90% at 50% 0%, #ffe8d0 0%, #fff4e8 50%, #ffffff 100%);
+  --bunny-brand-hover: #d9521b;
+  --bunny-bg: #fafafa;
+  --bunny-divider: #e5e5e5;
+  --bunny-text-3: #a3a3a3;
+  --bunny-hero-secondary: #0b0b0b;
 }
 
 .dark {
-  --bunny-brand: #ef6126;
-  --bunny-bg: #0e0b0c;
+  --bunny-bg: #0b0b0b;
   --bunny-divider: rgba(255, 255, 255, 0.1);
-  --bunny-text-3: #777271;
-  --bunny-hero-secondary: #faf5f4;
-  --bunny-home-bg: radial-gradient(120% 90% at 50% 0%, #2a1710 0%, #17100c 45%, #0e0b0c 100%);
+  --bunny-text-3: #737373;
+  --bunny-hero-secondary: #fafafa;
 }
 
 /* Full-bleed landing: hide the top navbar on the custom home page only */
@@ -48,7 +45,7 @@ body:has(.rp-home) main {
   min-height: 100vh;
   min-height: 100dvh;
   font-family: var(--bunny-font-base);
-  background: var(--bunny-home-bg);
+  background: var(--bunny-bg);
   overflow: hidden;
 }
 
@@ -58,8 +55,8 @@ body:has(.rp-home) main {
   z-index: 0;
   pointer-events: none;
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'%3E%3Cpath d='M100 96v8M96 100h8M500 296v8M496 300h8M300 696v8M296 700h8' stroke='rgba(58,20,8,0.09)' stroke-width='1'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cline x1='100' y1='0' x2='100' y2='200' stroke='rgba(58,20,8,0.03)' stroke-width='1'/%3E%3Cline x1='0' y1='100' x2='200' y2='100' stroke='rgba(58,20,8,0.03)' stroke-width='1'/%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'%3E%3Cpath d='M100 96v8M96 100h8M500 296v8M496 300h8M300 696v8M296 700h8' stroke='rgba(0,0,0,0.09)' stroke-width='1'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cline x1='100' y1='0' x2='100' y2='200' stroke='rgba(0,0,0,0.03)' stroke-width='1'/%3E%3Cline x1='0' y1='100' x2='200' y2='100' stroke='rgba(0,0,0,0.03)' stroke-width='1'/%3E%3C/svg%3E");
   background-size:
     600px 800px,
     200px 200px;
@@ -78,32 +75,11 @@ body:has(.rp-home) main {
 /* Hero                               */
 /* ---------------------------------- */
 
-@keyframes rp-hero-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-14px);
-  }
-}
-
-@keyframes rp-hero-glow {
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.85;
-    transform: scale(1.08);
-  }
-}
-
 .rp-hero {
   position: relative;
   z-index: 1;
-  min-height: 82vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,30 +104,13 @@ body:has(.rp-home) main {
   position: relative;
   width: clamp(180px, 26vw, 300px);
   height: auto;
-  aspect-ratio: 280 / 320;
+  aspect-ratio: 340 / 400;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.rp-hero-glow {
-  position: absolute;
-  width: 72%;
-  height: 72%;
-  border-radius: 50%;
-  filter: blur(12px);
-  background: radial-gradient(closest-side, rgba(255, 175, 72, 0.45), rgba(255, 42, 100, 0.14) 60%, transparent 72%);
-  animation: rp-hero-glow 4.4s ease-in-out infinite;
-}
-
-.rp-hero-float {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  animation: rp-hero-float 5.2s ease-in-out infinite;
-}
-
-.rp-hero-float img {
+.rp-hero-mark img {
   display: block;
   width: 100%;
   height: 100%;
@@ -189,12 +148,8 @@ body:has(.rp-home) main {
   color: var(--bunny-hero-secondary);
 }
 
-.rp-hero-grad {
-  background: var(--bunny-hero-title-bg);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+.rp-hero-accent {
+  color: var(--bunny-brand);
 }
 
 .rp-hero-sub {
@@ -224,7 +179,6 @@ body:has(.rp-home) main {
   font-weight: 600;
   text-decoration: none;
   transition:
-    box-shadow 0.2s ease,
     border-color 0.15s ease,
     background-color 0.15s ease,
     color 0.15s ease;
@@ -234,7 +188,7 @@ body:has(.rp-home) main {
   position: relative;
   padding-right: 50px;
   color: #fff;
-  background: var(--bunny-hero-title-bg);
+  background: var(--bunny-brand);
 }
 
 .rp-hero-btn-primary::after {
@@ -251,7 +205,7 @@ body:has(.rp-home) main {
 }
 
 .rp-hero-btn-primary:hover {
-  box-shadow: 0 8px 24px rgba(255, 108, 60, 0.35);
+  background: var(--bunny-brand-hover);
 }
 
 .rp-hero-btn-primary:hover::after {
@@ -269,60 +223,10 @@ body:has(.rp-home) main {
   background: var(--bunny-bg);
 }
 
-.rp-hero-cmd {
-  position: relative;
-  display: inline-block;
-  font-family: var(--bunny-font-mono);
-  font-size: 13.5px;
-  color: var(--bunny-hero-secondary);
-  background: color-mix(in oklab, var(--bunny-bg) 70%, transparent);
-  border: 1px solid var(--bunny-divider);
-  padding: 10px 16px;
-  border-radius: 8px;
-  margin-top: 6px;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-}
-
-.rp-hero-cmd:hover {
-  border-color: var(--bunny-text-3);
-}
-
-.rp-hero-cmd span {
-  color: var(--bunny-brand);
-}
-
-/* "Copied!" feedback bubble shown after a click */
-.rp-hero-cmd::after {
-  content: 'Copied!';
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  padding: 4px 10px;
-  font-family: var(--bunny-font-base);
-  font-size: 12px;
-  line-height: 1;
-  color: #fff;
-  background: #16a34a;
-  border-radius: 6px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
-}
-
-.rp-hero-cmd[data-copied]::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
 /* Hero mark is decorative — kill Mintlify's image zoom/lightbox on the home page */
-.rp-hero-float [data-rmiz],
-.rp-hero-float [data-rmiz] *,
-.rp-hero-float img {
+.rp-hero-mark [data-rmiz],
+.rp-hero-mark [data-rmiz] *,
+.rp-hero-mark img {
   pointer-events: none;
 }
 
@@ -348,12 +252,5 @@ body:has(.rp-home) main {
 @media (max-height: 720px) {
   .rp-hero-mark {
     width: min(clamp(180px, 26vw, 300px), 36vh);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rp-hero-float,
-  .rp-hero-glow {
-    animation: none;
   }
 }

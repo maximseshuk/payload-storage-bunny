@@ -36,13 +36,13 @@ test.describe('Stream - Upload and Delete (Auto Mode)', () => {
 
     await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
 
-    await page.fill('.storage-bunny-tus-upload__filename', testVideoFilename)
+    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
 
     const startUploadButton = page.locator('button:has-text("Start upload")')
     await expect(startUploadButton).toBeVisible({ timeout: 10000 })
     await startUploadButton.click()
 
-    const uploadCompleted = page.locator('text=Upload completed successfully!')
+    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
     await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
 
     await page.fill('#field-alt', 'Test video with auto TUS mode')
@@ -60,7 +60,7 @@ test.describe('Stream - TUS Manual Mode Upload', () => {
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
 
-    const enableTusButton = page.locator('button:has-text("Enable tus mode")')
+    const enableTusButton = page.locator('button:has-text("Enable TUS mode")')
     await expect(enableTusButton).toBeVisible({ timeout: 5000 })
     await enableTusButton.click()
 
@@ -71,13 +71,13 @@ test.describe('Stream - TUS Manual Mode Upload', () => {
 
     await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
 
-    await page.fill('.storage-bunny-tus-upload__filename', testVideoFilename)
+    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
 
     const startUploadButton = page.locator('button:has-text("Start upload")')
     await expect(startUploadButton).toBeVisible({ timeout: 10000 })
     await startUploadButton.click()
 
-    const uploadCompleted = page.locator('text=Upload completed successfully!')
+    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
     await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
 
     await page.fill('#field-alt', 'Test video TUS upload')
@@ -95,7 +95,7 @@ test.describe('Stream - TUS Resume Upload', () => {
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
 
-    const enableTusButton1 = page.locator('button:has-text("Enable tus mode")')
+    const enableTusButton1 = page.locator('button:has-text("Enable TUS mode")')
     await expect(enableTusButton1).toBeVisible({ timeout: 5000 })
     await enableTusButton1.click()
 
@@ -106,13 +106,13 @@ test.describe('Stream - TUS Resume Upload', () => {
 
     await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
 
-    await page.fill('.storage-bunny-tus-upload__filename', testVideoFilename)
+    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
 
     const startUploadButton = page.locator('button:has-text("Start upload")')
     await expect(startUploadButton).toBeVisible({ timeout: 10000 })
     await startUploadButton.click()
 
-    const uploadCompleted = page.locator('text=Upload completed successfully!')
+    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
     await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
 
     await page.fill('#field-alt', 'First upload')
@@ -122,7 +122,7 @@ test.describe('Stream - TUS Resume Upload', () => {
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
 
-    const enableTusButton2 = page.locator('button:has-text("Enable tus mode")')
+    const enableTusButton2 = page.locator('button:has-text("Enable TUS mode")')
     await expect(enableTusButton2).toBeVisible({ timeout: 5000 })
     await enableTusButton2.click()
 
@@ -133,13 +133,13 @@ test.describe('Stream - TUS Resume Upload', () => {
 
     await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
 
-    await page.fill('.storage-bunny-tus-upload__filename', testVideoFilename)
+    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
 
     const startUploadButton2 = page.locator('button:has-text("Start upload")')
     await expect(startUploadButton2).toBeVisible({ timeout: 10000 })
     await startUploadButton2.click()
 
-    const uploadCompletedImmediately = page.locator('text=Upload completed successfully!')
+    const uploadCompletedImmediately = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
     await expect(uploadCompletedImmediately).toBeVisible({ timeout: 10000 })
 
     await page.fill('#field-alt', 'Second upload (should be instant)')
@@ -170,7 +170,7 @@ test.describe('Stream - TUS File Replacement', () => {
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
 
-    const enableTusButton = page.locator('button:has-text("Enable tus mode")')
+    const enableTusButton = page.locator('button:has-text("Enable TUS mode")')
     await expect(enableTusButton).toBeVisible({ timeout: 5000 })
     await enableTusButton.click()
 
@@ -181,13 +181,13 @@ test.describe('Stream - TUS File Replacement', () => {
 
     await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
 
-    await page.fill('.storage-bunny-tus-upload__filename', firstVideoFilename)
+    await page.fill('#field-storage-bunny-tus-upload-filename', firstVideoFilename)
 
     const startUploadButton1 = page.locator('button:has-text("Start upload")')
     await expect(startUploadButton1).toBeVisible({ timeout: 10000 })
     await startUploadButton1.click()
 
-    const uploadCompleted1 = page.locator('text=Upload completed successfully!')
+    const uploadCompleted1 = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
     await expect(uploadCompleted1).toBeVisible({ timeout: 60000 })
 
     const removeButton = page.locator('.storage-bunny-tus-upload__remove')
@@ -203,13 +203,13 @@ test.describe('Stream - TUS File Replacement', () => {
 
     await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
 
-    await page.fill('.storage-bunny-tus-upload__filename', secondVideoFilename)
+    await page.fill('#field-storage-bunny-tus-upload-filename', secondVideoFilename)
 
     const startUploadButton2 = page.locator('button:has-text("Start upload")')
     await expect(startUploadButton2).toBeVisible({ timeout: 10000 })
     await startUploadButton2.click()
 
-    const uploadCompleted2 = page.locator('text=Upload completed successfully!')
+    const uploadCompleted2 = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
     await expect(uploadCompleted2).toBeVisible({ timeout: 10000 })
 
     await page.fill('#field-alt', 'Replaced video upload')
@@ -254,7 +254,7 @@ test.describe('Stream - MP4 Fallback', () => {
     await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
     await page.waitForLoadState('networkidle')
 
-    const enableTusButton = page.locator('button:has-text("Enable tus mode")')
+    const enableTusButton = page.locator('button:has-text("Enable TUS mode")')
     await expect(enableTusButton).toBeVisible({ timeout: 5000 })
     await enableTusButton.click()
 
@@ -264,13 +264,13 @@ test.describe('Stream - MP4 Fallback', () => {
     await fileChooser.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
 
     await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
-    await page.fill('.storage-bunny-tus-upload__filename', testVideoFilename)
+    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
 
     const startUploadButton = page.locator('button:has-text("Start upload")')
     await expect(startUploadButton).toBeVisible({ timeout: 10000 })
     await startUploadButton.click()
 
-    const uploadCompleted = page.locator('text=Upload completed successfully!')
+    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
     await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
 
     await page.fill('#field-alt', 'MP4 Fallback test video')

@@ -8,7 +8,7 @@
 
 <a href="https://bunny.net?ref=fndfoymy0j"><img src="media/bunny-banner.png" alt="Bunny.net — Fast Global CDN" /></a>
 
-<p>Store files and stream video from Payload CMS on Bunny's fast global CDN.</p>
+<p>Store files and stream video from Payload on Bunny's fast global CDN.</p>
 
 <a href="https://github.com/maximseshuk/payload-storage-bunny/releases/"><img src="https://img.shields.io/github/v/release/maximseshuk/payload-storage-bunny?style=flat-square&logo=github" alt="GitHub release" /></a>
 <a href="https://www.npmjs.com/package/@seshuk/payload-storage-bunny"><img src="https://img.shields.io/npm/v/@seshuk/payload-storage-bunny?style=flat-square&logo=npm" alt="npm version" /></a>
@@ -33,44 +33,43 @@
 
 ## Quick start
 
-Requires **Payload CMS 3.90.2 or later** and **Node.js 22 or later**.
-
-> [!WARNING]
-> On Payload 3.83.0 to 3.90.1, only `@seshuk/payload-storage-bunny@3.0.1` works. We do not recommend it, because it lacks the security fixes in v3.1.0. Upgrade Payload instead.
+Requires **Payload 4** and **Node.js 24.15 or later**. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
 
 > [!IMPORTANT]
-> **Upgrading from v2?** v3 renames/removes several config keys (the plugin throws a clear error at startup) **and requires a one-time data migration** of stored Stream metadata into the new `bunnyData` field. Back up your database and follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/upgrade-guide) — skipping the migration leaves existing videos with broken thumbnails and empty metadata.
+> **Upgrading from v3?** Register the adapter under `storage` instead of `plugins`. Custom upload clients must move to Payload's `POST /api/upload-instructions` endpoint, and SQL databases need a migration for the new `prefix` column. Follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
+>
+> **Upgrading from v2?** Upgrade to v3 on Payload 3 first and run its one-time data migration. The migration helper ships only in v3 and is removed in v4. Back up your database, then follow the same [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
 
 ### Setup wizard (recommended)
 
 One interactive command provisions the Bunny resources you need — storage zone, pull zone, and/or video library — with production defaults, then prints a ready-to-paste `bunnyStorage({ … })` block and the matching `.env` lines. Nothing billable is created without confirmation.
 
 ```bash
-npx @seshuk/payload-storage-bunny init
+npx @seshuk/payload-storage-bunny@beta init
 ```
 
-See the [Setup Wizard](https://payload-storage-bunny.seshuk.im/cli/init) docs. Prefer to wire it up by hand? Follow the [Quick Start](https://payload-storage-bunny.seshuk.im/quick-start).
+See the [Setup Wizard](https://payload-storage-bunny.seshuk.im/v4/cli/init) docs. Prefer to wire it up by hand? Follow the [Quick Start](https://payload-storage-bunny.seshuk.im/v4/quick-start).
 
 ### Install
 
 ```bash
-npm install @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
-yarn add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
-pnpm add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+yarn add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+pnpm add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
 ```
 
-`@payloadcms/plugin-cloud-storage` is a peer dependency. Install the version that matches your Payload version.
+v4 is in beta under the `beta` npm tag, and Payload 4 is published under `canary`. `@payloadcms/plugin-cloud-storage` is a peer dependency: pin it to the same version as your `payload` package. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
 
 ### Configure
 
-Add the plugin to your Payload config, pointing it at an upload collection:
+Add the adapter to the `storage` array of your Payload config, pointing it at an upload collection:
 
 ```typescript
 import { buildConfig } from 'payload'
 import { bunnyStorage } from '@seshuk/payload-storage-bunny'
 
 export default buildConfig({
-  plugins: [
+  storage: [
     bunnyStorage({
       collections: {
         media: {
@@ -88,35 +87,35 @@ export default buildConfig({
 })
 ```
 
-Add `stream` for video, `purge` for cache invalidation, `signedUrls` for secure links, and more — see the [configuration reference](https://payload-storage-bunny.seshuk.im/configuration/overview).
+Add `stream` for video, `purge` for cache invalidation, `signedUrls` for secure links, and more — see the [configuration reference](https://payload-storage-bunny.seshuk.im/v4/configuration/overview).
 
 ## Documentation
 
 Full docs are at **<https://payload-storage-bunny.seshuk.im/>**:
 
-- [Quick Start](https://payload-storage-bunny.seshuk.im/quick-start)
-- [Configuration reference](https://payload-storage-bunny.seshuk.im/configuration/overview)
-- [Collection overrides & multi-tenant](https://payload-storage-bunny.seshuk.im/configuration/collection-overrides)
-- [Client uploads](https://payload-storage-bunny.seshuk.im/configuration/storage/client-uploads)
-- [Signed URLs](https://payload-storage-bunny.seshuk.im/configuration/signed-urls)
-- [CLI — setup wizard & Edge Script deploy](https://payload-storage-bunny.seshuk.im/cli/init)
-- [Upgrade Guide](https://payload-storage-bunny.seshuk.im/upgrade-guide)
-- [Examples](https://payload-storage-bunny.seshuk.im/guides/examples)
+- [Quick Start](https://payload-storage-bunny.seshuk.im/v4/quick-start)
+- [Configuration reference](https://payload-storage-bunny.seshuk.im/v4/configuration/overview)
+- [Collection overrides & multi-tenant](https://payload-storage-bunny.seshuk.im/v4/configuration/collection-overrides)
+- [Client uploads](https://payload-storage-bunny.seshuk.im/v4/configuration/storage/client-uploads)
+- [Signed URLs](https://payload-storage-bunny.seshuk.im/v4/configuration/signed-urls)
+- [CLI — setup wizard & Edge Script deploy](https://payload-storage-bunny.seshuk.im/v4/cli/init)
+- [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide)
+- [Examples](https://payload-storage-bunny.seshuk.im/v4/guides/examples)
 
 ## Telemetry
 
 The plugin sends an anonymous, opt-out usage report once per day: plugin, Payload, and Node versions plus which features are enabled. It never sends secrets, IPs, keys, zone/library names, hostnames, countries, file paths, or collection names. A one-time notice prints on first run.
 
-Opt out with `telemetry: false`, `DO_NOT_TRACK=1`, or `BUNNY_TELEMETRY_DISABLED=1` (also disabled automatically in CI and when `payload.config.telemetry` is `false`). See [Telemetry](https://payload-storage-bunny.seshuk.im/configuration/telemetry) for the full list of what is and isn't collected.
+Opt out with `telemetry: false`, `DO_NOT_TRACK=1`, or `BUNNY_TELEMETRY_DISABLED=1` (also disabled automatically in CI and when `payload.config.telemetry` is `false`). See [Telemetry](https://payload-storage-bunny.seshuk.im/v4/configuration/telemetry) for the full list of what is and isn't collected.
 
 ## Related plugins
 
-- **[@seshuk/payload-plugin-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — preview images, video, audio, and documents directly in the Payload admin panel. Works with any storage adapter; ships a [Bunny Stream adapter](https://payload-storage-bunny.seshuk.im/guides/media-preview) for this plugin.
-- **[@seshuk/payload-plugin-openapi](https://github.com/maximseshuk/payload-plugin-openapi)** — OpenAPI 3.0/3.1/3.2 spec generator for Payload CMS, with Scalar / Swagger UI.
+- **[@seshuk/payload-plugin-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — preview images, video, audio, and documents directly in the Payload admin panel. Works with any storage adapter; ships a [Bunny Stream adapter](https://payload-storage-bunny.seshuk.im/v4/guides/media-preview) for this plugin.
+- **[@seshuk/payload-plugin-openapi](https://github.com/maximseshuk/payload-plugin-openapi)** — OpenAPI 3.0/3.1/3.2 spec generator for Payload, with Scalar / Swagger UI.
 
 ## Support
 
-Bug reports, feature requests, and questions go to [GitHub Issues](https://github.com/maximseshuk/payload-storage-bunny/issues). For Payload itself, see the [Payload CMS docs](https://payloadcms.com/docs) and [Discord](https://discord.gg/payloadcms).
+Bug reports, feature requests, and questions go to [GitHub Issues](https://github.com/maximseshuk/payload-storage-bunny/issues). For Payload itself, see the [Payload docs](https://payloadcms.com/docs) and [Discord](https://discord.gg/payloadcms).
 
 ## License
 
@@ -124,7 +123,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## Credits
 
-Built by [Maxim Seshuk](https://github.com/maximseshuk) for the Payload CMS community.
+Built by [Maxim Seshuk](https://github.com/maximseshuk) for the Payload community.
 
 If this plugin saves you time, you can [buy me a coffee](https://ko-fi.com/seshuk) ☕
 

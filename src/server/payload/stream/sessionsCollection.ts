@@ -1,6 +1,6 @@
-import type { BasePayload, CollectionConfig, TypeWithID } from 'payload'
+import type { BasePayload, CollectionConfig, PayloadRequest, TypeWithID } from 'payload'
 
-export type StreamUploadSession = {
+type StreamUploadSession = {
   createdAt: string
   libraryId: string
   videoId: string
@@ -61,16 +61,17 @@ export const createStreamVideoSession = async ({
 
 export const deleteStreamVideoSession = async ({
   libraryId,
-  payload,
+  req,
   videoId,
 }: {
   libraryId: number
-  payload: BasePayload
+  req: PayloadRequest
   videoId: string
 }): Promise<void> => {
-  await payload.delete({
+  await req.payload.delete({
     collection: streamUploadSessionsCollectionSlug,
     overrideAccess: true,
+    req,
     where: {
       libraryId: {
         equals: libraryId.toString(),

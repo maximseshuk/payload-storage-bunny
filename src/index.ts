@@ -8,9 +8,8 @@ import type {
   CollectionOptions,
   GeneratedAdapter,
 } from '@payloadcms/plugin-cloud-storage/types'
-import { initClientUploads } from '@payloadcms/plugin-cloud-storage/utilities'
 import type { AcceptedLanguages } from '@payloadcms/translations'
-import type { BinScriptConfig, Config } from 'payload'
+import type { Config } from 'payload'
 
 import {
   createCollectionContext,
@@ -21,12 +20,11 @@ import {
 } from './server/payload/config/index.js'
 import { getAfterReadHook } from './server/payload/fields/bunnyGroupField.js'
 import { getFields } from './server/payload/fields/getFields.js'
-import { clientUploadOperation } from './server/payload/openapi.js'
-import { getClientUploadHandler } from './server/payload/storage/clientUploads/endpoint.js'
 import {
   getBeforeChangeHook,
   getBeforeOperationHook,
 } from './server/payload/storage/clientUploads/persistPrefixHook.js'
+import { getGenerateUploadInstructions } from './server/payload/storage/clientUploads/uploadInstructions.js'
 import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './server/payload/storage/index.js'
 import { getStreamCleanupTask } from './server/payload/stream/cleanupTask.js'
 import { hasStreamClientUploads } from './server/payload/stream/clientUploads.js'
@@ -38,12 +36,7 @@ import { PLUGIN_KEY } from './shared/constants.js'
 import { translations } from './shared/translations/index.js'
 import type { PluginDefaultTranslationsObject } from './shared/translations/types.js'
 import type { NormalizedBunnyStorageConfig } from './shared/types/configNormalized.js'
-import type {
-  BunnyClientUploadExtra,
-  BunnyStorageConfig,
-  BunnyStoragePlugin,
-  CollectionContext,
-} from './shared/types/index.js'
+import type { BunnyStorageConfig, BunnyStoragePlugin, CollectionContext } from './shared/types/index.js'
 
 export {
   getBunnyCollectionConfig,
@@ -58,48 +51,63 @@ export type {
 } from './server/payload/config/access.js'
 export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from './shared/types/configNormalized.js'
 
-export const bunnyStorage: BunnyStoragePlugin =
-  (pluginConfig: BunnyStorageConfig) =>
-  (incomingConfig: Config): Config => {
+const CLIENT_UPLOAD_HANDLER_PATH = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
+
+const getCloudStorageCollections = (
+  collections: BunnyStorageConfig['collections'],
+  adapter: Adapter | null,
+): CloudStoragePluginOptions['collections'] =>
+  Object.entries(collections).reduce(
+    (acc, [slug, collOptions]) => ({
+      ...acc,
+      [slug]: {
+        ...(collOptions === true ? {} : collOptions),
+        adapter,
+      },
+    }),
+    {} as Record<string, CollectionOptions>,
+  )
+
+export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => ({
+  name: 'bunny',
+  collections: Object.keys(pluginConfig.collections),
+  init: (incomingConfig: Config): Config => {
     if (pluginConfig.enabled === false) {
-      return incomingConfig
+      return cloudStoragePlugin({
+        collections: getCloudStorageCollections(pluginConfig.collections, null),
+        enabled: false,
+      })(incomingConfig)
     }
 
     const config = createNormalizedConfig(pluginConfig)
     validateNormalizedConfig(config)
 
-    const adapter = bunnyStorageInternal(config)
-
-    const collectionsWithAdapter: CloudStoragePluginOptions['collections'] = Object.entries(
-      pluginConfig.collections,
-    ).reduce(
-      (acc, [slug, collOptions]) => ({
-        ...acc,
-        [slug]: {
-          ...(collOptions === true ? {} : collOptions),
-          adapter,
-        },
-      }),
-      {} as Record<string, CollectionOptions>,
-    )
+    const collectionsWithAdapter = getCloudStorageCollections(pluginConfig.collections, bunnyStorageInternal(config))
 
     const streamEndpoints = getStreamEndpoints(config)
     const cleanupTask = getStreamCleanupTask(config)
 
     const dirname = path.dirname(fileURLToPath(import.meta.url))
-    const pluginBin: BinScriptConfig[] = hasAnyStorage(config)
-      ? [
-          {
-            key: 'bunny:deploy-edge-script',
-            scriptPath: path.resolve(dirname, 'cli/commands/deployEdgeScript.js'),
-          },
-        ]
-      : []
-    const existingBin = incomingConfig.bin ?? []
 
     const finalConfig: Config = {
       ...incomingConfig,
-      bin: [...existingBin, ...pluginBin.filter((entry) => !existingBin.some((b) => b.key === entry.key))],
+      admin: {
+        ...incomingConfig.admin,
+        dependencies: {
+          ...incomingConfig.admin?.dependencies,
+          [CLIENT_UPLOAD_HANDLER_PATH]: { type: 'component', path: CLIENT_UPLOAD_HANDLER_PATH },
+        },
+      },
+      cli:
+        incomingConfig.cli === false || !hasAnyStorage(config)
+          ? incomingConfig.cli
+          : {
+              ...incomingConfig.cli,
+              commands: {
+                'bunny:deploy-edge-script': `${path.resolve(dirname, 'cli/commands/deployEdgeScript.js')}#deployEdgeScriptCommand`,
+                ...incomingConfig.cli?.commands,
+              },
+            },
       custom: {
         ...incomingConfig.custom,
         [PLUGIN_KEY]: {
@@ -229,9 +237,11 @@ export const bunnyStorage: BunnyStoragePlugin =
                 ...acc,
                 [typedLocale]: {
                   ...incomingConfig.i18n?.translations?.[typedLocale],
-                  '@seshuk/payload-storage-bunny': {
-                    ...i18nObject['@seshuk/payload-storage-bunny'],
-                    ...(config.i18n?.translations?.[typedLocale] || {}),
+                  [PLUGIN_KEY]: {
+                    ...i18nObject[PLUGIN_KEY],
+                    ...(incomingConfig.i18n?.translations?.[typedLocale] as Partial<PluginDefaultTranslationsObject>)?.[
+                      PLUGIN_KEY
+                    ],
                   },
                 },
               }
@@ -254,35 +264,11 @@ export const bunnyStorage: BunnyStoragePlugin =
       },
     }
 
-    const clientUploadContexts = (finalConfig.collections || [])
-      .filter((collection) => collectionsWithAdapter[collection.slug])
-      .map((collection) => createCollectionContext(config, collection))
-      .filter(hasClientUploads)
-
-    if (clientUploadContexts.length > 0) {
-      initClientUploads({
-        clientHandler: '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler',
-        collections: Object.fromEntries(clientUploadContexts.map((context) => [context.collection.slug, context])),
-        config: finalConfig,
-        enabled: true,
-        extraClientHandlerProps: (context): BunnyClientUploadExtra =>
-          hasStreamClientUploads(context) ? { streamMimeTypes: context.streamConfig?.mimeTypes } : {},
-        serverHandler: getClientUploadHandler(config),
-        serverHandlerPath: '/storage-bunny/storage/upload',
-      })
-
-      const clientUploadEndpoint = finalConfig.endpoints?.find((endpoint) =>
-        endpoint.path?.startsWith('/storage-bunny/storage/upload'),
-      )
-      if (clientUploadEndpoint) {
-        clientUploadEndpoint.custom = { ...clientUploadEndpoint.custom, openapi: clientUploadOperation }
-      }
-    }
-
     return cloudStoragePlugin({
       collections: collectionsWithAdapter,
     })(finalConfig)
-  }
+  },
+})
 
 const hasClientUploads = (context: CollectionContext): boolean =>
   !!context.storageConfig?.clientUploads || hasStreamClientUploads(context)
@@ -293,13 +279,18 @@ const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => 
 
     return {
       name: 'bunny',
-      ...(hasClientUploads(collectionContext) ? { clientUploads: true } : {}),
-      requiresClientUploadReceipt: true,
       fields: [],
       generateURL: getGenerateUrl(collectionContext),
       handleDelete: getHandleDelete(collectionContext),
       handleUpload: getHandleUpload(collectionContext),
       staticHandler: getStaticHandler(collectionContext),
+      uploadInstructions: {
+        ...(hasStreamClientUploads(collectionContext) ? { adminHandler: { path: CLIENT_UPLOAD_HANDLER_PATH } } : {}),
+        enabled: true,
+        generate: getGenerateUploadInstructions(collectionContext),
+        requiresUploadReceipt: true,
+        useInAdmin: hasClientUploads(collectionContext),
+      },
     }
   }
 }

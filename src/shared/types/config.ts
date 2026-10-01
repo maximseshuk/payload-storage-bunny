@@ -1,6 +1,5 @@
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
-import type { AcceptedLanguages } from '@payloadcms/translations'
-import type { CollectionConfig, PayloadRequest, Plugin, TaskConfig, UploadCollectionSlug } from 'payload'
+import type { CollectionConfig, PayloadRequest, StorageAdapter, TaskConfig, UploadCollectionSlug } from 'payload'
 
 import type { StreamTusAuthRequest } from './core.js'
 
@@ -151,8 +150,9 @@ export type ClientUploadsEdgeConfig = {
 
 export type ClientUploadsConfig = {
   /**
-   * Determines who may request an upload URL.
-   * @default an authenticated user with create or update access to the collection
+   * Narrows who may request an upload URL. It runs after Payload's own check
+   * (an authenticated user with create or update access to the collection), so
+   * it can deny a request but never allow one that check rejects.
    */
   access?: ClientUploadsAccess
   /**
@@ -409,7 +409,7 @@ export type CollectionStreamOverride = {
         /**
          * Override automatic TUS mode enablement for this collection.
          * When true, TUS auto-enables for supported video MIME types.
-         * When false, user must manually click "Enable tus mode" button.
+         * When false, user must manually click "Enable TUS mode" button.
          */
         autoMode?: boolean
         /**
@@ -490,19 +490,11 @@ type BunnyStorageBaseConfig = {
   /** Which collections should use Bunny Storage */
   collections: CollectionsConfig
   /**
-   * Enable or disable the plugin
+   * Enable or disable the plugin. When `false`, the hidden storage fields (such as `prefix`)
+   * are still added, so the database schema matches the enabled plugin.
    * @default true
    */
   enabled?: boolean
-  /** Internationalization settings for UI elements */
-  i18n?: {
-    translations: {
-      [key in AcceptedLanguages]?: {
-        tusUploadDisableMode?: string
-        tusUploadEnableMode?: string
-      }
-    }
-  }
   /** CDN cache purging configuration */
   purge?: boolean | PurgeConfig
   /** Global signed URLs config (can be overridden per collection) */
@@ -527,7 +519,7 @@ type BunnyStorageBaseConfig = {
    * `DO_NOT_TRACK` or `BUNNY_TELEMETRY_DISABLED` env var is set, or in CI. Set to
    * `false` to opt out explicitly; pass `{ endpoint }` to send to your own collector.
    *
-   * @see https://payload-storage-bunny.seshuk.im/configuration/telemetry
+   * @see https://payload-storage-bunny.seshuk.im/v4/configuration/telemetry
    * @default true
    */
   telemetry?: boolean | { endpoint?: string }
@@ -544,4 +536,4 @@ export type BunnyStorageConfig = {
   stream?: StreamConfig
 } & BunnyStorageBaseConfig
 
-export type BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => Plugin
+export type BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => StorageAdapter

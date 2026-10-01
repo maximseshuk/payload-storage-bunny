@@ -16,9 +16,11 @@ export const recordResponses = (page: Page): NetworkCall[] => {
 }
 
 /**
- * `closeAllToasts` and `saveDocAndAssert` are adapted from Payload CMS.
+ * `closeAllToasts` and `saveDocAndAssert` are adapted from Payload.
+ * Copyright (c) 2018-2026 Payload CMS, LLC <info@payloadcms.com>
+ * SPDX-License-Identifier: MIT
  * @see https://github.com/payloadcms/payload/blob/main/test/__helpers/e2e/helpers.ts
- * @license MIT
+ * @see https://github.com/payloadcms/payload/blob/main/LICENSE.md
  */
 export const closeAllToasts = async (page: Locator | Page): Promise<void> => {
   const toastCloseSelector = '.payload-toast-container button.payload-toast-close-button'
@@ -62,9 +64,9 @@ export const saveDocAndAssert = async (
 export const deleteDocAndAssert = async (page: Page): Promise<void> => {
   const collectionSlug = page.url().match(/\/collections\/([^/]+)\//)?.[1]
 
-  await page.locator('.doc-controls__popup .popup-button').click()
+  await page.locator('.doc-controls__popup-button').click()
   await page.locator('#action-delete').click()
-  await page.locator('#confirm-action').click()
+  await page.locator('.delete-document [data-dialog-action="confirm"]').click()
   await expect(page.locator('.payload-toast-container')).toContainText('successfully deleted')
 
   if (collectionSlug) {

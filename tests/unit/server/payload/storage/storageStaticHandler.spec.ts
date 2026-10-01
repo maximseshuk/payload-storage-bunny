@@ -81,6 +81,23 @@ describe('storageStaticHandler', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://cdn.b-cdn.net/tenants/acme/photo.jpg?width=100')
   })
 
+  it('serves an empty document prefix from under the collection prefix', async () => {
+    fetchMock.mockResolvedValue(new Response(streamBody('x'), { status: 200 }))
+
+    await storageStaticHandler({
+      collection,
+      collectionPrefix: 'media',
+      filename: 'photo.jpg',
+      prefix: '',
+      req: makeReq(),
+      signedUrls: false,
+      storageConfig: storageConfig(),
+      usePayloadAccessControl: true,
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('https://cdn.b-cdn.net/media/photo.jpg')
+  })
+
   it('strips the prefix query param from the forwarded CDN URL but keeps other params', async () => {
     fetchMock.mockResolvedValue(new Response(streamBody('x'), { status: 200 }))
 

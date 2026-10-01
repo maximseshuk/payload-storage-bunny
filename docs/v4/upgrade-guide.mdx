@@ -1,0 +1,442 @@
+---
+title: 'Upgrade guide'
+description: 'Upgrade between major versions of the Bunny Storage plugin — config changes and the stored-data migration.'
+---
+
+This guide covers upgrading between versions of the Bunny Storage plugin.
+
+## v3 to v4
+
+v4 supports Payload 4. It follows the new storage adapter API, so most changes come from Payload itself. Do steps 1 to 4 first. The later steps only apply to some apps.
+
+<Info>
+  **Requires Payload 4 and Node.js 24.15 or later.** Upgrade Node and Payload first. Follow the [Payload 4 migration
+  guide](https://payloadcms.com/docs/migration-guide/v4) for the changes in Payload itself.
+</Info>
+
+### 1. Update Node and the packages
+
+Payload 4 needs Node.js 24.15 or later. Then install v4 of the plugin and the matching cloud storage plugin:
+
+```bash
+pnpm add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+```
+
+### 2. Register the adapter under `storage`
+
+Payload 4 does not accept storage adapters in `plugins`. Move `bunnyStorage` to the top-level `storage` array:
+
+```diff payload.config.ts
+export default buildConfig({
+- plugins: [
+-   bunnyStorage({ /* ... */ }),
+-   otherPlugin(),
+- ],
++ plugins: [otherPlugin()],
++ storage: [
++   bunnyStorage({ /* ... */ }),
++ ],
+})
+```
+
+The plugin options do not change. Payload's `npx @payloadcms/codemod --transform migrate-storage-adapters-to-config` codemod only knows the official adapters, so move `bunnyStorage` by hand.
+
+### 3. Add the `prefix` column (SQL databases)
+
+Every upload collection that uses the plugin now has a hidden `prefix` field. Payload adds it even when the collection has no static `prefix`, and even when you set `enabled: false`. This keeps the schema the same in every environment.
+
+On Postgres, SQLite and D1, `prefix` is a new column on each upload collection's table. Payload also adds a hidden `_objectKey` field. Create and run a migration:
+
+```bash
+npx payload migrate:create
+npx payload migrate
+```
+
+In development, Payload pushes the schema for you. MongoDB needs no migration. The column defaults to the collection's static `prefix`, or an empty string, so existing rows keep resolving to the same files.
+
+Payload 4 has more schema changes of its own, such as versions and job fields. One `migrate:create` run covers them all.
+
+### 4. Redeploy the Edge Script
+
+If you use [client uploads](/v4/configuration/storage/client-uploads) with an Edge Script (HTTP API zones), redeploy it after the upgrade:
+
+```bash
+npx payload bunny:deploy-edge-script
+```
+
+Payload 4 replaced `bin` scripts with `cli.commands`. The plugin registers `bunny:deploy-edge-script` there for you, so the command itself does not change. It is not available when you set `cli: false`.
+
+### 5. Custom upload clients
+
+This step only applies if you wrote your own upload client. The admin UI needs no changes.
+
+The plugin's `POST /api/storage-bunny/storage/upload` endpoint is removed. Client uploads now use Payload's shared `POST /api/upload-instructions` endpoint:
+
+1. Send `{ collectionSlug, filename, filesize, mimeType }` to `POST /api/upload-instructions`.
+2. `PUT` the file to `request.url` with `request.headers` from the response.
+3. Send the returned `file` object unchanged as the `file` field of the document request. It replaces `clientUploadContext`.
+
+```ts
+const instructions = await (
+  await fetch('/api/upload-instructions', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ collectionSlug: 'media', filename: file.name, filesize: file.size, mimeType: file.type }),
+  })
+).json()
+
+await fetch(instructions.request.url, {
+  method: instructions.request.method,
+  headers: instructions.request.headers,
+  body: file,
+})
+
+const formData = new FormData()
+formData.append('_payload', JSON.stringify({ alt: 'My image' }))
+formData.append('file', JSON.stringify(instructions.file))
+await fetch('/api/media', { method: 'POST', credentials: 'include', body: formData })
+```
+
+See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-upload-clients) for a version with error handling.
+
+For Stream client uploads, `tus-auth` no longer returns `clientUploadContext`. When you send `head`, it returns `filename` and `signedReceipt`. Send the file as `{ filename, mimeType, size, uploadReference: { signedReceipt } }` with the document.
+
+### 6. Read errors from `errors`
+
+Client upload errors now use Payload's standard error format:
+
+```json
+{ "errors": [{ "message": "File exceeds the configured size limit" }] }
+```
+
+v3 returned `{ "error": "..." }`. Read `errors[0].message` instead. Some status codes changed too, because Payload now runs its own checks first. For example, a file over `upload.limits.fileSize` gets `400`, and a file type the collection does not accept gets a validation error. Check `response.ok` rather than exact codes. The `tus-auth` endpoint already used this format.
+
+### 7. Client upload keys have a UUID folder
+
+Client uploads now store each file under its own random folder: `<prefix>/<uuid>/<filename>`. The stored `prefix` includes the UUID, for example `uploads/tenants/acme/3f2a…`.
+
+If your access rules or queries match the stored `prefix` with `equals`, switch to `like`:
+
+```diff
+- prefix: { equals: `uploads/tenants/${tenant}` },
++ prefix: { like: `uploads/tenants/${tenant}/` },
+```
+
+Files that are already stored keep their path. Server-side uploads do not get a UUID folder.
+
+### 8. `clientUploads.access` only narrows
+
+Payload now checks that the user is signed in and has `create` or `update` access to the collection before your `clientUploads.access` function runs. In v3, a custom `access` function replaced that check. Now it can only make it stricter.
+
+If your `access` function let in users without collection `create` or `update` access, for example anonymous visitors, give them that access in the collection's own `access` config instead.
+
+### 9. Files at the zone root
+
+This step only applies if you upgrade from v3.1.0 or earlier. v3.1.1 and later already read these files under the collection prefix. If you have not moved them yet, follow [v3.1.0 to v3.1.1](#v310-to-v311) first.
+
+### 10. Stream cleanup schedule
+
+If you set `stream.cleanup.schedule.cron`, check that it uses Payload 4's stricter cron syntax. A step must follow `*` or a range, so write `*/10`, not `/10` or `5/10`. The default `0 2 * * *` is valid.
+
+### 11. Move TUS labels to Payload's `i18n`
+
+The plugin's `i18n` option is removed. Override the plugin labels in Payload's own `i18n` config, under the `@seshuk/payload-storage-bunny` key:
+
+```diff payload.config.ts
+export default buildConfig({
++ i18n: {
++   translations: {
++     en: { '@seshuk/payload-storage-bunny': { tusUploadEnableMode: 'Upload large video' } },
++   },
++ },
+  storage: [
+    bunnyStorage({
+-     i18n: { en: { tusUploadEnableMode: 'Upload large video' } },
+    }),
+  ],
+})
+```
+
+Your values win over the plugin defaults. The TUS upload now sits inside Payload's file panel, and some labels changed with it. `tusUploadChecking`, `tusUploadFileSize` and `tusUploadFinalizing` are gone, and the status texts are new. See [Translations](/v4/configuration/overview#translations) for the current keys.
+
+### 12. Remove v2 leftovers
+
+- The `@seshuk/payload-storage-bunny/migrations` subpath is removed. If you still have v2 data, upgrade to v3 and run the [data migration](#migrate-your-data) on Payload 3 first.
+- v3 threw a startup error for the renamed v2 keys, such as `apiKey` or `stream.tus.uploadTimeout`. v4 no longer checks them, and TypeScript reports them instead. Remove any that are left.
+
+## v3.1.1 to v3.1.2
+
+v3.1.2 contains security fixes for Stream TUS uploads. It needs no config changes.
+
+- `tus-auth` checks the file like a storage client upload. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type and a file over `upload.limits.fileSize`, even when `checkAccess` allows the request. The saved document gets the signed file size and MIME type.
+- A `videoToken` is bound to the signed-in user and expires after 24 hours. Tokens from v3.1.1 stop working, so an upload that was paused before the update starts again. The same happens to an upload that stays paused for more than 24 hours.
+- Payload rejects a `videoId` that another document in a Stream collection of the same library already uses.
+
+If you call `tus-auth` from your own client, request a new `videoToken` for each upload and save the document within 24 hours.
+
+## v3.1.0 to v3.1.1
+
+v3.1.1 needs no config changes. Most apps are not affected.
+
+It only changes documents that have an empty or missing `prefix` in a collection that sets a `prefix`. v3.1.0 stored the files of such documents at the root of the storage zone. v3.1.1 reads, deletes and stores them under the collection prefix. Documents with a non-empty `prefix` keep the same file paths.
+
+To check a collection, query it for documents without a prefix:
+
+```ts
+const { docs } = await payload.find({
+  collection: 'media',
+  overrideAccess: true,
+  where: {
+    or: [{ prefix: { equals: '' } }, { prefix: { exists: false } }],
+  },
+})
+```
+
+If the query returns documents, move each file and its image sizes from `<file>` to `<collection prefix>/<file>` in the storage zone. Otherwise their URLs return `404`. You can move files with any S3 client on an S3 zone, or download and re-upload them in the Bunny dashboard.
+
+## v3.0.x to v3.1.0
+
+v3.1.0 needs no config changes, but it has new install and upload requirements. Most apps only need steps 1 and 2.
+
+v3.1.0 requires Payload 3.90.2 or later. If you are on v3.0.1 with an older Payload version, upgrade Payload first. Staying on v3.0.1 is not recommended, because it lacks the security fixes in v3.1.0.
+
+### 1. Install the cloud storage plugin
+
+`@payloadcms/plugin-cloud-storage` is now a peer dependency. Add it next to the plugin, in the version that matches your Payload version:
+
+```bash
+pnpm add @payloadcms/plugin-cloud-storage
+```
+
+### 2. Redeploy the Edge Script
+
+If you use [client uploads](/v4/configuration/storage/client-uploads) with an Edge Script (HTTP API zones), redeploy it:
+
+```bash
+npx payload bunny:deploy-edge-script
+```
+
+The new script checks the signed file size and MIME type and does not overwrite existing files. An older script still accepts upload URLs minted by v3.1.0, but it skips these checks. S3 zones do not use the script.
+
+### 3. Stricter client uploads
+
+The `/api/storage-bunny/storage/upload` endpoint now has these requirements:
+
+- Without a custom `clientUploads.access` function, the user needs `create` or `update` access to the collection.
+- `filesize` is required, next to `collectionSlug`, `filename` and `mimeType`.
+- HTML, JavaScript, SVG and XML files are rejected, unless the collection sets `upload.allowRestrictedFileTypes: true`.
+- The upload URL only accepts the declared size and MIME type.
+- It returns `409` when a file already exists at the path.
+
+The admin UI already follows these rules. Payload's own rename logic keeps file names unique, so `409` is rare in practice.
+
+### 4. Custom upload clients
+
+This step only applies if you wrote your own upload client. The admin UI needs no changes.
+
+- **Client uploads.** Send the `headers` from the upload endpoint response with the `PUT`. Send the `clientUploadContext` from the same response unchanged with the document. Payload now requires its signed receipt, and the plugin takes the prefix, file size and MIME type from it.
+- **TUS and Stream.** `tus-auth` returns a `videoToken` with every `videoId`. Send it as `bunnyData.stream.videoToken` when you save a document with a `videoId`, and send `videoId` with `videoToken` to resume an upload. Without a valid token, Payload ignores the `videoId` on save, and `tus-auth` creates a new video.
+- **Stream client uploads.** Send the file head as `head` to `tus-auth`, and send the returned `clientUploadContext` unchanged with the document.
+- **Read-only fields.** The injected `prefix` field and `bunnyData.stream.resolutions` no longer accept values from the REST or GraphQL API. Server code that uses the Local API is not affected.
+
+See the [API reference](/v4/api-reference/overview) for the request and response shapes.
+
+### 5. Check static plus mint-time prefixes
+
+This step only applies to collections that set both a static `prefix` and a `clientUploads.prefix` callback that returns a path outside the static prefix. For example, the static prefix `uploads` and the callback result `tenants/acme`.
+
+v3.0.x uploaded such files to `tenants/acme/<file>`, but stored `uploads/tenants/acme` on the document. So URLs and deletes pointed to a path with no file. v3.1.0 uploads new files to `uploads/tenants/acme/<file>`, which matches the stored prefix.
+
+To fix files uploaded with v3.0.x, move each file (and its image sizes) from `<callback result>/<file>` to `<static prefix>/<callback result>/<file>`. You can move files with any S3 client on an S3 zone, or download and re-upload them in the Bunny dashboard. The stored documents need no change. Collections that use only one of the two prefixes are not affected.
+
+## v2.x to v3.0
+
+v3 has two independent parts: a set of **config changes** (which throw at startup until you rename the keys) and a **data migration** for the stored Stream metadata. Do both.
+
+<Warning>
+  **Coming from v2? Upgrade to v3 first.** The data migration helper ships only in v3.x and was removed in v4. Upgrade
+  to v3, run the migration on Payload 3, then follow [v3 to v4](#v3-to-v4).
+</Warning>
+
+<Info>
+  **Requires Payload 3.90.2 or later and Node.js 22 or later.** Upgrade Payload (and Node, if needed) first if you are
+  below either.
+</Info>
+
+<Warning>
+  **Back up, then run the data migration.** Take a database backup first. v3 reads Stream metadata only from the new
+  **`bunnyData`** field — until you run the [data migration](#migrate-your-data), every existing video looks empty
+  (broken thumbnails, no resolutions, `videoId` queries return nothing). On Postgres/SQLite the legacy columns are
+  dropped the moment the v3 schema is pushed, so migrate **before** that. Config renames alone are not enough.
+</Warning>
+
+### Config changes (breaking)
+
+Several config keys were renamed or removed in v3. Most **throw at boot** with a targeted message, so a v2 config crashes on startup until you update it. The last three rows are the exception — they produce no boot error (they are a naming convention, silently ignored, or always overridden), but you should still clean them up:
+
+| v2                                   | v3                      | Note                                                               |
+| ------------------------------------ | ----------------------- | ------------------------------------------------------------------ |
+| `apiKey` (top level)                 | `accountApiKey`         | Bunny account key; purge + edge deploy — throws at boot            |
+| `stream.tus.uploadTimeout`           | `stream.tus.expiresIn`  | session expiry in seconds (default 3600) — throws at boot          |
+| `stream.tus.mimeTypes`               | `stream.mimeTypes`      | moved up one level — throws at boot                                |
+| `purge.apiKey`                       | removed                 | use global `accountApiKey` — throws at boot                        |
+| `adminThumbnail`                     | removed                 | use `thumbnail` (same shape) — throws at boot                      |
+| `BUNNY_API_KEY` (conventional env)   | `BUNNY_ACCOUNT_API_KEY` | env var name read by the deploy CLI; not inspected — no boot error |
+| `experimental` (top level)           | removed                 | silently ignored — no boot error; delete the key                   |
+| per-collection `disableLocalStorage` | removed from the type   | always overridden to `true` — no boot error                        |
+
+Per-service keys are unchanged: `storage.apiKey` and `stream.apiKey` stay as they are.
+
+**New in v3** (optional, nothing to migrate — adopt when you need them):
+
+- [Client uploads](/v4/configuration/storage/client-uploads) — browser-direct uploads, configured under `storage.clientUploads` (`storage.clientUploads: true` shorthand, or the full config). There is no `mode` option — the transport is chosen automatically (presigned S3 when the zone sets `storage.s3`, otherwise a deployed Edge Script).
+- [Per-collection zones and libraries](/v4/configuration/collection-overrides#own-zone-or-library-per-collection) — point a collection at its own storage zone / stream library with a full config; the top-level `storage`/`stream` become optional.
+- [`storage.s3`](/v4/configuration/storage/overview#s3-mode) — S3-compatible zone access.
+- [`stream.referer`](/v4/configuration/stream/overview#options) — Referer header for MP4-fallback requests behind BlockNoneReferrer libraries.
+- Per-collection [`stream.tus: false`](/v4/configuration/collection-overrides) — disable TUS for one collection.
+- [Stream webhook](/v4/configuration/stream/webhooks) (`stream.webhook`) — v2 had no webhook; MP4-fallback resolutions were fetched lazily on the first serve (v3 still does this as a fallback). The optional webhook pre-populates `bunnyData.stream.resolutions` the moment encoding finishes instead. Set `webhook.secret` to the library's **Read-Only API key** (Bunny signs each callback with the `X-BunnyStream-Signature` HMAC header) and point your Bunny library's webhook at `/api/storage-bunny/stream/webhook`.
+
+### What changed (data)
+
+v3 stores Bunny Stream metadata in a single **`bunnyData`** group field instead of the flat `bunnyVideoId` and `bunnyVideoMeta` fields.
+
+| What        | v2.x                                                              | v3.0                                                                         |
+| ----------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Video id    | `bunnyVideoId`                                                    | `bunnyData.stream.videoId`                                                   |
+| Resolutions | `bunnyVideoMeta.availableMp4Resolutions` / `highestMp4Resolution` | `bunnyData.stream.resolutions.available` / `highest`                         |
+| API shape   | two separate fields                                               | `bunnyData: { type: 'stream', stream: { videoId, libraryId, resolutions } }` |
+
+`type` and `libraryId` are computed on read (not stored). `videoId` is stored and indexed, so queries such as `where: { 'bunnyData.stream.videoId': { equals } }` keep working.
+
+### Migrate your data
+
+v3.x ships a migration helper at `@seshuk/payload-storage-bunny/migrations`. It supports MongoDB, Postgres and SQLite and is idempotent — re-running it only touches documents that have not been migrated yet.
+
+<Steps>
+
+<Step title="Upgrade the plugin to v3">
+
+<CodeGroup>
+
+```bash npm
+npm install @seshuk/payload-storage-bunny@3
+```
+
+```bash pnpm
+pnpm add @seshuk/payload-storage-bunny@3
+```
+
+```bash yarn
+yarn add @seshuk/payload-storage-bunny@3
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Create a migration file">
+
+```bash
+npx payload migrate:create bunny_v3
+```
+
+</Step>
+
+<Step title="Call the helper from it">
+
+```ts
+import { migrateBunnyData } from '@seshuk/payload-storage-bunny/migrations'
+
+export async function up({ payload, req }) {
+  await migrateBunnyData({ payload, req })
+}
+
+export async function down({ payload, req }) {
+  await migrateBunnyData({ payload, req, direction: 'rollback' })
+}
+```
+
+</Step>
+
+<Step title="Run the migration">
+
+```bash
+npx payload migrate
+```
+
+</Step>
+
+<Step title="Remove the old fields">
+
+The legacy data lives in the `bunnyVideoId` and `bunnyVideoMeta` fields (MongoDB) — the `bunny_video_id` and `bunny_video_meta` columns on SQL. You do **not** declare these in your own config: the v2 plugin added them for you, and v3 no longer declares them, so after migrating they are leftover data with no field definition behind them.
+
+Once you have verified your app reads video metadata from `bunnyData`, delete the leftovers by passing `drop: true`. This unsets the fields (MongoDB) or drops the columns (Postgres/SQLite) for every managed collection:
+
+```ts
+await migrateBunnyData({ payload, req, drop: true })
+```
+
+You can run this as a one-off from any script with a Payload instance, or fold it into the migration once you're confident:
+
+```ts
+export async function up({ payload, req }) {
+  await migrateBunnyData({ payload, req, drop: true }) // migrate, then drop the legacy fields/columns
+}
+```
+
+<Warning>
+  `drop` is destructive and one-way — the legacy fields are gone afterward, so `direction: 'rollback'` can no longer
+  copy data back. Only pass `drop: true` after you've verified the migrated data, or with a database backup in hand.
+</Warning>
+
+</Step>
+
+</Steps>
+
+### Database notes
+
+<Tabs>
+  <Tab title="MongoDB">
+
+MongoDB is schemaless, so there is no ordering constraint.
+
+If your project doesn't use `payload migrate`, call `migrateBunnyData({ payload })` once from any script that has a Payload instance.
+
+  </Tab>
+  <Tab title="Postgres">
+
+<Warning>
+The `bunny_video_id` and `bunny_video_meta` columns aren't part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
+
+Run `migrateBunnyData` **before** the schema change that removes them (place it first in your migration's `up()`), or take a database backup first.
+
+</Warning>
+
+  </Tab>
+  <Tab title="SQLite">
+
+<Warning>
+The `bunny_video_id` and `bunny_video_meta` columns aren't part of the v3 schema. If Payload pushes the v3 schema before the data is migrated, those columns are dropped and the data is lost.
+
+Run `migrateBunnyData` **before** the schema change that removes them (place it first in your migration's `up()`), or take a database backup first.
+
+</Warning>
+
+  </Tab>
+</Tabs>
+
+### Options
+
+| Option        | Default     | Description                                                  |
+| ------------- | ----------- | ------------------------------------------------------------ |
+| `collections` | all managed | Limit the migration to specific collection slugs.            |
+| `direction`   | `'migrate'` | `'rollback'` copies `bunnyData` back into the legacy fields. |
+| `drop`        | `false`     | Remove the legacy fields/columns after migrating.            |
+| `req`         | –           | Pass the migration's `req` to run inside its transaction.    |
+
+## Need help?
+
+Check the [Examples](/v4/guides/examples) page for working configurations, or [open an issue](https://github.com/maximseshuk/payload-storage-bunny/issues) if you run into problems.
+
+For Payload upgrade help, see their [official docs](https://payloadcms.com/docs).

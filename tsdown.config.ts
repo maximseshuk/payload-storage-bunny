@@ -2,14 +2,14 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   copy: [
-    { flatten: false, from: 'src/**/*.scss', to: 'dist' },
+    { flatten: false, from: 'src/**/*.css', to: 'dist' },
     { flatten: false, from: 'src/**/*.edge.js', to: 'dist' },
   ],
   dts: true,
   entry: ['src/**/*.ts', 'src/**/*.tsx'],
   exports: false,
   fixedExtension: false,
-  deps: { neverBundle: (id) => id.endsWith('.scss') || /^(?![./]|@\/|\0)/.test(id) },
+  deps: { neverBundle: (id) => id.endsWith('.css') || /^(?![./]|@\/|\0)/.test(id) },
   format: 'esm',
   hash: false,
   outDir: 'dist',

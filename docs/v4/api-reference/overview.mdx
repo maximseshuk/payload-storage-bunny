@@ -1,0 +1,33 @@
+---
+title: 'API reference'
+sidebarTitle: 'Overview'
+description: 'HTTP endpoints for client uploads, TUS authorization, and the Stream webhook.'
+---
+
+The plugin registers two HTTP endpoints on your Payload app, under the `/api/storage-bunny` prefix. Client uploads use Payload's own `POST /api/upload-instructions` endpoint. **The admin UI calls them for you.** You only need this reference if you build a custom upload flow, for example a headless front end that uploads directly to Bunny, or if you set up the Stream webhook.
+
+## Endpoints
+
+| Method & path                             | Purpose                                                                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/upload-instructions`           | Payload's endpoint. Returns a signed URL for browser-direct [client uploads](/v4/configuration/storage/client-uploads). |
+| `POST /api/storage-bunny/stream/tus-auth` | Authorize a [TUS resumable upload](/v4/configuration/stream/tus) to Bunny Stream.                                       |
+| `POST /api/storage-bunny/stream/webhook`  | Receive Bunny Stream [encoding-status callbacks](/v4/configuration/stream/webhooks).                                    |
+
+`upload-instructions` returns Bunny upload URLs only when `storage.clientUploads` is on. `stream/tus-auth` needs `stream.tus`, and `stream/webhook` needs `stream.webhook`. See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-upload-clients) for a full example.
+
+Errors use Payload's standard format, `{ "errors": [{ "message": "..." }] }`.
+
+## Authentication
+
+- **`upload-instructions` and `stream/tus-auth`** run through Payload's access control. Send them with an authenticated session, for example the `payload-token` cookie. `clientUploads.access` and `tus.checkAccess` add their own checks.
+- **`stream/webhook`** is not a Payload-authenticated route. Bunny signs each call, and the plugin verifies an HMAC-SHA256 `X-BunnyStream-Signature` header against the library's Read-Only API key (`stream.webhook.secret`).
+
+<Info>
+  Base your requests on your own app's origin. The `https://your-site.com` server shown on each endpoint is a
+  placeholder — replace it with where your Payload app runs.
+</Info>
+
+## Plugin config accessors
+
+Looking for the plugin's server-side helper functions (`getBunnyStreamForCollection`, `getBunnyStorageForCollection`, and friends) rather than HTTP endpoints? Those are documented under [Accessing the resolved config](/v4/configuration/collection-overrides#accessing-the-resolved-config).

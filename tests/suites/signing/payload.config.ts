@@ -9,7 +9,7 @@ export default buildConfigWithDefaults({
     createMediaCollection({ slug: 'storageMedia' }),
     createMediaCollection({ slug: 'streamMedia', upload: { mimeTypes: ['video/*'] } }),
   ],
-  plugins: [
+  storage: [
     bunnyStorage({
       collections: {
         storageMedia: {

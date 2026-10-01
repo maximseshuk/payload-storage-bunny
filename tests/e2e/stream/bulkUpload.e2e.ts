@@ -72,7 +72,7 @@ test.describe('Stream - bulk upload behind a request body limit', () => {
 
     await page.goto(`${serverUrl}/admin/collections/stream-only`)
     await page.waitForLoadState('networkidle')
-    const fileInput = page.locator('.bulk-upload--add-files__hidden-input')
+    const fileInput = page.locator('.bulk-upload--add-files .upload-dropzone-content__hidden-input')
     await expect(async () => {
       await page.getByRole('button', { name: 'Bulk Upload' }).click({ timeout: 5000 })
       await expect(fileInput).toBeAttached({ timeout: 5000 })
@@ -128,14 +128,11 @@ test.describe('Stream - bulk upload behind a request body limit', () => {
     await dropLargeVideo(page, 'stream-bulk-discarded.mp4')
 
     await expect(page.locator('#field-alt')).toBeVisible()
-    await page.locator('.bulk-upload--actions-bar').locator('..').locator('.drawer-close-button').first().click()
-    const leaveAnyway = page.getByRole('button', { name: 'Leave anyway' })
-    if (await leaveAnyway.isVisible()) {
-      await leaveAnyway.click()
-    }
+    await page.locator('.bulk-upload--file-manager .dialog__header').getByRole('button', { name: 'Close' }).click()
+    await page.getByRole('button', { name: 'Leave anyway' }).click()
     await expect(page.locator('#field-alt')).toBeHidden()
 
     await page.getByRole('button', { name: 'Create New' }).click()
-    await expect(page.getByRole('button', { name: 'Enable tus mode' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Enable TUS mode' })).toBeVisible()
   })
 })

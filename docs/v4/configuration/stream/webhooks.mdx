@@ -1,0 +1,35 @@
+---
+title: 'Webhooks'
+description: "Verify Bunny Stream encoding-status webhooks with your library's Read-Only API key and update MP4 fallback resolutions."
+---
+
+Bunny Stream can notify your app when a video's encoding status changes. Bunny **signs** each webhook with your library's **Read-Only API key**, and the plugin verifies that signature — so set `webhook.secret` to that key:
+
+```ts
+stream: {
+  // ...
+  webhook: {
+    secret: process.env.BUNNY_STREAM_READONLY_API_KEY, // your Stream library's Read-Only API key
+  },
+}
+```
+
+Set the webhook URL in your Bunny Stream library settings to the plain endpoint (no query secret):
+
+```text
+https://your-site.com/api/storage-bunny/stream/webhook
+```
+
+Each request carries an `X-BunnyStream-Signature` header — a lowercase-hex HMAC-SHA256 of the exact raw request body, keyed by the library's Read-Only API key — alongside `X-BunnyStream-Signature-Version` (`v1`) and `X-BunnyStream-Signature-Algorithm` (`hmac-sha256`). The plugin requires the version and algorithm to match before it verifies anything, finds the library by the payload's `VideoLibraryId`, recomputes the HMAC with that library's `webhook.secret`, and rejects the request (`401`) on a mismatch; a payload naming an unconfigured library is rejected (`403`).
+
+<Info>
+
+`webhook.secret` can also be set on a per-collection stream library. Because the signature is verified with each library's own Read-Only API key, a webhook can only be authenticated by the key of the library it names — libraries in different collections can point their Bunny webhook at the same endpoint and stay isolated per library.
+
+</Info>
+
+<Tip>
+
+When a video finishes encoding and `mp4Fallback` is enabled, the webhook looks up the matching document by `bunnyData.stream.videoId` and updates `bunnyData.stream.resolutions` with the available MP4 renditions. Until this webhook fires, `resolutions` stays empty even if `mp4Fallback` is on — encoding happens asynchronously on Bunny's side.
+
+</Tip>

@@ -1,9 +1,9 @@
 import * as tus from 'tus-js-client'
 
 import { BUNNY_API } from '@/shared/constants.js'
-import type { StreamClientUploadContext, StreamTusAuthResponse } from '@/shared/types/index.js'
+import type { StreamTusAuthResponse } from '@/shared/types/index.js'
 
-import { TUS_RETRY_DELAYS } from './TusUpload/Upload/Upload.constants.js'
+import { TUS_RETRY_DELAYS } from './TusUpload/FileManager/FileManager.constants.js'
 
 type UploadStreamVideoArgs = {
   apiRoute: string
@@ -11,6 +11,7 @@ type UploadStreamVideoArgs = {
   file: File
   head: string
   serverURL: string
+  updateFilename: (value: string) => void
 }
 
 export const uploadStreamVideo = async ({
@@ -19,7 +20,8 @@ export const uploadStreamVideo = async ({
   file,
   head,
   serverURL,
-}: UploadStreamVideoArgs): Promise<StreamClientUploadContext> => {
+  updateFilename,
+}: UploadStreamVideoArgs): Promise<{ signedReceipt: string }> => {
   const response = await fetch(`${serverURL}${apiRoute}/storage-bunny/stream/tus-auth`, {
     body: JSON.stringify({
       collection: collectionSlug,
@@ -38,12 +40,15 @@ export const uploadStreamVideo = async ({
   }
 
   const authData = (await response.json()) as StreamTusAuthResponse
-  const { clientUploadContext } = authData
-  if (!clientUploadContext) {
-    throw new Error('Bunny Stream upload response is missing the client upload context')
+  const { filename, signedReceipt } = authData
+  if (!signedReceipt) {
+    throw new Error('Bunny Stream upload response is missing the upload reference')
+  }
+  if (filename && filename !== file.name) {
+    updateFilename(filename)
   }
   if (authData.type !== 'upload') {
-    return clientUploadContext
+    return { signedReceipt }
   }
 
   await new Promise<void>((resolve, reject) => {
@@ -69,5 +74,5 @@ export const uploadStreamVideo = async ({
     }).start()
   })
 
-  return clientUploadContext
+  return { signedReceipt }
 }

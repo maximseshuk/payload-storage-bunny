@@ -39,7 +39,7 @@ export default buildConfigWithDefaults({
       },
     }),
   ],
-  plugins: [
+  storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {

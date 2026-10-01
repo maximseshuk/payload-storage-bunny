@@ -77,6 +77,7 @@ export const getSafeFileName = async ({
   staticPath,
 }: GetSafeFileNameArgs): Promise<string> => {
   let modifiedFilename = desiredFilename
+  const existsOnDisk = async (filename: string) => !!staticPath && (await fileExists(`${staticPath}/${filename}`))
 
   while (
     (await docWithFilenameExists({
@@ -85,7 +86,7 @@ export const getSafeFileName = async ({
       path: staticPath,
       req,
     })) ||
-    (await fileExists(`${staticPath}/${modifiedFilename}`))
+    (await existsOnDisk(modifiedFilename))
   ) {
     modifiedFilename = incrementName(modifiedFilename)
   }

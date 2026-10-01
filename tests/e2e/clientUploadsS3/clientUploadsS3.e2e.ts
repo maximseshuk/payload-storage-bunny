@@ -33,7 +33,7 @@ test.describe('Client Uploads - S3 mode', () => {
     await page.fill('#field-alt', 'S3 client upload')
     await saveDocAndAssert(page, '#action-save', 'success', { timeout: 30_000 })
 
-    const mint = responses.find((r) => r.method === 'POST' && r.url.includes('/storage-bunny/storage/upload'))
+    const mint = responses.find((r) => r.method === 'POST' && r.url.includes('/api/upload-instructions'))
     const directPut = responses.find((r) => r.method === 'PUT' && r.url.includes(s3Host))
     expect(mint?.status).toBe(200)
     expect(directPut?.status).toBeGreaterThanOrEqual(200)

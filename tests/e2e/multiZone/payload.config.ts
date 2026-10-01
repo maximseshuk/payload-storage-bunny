@@ -11,7 +11,7 @@ export default buildConfigWithDefaults({
     createMediaCollection({ slug: 'mz-stream-global', upload: { mimeTypes: ['image/*', 'video/mp4'] } }),
     createMediaCollection({ slug: 'mz-stream-signed', upload: { mimeTypes: ['image/*', 'video/mp4'] } }),
   ],
-  plugins: [
+  storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {

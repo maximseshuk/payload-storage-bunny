@@ -1,0 +1,230 @@
+{
+  "components": {
+    "securitySchemes": {
+      "payloadToken": {
+        "description": "Payload authentication cookie. These endpoints run Payload access control; an authenticated admin session is required.",
+        "in": "cookie",
+        "name": "payload-token",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "HTTP endpoints the plugin registers on your Payload app under `/api`. The admin UI calls these for you; document and drive them yourself only if you build a custom upload flow.",
+    "title": "Payload Storage Bunny — Plugin API",
+    "version": "3.1.2"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/storage-bunny/stream/tus-auth": {
+      "post": {
+        "description": "Creates the video in Bunny Stream (if needed) and returns a signed TUS authorization so the browser can upload directly to Bunny. Access is gated by `stream.tus.checkAccess` or the built-in rule. See [TUS uploads](/v4/configuration/stream/tus).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "collection": {
+                    "description": "Target upload collection.",
+                    "type": "string"
+                  },
+                  "filename": {
+                    "description": "Original file name.",
+                    "type": "string"
+                  },
+                  "filesize": {
+                    "description": "File size in bytes.",
+                    "type": "number"
+                  },
+                  "filetype": {
+                    "description": "File MIME type.",
+                    "type": "string"
+                  },
+                  "head": {
+                    "description": "Base64 of the first bytes of the file (at most 8192 characters). When sent, the response includes a `filename` and a `signedReceipt` for a client-direct upload.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Video title. Required when creating a new video.",
+                    "type": "string"
+                  },
+                  "videoId": {
+                    "description": "Existing Bunny video GUID, to resume an upload. Used only with a matching `videoToken`.",
+                    "type": "string"
+                  },
+                  "videoToken": {
+                    "description": "The `videoToken` returned with `videoId`.",
+                    "type": "string"
+                  }
+                },
+                "required": ["collection", "filename", "filesize", "filetype"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "authorizationExpire": {
+                      "description": "Signature expiry as a UNIX timestamp (seconds).",
+                      "type": "number"
+                    },
+                    "authorizationSignature": {
+                      "description": "SHA-256 TUS authorization signature.",
+                      "type": "string"
+                    },
+                    "filename": {
+                      "description": "Returned when the request includes `head`. Unique sanitized file name the `signedReceipt` is bound to; submit the file under this name.",
+                      "type": "string"
+                    },
+                    "libraryId": {
+                      "description": "Bunny Stream library the video lives in.",
+                      "type": "number"
+                    },
+                    "signedReceipt": {
+                      "description": "Returned when the request includes `head`. Send it as `uploadReference.signedReceipt` of the file submitted with the Payload document.",
+                      "type": "string"
+                    },
+                    "thumbnailTime": {
+                      "description": "Thumbnail capture time (ms), when configured.",
+                      "type": "number"
+                    },
+                    "type": {
+                      "description": "`upload` returns a signature to proceed; `uploaded` means the video already exists.",
+                      "enum": ["upload", "uploaded"],
+                      "type": "string"
+                    },
+                    "videoId": {
+                      "description": "Bunny video GUID.",
+                      "type": "string"
+                    },
+                    "videoToken": {
+                      "description": "Token bound to `videoId` and the signed-in user, valid for 24 hours. Send it as `bunnyData.stream.videoToken` when saving the document, and with `videoId` to resume.",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "TUS authorization for a new/resumed upload, or an `uploaded` short-circuit when the video is already processed."
+          },
+          "400": {
+            "description": "Missing required fields, an invalid `head`, file name, MIME type or size, an SVG or XML file, a missing title for a new video, or Stream TUS uploads not enabled for the collection."
+          },
+          "403": {
+            "description": "Access denied."
+          },
+          "404": {
+            "description": "The collection does not exist."
+          },
+          "413": {
+            "description": "The file exceeds `upload.limits.fileSize`."
+          },
+          "415": {
+            "description": "The file type is restricted or not accepted by the collection or the Stream config."
+          },
+          "500": {
+            "description": "Unexpected failure, such as a Bunny Stream API error. Details are hidden from the response."
+          }
+        },
+        "summary": "Create or resume a TUS upload session",
+        "tags": ["Bunny Stream"]
+      }
+    },
+    "/api/storage-bunny/stream/webhook": {
+      "post": {
+        "description": "Receives encoding-status callbacks from Bunny Stream. On completion (with `mp4Fallback` enabled) the plugin fills in `bunnyData.stream.resolutions`. Authenticated by an HMAC signature, not a Payload session. Set the webhook URL in your Bunny Stream library to this path. See [Webhooks](/v4/configuration/stream/webhooks).",
+        "parameters": [
+          {
+            "description": "Lowercase-hex HMAC-SHA256 of the exact raw request body, keyed by the library's Read-Only API key (`stream.webhook.secret`).",
+            "in": "header",
+            "name": "X-BunnyStream-Signature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Signature scheme version. Must be `v1`.",
+            "in": "header",
+            "name": "X-BunnyStream-Signature-Version",
+            "required": true,
+            "schema": {
+              "enum": ["v1"],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Signature algorithm. Must be `hmac-sha256`.",
+            "in": "header",
+            "name": "X-BunnyStream-Signature-Algorithm",
+            "required": true,
+            "schema": {
+              "enum": ["hmac-sha256"],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "Status": {
+                    "description": "Bunny encoding status code.",
+                    "type": "number"
+                  },
+                  "VideoGuid": {
+                    "description": "Bunny video GUID.",
+                    "type": "string"
+                  },
+                  "VideoLibraryId": {
+                    "description": "Bunny Stream library ID.",
+                    "type": "number"
+                  }
+                },
+                "required": ["Status", "VideoGuid", "VideoLibraryId"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged."
+          },
+          "400": {
+            "description": "Invalid payload."
+          },
+          "401": {
+            "description": "Missing or invalid signature, or unsupported signature version/algorithm."
+          },
+          "403": {
+            "description": "Library ID not configured on this app."
+          }
+        },
+        "security": [],
+        "summary": "Bunny Stream encoding-status webhook",
+        "tags": ["Bunny Stream"]
+      }
+    }
+  },
+  "security": [
+    {
+      "payloadToken": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Your Payload app origin",
+      "url": "https://your-site.com"
+    }
+  ]
+}

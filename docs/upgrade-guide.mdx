@@ -39,7 +39,7 @@ If the query returns documents, move each file and its image sizes from `<file>`
 
 v3.1.0 needs no config changes, but it has new install and upload requirements. Most apps only need steps 1 and 2.
 
-v3.1.0 requires Payload CMS 3.90.2 or later. If you are on v3.0.1 with an older Payload version, upgrade Payload first. Staying on v3.0.1 is not recommended, because it lacks the security fixes in v3.1.0.
+v3.1.0 requires Payload 3.90.2 or later. If you are on v3.0.1 with an older Payload version, upgrade Payload first. Staying on v3.0.1 is not recommended, because it lacks the security fixes in v3.1.0.
 
 ### 1. Install the cloud storage plugin
 
@@ -95,8 +95,8 @@ To fix files uploaded with v3.0.x, move each file (and its image sizes) from `<c
 v3 has two independent parts: a set of **config changes** (which throw at startup until you rename the keys) and a **data migration** for the stored Stream metadata. Do both.
 
 <Info>
-  **Requires Payload CMS 3.90.2 or later and Node.js 22 or later.** Upgrade Payload (and Node, if needed) first if you
-  are below either.
+  **Requires Payload 3.90.2 or later and Node.js 22 or later.** Upgrade Payload (and Node, if needed) first if you are
+  below either.
 </Info>
 
 <Warning>
@@ -313,7 +313,7 @@ The main changes in v2.1.0:
 ### Version requirements
 
 <Warning>
-**v2.x needs Payload CMS v3.53.0 or higher.**
+**v2.x needs Payload v3.53.0 or higher.**
 
 If you're below v3.53.0:
 
@@ -593,4 +593,4 @@ stream: {
 
 Check the [Examples](/guides/examples) page for working configurations, or [open an issue](https://github.com/maximseshuk/payload-storage-bunny/issues) if you run into problems.
 
-For Payload CMS upgrade help, see their [official docs](https://payloadcms.com/docs).
+For Payload upgrade help, see their [official docs](https://payloadcms.com/docs).

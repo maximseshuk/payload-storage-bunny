@@ -1,5 +1,6 @@
 import type { Config } from 'payload'
-import { describe, expect, it } from 'vitest'
+import { getUploadInstructions as getPayloadUploadInstructions } from 'payload/internal'
+import { describe, expect, it, vi } from 'vitest'
 
 import { bunnyStorage } from '@/index.js'
 import { verifyEdgeUploadUrl } from '@/server/payload/storage/clientUploads/mint.js'
@@ -26,36 +27,49 @@ const buildResult = (clientUploads: false | typeof edgeClientUploads = edgeClien
       hostname: 'cdn.b-cdn.net',
       zoneName: 'zone',
     },
-  })(incoming) as Config
+  }).init(incoming) as Config
 }
+
+const photo = { collectionSlug: 'media', filename: 'photo.jpg', filesize: 1000, mimeType: 'image/jpeg' }
 
 const findMedia = (config: Config) => config.collections?.find((collection) => collection.slug === 'media')
 
+type UploadInstructions = {
+  generate: (args: Record<string, unknown>) => Promise<any>
+  requiresUploadReceipt?: boolean
+  useInAdmin: boolean
+}
+
+const getUploadInstructions = (config: Config) =>
+  (findMedia(config)?.upload as { uploadInstructions?: UploadInstructions } | undefined)?.uploadInstructions
+
 describe('client uploads plugin wiring', () => {
-  it('registers the client-upload endpoint', () => {
+  it('serves client uploads through Payload upload instructions in the admin', () => {
     const result = buildResult()
-    const endpoint = result.endpoints?.find((e) => e.path === '/storage-bunny/storage/upload')
-    expect(endpoint).toBeDefined()
-    expect(endpoint?.method).toBe('post')
+    expect(getUploadInstructions(result)?.useInAdmin).toBe(true)
+    expect(getUploadInstructions(buildResult(false))?.useInAdmin).toBe(false)
+    expect(result.endpoints?.some((e) => e.path?.startsWith('/storage-bunny/storage/upload'))).toBe(false)
   })
 
-  it('registers the client upload handler as an admin provider and dependency', () => {
+  it('lets Payload PUT storage uploads and keeps the client handler as an admin dependency', () => {
     const result = buildResult()
     const handlerPath = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
     const providers = result.admin?.components?.providers ?? []
-    const hasProvider = providers.some((provider) => {
-      if (typeof provider === 'string') {
-        return provider === handlerPath
-      }
-      return provider !== false && 'path' in provider && provider.path === handlerPath
-    })
-    expect(hasProvider).toBe(true)
+    const hasProvider = providers.some(
+      (provider) =>
+        typeof provider === 'object' && provider !== null && 'path' in provider && provider.path === handlerPath,
+    )
+    expect(hasProvider).toBe(false)
     expect(result.admin?.dependencies?.[handlerPath]).toBeDefined()
+    expect(buildResult(false).admin?.dependencies?.[handlerPath]).toBeDefined()
   })
 
-  it('registers the deploy-edge-script bin command', () => {
-    const result = buildResult()
-    expect(result.bin?.some((entry) => entry.key === 'bunny:deploy-edge-script')).toBe(true)
+  it('registers the deploy-edge-script CLI command', () => {
+    const result = buildResult(false)
+    const commands = result.cli === false ? undefined : result.cli?.commands
+    expect(commands?.['bunny:deploy-edge-script']).toEqual(
+      expect.stringMatching(/cli\/commands\/deployEdgeScript\.js#deployEdgeScriptCommand$/),
+    )
   })
 
   it('attaches the normalized config to server-only custom', () => {
@@ -64,12 +78,10 @@ describe('client uploads plugin wiring', () => {
     expect(pluginCustom?.config?.storage).toBeDefined()
   })
 
-  it('mints a signed edge URL through the registered endpoint', async () => {
+  it('mints a signed edge URL through the registered upload instructions', async () => {
     const result = buildResult()
-    const endpoint = result.endpoints?.find((e) => e.path === '/storage-bunny/storage/upload')
 
     const req = {
-      json: async () => ({ collectionSlug: 'media', filename: 'photo.jpg', filesize: 1000, mimeType: 'image/jpeg' }),
       payload: {
         collections: {
           media: { config: { slug: 'media', access: { create: () => true }, upload: { mimeTypes: ['image/*'] } } },
@@ -81,25 +93,21 @@ describe('client uploads plugin wiring', () => {
       user: { collection: 'users', id: 'user-1' },
     }
 
-    const response = await endpoint!.handler(req as never)
-    const json = await (response as Response).json()
+    const instructions = await getUploadInstructions(result)!.generate({ ...photo, req })
 
-    expect((response as Response).status).toBe(200)
-    expect(verifyEdgeUploadUrl(json.url, 'shared').valid).toBe(true)
-    expect(json.clientUploadContext.signedReceipt).toEqual(expect.any(String))
+    expect(instructions.type).toBe('http')
+    expect(verifyEdgeUploadUrl(instructions.request.url, 'shared').valid).toBe(true)
+    expect(instructions.file.uploadReference.signedReceipt).toEqual(expect.any(String))
   })
 
   it('requires a signed client upload receipt and persists the verified prefix', () => {
     const withClientUploads = findMedia(buildResult())
     const withoutClientUploads = findMedia(buildResult(false))
 
-    expect(
-      (withClientUploads?.upload as { requiresClientUploadReceipt?: boolean } | undefined)?.requiresClientUploadReceipt,
-    ).toBe(true)
-    expect(
-      (withoutClientUploads?.upload as { requiresClientUploadReceipt?: boolean } | undefined)
-        ?.requiresClientUploadReceipt,
-    ).toBe(true)
+    const instructionsOf = (collection: typeof withClientUploads) =>
+      (collection?.upload as { uploadInstructions?: UploadInstructions } | undefined)?.uploadInstructions
+    expect(instructionsOf(withClientUploads)?.requiresUploadReceipt).toBe(true)
+    expect(instructionsOf(withoutClientUploads)?.requiresUploadReceipt).toBe(true)
     expect(withClientUploads?.hooks?.beforeChange?.length).toBe(
       (withoutClientUploads?.hooks?.beforeChange?.length ?? 0) + 1,
     )
@@ -108,12 +116,28 @@ describe('client uploads plugin wiring', () => {
     )
   })
 
-  it('denies unauthenticated requests through the registered endpoint', async () => {
+  it('runs the default access check before a custom access callback, which can only narrow access', async () => {
+    const access = vi.fn(() => true)
+    const media = findMedia(buildResult({ ...edgeClientUploads, access } as never))
+    const req = {
+      payload: {
+        collections: { media: { config: { ...media, access: { create: () => true, update: () => true } } } },
+        config: { upload: { limits: { fileSize: 5_000_000 } } },
+        db: { findOne: async () => null },
+        secret: 'payload-secret',
+      },
+      t: (key: string) => key,
+      user: undefined,
+    }
+
+    await expect(getPayloadUploadInstructions({ ...photo, req } as never)).rejects.toMatchObject({ status: 403 })
+    expect(access).not.toHaveBeenCalled()
+  })
+
+  it('denies unauthenticated requests through the registered upload instructions', async () => {
     const result = buildResult()
-    const endpoint = result.endpoints?.find((e) => e.path === '/storage-bunny/storage/upload')
 
     const req = {
-      json: async () => ({ collectionSlug: 'media', filename: 'photo.jpg', filesize: 1000, mimeType: 'image/jpeg' }),
       payload: {
         collections: { media: { config: { slug: 'media', upload: { mimeTypes: ['image/*'] } } } },
         config: { upload: { limits: { fileSize: 5_000_000 } } },
@@ -122,8 +146,7 @@ describe('client uploads plugin wiring', () => {
       user: undefined,
     }
 
-    const response = await endpoint!.handler(req as never)
-    expect((response as Response).status).toBe(403)
+    await expect(getUploadInstructions(result)!.generate({ ...photo, req })).rejects.toMatchObject({ status: 403 })
   })
 
   it('applies the signed file size and MIME type on stream-only TUS collections', () => {
@@ -132,7 +155,7 @@ describe('client uploads plugin wiring', () => {
         bunnyStorage({
           collections: { media: { disablePayloadAccessControl: true } },
           stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, tus },
-        } as never)({
+        } as never).init({
           collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
         } as unknown as Config) as Config,
       )

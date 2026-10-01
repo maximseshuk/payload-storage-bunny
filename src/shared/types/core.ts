@@ -35,16 +35,10 @@ export type StreamTusAuthRequest = {
   videoToken?: string
 }
 
-export type StreamClientUploadContext = {
-  head: string
-  signedReceipt: string
-  videoId: string
-  videoToken: string
-}
-
 type StreamTusAuthBase = {
-  clientUploadContext?: StreamClientUploadContext
+  filename?: string
   libraryId: number
+  signedReceipt?: string
   thumbnailTime?: number
   videoId: string
   videoToken: string
@@ -62,10 +56,6 @@ type StreamTusAuthUploaded = {
 } & StreamTusAuthBase
 
 export type StreamTusAuthResponse = StreamTusAuthUpload | StreamTusAuthUploaded
-
-export type BunnyClientUploadExtra = {
-  streamMimeTypes?: string[]
-}
 
 export type BunnyStreamData = {
   libraryId: number

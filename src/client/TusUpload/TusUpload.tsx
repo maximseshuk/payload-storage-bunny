@@ -1,33 +1,36 @@
 'use client'
 
 import {
-  Upload as PayloadUpload,
   useBulkUpload,
   useConfig,
   useDocumentInfo,
+  useFormFields,
   useModal,
   useUploadControls,
   useUploadEdits,
 } from '@payloadcms/ui'
-import type { UploadProps as PayloadUploadProps } from '@payloadcms/ui/elements/Upload'
+import {
+  FileManager as PayloadFileManager,
+  type FileManagerProps as PayloadFileManagerProps,
+} from '@payloadcms/ui/elements/FileManager'
 import type { ClientCollectionConfig } from 'payload'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 
+import { FileManager } from './FileManager/FileManager.js'
 import { ToggleButton } from './ToggleButton/ToggleButton.js'
 import { clickFileFieldRemoveButton } from './TusUpload.utils.js'
-import { Upload } from './Upload/Upload.js'
 
-export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
-  const { onChange, UploadControls } = props
-
+export const TusUpload: React.FC = () => {
   const { collectionSlug: docSlug, initialState } = useDocumentInfo()
   const { getEntityConfig } = useConfig()
   const { resetUploadEdits } = useUploadEdits()
   const { setUploadControlFile, setUploadControlFileName, setUploadControlFileUrl } = useUploadControls()
   const bulkUploadContext = useBulkUpload()
   const { isModalOpen } = useModal()
+  const fileValue = useFormFields(([fields]) => fields?.file?.value)
+  const fileManagerRef = useRef<HTMLDivElement>(null)
 
   const [isTusMode, setIsTusMode] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -47,9 +50,11 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
   }, [customCollectionConfig])
 
   const collectionSlug = collectionConfig?.slug || ''
-  const isBulkUpload = !!bulkUploadContext?.collectionSlug && isModalOpen(bulkUploadContext.drawerSlug)
+  const isBulkUpload = !!bulkUploadContext?.collectionSlug && isModalOpen(bulkUploadContext.modalSlug)
   const isAutoModeEnabled = customCollectionConfig?.stream?.tus?.autoMode === true && !isBulkUpload
   const isTusEnabled = customCollectionConfig?.stream?.tus !== undefined && !isBulkUpload
+
+  const removeFileManagerFile = useCallback(() => clickFileFieldRemoveButton(fileManagerRef.current), [])
 
   const clearUploadControls = useCallback(() => {
     resetUploadEdits()
@@ -65,70 +70,62 @@ export const TusUpload: React.FC<PayloadUploadProps> = (props) => {
 
   const handleDisableTus = useCallback(() => {
     if (isAutoModeEnabled) {
-      void clickFileFieldRemoveButton()
+      void removeFileManagerFile()
     }
 
     setIsTusMode(false)
     setSelectedFile(null)
     clearUploadControls()
-  }, [clearUploadControls, isAutoModeEnabled])
+  }, [clearUploadControls, isAutoModeEnabled, removeFileManagerFile])
 
-  const handleFileSelect = useCallback(
-    (file?: File) => {
-      if (onChange) {
-        onChange(file)
-      }
-
-      const isMimeTypeAllowed = file
-        ? allowedMimeTypes.some((pattern: string) => matchesMimeTypePattern(file.type, pattern))
-        : false
-
-      if (file && !isTusMode && isAutoModeEnabled && isMimeTypeAllowed) {
-        setSelectedFile(file)
-        clearUploadControls()
-
-        void clickFileFieldRemoveButton()
-
-        handleEnableTus()
-      }
-    },
-    [allowedMimeTypes, clearUploadControls, handleEnableTus, isAutoModeEnabled, isTusMode, onChange],
-  )
-
-  const combinedUploadControls = useMemo(() => {
-    if (isAutoModeEnabled || !isTusEnabled) {
-      return UploadControls || null
+  useEffect(() => {
+    if (!(fileValue instanceof File) || isTusMode || !isAutoModeEnabled) {
+      return
     }
 
-    return (
-      <>
-        {UploadControls}
-        <ToggleButton isEnabled={false} onToggle={handleEnableTus} />
-      </>
+    const isMimeTypeAllowed = allowedMimeTypes.some((pattern: string) =>
+      matchesMimeTypePattern(fileValue.type, pattern),
     )
-  }, [handleEnableTus, isAutoModeEnabled, isTusEnabled, UploadControls])
+
+    if (isMimeTypeAllowed) {
+      const switchToTus = async () => {
+        await removeFileManagerFile()
+        setSelectedFile(fileValue)
+        handleEnableTus()
+      }
+
+      void switchToTus()
+    }
+  }, [allowedMimeTypes, fileValue, handleEnableTus, isAutoModeEnabled, isTusMode, removeFileManagerFile])
+
+  const uploadControls = useMemo(() => {
+    if (isAutoModeEnabled || !isTusEnabled) {
+      return null
+    }
+
+    return <ToggleButton isEnabled={false} onToggle={handleEnableTus} />
+  }, [handleEnableTus, isAutoModeEnabled, isTusEnabled])
 
   return (
-    <div>
-      <div style={{ display: isTusMode ? 'none' : 'block' }}>
-        <PayloadUpload
+    <>
+      <div ref={fileManagerRef} style={{ display: isTusMode ? 'none' : 'contents' }}>
+        <PayloadFileManager
           collectionSlug={collectionSlug}
           initialState={initialState}
-          onChange={handleFileSelect}
-          uploadConfig={collectionConfig?.upload}
-          UploadControls={combinedUploadControls}
+          uploadConfig={collectionConfig?.upload as PayloadFileManagerProps['uploadConfig']}
+          UploadControls={uploadControls}
         />
       </div>
 
       {isTusMode && (
-        <Upload
+        <FileManager
           collectionSlug={collectionSlug}
           isAutoMode={isAutoModeEnabled}
           onDisableTus={handleDisableTus}
           preSelectedFile={selectedFile}
         />
       )}
-    </div>
+    </>
   )
 }
 

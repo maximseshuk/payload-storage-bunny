@@ -1,61 +1,58 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { buildDeployCli } from '@/cli/commands/deployEdgeScript.js'
+import { deployEdgeScriptCommand } from '@/cli/commands/deployEdgeScript.js'
 
-const FLAGS = [
-  '--api-key',
-  '--env-file',
-  '--zones-file',
-  '--secret',
-  '--script-url',
-  '--name',
-  '--cdn-tier',
-  '--allowed-origins',
-  '--connection-limit',
-  '--request-limit',
-  '--check',
-  '--new',
-  '--dry-run',
-  '--no-print-secret',
-  '--no-prune',
-  '--skip-harden',
+const INPUTS = [
+  'apiKey',
+  'envFile',
+  'zonesFile',
+  'secret',
+  'scriptUrl',
+  'name',
+  'cdnTier',
+  'allowedOrigins',
+  'connectionLimit',
+  'requestLimit',
+  'check',
+  'new',
+  'dryRun',
+  'printSecret',
+  'prune',
+  'skipHarden',
 ]
 
-const captureHelp = (): string => {
-  const cli = buildDeployCli()
-  const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
-  cli.outputHelp()
-  const out = spy.mock.calls.map((call) => call.join(' ')).join('\n')
-  spy.mockRestore()
-  return out
+const validate = async (input: Record<string, unknown>) => {
+  const result = await deployEdgeScriptCommand.input['~standard'].validate(input)
+  if (result.issues) {
+    throw new Error(result.issues.map((issue) => issue.message).join('\n'))
+  }
+  return result.value as Record<string, unknown>
 }
 
-describe('deploy-edge-script --help', () => {
-  it('lists every flag', () => {
-    const out = captureHelp()
-    for (const flag of FLAGS) {
-      expect(out).toContain(flag)
-    }
+describe('bunny:deploy-edge-script input', () => {
+  it('declares every flag', () => {
+    const properties = deployEdgeScriptCommand.schema.properties as Record<string, unknown>
+    expect(Object.keys(properties).toSorted()).toEqual(INPUTS.toSorted())
   })
 
-  it('parses value, negatable, and boolean flags into the expected options', () => {
-    const cli = buildDeployCli()
-    cli.parse(['', '', '--name', 'custom', '--connection-limit', '20', '--check', '--no-print-secret', '--no-prune'], {
-      run: false,
-    })
+  it('accepts value, negatable, and boolean flags', async () => {
+    const args = await validate({ check: true, connectionLimit: 20, name: 'custom', printSecret: false, prune: false })
 
-    expect(cli.options.name).toBe('custom')
-    expect(cli.options.connectionLimit).toBe(20)
-    expect(cli.options.check).toBe(true)
-    expect(cli.options.printSecret).toBe(false)
-    expect(cli.options.prune).toBe(false)
+    expect(args.name).toBe('custom')
+    expect(args.connectionLimit).toBe(20)
+    expect(args.check).toBe(true)
+    expect(args.printSecret).toBe(false)
+    expect(args.prune).toBe(false)
   })
 
-  it('defaults the negatable flags to enabled', () => {
-    const cli = buildDeployCli()
-    cli.parse(['', ''], { run: false })
+  it('defaults the negatable flags to enabled', async () => {
+    const args = await validate({})
 
-    expect(cli.options.printSecret).toBe(true)
-    expect(cli.options.prune).toBe(true)
+    expect(args.printSecret).toBe(true)
+    expect(args.prune).toBe(true)
+  })
+
+  it('rejects unknown flags', async () => {
+    await expect(validate({ unknown: true })).rejects.toThrow(/Invalid input/)
   })
 })

@@ -143,7 +143,7 @@ const findVideoLibrary = async (accountApiKey: string, name: string): Promise<Vi
   return listItems<VideoLibraryRecord>(payload).find((library) => library.Name === name)
 }
 
-export type NameStatus = 'available' | 'reuse' | 'taken'
+type NameStatus = 'available' | 'reuse' | 'taken'
 
 export type NameCheck = {
   detail?: string

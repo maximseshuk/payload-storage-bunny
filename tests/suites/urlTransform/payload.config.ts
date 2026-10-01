@@ -25,7 +25,7 @@ export default buildConfigWithDefaults({
       },
     ],
   },
-  plugins: [
+  storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {
@@ -74,13 +74,6 @@ export default buildConfigWithDefaults({
         },
       },
       enabled: true,
-      i18n: {
-        translations: {
-          en: {
-            tusUploadEnableMode: 'Enable tus mode',
-          },
-        },
-      },
       storage: {
         apiKey: process.env.BUNNY_STORAGE_API_KEY || '',
         hostname: process.env.BUNNY_STORAGE_HOSTNAME || '',

@@ -1,4 +1,4 @@
-import type { UploadState } from './Upload.types.js'
+import type { UploadState } from './FileManager.types.js'
 
 export const BASE_CLASS = 'storage-bunny-tus-upload'
 

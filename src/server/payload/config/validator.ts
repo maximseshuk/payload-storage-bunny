@@ -8,45 +8,6 @@ import type {
 
 const isNonEmptyString = (value: unknown): boolean => typeof value === 'string' && value.length > 0
 
-// TODO(v4): drop this deprecated-alias detection once v2 users have migrated.
-type DeprecatedConfig = {
-  adminThumbnail?: unknown
-  apiKey?: unknown
-  purge?: boolean | { apiKey?: unknown }
-  stream?: { tus?: boolean | { mimeTypes?: unknown; uploadTimeout?: unknown } }
-}
-
-const findRemovedAliases = (original: BunnyStorageConfig): string[] => {
-  const deprecated = original as DeprecatedConfig
-  const messages: string[] = []
-
-  if (deprecated.adminThumbnail !== undefined) {
-    messages.push('"adminThumbnail" was removed in v3. Rename it to "thumbnail" (same shape).')
-  }
-
-  if (deprecated.apiKey !== undefined) {
-    messages.push('"apiKey" was removed in v3. Rename it to "accountApiKey".')
-  }
-
-  const tus = typeof deprecated.stream === 'object' ? deprecated.stream.tus : undefined
-  if (typeof tus === 'object' && tus.mimeTypes !== undefined) {
-    messages.push('"stream.tus.mimeTypes" was removed in v3. Move the array to "stream.mimeTypes".')
-  }
-
-  if (typeof tus === 'object' && tus.uploadTimeout !== undefined) {
-    messages.push(
-      `"stream.tus.uploadTimeout" was removed in v3. Rename it to "stream.tus.expiresIn" (it's a session expiry in seconds).`,
-    )
-  }
-
-  const purge = deprecated.purge
-  if (typeof purge === 'object' && purge.apiKey !== undefined) {
-    messages.push('"purge.apiKey" was removed in v3. Use the global `accountApiKey` instead.')
-  }
-
-  return messages
-}
-
 const rawCollectionEnablesClientUploads = (original: BunnyStorageConfig, slug: string): boolean => {
   const globalEnabled = Boolean(original.storage?.clientUploads)
   const raw = original.collections[slug as keyof typeof original.collections]
@@ -74,11 +35,6 @@ const rawCollectionEnablesClientUploads = (original: BunnyStorageConfig, slug: s
 }
 
 export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) => {
-  const removedAliases = findRemovedAliases(config._original)
-  if (removedAliases.length > 0) {
-    throw new Error(removedAliases.map((message) => `Config error: ${message}`).join('\n'))
-  }
-
   const errors: string[] = []
 
   if (config.collections.size === 0) {

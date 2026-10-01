@@ -14,8 +14,9 @@ vi.mock('@/server/files.js', () => ({
   getSafeFileName: getSafeFileNameMock,
 }))
 
+const { createCollectionContext } = await import('@/server/payload/config/context.js')
 const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
-const { getClientUploadHandler } = await import('@/server/payload/storage/clientUploads/endpoint.js')
+const { getGenerateUploadInstructions } = await import('@/server/payload/storage/clientUploads/uploadInstructions.js')
 const { verifyEdgeUploadUrl } = await import('@/server/payload/storage/clientUploads/mint.js')
 
 const collections = {
@@ -55,8 +56,16 @@ const config = createNormalizedConfig({
   },
 } as never)
 
-const buildRequest = (collectionSlug: string, filename = 'photo.jpg') => ({
-  json: async () => ({ collectionSlug, filename, filesize: 1000, mimeType: 'image/jpeg' }),
+const generate = async (collectionSlug: keyof typeof collections): Promise<any> =>
+  getGenerateUploadInstructions(createCollectionContext(config, collections[collectionSlug] as never))({
+    collectionSlug,
+    filename: 'photo.jpg',
+    filesize: 1000,
+    mimeType: 'image/jpeg',
+    req: buildRequest(),
+  } as never)
+
+const buildRequest = () => ({
   payload: {
     collections: {
       ownEdge: { config: collections.ownEdge },
@@ -78,16 +87,13 @@ describe('per-collection client upload routing', () => {
   })
 
   it('presigns an S3 PUT against the override collection s3 zone, not the global one', async () => {
-    const handler = getClientUploadHandler(config)
-    const res = await handler(buildRequest('ownS3') as never)
-    const json = await res.json()
+    const { request } = await generate('ownS3')
 
-    expect(res.status).toBe(200)
-    expect(json.method).toBe('PUT')
+    expect(request.method).toBe('PUT')
     expect(presignMock).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: 's3-tenant-pw',
-        path: 'photo.jpg',
+        path: expect.stringMatching(/^[0-9a-f-]{36}\/photo\.jpg$/),
         s3: { region: 'ny' },
         zoneName: 's3-tenant-zone',
       }),
@@ -95,27 +101,21 @@ describe('per-collection client upload routing', () => {
   })
 
   it('mints an edge URL signing the override collection zone, not the global one', async () => {
-    const handler = getClientUploadHandler(config)
-    const res = await handler(buildRequest('ownEdge') as never)
-    const json = await res.json()
+    const { request } = await generate('ownEdge')
 
-    expect(res.status).toBe(200)
-    expect(json.url.startsWith('https://tenant-uploader.b-cdn.net/upload?')).toBe(true)
-    expect(new URL(json.url).searchParams.get('X-Upload-Zone')).toBe('edge-tenant-zone')
-    expect(verifyEdgeUploadUrl(json.url, 'tenant-edge-secret').valid).toBe(true)
+    expect(request.url.startsWith('https://tenant-uploader.b-cdn.net/upload?')).toBe(true)
+    expect(new URL(request.url).searchParams.get('X-Upload-Zone')).toBe('edge-tenant-zone')
+    expect(verifyEdgeUploadUrl(request.url, 'tenant-edge-secret').valid).toBe(true)
     expect(presignMock).not.toHaveBeenCalled()
   })
 
   it('routes the sibling collection to the global zone (edge)', async () => {
-    const handler = getClientUploadHandler(config)
-    const res = await handler(buildRequest('sibling') as never)
-    const json = await res.json()
+    const { request } = await generate('sibling')
 
-    expect(res.status).toBe(200)
-    expect(json.url.startsWith('https://global-uploader.b-cdn.net/upload?')).toBe(true)
-    expect(new URL(json.url).searchParams.get('X-Upload-Zone')).toBe('global-zone')
-    expect(verifyEdgeUploadUrl(json.url, 'global-edge-secret').valid).toBe(true)
-    expect(verifyEdgeUploadUrl(json.url, 'tenant-edge-secret').valid).toBe(false)
+    expect(request.url.startsWith('https://global-uploader.b-cdn.net/upload?')).toBe(true)
+    expect(new URL(request.url).searchParams.get('X-Upload-Zone')).toBe('global-zone')
+    expect(verifyEdgeUploadUrl(request.url, 'global-edge-secret').valid).toBe(true)
+    expect(verifyEdgeUploadUrl(request.url, 'tenant-edge-secret').valid).toBe(false)
     expect(presignMock).not.toHaveBeenCalled()
   })
 })

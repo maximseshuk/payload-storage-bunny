@@ -48,7 +48,7 @@ describe('storage object keys for a document created with prefix: "" in a prefix
           createMediaCollection({ slug: PROXY_SLUG, upload }),
           createMediaCollection({ slug: DIRECT_SLUG, upload }),
         ],
-        plugins: [
+        storage: [
           bunnyStorage({
             collections: {
               [DIRECT_SLUG]: { disablePayloadAccessControl: true, prefix: 'media', signedUrls: false },
@@ -78,6 +78,7 @@ describe('storage object keys for a document created with prefix: "" in a prefix
       collection,
       data: { alt: 'a', prefix: '' },
       file: { data: image, mimetype: 'image/png', name, size: image.length },
+      overrideAccess: true,
     })
 
   const keys = (prefix: string, doc: Record<string, unknown>): string[] =>
@@ -97,7 +98,7 @@ describe('storage object keys for a document created with prefix: "" in a prefix
     const doc = await createWithEmptyPrefix(PROXY_SLUG, 'delete-root.png')
     const written = uploadedPaths()
 
-    await payload.delete({ collection: PROXY_SLUG, id: doc.id })
+    await payload.delete({ collection: PROXY_SLUG, id: doc.id, overrideAccess: true })
 
     expect(deletedPaths()).toEqual(keys('media', doc))
     expect(deletedPaths()).toEqual(written)
@@ -122,7 +123,7 @@ describe('storage object keys for a document created with prefix: "" in a prefix
   it('returns a direct URL that points at the uploaded key', async () => {
     const doc = await createWithEmptyPrefix(DIRECT_SLUG, 'url-root.png')
 
-    const read = await payload.findByID({ collection: DIRECT_SLUG, id: doc.id })
+    const read = await payload.findByID({ collection: DIRECT_SLUG, id: doc.id, overrideAccess: true })
 
     expect(read.url).toBe(`https://${HOSTNAME}/media/${doc.filename}`)
   })
@@ -130,11 +131,11 @@ describe('storage object keys for a document created with prefix: "" in a prefix
   it('keeps resolving a legacy stored prefix outside the collection prefix to its existing keys', async () => {
     const created = await createWithEmptyPrefix(DIRECT_SLUG, 'legacy.png')
     await payload.db.updateOne({ collection: DIRECT_SLUG, data: { prefix: 'legacy' }, id: created.id })
-    const doc = await payload.findByID({ collection: DIRECT_SLUG, id: created.id })
+    const doc = await payload.findByID({ collection: DIRECT_SLUG, id: created.id, overrideAccess: true })
 
     expect(doc.url).toBe(`https://${HOSTNAME}/legacy/${doc.filename}`)
 
-    await payload.delete({ collection: DIRECT_SLUG, id: doc.id })
+    await payload.delete({ collection: DIRECT_SLUG, id: doc.id, overrideAccess: true })
 
     expect(deletedPaths()).toEqual(keys('legacy', doc))
   })
