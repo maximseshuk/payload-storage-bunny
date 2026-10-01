@@ -85,7 +85,7 @@ If a call fails partway through, the wizard prints what was already created, the
 
 ## After running
 
-1. Install the plugin and its peer dependency: `pnpm add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary`.
+1. Install the plugin and its peer dependency with the printed `pnpm add` command. It pins the plugin to the version you ran and `@payloadcms/plugin-cloud-storage` to the `payload` version in your `package.json`.
 2. Paste the printed `bunnyStorage({ … })` block into your `payload.config.ts` `storage` array.
 3. Set the printed environment variables (or let the wizard append them to `./.env`).
 4. Restart your app.

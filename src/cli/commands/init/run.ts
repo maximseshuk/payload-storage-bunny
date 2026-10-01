@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { cancel, confirm, intro, isCancel, log, note, outro, password, spinner } from '@clack/prompts'
 
 import { appendEnvLines } from '@/cli/lib/envFile.js'
@@ -7,7 +10,7 @@ import type { InitPlan } from '../../lib/plan.js'
 import { buildInitPlan, PRICING, PRICING_NOTE } from '../../lib/plan.js'
 import type { EdgeProvisionInput, Ledger, PreflightResult } from '../../lib/provision.js'
 import { createLedger, preflightInit, provisionInit } from '../../lib/provision.js'
-import { buildInitOutput } from './output.js'
+import { buildInitOutput, buildInstallLines } from './output.js'
 import { resolveAccountApiKey, runWizard } from './wizard.js'
 
 const logger: Logger = { error: log.error, info: log.info, warn: log.warn }
@@ -125,11 +128,23 @@ const printLedger = (ledger: Ledger): void => {
   }
 }
 
-const renderOutput = (envBlock: string, configBlock: string): string =>
+const readProjectPayloadVersion = (): string | undefined => {
+  try {
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    }
+    return pkg.dependencies?.payload ?? pkg.devDependencies?.payload
+  } catch {
+    return undefined
+  }
+}
+
+const renderOutput = (installLines: string[], envBlock: string, configBlock: string): string =>
   [
     'Install the plugin and its peer dependency:',
     '',
-    'pnpm add @seshuk/payload-storage-bunny @payloadcms/plugin-cloud-storage',
+    ...installLines,
     '',
     'Environment variables (add to your .env):',
     '',
@@ -140,7 +155,7 @@ const renderOutput = (envBlock: string, configBlock: string): string =>
     configBlock,
   ].join('\n')
 
-export const runInit = async (options: { apiKey?: string; dryRun?: boolean } = {}): Promise<void> => {
+export const runInit = async (options: { apiKey?: string; dryRun?: boolean; version: string }): Promise<void> => {
   const dryRun = Boolean(options.dryRun)
 
   if (!process.stdout.isTTY) {
@@ -229,7 +244,8 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean } = {
       logger.warn(warning)
     }
     const envBlock = output.env.map((entry) => `${entry.name}=${entry.value}`).join('\n')
-    note(renderOutput(envBlock, output.configBlock), 'Your configuration')
+    const installLines = buildInstallLines(options.version, readProjectPayloadVersion())
+    note(renderOutput(installLines, envBlock, output.configBlock), 'Your configuration')
 
     const doAppend = await confirm({ initialValue: false, message: 'Append these lines to ./.env?' })
     if (!isCancel(doAppend) && doAppend) {

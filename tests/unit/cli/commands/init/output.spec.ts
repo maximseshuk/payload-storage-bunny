@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildConfigObject, buildEnvEntries, buildInitOutput } from '@/cli/commands/init/output.js'
+import { buildConfigObject, buildEnvEntries, buildInitOutput, buildInstallLines } from '@/cli/commands/init/output.js'
 import type { InitAnswers } from '@/cli/lib/plan.js'
 import type { ProvisionResult } from '@/cli/lib/provision.js'
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
@@ -141,5 +141,19 @@ describe('generated config passes the plugin validator', () => {
   it.each(cases)('validates for answers %o', (overrides) => {
     const config = buildConfigObject(answers(overrides), result())
     expect(() => validateNormalizedConfig(createNormalizedConfig(config))).not.toThrow()
+  })
+})
+
+describe('buildInstallLines', () => {
+  it('pins the plugin and the peer to the project payload version', () => {
+    expect(buildInstallLines('4.0.0-beta.1', '4.0.0-canary.37')).toEqual([
+      'pnpm add @seshuk/payload-storage-bunny@4.0.0-beta.1 @payloadcms/plugin-cloud-storage@4.0.0-canary.37',
+    ])
+  })
+
+  it('asks to pin the peer when payload is not in package.json', () => {
+    const lines = buildInstallLines('4.0.0-beta.1', undefined)
+    expect(lines[0]).toBe('pnpm add @seshuk/payload-storage-bunny@4.0.0-beta.1 @payloadcms/plugin-cloud-storage')
+    expect(lines[1]).toContain('same version as your `payload` package')
   })
 })
