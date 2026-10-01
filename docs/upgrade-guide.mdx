@@ -5,6 +5,16 @@ description: 'Upgrade between major versions of the Bunny Storage plugin — con
 
 This guide covers upgrading between versions of the Bunny Storage plugin.
 
+## v3.1.1 to v3.1.2
+
+v3.1.2 contains security fixes for Stream TUS uploads. It needs no config changes.
+
+- `tus-auth` checks the file like a storage client upload. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type and a file over `upload.limits.fileSize`, even when `checkAccess` allows the request. The saved document gets the signed file size and MIME type.
+- A `videoToken` is bound to the signed-in user and expires after 24 hours. Tokens from v3.1.1 stop working, so an upload that was paused before the update starts again. The same happens to an upload that stays paused for more than 24 hours.
+- Payload rejects a `videoId` that another document in a Stream collection of the same library already uses.
+
+If you call `tus-auth` from your own client, request a new `videoToken` for each upload and save the document within 24 hours.
+
 ## v3.1.0 to v3.1.1
 
 v3.1.1 needs no config changes. Most apps are not affected.

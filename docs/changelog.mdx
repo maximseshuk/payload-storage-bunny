@@ -5,6 +5,17 @@ description: 'Release history for the Bunny Storage plugin for Payload CMS.'
 
 Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
 
+<Update label="v3.1.2" description="October 1, 2026">
+  This release contains security fixes for Stream TUS uploads. See the [upgrade guide](/upgrade-guide#v311-to-v312).
+
+**Security**
+
+- `tus-auth` checks the file type and size against the collection and the Stream config. The saved document gets the signed file size and MIME type.
+- Stream video tokens are bound to the signed-in user and expire after 24 hours.
+- A Stream video can only belong to one document in a library.
+
+</Update>
+
 <Update label="v3.1.1" description="October 1, 2026">
   **Fixes**
 
