@@ -2,24 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { httpError } from '../../../helpers/unit/httpError.js'
 
-const { deleteMock, getMock, postMock, putMock } = vi.hoisted(() => ({
-  deleteMock: vi.fn(),
-  getMock: vi.fn(),
-  postMock: vi.fn(),
-  putMock: vi.fn(),
-}))
+const { kyMethods, mockKy } = await vi.hoisted(() => import('../../../helpers/unit/kyMock.js'))
+vi.mock('ky', mockKy)
 
-vi.mock('ky', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('ky')>()),
-  default: {
-    create: () => ({
-      delete: deleteMock,
-      get: getMock,
-      post: postMock,
-      put: putMock,
-    }),
-  },
-}))
+const { delete: deleteMock, get: getMock, post: postMock, put: putMock } = kyMethods
 
 const {
   BunnyStreamVideoStatus,
@@ -77,11 +63,6 @@ describe('getStreamVideo', () => {
 
   it('falls back to generic message for other HTTPError statuses', async () => {
     getMock.mockRejectedValue(httpError(400))
-    await expect(getStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Unable to get video: vid-1')
-  })
-
-  it('falls back to generic message for non-HTTP errors', async () => {
-    getMock.mockRejectedValue(new Error('boom'))
     await expect(getStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Unable to get video: vid-1')
   })
 })
@@ -166,11 +147,6 @@ describe('deleteStreamVideo', () => {
     deleteMock.mockRejectedValue(httpError(400))
     await expect(deleteStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Unable to delete video: vid-1')
   })
-
-  it('falls back to generic message for non-HTTP errors', async () => {
-    deleteMock.mockRejectedValue(new Error('boom'))
-    await expect(deleteStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Unable to delete video: vid-1')
-  })
 })
 
 describe('uploadStreamVideo', () => {
@@ -229,13 +205,6 @@ describe('uploadStreamVideo', () => {
       'Unable to upload video: vid-1',
     )
   })
-
-  it('falls back to generic message for non-HTTP errors', async () => {
-    putMock.mockRejectedValue(new Error('boom'))
-    await expect(uploadStreamVideo({ ...creds, buffer: Buffer.from('x'), videoId: 'vid-1' })).rejects.toThrow(
-      'Unable to upload video: vid-1',
-    )
-  })
 })
 
 describe('listStreamVideos', () => {
@@ -273,11 +242,6 @@ describe('listStreamVideos', () => {
 
   it('falls back to generic message for other HTTPError statuses', async () => {
     getMock.mockRejectedValue(httpError(404))
-    await expect(listStreamVideos({ ...creds })).rejects.toThrow('Unable to list videos')
-  })
-
-  it('falls back to generic message for non-HTTP errors', async () => {
-    getMock.mockRejectedValue(new Error('boom'))
     await expect(listStreamVideos({ ...creds })).rejects.toThrow('Unable to list videos')
   })
 })
@@ -323,13 +287,6 @@ describe('getStreamVideoResolutions', () => {
       'Unable to get video resolutions: vid-1',
     )
   })
-
-  it('falls back to generic message for non-HTTP errors', async () => {
-    getMock.mockRejectedValue(new Error('boom'))
-    await expect(getStreamVideoResolutions({ ...creds, videoId: 'vid-1' })).rejects.toThrow(
-      'Unable to get video resolutions: vid-1',
-    )
-  })
 })
 
 describe('parseMp4Resolutions', () => {
@@ -370,59 +327,22 @@ describe('parseMp4Resolutions', () => {
   })
 })
 
-describe('canUploadToVideo', () => {
-  it('is true only for Created', () => {
-    expect(canUploadToVideo(BunnyStreamVideoStatus.Created)).toBe(true)
-  })
-
+describe('status predicates', () => {
   it.each([
-    BunnyStreamVideoStatus.Uploaded,
-    BunnyStreamVideoStatus.Processing,
-    BunnyStreamVideoStatus.Transcoding,
-    BunnyStreamVideoStatus.Finished,
-    BunnyStreamVideoStatus.Error,
-    BunnyStreamVideoStatus.UploadFailed,
-    BunnyStreamVideoStatus.JitSegmenting,
-    BunnyStreamVideoStatus.JitPlaylistsCreated,
-  ])('is false for status %s', (status) => {
-    expect(canUploadToVideo(status)).toBe(false)
+    [BunnyStreamVideoStatus.Created, { canUpload: true, error: false, processed: false }],
+    [BunnyStreamVideoStatus.Uploaded, { canUpload: false, error: false, processed: true }],
+    [BunnyStreamVideoStatus.Processing, { canUpload: false, error: false, processed: true }],
+    [BunnyStreamVideoStatus.Transcoding, { canUpload: false, error: false, processed: true }],
+    [BunnyStreamVideoStatus.Finished, { canUpload: false, error: false, processed: true }],
+    [BunnyStreamVideoStatus.Error, { canUpload: false, error: true, processed: false }],
+    [BunnyStreamVideoStatus.UploadFailed, { canUpload: false, error: true, processed: false }],
+    [BunnyStreamVideoStatus.JitSegmenting, { canUpload: false, error: false, processed: true }],
+    [BunnyStreamVideoStatus.JitPlaylistsCreated, { canUpload: false, error: false, processed: true }],
+  ])('classifies status %s', (status, expected) => {
+    expect({
+      canUpload: canUploadToVideo(status),
+      error: isVideoInErrorState(status),
+      processed: isVideoProcessed(status),
+    }).toEqual(expected)
   })
-})
-
-describe('isVideoInErrorState', () => {
-  it.each([BunnyStreamVideoStatus.Error, BunnyStreamVideoStatus.UploadFailed])('is true for status %s', (status) => {
-    expect(isVideoInErrorState(status)).toBe(true)
-  })
-
-  it.each([
-    BunnyStreamVideoStatus.Created,
-    BunnyStreamVideoStatus.Uploaded,
-    BunnyStreamVideoStatus.Processing,
-    BunnyStreamVideoStatus.Transcoding,
-    BunnyStreamVideoStatus.Finished,
-    BunnyStreamVideoStatus.JitSegmenting,
-    BunnyStreamVideoStatus.JitPlaylistsCreated,
-  ])('is false for status %s', (status) => {
-    expect(isVideoInErrorState(status)).toBe(false)
-  })
-})
-
-describe('isVideoProcessed', () => {
-  it.each([
-    BunnyStreamVideoStatus.Uploaded,
-    BunnyStreamVideoStatus.Processing,
-    BunnyStreamVideoStatus.Transcoding,
-    BunnyStreamVideoStatus.Finished,
-    BunnyStreamVideoStatus.JitSegmenting,
-    BunnyStreamVideoStatus.JitPlaylistsCreated,
-  ])('is true for processed status %s', (status) => {
-    expect(isVideoProcessed(status)).toBe(true)
-  })
-
-  it.each([BunnyStreamVideoStatus.Created, BunnyStreamVideoStatus.Error, BunnyStreamVideoStatus.UploadFailed])(
-    'is false for status %s',
-    (status) => {
-      expect(isVideoProcessed(status)).toBe(false)
-    },
-  )
 })

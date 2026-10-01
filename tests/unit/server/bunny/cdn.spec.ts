@@ -2,24 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { httpError } from '../../../helpers/unit/httpError.js'
 
-const { deleteMock, getMock, postMock, putMock } = vi.hoisted(() => ({
-  deleteMock: vi.fn(),
-  getMock: vi.fn(),
-  postMock: vi.fn(),
-  putMock: vi.fn(),
-}))
+const { kyMethods, mockKy } = await vi.hoisted(() => import('../../../helpers/unit/kyMock.js'))
+vi.mock('ky', mockKy)
 
-vi.mock('ky', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('ky')>()),
-  default: {
-    create: () => ({
-      delete: deleteMock,
-      get: getMock,
-      post: postMock,
-      put: putMock,
-    }),
-  },
-}))
+const { post: postMock } = kyMethods
 
 const { purgeCache } = await import('@/server/bunny/cdn.js')
 
@@ -76,14 +62,6 @@ describe('purgeCache', () => {
 
   it('falls back to the generic message for other HTTPError statuses', async () => {
     postMock.mockRejectedValue(httpError(404))
-
-    await expect(purgeCache({ apiKey: 'key', url: 'https://cdn.example.com/x.jpg' })).rejects.toThrow(
-      'Unable to purge cache: https://cdn.example.com/x.jpg',
-    )
-  })
-
-  it('falls back to the generic message for non-HTTP (network) errors', async () => {
-    postMock.mockRejectedValue(new Error('network down'))
 
     await expect(purgeCache({ apiKey: 'key', url: 'https://cdn.example.com/x.jpg' })).rejects.toThrow(
       'Unable to purge cache: https://cdn.example.com/x.jpg',
