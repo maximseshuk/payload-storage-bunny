@@ -70,10 +70,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve npm dist-tag
+        id: dist
+        run: |
+          version=$(jq -r .version package.json)
+          major=${version%%.*}
+          if [[ "$version" == *-* ]]; then
+            pre=${version#*-}
+            tag=${pre%%.*}
+          else
+            latest=$(npm view "$(jq -r .name package.json)" dist-tags.latest 2>/dev/null || echo 0.0.0)
+            if [ "$major" -lt "${latest%%.*}" ]; then tag="latest-$major"; else tag=latest; fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "npm dist-tag: $tag" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body: ${{ steps.changelog.outputs.content }}
+          make_latest: ${{ steps.dist.outputs.tag == 'latest' }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
 
       - name: Publish to npm
-        run: pnpm publish --access public --provenance --no-git-checks
+        env:
+          DIST_TAG: ${{ steps.dist.outputs.tag }}
+        run: pnpm publish --access public --provenance --no-git-checks --tag "$DIST_TAG"
