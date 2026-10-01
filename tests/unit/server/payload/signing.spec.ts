@@ -328,11 +328,14 @@ describe('generateSignedUrl', () => {
       expect(url).toContain('token=')
     })
 
-    it('handles URLs with special characters in path', () => {
+    it('signs the decoded path and keeps the encoded one in the URL', () => {
+      vi.useFakeTimers({ now: 1699996400000 })
       const url = generateSignedUrl('https://cdn.example.com/path/to/file%20name.jpg', securityKey, baseConfig)
+      vi.useRealTimers()
 
-      expect(url).toContain('/path/to/file%20name.jpg')
-      expect(url).toContain('token=')
+      expect(url).toBe(
+        `https://cdn.example.com/path/to/file%20name.jpg?token=${rawToken(`${securityKey}/path/to/file name.jpg1700000000`)}&expires=1700000000`,
+      )
     })
 
     it('uses default expiresIn (7200s) when not provided', () => {
