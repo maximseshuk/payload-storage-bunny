@@ -169,12 +169,7 @@ const main = async () => {
   const results: TestResult[] = []
 
   for (const suite of suitesToRun) {
-    const result = await runSuite(suite, false)
-    results.push(result)
-
-    if (result.code !== 0 && suitesToRun.length === 1) {
-      break
-    }
+    results.push(await runSuite(suite, false))
   }
 
   log.header('Results')

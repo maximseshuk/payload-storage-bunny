@@ -9,7 +9,6 @@ const suiteName = process.env.E2E_SUITE_NAME || 'default'
 export default defineConfig({
   forbidOnly: !!process.env.CI,
   fullyParallel: false,
-  maxFailures: process.env.CI ? undefined : undefined,
   outputDir: `./playwright/results/${suiteName}`,
   preserveOutput: 'always',
   projects: [
