@@ -5,7 +5,9 @@ const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }))
 vi.mock('@/server/http/index.js', () => ({ httpFetch: fetchMock }))
 
 import { storageStaticHandler } from '@/server/payload/storage/serveFile.js'
-import type { NormalizedSignedUrlsConfig, NormalizedStorageConfig } from '@/shared/types/index.js'
+import type { NormalizedStorageConfig } from '@/shared/types/index.js'
+
+import { signed } from '../../../../helpers/unit/signedUrls.js'
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
@@ -18,9 +20,6 @@ const storageConfig = (over: Partial<NormalizedStorageConfig> = {}): NormalizedS
     zoneName: 'zone',
     ...over,
   }) as NormalizedStorageConfig
-
-const signed = (over: Partial<NormalizedSignedUrlsConfig> = {}): NormalizedSignedUrlsConfig =>
-  ({ expiresIn: 3600, ...over }) as NormalizedSignedUrlsConfig
 
 const makeReq = (headers: Record<string, string> = {}, url = '/api/media/file/photo.jpg'): PayloadRequest =>
   ({

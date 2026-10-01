@@ -51,9 +51,7 @@ const { createNormalizedConfig } = await import('@/server/payload/config/normali
 
 const { createBaseStorage, createBaseStream, createOwnStorage, createOwnStream } =
   await import('../../../../helpers/unit/configBuilders.js')
-
-const t = (key: string, vars?: Record<string, unknown>): string => (vars ? `${key}:${JSON.stringify(vars)}` : key)
-const createReq = () => ({ payload: { logger: { debug: vi.fn(), error: vi.fn() } }, t })
+const { createReq } = await import('../../../../helpers/unit/req.js')
 
 const config = createNormalizedConfig({
   collections: {

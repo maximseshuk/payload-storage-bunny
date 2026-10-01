@@ -15,32 +15,13 @@ vi.mock('@/shared/urlTransform.js', () => ({
   applyUrlTransform: applyUrlTransformMock,
 }))
 
+import { buildContext, storageConfig, streamConfig } from '../../../../helpers/unit/context.js'
+
 const { getGenerateUrl: rawGetGenerateUrl } = await import('@/server/payload/storage/generateUrl.js')
 
 const getGenerateUrl = rawGetGenerateUrl as unknown as (
   ctx: CollectionContext,
 ) => (args: { data: unknown; filename: string; prefix?: string }) => string
-
-const streamConfig = {
-  apiKey: 'stream-key',
-  hostname: 'stream.b-cdn.net',
-  libraryId: 12345,
-  tokenSecurityKey: 'stream-token',
-}
-
-const storageConfig = {
-  apiKey: 'storage-key',
-  hostname: 'storage.b-cdn.net',
-  region: 'de',
-  tokenSecurityKey: 'storage-token',
-  zoneName: 'my-zone',
-}
-
-const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionContext =>
-  ({
-    collection: { slug: 'media' },
-    ...overrides,
-  }) as unknown as CollectionContext
 
 const streamData = { bunnyData: { stream: { videoId: 'video-guid' } } }
 

@@ -1,7 +1,9 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/shared/types/index.js'
+import type { NormalizedStreamConfig } from '@/shared/types/index.js'
+
+import { signed } from '../../../../helpers/unit/signedUrls.js'
 
 const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }))
 vi.mock('@/server/http/index.js', () => ({ httpFetch: fetchMock }))
@@ -21,9 +23,6 @@ const streamConfig = (over: Partial<NormalizedStreamConfig> = {}): NormalizedStr
     uploadTimeout: 300000,
     ...over,
   }) as NormalizedStreamConfig
-
-const signed = (over: Partial<NormalizedSignedUrlsConfig> = {}): NormalizedSignedUrlsConfig =>
-  ({ expiresIn: 3600, ...over }) as NormalizedSignedUrlsConfig
 
 const makeReq = (): PayloadRequest =>
   ({

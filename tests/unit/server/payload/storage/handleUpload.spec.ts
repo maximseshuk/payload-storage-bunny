@@ -39,20 +39,11 @@ vi.mock('@/server/bunny/cdn.js', () => ({
   purgeCache: purgeCacheMock,
 }))
 
+import { buildContext, storageConfig, streamConfig } from '../../../../helpers/unit/context.js'
+import { createReq } from '../../../../helpers/unit/req.js'
+
 const { buildUploadStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
 const { getHandleUpload } = await import('@/server/payload/storage/handleUpload.js')
-
-const t = (key: string, vars?: Record<string, unknown>): string => (vars ? `${key}:${JSON.stringify(vars)}` : key)
-
-const createReq = () => ({
-  payload: {
-    logger: {
-      debug: vi.fn(),
-      error: vi.fn(),
-    },
-  },
-  t,
-})
 
 const createFile = (overrides: Record<string, unknown> = {}) => ({
   buffer: Buffer.from('binary-content'),
@@ -61,33 +52,6 @@ const createFile = (overrides: Record<string, unknown> = {}) => ({
   mimeType: 'image/jpeg',
   ...overrides,
 })
-
-const streamConfig = {
-  apiKey: 'stream-key',
-  cleanup: false,
-  hostname: 'stream.b-cdn.net',
-  libraryId: 12345,
-  mimeTypes: ['video/*'],
-  thumbnailTime: 5000,
-  tokenSecurityKey: 'stream-token',
-  uploadTimeout: 300000,
-}
-
-const storageConfig = {
-  apiKey: 'storage-key',
-  hostname: 'storage.b-cdn.net',
-  region: 'de',
-  tokenSecurityKey: 'storage-token',
-  uploadTimeout: 60000,
-  zoneName: 'my-zone',
-}
-
-const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionContext =>
-  ({
-    accountApiKey: 'account-key',
-    collection: { slug: 'media' },
-    ...overrides,
-  }) as unknown as CollectionContext
 
 beforeEach(() => {
   vi.clearAllMocks()

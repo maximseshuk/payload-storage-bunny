@@ -2,7 +2,8 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import { generateSignedToken, maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
-import type { NormalizedSignedUrlsConfig } from '@/shared/types/index.js'
+
+import { signed } from '../../../helpers/unit/signedUrls.js'
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
@@ -13,9 +14,6 @@ const createReq = (): PayloadRequest =>
   }) as unknown as PayloadRequest
 
 const baseUrl = 'https://cdn.example.com/path/to/photo.jpg'
-
-const signed = (over: Partial<NormalizedSignedUrlsConfig> = {}): NormalizedSignedUrlsConfig =>
-  ({ expiresIn: 3600, ...over }) as NormalizedSignedUrlsConfig
 
 const tokenLockedTo = (result: string, ip?: string): string => {
   const url = new URL(result)
