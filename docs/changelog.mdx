@@ -5,6 +5,13 @@ description: 'Release history for the Bunny Storage plugin for Payload CMS.'
 
 Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
 
+<Update label="v3.1.1" description="October 1, 2026">
+  **Fixes**
+
+- Files are stored under the collection `prefix` when a document is saved with an empty `prefix`. Before, the file and its image sizes went to the root of the storage zone, and deletes used the same root path. See the [upgrade guide](/upgrade-guide#v310-to-v311) if your collections have documents with an empty `prefix`.
+
+</Update>
+
 <Update label="v3.1.0" description="October 1, 2026">
   This release contains security fixes. Upgrade as soon as possible. See the [upgrade guide](/upgrade-guide#v30x-to-v310), and redeploy the Edge Script if you use client uploads over the HTTP API.
 

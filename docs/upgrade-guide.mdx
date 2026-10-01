@@ -5,6 +5,26 @@ description: 'Upgrade between major versions of the Bunny Storage plugin — con
 
 This guide covers upgrading between versions of the Bunny Storage plugin.
 
+## v3.1.0 to v3.1.1
+
+v3.1.1 needs no config changes. Most apps are not affected.
+
+It only changes documents that have an empty or missing `prefix` in a collection that sets a `prefix`. v3.1.0 stored the files of such documents at the root of the storage zone. v3.1.1 reads, deletes and stores them under the collection prefix. Documents with a non-empty `prefix` keep the same file paths.
+
+To check a collection, query it for documents without a prefix:
+
+```ts
+const { docs } = await payload.find({
+  collection: 'media',
+  overrideAccess: true,
+  where: {
+    or: [{ prefix: { equals: '' } }, { prefix: { exists: false } }],
+  },
+})
+```
+
+If the query returns documents, move each file and its image sizes from `<file>` to `<collection prefix>/<file>` in the storage zone. Otherwise their URLs return `404`. You can move files with any S3 client on an S3 zone, or download and re-upload them in the Bunny dashboard.
+
 ## v3.0.x to v3.1.0
 
 v3.1.0 needs no config changes, but it has new install and upload requirements. Most apps only need steps 1 and 2.
