@@ -10,18 +10,12 @@ describe('zoneSecretName', () => {
   })
 
   it('always emits a valid env-var identifier that matches the pattern', () => {
-    for (const zone of ['media', 'my-zone-2', 'a', 'z9', 'zone-with-many-parts']) {
+    for (const zone of ['media', 'my-zone-2', 'a', 'z9', 'zone-with-many-parts', 'a'.repeat(64)]) {
       const name = zoneSecretName(zone)
       expect(name.startsWith(ZONE_SECRET_PREFIX)).toBe(true)
       expect(ZONE_SECRET_PATTERN.test(name)).toBe(true)
       expect(/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)).toBe(true)
     }
-  })
-
-  it('handles a max-length zone name', () => {
-    const zone = 'a'.repeat(64)
-    expect(zoneSecretName(zone)).toBe(`ZONE_${'A'.repeat(64)}`)
-    expect(ZONE_SECRET_PATTERN.test(zoneSecretName(zone))).toBe(true)
   })
 
   it('is injective for the allowed zone-name alphabet ([a-z0-9-])', () => {

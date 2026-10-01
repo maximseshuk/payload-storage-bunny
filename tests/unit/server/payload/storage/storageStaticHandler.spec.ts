@@ -133,6 +133,7 @@ describe('storageStaticHandler', () => {
     expect(location).toContain('tenants/acme/photo.jpg')
     expect(location).not.toContain('prefix=')
     expect(location).toContain('token=')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('signs the fetch URL when signedUrls is enabled without redirect', async () => {
@@ -148,21 +149,6 @@ describe('storageStaticHandler', () => {
     })
 
     expect(fetchMock.mock.calls[0][0]).toContain('token=')
-  })
-
-  it('returns a redirect without fetching when signed redirect is enabled', async () => {
-    const res = await storageStaticHandler({
-      collection,
-      filename: 'photo.jpg',
-      req: makeReq(),
-      signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true } }),
-      storageConfig: storageConfig(),
-      usePayloadAccessControl: true,
-    })
-
-    expect(res.status).toBe(302)
-    expect(res.headers.get('Location')).toContain('token=')
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('forwards the Range header to the upstream fetch', async () => {

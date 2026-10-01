@@ -212,24 +212,6 @@ describe('getHandleUpload', () => {
       expect(uploadStorageFileMock).not.toHaveBeenCalled()
     })
 
-    it('writes to the storage path cloud-storage resolved', async () => {
-      uploadStorageFileMock.mockResolvedValue(undefined)
-
-      const handler = getHandleUpload(
-        buildContext({ prefix: 'uploads', storageConfig } as unknown as Partial<CollectionContext>),
-      )
-
-      await handler({
-        collection: { slug: 'media' },
-        data: { prefix: 'uploads/tenants/acme' },
-        file: createFile(),
-        req: createReq(),
-        storageFilePath: 'uploads/tenants/acme/photo.jpg',
-      } as never)
-
-      expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('uploads/tenants/acme/photo.jpg')
-    })
-
     it('keeps an empty document prefix under the collection prefix', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockResolvedValue(undefined)

@@ -84,71 +84,31 @@ beforeEach(() => {
 
 describe('per-collection zone routing through the adapter', () => {
   describe('handleUpload', () => {
-    it('uploads an override collection to its own storage zone and the sibling to the global zone', async () => {
+    it('uploads each collection to its own zone: HTTP override, S3 override, global sibling', async () => {
       const file = {
         buffer: Buffer.from('x'),
         filename: 'photo.jpg',
         filesize: 1,
         mimeType: 'image/jpeg',
       }
+      const upload = (slug: string) =>
+        getHandleUpload(contextFor(slug))({ collection: { slug }, data: {}, file, req: createReq() } as never)
 
-      await getHandleUpload(contextFor('own'))({
-        collection: { slug: 'own' },
-        data: {},
-        file,
-        req: createReq(),
-      } as never)
-      expect(uploadStorageFileMock).toHaveBeenCalledWith(
+      await upload('own')
+      expect(uploadStorageFileMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ apiKey: 'own-storage-key-own', zoneName: 'own-zone-own' }),
       )
 
-      uploadStorageFileMock.mockClear()
-
-      await getHandleUpload(contextFor('sibling'))({
-        collection: { slug: 'sibling' },
-        data: {},
-        file,
-        req: createReq(),
-      } as never)
-      expect(uploadStorageFileMock).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: 'storage-key', zoneName: 'test-zone' }),
-      )
-    })
-
-    it('routes an s3-backed override collection through uploadStorageFileS3 to its own zone', async () => {
-      const file = {
-        buffer: Buffer.from('x'),
-        filename: 'photo.jpg',
-        filesize: 1,
-        mimeType: 'image/jpeg',
-      }
-
-      await getHandleUpload(contextFor('ownS3'))({
-        collection: { slug: 'ownS3' },
-        data: {},
-        file,
-        req: createReq(),
-      } as never)
-
+      await upload('ownS3')
       expect(uploadStorageFileS3Mock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          apiKey: 'own-storage-key-s3',
-          s3: { region: 'ny' },
-          zoneName: 'own-zone-s3',
-        }),
+        expect.objectContaining({ apiKey: 'own-storage-key-s3', s3: { region: 'ny' }, zoneName: 'own-zone-s3' }),
       )
-      expect(uploadStorageFileMock).not.toHaveBeenCalled()
 
-      await getHandleUpload(contextFor('sibling'))({
-        collection: { slug: 'sibling' },
-        data: {},
-        file,
-        req: createReq(),
-      } as never)
-
-      expect(uploadStorageFileMock).toHaveBeenCalledWith(
+      await upload('sibling')
+      expect(uploadStorageFileMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ apiKey: 'storage-key', zoneName: 'test-zone' }),
       )
+      expect(uploadStorageFileMock).toHaveBeenCalledTimes(2)
       expect(uploadStorageFileS3Mock).toHaveBeenCalledTimes(1)
     })
 
@@ -174,46 +134,30 @@ describe('per-collection zone routing through the adapter', () => {
   })
 
   describe('handleDelete', () => {
-    it('deletes an override collection file from its own zone and the sibling from the global zone', async () => {
-      await getHandleDelete(contextFor('own'))({
-        collection: { slug: 'own' },
-        doc: { filename: 'photo.jpg', id: '1' },
-        filename: 'photo.jpg',
-        req: createReq(),
-      } as never)
-      expect(deleteStorageFileMock).toHaveBeenCalledWith(
+    it('deletes each collection file from its own zone: HTTP override, S3 override, global sibling', async () => {
+      const remove = (slug: string) =>
+        getHandleDelete(contextFor(slug))({
+          collection: { slug },
+          doc: { filename: 'photo.jpg', id: slug },
+          filename: 'photo.jpg',
+          req: createReq(),
+        } as never)
+
+      await remove('own')
+      expect(deleteStorageFileMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ apiKey: 'own-storage-key-own', zoneName: 'own-zone-own' }),
       )
 
-      deleteStorageFileMock.mockClear()
+      await remove('ownS3')
+      expect(deleteStorageFileS3Mock).toHaveBeenCalledWith(
+        expect.objectContaining({ apiKey: 'own-storage-key-s3', s3: { region: 'ny' }, zoneName: 'own-zone-s3' }),
+      )
 
-      await getHandleDelete(contextFor('sibling'))({
-        collection: { slug: 'sibling' },
-        doc: { filename: 'photo.jpg', id: '2' },
-        filename: 'photo.jpg',
-        req: createReq(),
-      } as never)
-      expect(deleteStorageFileMock).toHaveBeenCalledWith(
+      await remove('sibling')
+      expect(deleteStorageFileMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ apiKey: 'storage-key', zoneName: 'test-zone' }),
       )
-    })
-
-    it('deletes an s3-backed override collection file through deleteStorageFileS3 from its own zone', async () => {
-      await getHandleDelete(contextFor('ownS3'))({
-        collection: { slug: 'ownS3' },
-        doc: { filename: 'photo.jpg', id: '3' },
-        filename: 'photo.jpg',
-        req: createReq(),
-      } as never)
-
-      expect(deleteStorageFileS3Mock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          apiKey: 'own-storage-key-s3',
-          s3: { region: 'ny' },
-          zoneName: 'own-zone-s3',
-        }),
-      )
-      expect(deleteStorageFileMock).not.toHaveBeenCalled()
+      expect(deleteStorageFileMock).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -221,14 +165,12 @@ describe('per-collection zone routing through the adapter', () => {
     const generate = (slug: string, args: { data: unknown; filename: string }) =>
       (getGenerateUrl(contextFor(slug)) as unknown as (a: typeof args) => string)(args)
 
-    it('builds storage URLs from each collection hostname', () => {
+    it('builds storage and stream URLs from each collection hostname', () => {
       expect(generate('own', { data: {}, filename: 'photo.jpg' })).toBe('https://own-own.b-cdn.net/photo.jpg')
       expect(generate('sibling', { data: {}, filename: 'photo.jpg' })).toBe('https://storage.bunny.net/photo.jpg')
-    })
-
-    it('builds the stream playlist URL from the override collection hostname', () => {
-      const result = generate('own', { data: { bunnyData: { stream: { videoId: 'guid-1' } } }, filename: 'clip.mp4' })
-      expect(result).toBe('https://own-stream-777.b-cdn.net/guid-1/playlist.m3u8')
+      expect(generate('own', { data: { bunnyData: { stream: { videoId: 'guid-1' } } }, filename: 'clip.mp4' })).toBe(
+        'https://own-stream-777.b-cdn.net/guid-1/playlist.m3u8',
+      )
     })
   })
 })

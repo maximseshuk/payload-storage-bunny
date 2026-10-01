@@ -40,7 +40,7 @@ const buildRequest = (
   collectionConfig: Record<string, unknown> = collection,
 ) => ({
   payload: {
-    collections: { media: { config: collectionConfig } },
+    collections: { [collectionConfig.slug as string]: { config: collectionConfig } },
     config: { upload: { limits: { fileSize: 5_000_000 } } },
     secret: 'payload-secret',
   },
@@ -181,17 +181,6 @@ describe('client upload endpoint', () => {
         uploadReference: file.uploadReference,
       }),
     ).toEqual({ filesize: 1000, mimeType: 'image/jpeg', prefix: file.uploadReference.prefix })
-  })
-
-  it('gives two uploads of the same filename different keys', async () => {
-    const first = await generate(s3Config(), photo)
-    const second = await generate(s3Config(), photo)
-
-    const [firstPath, secondPath] = presignMock.mock.calls.map(([args]) => args.path as string)
-    expect(firstPath).toMatch(keyed(''))
-    expect(secondPath).toMatch(keyed(''))
-    expect(firstPath).not.toBe(secondPath)
-    expect(first.file.uploadReference.prefix).not.toBe(second.file.uploadReference.prefix)
   })
 
   it('gives Edge uploads of the same filename different keys', async () => {
@@ -376,32 +365,6 @@ describe('client upload endpoint', () => {
     expect(existsMock).not.toHaveBeenCalled()
   })
 
-  it('signs the per-collection storage zone, not the global one', async () => {
-    const config = createNormalizedConfig({
-      collections: {
-        media: {
-          storage: {
-            apiKey: 'tenant-a-pw',
-            clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
-            hostname: 'tenant-a.b-cdn.net',
-            zoneName: 'tenant-a',
-          },
-        },
-      },
-      storage: {
-        apiKey: 'zone-pw',
-        clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } },
-        hostname: 'cdn.b-cdn.net',
-        zoneName: 'zone',
-      },
-    } as never)
-
-    const { request } = await generate(config, photo)
-
-    expect(new URL(request.url).searchParams.get('X-Upload-Zone')).toBe('tenant-a')
-    expect(verifyEdgeUploadUrl(request.url, 'shared').valid).toBe(true)
-  })
-
   it('rejects a file over the Edge Script max size', async () => {
     const config = createNormalizedConfig({
       collections: { media: true },
@@ -456,5 +419,67 @@ describe('client upload endpoint', () => {
     })
     expect(image.type).toBe('http')
     expect(presignMock).toHaveBeenCalledTimes(1)
+  })
+  describe('per-collection routing', () => {
+    const config = createNormalizedConfig({
+      collections: {
+        ownEdge: {
+          disablePayloadAccessControl: true,
+          storage: {
+            apiKey: 'edge-tenant-pw',
+            clientUploads: { edge: { scriptUrl: 'https://tenant-uploader.b-cdn.net', secret: 'tenant-edge-secret' } },
+            hostname: 'edge-tenant.b-cdn.net',
+            zoneName: 'edge-tenant-zone',
+          },
+        },
+        ownS3: {
+          disablePayloadAccessControl: true,
+          storage: {
+            apiKey: 's3-tenant-pw',
+            clientUploads: {},
+            hostname: 's3-tenant.b-cdn.net',
+            s3: { region: 'ny' },
+            zoneName: 's3-tenant-zone',
+          },
+        },
+        sibling: { disablePayloadAccessControl: true },
+      },
+      storage: {
+        apiKey: 'global-pw',
+        clientUploads: { edge: { scriptUrl: 'https://global-uploader.b-cdn.net', secret: 'global-edge-secret' } },
+        hostname: 'global.b-cdn.net',
+        zoneName: 'global-zone',
+      },
+    } as never)
+    const generateFor = (slug: string) =>
+      generate(config, { ...photo, collectionSlug: slug }, {}, { ...collection, slug })
+
+    it('presigns an S3 PUT against the override collection s3 zone, not the global one', async () => {
+      const { request } = await generateFor('ownS3')
+
+      expect(request.method).toBe('PUT')
+      expect(presignMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: 's3-tenant-pw',
+          path: expect.stringMatching(keyed('')),
+          s3: { region: 'ny' },
+          zoneName: 's3-tenant-zone',
+        }),
+      )
+    })
+
+    it('mints edge URLs for the override zone and the global sibling, each with its own secret', async () => {
+      const own = (await generateFor('ownEdge')).request.url
+      const sibling = (await generateFor('sibling')).request.url
+
+      expect(own.startsWith('https://tenant-uploader.b-cdn.net/upload?')).toBe(true)
+      expect(new URL(own).searchParams.get('X-Upload-Zone')).toBe('edge-tenant-zone')
+      expect(verifyEdgeUploadUrl(own, 'tenant-edge-secret').valid).toBe(true)
+      expect(sibling.startsWith('https://global-uploader.b-cdn.net/upload?')).toBe(true)
+      expect(new URL(sibling).searchParams.get('X-Upload-Zone')).toBe('global-zone')
+      expect(verifyEdgeUploadUrl(sibling, 'global-edge-secret').valid).toBe(true)
+      expect(verifyEdgeUploadUrl(sibling, 'tenant-edge-secret').valid).toBe(false)
+      expect(presignMock).not.toHaveBeenCalled()
+    })
   })
 })

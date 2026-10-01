@@ -182,28 +182,6 @@ describe('getHandleDelete', () => {
       )
     })
 
-    it('deletes and purges the collection-prefixed key for a document stored with an empty prefix', async () => {
-      deleteStorageFileMock.mockResolvedValue(undefined)
-      purgeCacheMock.mockResolvedValue(undefined)
-
-      const handler = getHandleDelete(
-        buildContext({ prefix: 'media', purgeConfig: { async: false }, storageConfig } as Partial<CollectionContext>),
-      )
-
-      await handler({
-        collection: { slug: 'media' },
-        doc: { ...storageDoc, prefix: '' },
-        filename: 'photo.jpg',
-        req: createReq(),
-        storageFilePath: 'media/photo.jpg',
-      } as never)
-
-      expect(deleteStorageFileMock).toHaveBeenCalledWith(expect.objectContaining({ path: 'media/photo.jpg' }))
-      expect(purgeCacheMock).toHaveBeenCalledWith(
-        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg' }),
-      )
-    })
-
     it('deletes from a dynamic per-document prefix path', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
 

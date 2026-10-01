@@ -232,19 +232,6 @@ describe('getStaticHandler storage prefix resolution', () => {
     expect(req.payload.find).not.toHaveBeenCalled()
   })
 
-  it('uses the signed upload reference prefix on a read-back (doc: null, no param)', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
-
-    await handler(req, {
-      doc: null,
-      params: { filename: 'photo.jpg', uploadReference: signed('photo.jpg', 'tenants/acme') },
-    })
-
-    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/acme' }))
-    expect(req.payload.find).not.toHaveBeenCalled()
-  })
-
   it('reads back only the signed prefix, never the one sent next to it', async () => {
     const req = makeReq()
     const handler = getStaticHandler(context({ streamConfig: undefined }))
@@ -258,6 +245,7 @@ describe('getStaticHandler storage prefix resolution', () => {
     })
 
     expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/acme' }))
+    expect(req.payload.find).not.toHaveBeenCalled()
   })
 
   it('refuses a read-back with an unsigned upload reference', async () => {

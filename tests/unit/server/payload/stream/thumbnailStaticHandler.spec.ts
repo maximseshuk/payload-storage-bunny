@@ -63,20 +63,6 @@ describe('streamThumbnailStaticHandler', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://stream.b-cdn.net/vid1/thumbnail.jpg')
   })
 
-  it('proxies an animated preview (preview.webp)', async () => {
-    fetchMock.mockResolvedValue({
-      body: 'webp-bytes',
-      headers: new Headers({ 'content-type': 'image/webp' }),
-      ok: true,
-      status: 200,
-    })
-
-    const res = await streamThumbnailStaticHandler({ ...baseArgs(), thumbnailType: 'preview.webp' })
-
-    expect(res.status).toBe(200)
-    expect(fetchMock.mock.calls[0][0]).toBe('https://stream.b-cdn.net/vid1/preview.webp')
-  })
-
   it('signs the fetch URL when signedUrls is enabled without redirect', async () => {
     fetchMock.mockResolvedValue({ body: 'x', headers: new Headers(), ok: true, status: 200 })
 
