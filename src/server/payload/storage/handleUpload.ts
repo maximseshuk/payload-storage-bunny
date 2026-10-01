@@ -1,5 +1,3 @@
-import { posix } from 'node:path'
-
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
 import type { TFunction } from '@payloadcms/translations'
 import { APIError } from 'payload'
@@ -18,9 +16,9 @@ import type { CollectionContext } from '@/shared/types/index.js'
 import { getGenerateUrl } from './generateUrl.js'
 
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
-  const { accountApiKey, prefix, purgeConfig, storageConfig, streamConfig } = context
+  const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
 
-  return async ({ clientUploadContext, collection, data, file, req }) => {
+  return async ({ clientUploadContext, collection, data, file, req, storageFilePath }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     if (clientUploadContext) {
@@ -30,8 +28,6 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
 
     try {
       const fileName = file.filename
-      const uploadPrefix = (data.prefix as string | undefined) ?? prefix ?? ''
-      const path = posix.join(uploadPrefix, fileName)
       const isVideoFile = !!streamConfig?.mimeTypes?.some((pattern) => matchesMimeTypePattern(file.mimeType, pattern))
 
       if (streamConfig?.apiKey && isVideoFile) {
@@ -68,7 +64,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             apiKey: storageConfig.apiKey,
             buffer: file.buffer,
             mimeType: file.mimeType,
-            path,
+            path: storageFilePath,
             s3: storageConfig.s3,
             timeout: storageConfig.uploadTimeout,
             zoneName: storageConfig.zoneName,
@@ -78,7 +74,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             apiKey: storageConfig.apiKey,
             buffer: file.buffer,
             mimeType: file.mimeType,
-            path,
+            path: storageFilePath,
             region: storageConfig.region,
             timeout: storageConfig.uploadTimeout,
             zoneName: storageConfig.zoneName,
@@ -88,7 +84,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         setStoredVideoId(data, null)
 
         if (purgeConfig && accountApiKey) {
-          const url = await getGenerateUrl(context)({ collection, data, filename: fileName, prefix: uploadPrefix })
+          const url = await getGenerateUrl(context)({ collection, data, filename: fileName, prefix: data.prefix })
           try {
             await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url })
             req.payload.logger.debug({

@@ -1,6 +1,5 @@
-import { posix } from 'node:path'
-
 import type { TypeWithPrefix } from '@payloadcms/plugin-cloud-storage/types'
+import { buildStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
 import type { CollectionAfterChangeHook, CollectionBeforeValidateHook, FileData, JsonObject, TypeWithID } from 'payload'
 import { Forbidden, MissingFile } from 'payload'
 
@@ -143,7 +142,11 @@ export const getAfterChangeHook = (context: CollectionContext): CollectionAfterC
           doc,
           filename: oldDoc.filename,
           req,
-          storageFilePath: posix.join(doc.prefix || '', oldDoc.filename),
+          storageFilePath: buildStoragePathData({
+            collectionPrefix: context.prefix,
+            docPrefix: doc.prefix,
+            filename: oldDoc.filename,
+          }).storageFilePath,
         })
 
         req.payload.logger.debug({
