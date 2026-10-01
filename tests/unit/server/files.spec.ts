@@ -102,16 +102,19 @@ describe('file utils', () => {
       expect(result).toBe('a-2.txt')
     })
 
-    it('handles a name with no extension (a -> a-1.a, upstream quirk)', async () => {
+    it.each([
+      ['a', 'a-1'],
+      ['.env', '.env-1'],
+    ])('increments a name with no extension (%s -> %s)', async (desiredFilename, expected) => {
       const findOne = vi.fn().mockResolvedValueOnce({ id: 'doc-1' }).mockResolvedValue(null)
       const result = await getSafeFileName({
         collectionSlug: 'media',
-        desiredFilename: 'a',
+        desiredFilename,
         req: buildReq(findOne),
         staticPath: '/static',
       })
 
-      expect(result).toBe('a-1.a')
+      expect(result).toBe(expected)
     })
 
     it('never probes the filesystem root when the static path is empty', async () => {

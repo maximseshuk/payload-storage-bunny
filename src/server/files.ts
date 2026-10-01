@@ -45,8 +45,9 @@ export const docWithFilenameExists = async ({
 // Function taken from:
 // @https://github.com/payloadcms/payload/blob/main/packages/payload/src/uploads/getSafeFileName.ts
 const incrementName = (name: string) => {
-  const extension = name.split('.').pop()
-  const baseFilename = sanitize(name.substring(0, name.lastIndexOf('.')) || name)
+  const dot = name.lastIndexOf('.')
+  const extension = dot > 0 ? name.slice(dot) : ''
+  const baseFilename = sanitize(dot > 0 ? name.slice(0, dot) : name)
   let incrementedName = baseFilename
   const regex = /(.*)-(\d+)$/
   const found = baseFilename.match(regex)
@@ -58,7 +59,7 @@ const incrementName = (name: string) => {
     const incremented = Number(matchedNumber) + 1
     incrementedName = `${matchedName}-${incremented}`
   }
-  return `${incrementedName}.${extension}`
+  return `${incrementedName}${extension}`
 }
 
 type GetSafeFileNameArgs = {
