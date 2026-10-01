@@ -185,6 +185,7 @@ describe('getHandleUpload', () => {
         data,
         file,
         req: createReq(),
+        storageFilePath: 'photo.jpg',
       } as never)
 
       expect(uploadStorageFileMock).toHaveBeenCalledWith({
@@ -215,6 +216,7 @@ describe('getHandleUpload', () => {
         data: {},
         file,
         req: createReq(),
+        storageFilePath: 'doc.pdf',
       } as never)
 
       expect(uploadStorageFileS3Mock).toHaveBeenCalledWith({
@@ -229,7 +231,7 @@ describe('getHandleUpload', () => {
       expect(uploadStorageFileMock).not.toHaveBeenCalled()
     })
 
-    it('joins the prefix into the upload path', async () => {
+    it('uploads to the storageFilePath resolved by cloud-storage, not data.prefix', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
 
       const handler = getHandleUpload(
@@ -238,9 +240,10 @@ describe('getHandleUpload', () => {
 
       await handler({
         collection: { slug: 'media' },
-        data: {},
+        data: { prefix: '' },
         file: createFile(),
         req: createReq(),
+        storageFilePath: 'uploads/photo.jpg',
       } as never)
 
       expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('uploads/photo.jpg')

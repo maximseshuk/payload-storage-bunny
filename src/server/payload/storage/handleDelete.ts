@@ -1,5 +1,3 @@
-import { posix } from 'node:path'
-
 import type { HandleDelete } from '@payloadcms/plugin-cloud-storage/types'
 import type { TFunction } from '@payloadcms/translations'
 import { APIError } from 'payload'
@@ -17,7 +15,7 @@ import { getGenerateUrl } from './generateUrl.js'
 export const getHandleDelete = (context: CollectionContext): HandleDelete => {
   const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
 
-  return async ({ collection, doc, filename, req }) => {
+  return async ({ collection, doc, filename, req, storageFilePath }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     try {
@@ -29,7 +27,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
           collection,
           data: doc,
           filename,
-          prefix: doc.prefix || '',
+          prefix: doc.prefix,
         })
       }
 
@@ -40,19 +38,17 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
           videoId: bunnyData.stream.videoId,
         })
       } else if (storageConfig) {
-        const path = posix.join(doc.prefix || '', filename)
-
         if (storageConfig.s3) {
           await deleteStorageFileS3({
             apiKey: storageConfig.apiKey,
-            path,
+            path: storageFilePath,
             s3: storageConfig.s3,
             zoneName: storageConfig.zoneName,
           })
         } else {
           await deleteStorageFile({
             apiKey: storageConfig.apiKey,
-            path,
+            path: storageFilePath,
             region: storageConfig.region,
             zoneName: storageConfig.zoneName,
           })
