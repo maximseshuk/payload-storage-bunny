@@ -23,7 +23,7 @@ export default defineConfig({
         ['json', { outputFile: `./playwright/reports/${suiteName}.json` }],
       ]
     : [['list', { printSteps: true }]],
-  retries: process.env.CI ? 3 : undefined,
+  retries: process.env.CI ? 1 : undefined,
   testDir: '.',
   testMatch: '**/*.e2e.ts',
   timeout: 60 * 1000,

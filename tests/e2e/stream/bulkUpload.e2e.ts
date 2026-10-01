@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/e2e/bunnyStream.js'
-import { recordResponses } from '../../helpers/e2e/interactions.js'
+import { recordResponses, waitForFormReady } from '../../helpers/e2e/interactions.js'
 import { getServerUrl } from '../../helpers/e2e/server.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -65,13 +65,12 @@ test.afterAll(async () => {
 })
 
 test.describe('Stream - bulk upload behind a request body limit', () => {
-  test.setTimeout(600000)
+  test.setTimeout(5 * 60_000)
 
   test('uploads a video larger than the limit from the list view', async ({ page }) => {
     const responses = recordResponses(page)
 
     await page.goto(`${serverUrl}/admin/collections/stream-only`)
-    await page.waitForLoadState('networkidle')
     const fileInput = page.locator('.bulk-upload--add-files .upload-dropzone-content__hidden-input')
     await expect(async () => {
       await page.getByRole('button', { name: 'Bulk Upload' }).click({ timeout: 5000 })
@@ -93,7 +92,7 @@ test.describe('Stream - bulk upload behind a request body limit', () => {
     const responses = recordResponses(page)
 
     await page.goto(`${serverUrl}/admin/collections/posts/create`)
-    await page.waitForLoadState('networkidle')
+    await waitForFormReady(page)
     await dropLargeVideo(page, 'stream-bulk-drop.mp4')
 
     await saveBulkUpload(page)
@@ -107,7 +106,7 @@ test.describe('Stream - bulk upload behind a request body limit', () => {
     const responses = recordResponses(page)
 
     await page.goto(`${serverUrl}/admin/collections/stream-only/create`)
-    await page.waitForLoadState('networkidle')
+    await waitForFormReady(page)
 
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.click('text=Select a file')
@@ -124,7 +123,7 @@ test.describe('Stream - bulk upload behind a request body limit', () => {
 
   test('keeps TUS mode in the create drawer after the bulk drawer closes', async ({ page }) => {
     await page.goto(`${serverUrl}/admin/collections/posts/create`)
-    await page.waitForLoadState('networkidle')
+    await waitForFormReady(page)
     await dropLargeVideo(page, 'stream-bulk-discarded.mp4')
 
     await expect(page.locator('#field-alt')).toBeVisible()

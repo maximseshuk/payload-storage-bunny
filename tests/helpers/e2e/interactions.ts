@@ -5,6 +5,10 @@ const POLL_TOPASS_TIMEOUT = 10000
 
 export const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+export const waitForFormReady = async (page: Page): Promise<void> => {
+  await expect(page.locator('form[data-form-ready="true"]').first()).toBeAttached({ timeout: 30000 })
+}
+
 export type NetworkCall = { method: string; status: number; url: string }
 
 export const recordResponses = (page: Page): NetworkCall[] => {

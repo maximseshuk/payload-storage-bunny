@@ -1,305 +1,143 @@
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
+import { BUNNY_API } from '@/shared/constants.js'
+
 import { cleanupStreamVideos, waitForVideoProcessed } from '../../helpers/e2e/bunnyStream.js'
-import { deleteDocAndAssert, saveDocAndAssert } from '../../helpers/e2e/interactions.js'
+import { deleteDocAndAssert, saveDocAndAssert, waitForFormReady } from '../../helpers/e2e/interactions.js'
 import { getServerUrl } from '../../helpers/e2e/server.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const PROCESSING_TIMEOUT = 900000
+const videoPath = path.join(__dirname, '../../fixtures/test-video.mp4')
+const video = readFileSync(videoPath)
+
+const serverUrl = getServerUrl()
+
+const uploadedStatus = (page: Page) => page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
+
+const openCreate = async (page: Page, collection: string): Promise<void> => {
+  await page.goto(`${serverUrl}/admin/collections/${collection}/create`)
+  await waitForFormReady(page)
+}
+
+const enableTusAndSelect = async (page: Page, files: Parameters<Page['setInputFiles']>[1]): Promise<void> => {
+  await page.getByRole('button', { name: 'Enable TUS mode' }).click()
+  await selectTusFile(page, files)
+}
+
+const selectTusFile = async (page: Page, files: Parameters<Page['setInputFiles']>[1]): Promise<void> => {
+  const fileChooserPromise = page.waitForEvent('filechooser')
+  await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
+  await (await fileChooserPromise).setFiles(files)
+}
+
+const startUpload = async (page: Page, name: 'Resume' | 'Start upload' = 'Start upload'): Promise<string> => {
+  const button = page.getByRole('button', { exact: true, name })
+  await button.waitFor()
+  const tusAuth = page.waitForResponse((response) => response.url().includes('/storage-bunny/stream/tus-auth'))
+  await button.click()
+  return (await (await tusAuth).json()).videoId
+}
+
+const readSavedDoc = async (page: Page, collection: string) => {
+  const docId = page.url().match(new RegExp(`/${collection}/([^/?]+)`))?.[1]
+  expect(docId).toBeTruthy()
+  const response = await page.request.get(`${serverUrl}/api/${collection}/${docId}`)
+  expect(response.ok()).toBeTruthy()
+  return response.json()
+}
 
 test.afterAll(async () => {
   await cleanupStreamVideos([
     'stream-auto-video',
-    'stream-manual-video',
     'stream-resume-video',
     'stream-replace-first',
     'stream-replace-second',
   ])
 })
 
-test.describe('Stream - Upload and Delete (Auto Mode)', () => {
-  const serverUrl = getServerUrl()
-  const testVideoFilename = 'stream-auto-video.mp4'
-
-  test('should upload and delete video', async ({ page }) => {
-    await page.goto(`${serverUrl}/admin/collections/stream-auto/create`)
-    await page.waitForLoadState('networkidle')
+test.describe('Stream - TUS uploads', () => {
+  test('uploads and deletes a video in auto mode', async ({ page }) => {
+    await openCreate(page, 'stream-auto')
 
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.click('text=Select a file')
-    const fileChooser = await fileChooserPromise
-    await fileChooser.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
+    await (await fileChooserPromise).setFiles(videoPath)
 
-    await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
-
-    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
-
-    const startUploadButton = page.locator('button:has-text("Start upload")')
-    await expect(startUploadButton).toBeVisible({ timeout: 10000 })
-    await startUploadButton.click()
-
-    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
-    await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
+    await page.fill('#field-storage-bunny-tus-upload-filename', 'stream-auto-video.mp4')
+    await startUpload(page)
+    await expect(uploadedStatus(page)).toBeVisible({ timeout: 60000 })
 
     await page.fill('#field-alt', 'Test video with auto TUS mode')
-
     await saveDocAndAssert(page)
     await deleteDocAndAssert(page)
   })
-})
 
-test.describe('Stream - TUS Manual Mode Upload', () => {
-  const serverUrl = getServerUrl()
-  const testVideoFilename = 'stream-manual-video.mp4'
+  test('resumes an interrupted upload into the same video', async ({ page }) => {
+    test.setTimeout(2 * 60_000)
 
-  test('should manually enable TUS and upload video', async ({ page }) => {
-    await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
-    await page.waitForLoadState('networkidle')
+    const isTusRequest = (url: URL) => url.href.startsWith(BUNNY_API.TUS_ENDPOINT)
+    await page.route(isTusRequest, (route) => (route.request().method() === 'PATCH' ? route.abort() : route.continue()))
 
-    const enableTusButton = page.locator('button:has-text("Enable TUS mode")')
-    await expect(enableTusButton).toBeVisible({ timeout: 5000 })
-    await enableTusButton.click()
+    await openCreate(page, 'stream-manual')
+    await enableTusAndSelect(page, videoPath)
+    await page.fill('#field-storage-bunny-tus-upload-filename', 'stream-resume-video.mp4')
 
-    const fileChooserPromise = page.waitForEvent('filechooser')
-    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
-    const fileChooser = await fileChooserPromise
-    await fileChooser.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
+    const patchAttempt = page.waitForRequest(
+      (request) => request.method() === 'PATCH' && request.url().startsWith(BUNNY_API.TUS_ENDPOINT),
+    )
+    const videoId = await startUpload(page)
+    await patchAttempt
 
-    await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
+    page.once('dialog', (dialog) => void dialog.accept())
+    await openCreate(page, 'stream-manual')
+    await page.unroute(isTusRequest)
+    await enableTusAndSelect(page, videoPath)
+    expect(await startUpload(page, 'Resume')).toBe(videoId)
+    await expect(uploadedStatus(page)).toBeVisible({ timeout: 60000 })
 
-    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
-
-    const startUploadButton = page.locator('button:has-text("Start upload")')
-    await expect(startUploadButton).toBeVisible({ timeout: 10000 })
-    await startUploadButton.click()
-
-    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
-    await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
-
-    await page.fill('#field-alt', 'Test video TUS upload')
-
-    await saveDocAndAssert(page)
-    await deleteDocAndAssert(page)
-  })
-})
-
-test.describe('Stream - TUS Resume Upload', () => {
-  const serverUrl = getServerUrl()
-  const testVideoFilename = 'stream-resume-video.mp4'
-
-  test('should recognize already uploaded file and skip upload', async ({ page }) => {
-    await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
-    await page.waitForLoadState('networkidle')
-
-    const enableTusButton1 = page.locator('button:has-text("Enable TUS mode")')
-    await expect(enableTusButton1).toBeVisible({ timeout: 5000 })
-    await enableTusButton1.click()
-
-    const fileChooserPromise1 = page.waitForEvent('filechooser')
-    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
-    const fileChooser1 = await fileChooserPromise1
-    await fileChooser1.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
-
-    await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
-
-    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
-
-    const startUploadButton = page.locator('button:has-text("Start upload")')
-    await expect(startUploadButton).toBeVisible({ timeout: 10000 })
-    await startUploadButton.click()
-
-    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
-    await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
-
-    await page.fill('#field-alt', 'First upload')
-
+    await page.fill('#field-alt', 'Resumed upload')
     await saveDocAndAssert(page)
 
-    await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
-    await page.waitForLoadState('networkidle')
-
-    const enableTusButton2 = page.locator('button:has-text("Enable TUS mode")')
-    await expect(enableTusButton2).toBeVisible({ timeout: 5000 })
-    await enableTusButton2.click()
-
-    const fileChooserPromise2 = page.waitForEvent('filechooser')
-    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
-    const fileChooser2 = await fileChooserPromise2
-    await fileChooser2.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
-
-    await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
-
-    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
-
-    const startUploadButton2 = page.locator('button:has-text("Start upload")')
-    await expect(startUploadButton2).toBeVisible({ timeout: 10000 })
-    await startUploadButton2.click()
-
-    const uploadCompletedImmediately = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
-    await expect(uploadCompletedImmediately).toBeVisible({ timeout: 10000 })
-
-    await page.fill('#field-alt', 'Second upload (should be instant)')
-
-    await saveDocAndAssert(page)
-
-    await deleteDocAndAssert(page)
-
-    await page.goto(`${serverUrl}/admin/collections/stream-manual`)
-    await page.waitForLoadState('networkidle')
-
-    const firstRow = page.locator('.row-1 a[href*="/admin/collections/stream-manual/"]').first()
-    await firstRow.click()
-    await page.waitForLoadState('networkidle')
+    const doc = await readSavedDoc(page, 'stream-manual')
+    expect(doc.bunnyData.stream.videoId).toBe(videoId)
 
     await deleteDocAndAssert(page)
   })
-})
 
-test.describe('Stream - TUS File Replacement', () => {
-  const serverUrl = getServerUrl()
-  const firstVideoFilename = 'stream-replace-first.mp4'
-  const secondVideoFilename = 'stream-replace-second.mp4'
+  test('replaces the selected video before save and serves its MP4 fallback', async ({ page }) => {
+    test.setTimeout(5 * 60_000)
 
-  test('should upload first file, remove it, upload second file, then save', async ({ page }) => {
-    test.setTimeout(PROCESSING_TIMEOUT + 300000)
+    await openCreate(page, 'stream-manual')
+    await enableTusAndSelect(page, { buffer: video, mimeType: 'video/mp4', name: 'stream-replace-first.mp4' })
+    const firstVideoId = await startUpload(page)
+    await expect(uploadedStatus(page)).toBeVisible({ timeout: 60000 })
 
-    await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
-    await page.waitForLoadState('networkidle')
-
-    const enableTusButton = page.locator('button:has-text("Enable TUS mode")')
-    await expect(enableTusButton).toBeVisible({ timeout: 5000 })
-    await enableTusButton.click()
-
-    const fileChooserPromise1 = page.waitForEvent('filechooser')
-    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
-    const fileChooser1 = await fileChooserPromise1
-    await fileChooser1.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
-
-    await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
-
-    await page.fill('#field-storage-bunny-tus-upload-filename', firstVideoFilename)
-
-    const startUploadButton1 = page.locator('button:has-text("Start upload")')
-    await expect(startUploadButton1).toBeVisible({ timeout: 10000 })
-    await startUploadButton1.click()
-
-    const uploadCompleted1 = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
-    await expect(uploadCompleted1).toBeVisible({ timeout: 60000 })
-
-    const removeButton = page.locator('.storage-bunny-tus-upload__remove')
-    await expect(removeButton).toBeVisible()
-    await removeButton.click()
-
-    await expect(page.locator('.storage-bunny-tus-upload__dropzoneButtons')).toBeVisible()
-
-    const fileChooserPromise2 = page.waitForEvent('filechooser')
-    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
-    const fileChooser2 = await fileChooserPromise2
-    await fileChooser2.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
-
-    await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
-
-    await page.fill('#field-storage-bunny-tus-upload-filename', secondVideoFilename)
-
-    const startUploadButton2 = page.locator('button:has-text("Start upload")')
-    await expect(startUploadButton2).toBeVisible({ timeout: 10000 })
-    await startUploadButton2.click()
-
-    const uploadCompleted2 = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
-    await expect(uploadCompleted2).toBeVisible({ timeout: 10000 })
+    await page.locator('.storage-bunny-tus-upload__remove').click()
+    await selectTusFile(page, { buffer: video, mimeType: 'video/mp4', name: 'stream-replace-second.mp4' })
+    const secondVideoId = await startUpload(page)
+    await expect(uploadedStatus(page)).toBeVisible({ timeout: 60000 })
 
     await page.fill('#field-alt', 'Replaced video upload')
-
     await saveDocAndAssert(page)
 
-    const url = page.url()
-    const docId = url.match(/\/stream-manual\/([a-f0-9]+)/)?.[1]
-    expect(docId).toBeTruthy()
+    const doc = await readSavedDoc(page, 'stream-manual')
+    expect(secondVideoId).not.toBe(firstVideoId)
+    expect(doc.bunnyData.stream.videoId).toBe(secondVideoId)
+    expect(doc.filename).toBe('stream-replace-second.mp4')
 
-    const response = await page.request.get(`${serverUrl}/api/stream-manual/${docId}`)
-    expect(response.ok()).toBeTruthy()
-    const doc = await response.json()
-    expect(doc.bunnyData).toBeTruthy()
-    expect(doc.bunnyData.type).toBe('stream')
-    expect(doc.bunnyData.stream.videoId).toBeTruthy()
-
-    const videoId = doc.bunnyData.stream.videoId
-    const processed = await waitForVideoProcessed(videoId, { timeout: PROCESSING_TIMEOUT })
-    expect(processed).toBeTruthy()
+    expect(await waitForVideoProcessed(secondVideoId, { timeout: 3 * 60_000 })).toBe(true)
 
     const mp4Url = `${serverUrl}/api/stream-manual/file/${doc.filename}`
     await expect
-      .poll(async () => (await page.request.get(mp4Url)).status(), { intervals: [1000, 2000, 5000], timeout: 120000 })
+      .poll(async () => (await page.request.get(mp4Url)).status(), { intervals: [1000, 2000, 5000], timeout: 60000 })
       .toBe(200)
-
-    await deleteDocAndAssert(page)
-  })
-})
-
-test.describe('Stream - MP4 Fallback', () => {
-  const serverUrl = getServerUrl()
-  const testVideoFilename = 'stream-mp4-fallback.mp4'
-
-  test.afterAll(async () => {
-    await cleanupStreamVideos(['stream-mp4-fallback'])
-  })
-
-  test('should serve MP4 with correct content-type after processing', async ({ page }) => {
-    test.setTimeout(PROCESSING_TIMEOUT + 300000)
-
-    await page.goto(`${serverUrl}/admin/collections/stream-manual/create`)
-    await page.waitForLoadState('networkidle')
-
-    const enableTusButton = page.locator('button:has-text("Enable TUS mode")')
-    await expect(enableTusButton).toBeVisible({ timeout: 5000 })
-    await enableTusButton.click()
-
-    const fileChooserPromise = page.waitForEvent('filechooser')
-    await page.locator('.storage-bunny-tus-upload__dropzoneButtons').getByText('Select a file').click()
-    const fileChooser = await fileChooserPromise
-    await fileChooser.setFiles(path.join(__dirname, '../../fixtures/test-video.mp4'))
-
-    await page.waitForSelector('.storage-bunny-tus-upload', { timeout: 5000 })
-    await page.fill('#field-storage-bunny-tus-upload-filename', testVideoFilename)
-
-    const startUploadButton = page.locator('button:has-text("Start upload")')
-    await expect(startUploadButton).toBeVisible({ timeout: 10000 })
-    await startUploadButton.click()
-
-    const uploadCompleted = page.locator('.storage-bunny-tus-upload__status', { hasText: 'Uploaded' })
-    await expect(uploadCompleted).toBeVisible({ timeout: 60000 })
-
-    await page.fill('#field-alt', 'MP4 Fallback test video')
-
-    await saveDocAndAssert(page)
-
-    const url = page.url()
-    const docId = url.match(/\/stream-manual\/([a-f0-9]+)/)?.[1]
-    expect(docId).toBeTruthy()
-
-    const response = await page.request.get(`${serverUrl}/api/stream-manual/${docId}`)
-    expect(response.ok()).toBeTruthy()
-    const doc = await response.json()
-
-    expect(doc.bunnyData).toBeTruthy()
-    expect(doc.bunnyData.type).toBe('stream')
-
-    const videoId = doc.bunnyData.stream.videoId
-    const processed = await waitForVideoProcessed(videoId, { timeout: PROCESSING_TIMEOUT })
-    expect(processed).toBeTruthy()
-
-    const mp4Url = `${serverUrl}/api/stream-manual/file/${doc.filename}`
-    await expect
-      .poll(async () => (await page.request.get(mp4Url)).status(), { intervals: [1000, 2000, 5000], timeout: 120000 })
-      .toBe(200)
-
-    const mp4FallbackResponse = await page.request.get(mp4Url)
-    const contentType = mp4FallbackResponse.headers()['content-type']
-    expect(contentType).toContain('video/mp4')
+    expect((await page.request.get(mp4Url)).headers()['content-type']).toContain('video/mp4')
 
     await deleteDocAndAssert(page)
   })
