@@ -110,26 +110,26 @@ describe('createStreamVideo', () => {
   })
 
   it('maps 400 to invalid request', async () => {
-    postMock.mockReturnValue({ json: () => Promise.reject(httpError(400)) })
+    postMock.mockRejectedValue(httpError(400))
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Bunny Stream: Invalid request')
   })
 
   it('maps 401 to invalid API key', async () => {
-    postMock.mockReturnValue({ json: () => Promise.reject(httpError(401)) })
+    postMock.mockRejectedValue(httpError(401))
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Bunny Stream: Invalid API key')
   })
 
   it('maps 500 to server error', async () => {
-    postMock.mockReturnValue({ json: () => Promise.reject(httpError(500)) })
+    postMock.mockRejectedValue(httpError(500))
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Bunny Stream: Server error')
   })
 
   it('falls back to generic message for other HTTPError statuses', async () => {
-    postMock.mockReturnValue({ json: () => Promise.reject(httpError(404)) })
+    postMock.mockRejectedValue(httpError(404))
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Unable to create video: Clip')
   })
 
-  it('falls back to generic message for non-HTTP errors', async () => {
+  it('falls back to generic message for an unreadable response body', async () => {
     postMock.mockReturnValue({ json: () => Promise.reject(new Error('boom')) })
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Unable to create video: Clip')
   })
