@@ -105,7 +105,7 @@ describe('getStaticHandler dispatch', () => {
       },
     })
 
-    expect(res.status).toBe(500)
+    expect(res.status).toBe(403)
     expect(streamHandlerMock).not.toHaveBeenCalled()
     expect(storageHandlerMock).not.toHaveBeenCalled()
   })
@@ -269,7 +269,7 @@ describe('getStaticHandler storage prefix resolution', () => {
       params: { filename: 'photo.jpg', uploadReference: { prefix: 'tenants/acme' } },
     })
 
-    expect(res.status).toBe(500)
+    expect(res.status).toBe(403)
     expect(storageHandlerMock).not.toHaveBeenCalled()
   })
 
