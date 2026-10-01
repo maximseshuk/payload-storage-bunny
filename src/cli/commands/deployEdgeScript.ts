@@ -42,8 +42,6 @@ export const reloadNormalizedConfig = async (): Promise<NormalizedBunnyStorageCo
   return pluginCustom.config
 }
 
-const maskKey = (key: string): string => (key.length <= 4 ? '…' : `…${key.slice(-4)}`)
-
 const useColor = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR
 const paint = (code: string, text: string): string => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text)
 const key = (text: string): string => paint('36', text)
@@ -208,7 +206,7 @@ export const deployEdgeScriptCommand = defineCLICommand({
     const sharedSecret = asString(options.secret) ?? group.sharedSecret ?? randomBytes(16).toString('hex')
     const name = asString(options.name) ?? 'payload-storage-bunny-uploader'
 
-    logger.info(`Deploying Edge Script "${name}" with account key ${maskKey(accountApiKey)}`)
+    logger.info(`Deploying Edge Script "${name}"`)
     logger.info(`Target zones: ${group.zoneNames.join(', ')}`)
 
     try {
