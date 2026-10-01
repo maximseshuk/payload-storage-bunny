@@ -63,7 +63,7 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
               videoId: { description: 'Bunny video GUID.', type: 'string' },
               videoToken: {
                 description:
-                  'Token bound to `videoId`. Send it as `bunnyData.stream.videoToken` when saving the document, and with `videoId` to resume.',
+                  'Token bound to `videoId` and the signed-in user, valid for 24 hours. Send it as `bunnyData.stream.videoToken` when saving the document, and with `videoId` to resume.',
                 type: 'string',
               },
             },
@@ -74,8 +74,13 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
       description:
         'TUS authorization for a new/resumed upload, or an `uploaded` short-circuit when the video is already processed.',
     },
-    '400': { description: 'Missing required fields, an invalid `head`, or a missing title for a new video.' },
+    '400': {
+      description:
+        'Missing required fields, an invalid `head`, file name, MIME type or size, an SVG or XML file, or a missing title for a new video.',
+    },
     '403': { description: 'Access denied.' },
+    '413': { description: 'The file exceeds `upload.limits.fileSize`.' },
+    '415': { description: 'The file type is restricted or not accepted by the collection or the Stream config.' },
     '500': { description: 'Bunny Stream is not configured for the collection.' },
   },
   summary: 'Create or resume a TUS upload session',

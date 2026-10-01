@@ -120,6 +120,8 @@ export const bunnyStorage: BunnyStoragePlugin =
           }
 
           const collectionContext = createCollectionContext(config, collection)
+          const usesClientUploadReceipt =
+            !!collectionContext.storageConfig?.clientUploads || collectionContext.isTusUploadSupported
 
           const originalFilesRequiredOnCreate =
             typeof collection.upload === 'object' ? (collection.upload.filesRequiredOnCreate ?? true) : true
@@ -173,17 +175,18 @@ export const bunnyStorage: BunnyStoragePlugin =
               ],
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
-                ...(collectionContext.storageConfig?.clientUploads ? [getBeforeChangeHook(collectionContext)] : []),
+                ...(usesClientUploadReceipt ? [getBeforeChangeHook(collectionContext)] : []),
               ],
               beforeOperation: [
                 ...(collection.hooks?.beforeOperation || []),
-                ...(collectionContext.storageConfig?.clientUploads ? [getBeforeOperationHook(collectionContext)] : []),
+                ...(usesClientUploadReceipt ? [getBeforeOperationHook(collectionContext)] : []),
               ],
               beforeValidate: [
                 ...(collection.hooks?.beforeValidate || []),
                 ...(collectionContext.isTusUploadSupported
                   ? [
                       getBeforeValidateHook({
+                        config,
                         context: collectionContext,
                         filesRequiredOnCreate: originalFilesRequiredOnCreate,
                       }),

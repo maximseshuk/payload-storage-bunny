@@ -16,6 +16,7 @@ import {
 import { createCollectionContext } from '@/server/payload/config/context.js'
 import { collectStreamConfigs, collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/config/inspect.js'
 import { streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
+import { assertClientUploadFile } from '@/server/payload/storage/clientUploads/endpoint.js'
 import { createStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
 import {
   generateStreamTusUploadSignature,
@@ -23,6 +24,7 @@ import {
   verifyStreamVideoToken,
 } from '@/server/payload/stream/tusSignature.js'
 import { jsonResponse } from '@/shared/http.js'
+import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTFunction } from '@/shared/translations/index.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import type { StreamTusAuthRequest, StreamTusAuthResponse } from '@/shared/types/index.js'
@@ -80,10 +82,22 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 403, undefined, true)
           }
 
+          assertClientUploadFile({
+            collection,
+            filename: body.filename,
+            filesize: body.filesize,
+            mimeType: body.filetype,
+            req,
+          })
+          if (!collectionStreamConfig.mimeTypes.some((pattern) => matchesMimeTypePattern(body.filetype, pattern))) {
+            throw new APIError(`File type "${body.filetype}" is not allowed`, 415)
+          }
+
           const tokenInput = {
             collection: body.collection,
             libraryId: collectionStreamConfig.libraryId,
             secret: req.payload.secret,
+            user: req.user,
           }
           const withVideoToken = (videoId: string) => {
             const videoToken = signStreamVideoToken({ ...tokenInput, videoId })
@@ -91,7 +105,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             if (head === undefined) {
               return { videoId, videoToken }
             }
-            const context = { head, videoId, videoToken }
+            const context = { filesize: body.filesize, head, mimeType: body.filetype, videoId, videoToken }
             const signedReceipt = createClientUploadReceipt({
               collectionSlug: body.collection,
               context,

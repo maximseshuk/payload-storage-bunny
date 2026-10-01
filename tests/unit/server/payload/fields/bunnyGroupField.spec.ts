@@ -1,5 +1,5 @@
 import type { TypeWithID } from 'payload'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   bunnyGroupField,
@@ -17,8 +17,9 @@ const context = (streamConfig?: Partial<CollectionContext['streamConfig']>): Col
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const findField = (field: any, name: string) => field.fields.find((f: any) => f.name === name)
 const run = (doc: any) => (getAfterReadHook() as any)({ doc })
-const tokenFor = (videoId: string, collection = 'media') =>
-  signStreamVideoToken({ collection, libraryId: 12345, secret: 'payload-secret', videoId })
+const editor = { collection: 'users', id: 'user-1' }
+const tokenFor = (videoId: string, collection = 'media', user: unknown = editor) =>
+  signStreamVideoToken({ collection, libraryId: 12345, secret: 'payload-secret', user: user as never, videoId })
 
 describe('bunnyGroupField', () => {
   describe('getBunnyData', () => {
@@ -133,7 +134,7 @@ describe('bunnyGroupField', () => {
       collection: { slug: 'media' },
       streamConfig: { libraryId: 12345, mp4Fallback: true },
     } as unknown as CollectionContext
-    const req = { payload: { secret: 'payload-secret' } }
+    const req = { payload: { secret: 'payload-secret' }, user: editor }
     const streamGroup = findField(bunnyGroupField(streamContext), 'stream')
     const videoId = findField(streamGroup, 'videoId')
 
@@ -158,10 +159,28 @@ describe('bunnyGroupField', () => {
       ['a forged token', 'f'.repeat(64)],
       ['a token for another video', tokenFor('v2')],
       ['a token for another collection', tokenFor('v1', 'other')],
+      ['a token for another user', tokenFor('v1', 'media', { collection: 'users', id: 'user-2' })],
+      ['a token for another user collection', tokenFor('v1', 'media', { collection: 'admins', id: 'user-1' })],
+      ['an anonymous token', tokenFor('v1', 'media', null)],
+      ['a legacy token without an expiry', tokenFor('v1').split('.').pop()],
+      ['a token with trailing data', `${tokenFor('v1')}.x`],
     ])('rejects a videoId written with %s', (_label, videoToken) => {
       const siblingData = { videoId: 'v1', videoToken }
       expect(videoId.access.create({ req, siblingData })).toBe(false)
       expect(videoId.access.update({ req, siblingData })).toBe(false)
+    })
+
+    it('rejects a videoId written with an expired token', () => {
+      vi.useFakeTimers()
+      const siblingData = { videoId: 'v1', videoToken: tokenFor('v1') }
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000 - 1000)
+      expect(videoId.access.create({ req, siblingData })).toBe(true)
+      vi.advanceTimersByTime(2000)
+      expect(videoId.access.create({ req, siblingData })).toBe(false)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
     })
 
     it('rejects a videoId when the collection has no stream config', () => {

@@ -1,7 +1,15 @@
 import type { TypeWithPrefix } from '@payloadcms/plugin-cloud-storage/types'
 import { buildStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
-import type { CollectionAfterChangeHook, CollectionBeforeValidateHook, FileData, JsonObject, TypeWithID } from 'payload'
-import { Forbidden, MissingFile } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionBeforeValidateHook,
+  FileData,
+  JsonObject,
+  PayloadRequest,
+  TypeWithID,
+  Where,
+} from 'payload'
+import { Forbidden, MissingFile, ValidationError } from 'payload'
 
 import { getStreamVideo, isVideoProcessed } from '@/server/bunny/stream.js'
 import { getSafeFileName } from '@/server/files.js'
@@ -10,16 +18,53 @@ import { getHandleDelete } from '@/server/payload/storage/handleDelete.js'
 import { getStreamClientUpload } from '@/server/payload/stream/clientUploads.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
 import { verifyStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
+import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
 type BeforeValidateArgs = {
+  config: NormalizedBunnyStorageConfig
   context: CollectionContext
   filesRequiredOnCreate: boolean
+}
+
+type AssertVideoUnclaimedArgs = {
+  config: NormalizedBunnyStorageConfig
+  context: CollectionContext
+  id?: number | string
+  req: PayloadRequest
+  videoId: string
+}
+
+const assertVideoUnclaimed = async ({ config, context, id, req, videoId }: AssertVideoUnclaimedArgs) => {
+  const slugs = new Set([context.collection.slug])
+  for (const [slug, collectionConfig] of config.collections) {
+    if (collectionConfig.stream && collectionConfig.stream.libraryId === context.streamConfig?.libraryId) {
+      slugs.add(slug)
+    }
+  }
+
+  for (const slug of slugs) {
+    if (!req.payload.collections[slug]) {
+      continue
+    }
+    const where: Where[] = [{ 'bunnyData.stream.videoId': { equals: videoId } }]
+    if (slug === context.collection.slug && id !== undefined) {
+      where.push({ id: { not_equals: id } })
+    }
+    if (await req.payload.db.findOne({ collection: slug, req, where: { and: where } })) {
+      throw new ValidationError({
+        collection: context.collection.slug,
+        errors: [{ message: 'This video is already used by another document.', path: 'bunnyData.stream.videoId' }],
+        req,
+      })
+    }
+  }
 }
 
 type BeforeValidateData = JsonObject & TypeWithID
 
 export const getBeforeValidateHook = ({
+  config,
   context,
   filesRequiredOnCreate,
 }: BeforeValidateArgs): CollectionBeforeValidateHook<BeforeValidateData> => {
@@ -37,6 +82,7 @@ export const getBeforeValidateHook = ({
         libraryId: context.streamConfig.libraryId,
         secret: req.payload.secret,
         token: streamClientUpload.videoToken,
+        user: req.user,
         videoId: streamClientUpload.videoId,
       })
       if (!tokenValid) {
@@ -52,6 +98,11 @@ export const getBeforeValidateHook = ({
 
     if (data && !readStoredVideo(data)?.videoId) {
       setStoredVideoId(data, null)
+    }
+
+    const storedVideoId = readStoredVideo(data)?.videoId
+    if (storedVideoId && context.streamConfig && storedVideoId !== readStoredVideo(originalDoc)?.videoId) {
+      await assertVideoUnclaimed({ config, context, id: originalDoc?.id, req, videoId: storedVideoId })
     }
 
     const processVideoData = async (videoId: string, targetData: typeof data) => {

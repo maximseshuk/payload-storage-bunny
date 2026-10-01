@@ -1,4 +1,4 @@
-import { Forbidden, MissingFile } from 'payload'
+import { Forbidden, MissingFile, ValidationError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { deleteSessionMock, getSafeFileNameMock, getVideoMock, handleDeleteMock, isProcessedMock } = vi.hoisted(() => ({
@@ -41,11 +41,18 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
   }) as unknown as CollectionContext
 
 const tokenFor = (videoId: string, collection = 'media') =>
-  signStreamVideoToken({ collection, libraryId: 12345, secret: 'payload-secret', videoId })
+  signStreamVideoToken({ collection, libraryId: 12345, secret: 'payload-secret', user: null, videoId })
+
+const emptyConfig = { collections: new Map() } as never
 
 const buildReq = (overrides: Record<string, unknown> = {}) =>
   ({
-    payload: { logger: { debug: vi.fn(), error: vi.fn() }, secret: 'payload-secret' },
+    payload: {
+      collections: { media: { config: { slug: 'media' } } },
+      db: { findOne: async () => null },
+      logger: { debug: vi.fn(), error: vi.fn() },
+      secret: 'payload-secret',
+    },
     t: (key: string) => key,
     ...overrides,
   }) as never
@@ -57,14 +64,14 @@ describe('stream hooks', () => {
 
   describe('getBeforeValidateHook', () => {
     it('throws MissingFile when a create requires a file and none is present', async () => {
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
       await expect(hook({ data: {}, operation: 'create', req: buildReq() } as never)).rejects.toBeInstanceOf(
         MissingFile,
       )
     })
 
     it('nulls out the videoId on a normal create with a file', async () => {
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
       const data: Record<string, unknown> = {}
 
       const result = (await hook({
@@ -80,7 +87,7 @@ describe('stream hooks', () => {
     it('stores the videoId of a client-direct TUS upload after checking it against the library', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-client', status: 1 })
 
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
       const file = {
         clientUploadContext: { head: '', videoId: 'v-client', videoToken: tokenFor('v-client') },
         name: 'big.mp4',
@@ -98,7 +105,7 @@ describe('stream hooks', () => {
     it('rejects a client-direct upload whose video is not in the library', async () => {
       getVideoMock.mockRejectedValue(new Error('404'))
 
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
       const file = { clientUploadContext: { videoId: 'missing', videoToken: tokenFor('missing') }, name: 'big.mp4' }
 
       await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toThrow('404')
@@ -110,7 +117,7 @@ describe('stream hooks', () => {
       ['a video token for another video', tokenFor('other-video')],
       ['a video token for another collection', tokenFor('v-client', 'other')],
     ])('requires a valid video token for a client-direct upload (%s)', async (_label, videoToken) => {
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
       const file = { clientUploadContext: { head: '', videoId: 'v-client', videoToken }, name: 'big.mp4' }
 
       await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toBeInstanceOf(
@@ -124,7 +131,7 @@ describe('stream hooks', () => {
       isProcessedMock.mockReturnValue(true)
       getSafeFileNameMock.mockResolvedValue('great-video.mp4')
 
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-123' } } }
 
       const result = (await hook({ data, operation: 'create', req: buildReq() } as never)) as Record<string, any>
@@ -141,7 +148,7 @@ describe('stream hooks', () => {
       isProcessedMock.mockReturnValue(true)
       getSafeFileNameMock.mockResolvedValue('new.mp4')
 
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: false })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-new' } } }
       const originalDoc = { bunnyData: { stream: { videoId: 'v-old' } }, filename: 'old.mp4' }
       const req = buildReq()
@@ -154,6 +161,7 @@ describe('stream hooks', () => {
 
     it('skips processing when the context has no stream config', async () => {
       const hook = getBeforeValidateHook({
+        config: emptyConfig,
         context: buildContext({ streamConfig: undefined }),
         filesRequiredOnCreate: false,
       })
@@ -169,7 +177,7 @@ describe('stream hooks', () => {
       getVideoMock.mockResolvedValue({ guid: 'v-123', status: 0, title: 'Pending' })
       isProcessedMock.mockReturnValue(false)
 
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: false })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-123' } } }
 
       const result = (await hook({ data, operation: 'create', req: buildReq() } as never)) as Record<string, any>
@@ -180,13 +188,129 @@ describe('stream hooks', () => {
     })
 
     it('does not reprocess when the update videoId is unchanged', async () => {
-      const hook = getBeforeValidateHook({ context: buildContext(), filesRequiredOnCreate: false })
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-same' } } }
       const originalDoc = { bunnyData: { stream: { videoId: 'v-same' } }, filename: 'same.mp4' }
 
       await hook({ data, operation: 'update', originalDoc, req: buildReq() } as never)
 
       expect(getVideoMock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('video ownership', () => {
+    const libraryConfig = {
+      collections: new Map([
+        ['media', { stream: { libraryId: 12345 } }],
+        ['clips', { stream: { libraryId: 12345 } }],
+        ['other', { stream: { libraryId: 999 } }],
+        ['files', {}],
+        ['ghost', { stream: { libraryId: 12345 } }],
+      ]),
+    } as never
+
+    const buildOwnershipReq = (owners: Record<string, string>) => {
+      const findOne = vi.fn(async ({ collection, where }: any) => {
+        const [videoClause, idClause] = where.and
+        const ownerId = owners[collection]
+        const matches =
+          ownerId !== undefined &&
+          videoClause['bunnyData.stream.videoId'].equals === 'v-shared' &&
+          ownerId !== idClause?.id.not_equals
+        return matches ? { id: ownerId } : null
+      })
+      const req = buildReq({
+        payload: {
+          collections: {
+            clips: { config: { slug: 'clips' } },
+            files: { config: { slug: 'files' } },
+            media: { config: { slug: 'media' } },
+            other: { config: { slug: 'other' } },
+          },
+          db: { findOne },
+          logger: { debug: vi.fn(), error: vi.fn() },
+          secret: 'payload-secret',
+        },
+      })
+      return { findOne, req }
+    }
+
+    const sharedData = () => ({ bunnyData: { stream: { videoId: 'v-shared' } } })
+
+    it.each([
+      ['another document of the same collection', { media: 'doc-1' }],
+      ['a document of another Stream collection in the same library', { clips: 'doc-9' }],
+    ])('rejects a videoId already used by %s', async (_label, owners) => {
+      const hook = getBeforeValidateHook({
+        config: libraryConfig,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const { req } = buildOwnershipReq(owners)
+
+      await expect(hook({ data: sharedData(), operation: 'create', req } as never)).rejects.toBeInstanceOf(
+        ValidationError,
+      )
+      expect(getVideoMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects a client-direct upload of a video another document already uses', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 1 })
+      const hook = getBeforeValidateHook({
+        config: libraryConfig,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
+      const { req } = buildOwnershipReq({ clips: 'doc-9' })
+      Object.assign(req, {
+        file: {
+          clientUploadContext: { head: '', videoId: 'v-shared', videoToken: tokenFor('v-shared') },
+          name: 'big.mp4',
+        },
+      })
+
+      await expect(hook({ data: {}, operation: 'create', req } as never)).rejects.toBeInstanceOf(ValidationError)
+    })
+
+    it('only searches Stream collections of the same library', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
+      const hook = getBeforeValidateHook({
+        config: libraryConfig,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const { findOne, req } = buildOwnershipReq({ files: 'doc-3', other: 'doc-2' })
+
+      await hook({ data: sharedData(), operation: 'create', req } as never)
+
+      expect(findOne.mock.calls.map(([args]: any) => args.collection).toSorted()).toEqual(['clips', 'media'])
+    })
+
+    it('ignores the document being updated', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
+      const hook = getBeforeValidateHook({
+        config: libraryConfig,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const { req } = buildOwnershipReq({ media: 'doc-1' })
+      const originalDoc = { bunnyData: { stream: { videoId: 'v-draft' } }, id: 'doc-1' }
+
+      await expect(hook({ data: sharedData(), operation: 'update', originalDoc, req } as never)).resolves.toBeDefined()
+    })
+
+    it('does not look up an unchanged videoId', async () => {
+      const hook = getBeforeValidateHook({
+        config: libraryConfig,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const { findOne, req } = buildOwnershipReq({ media: 'doc-1' })
+      const originalDoc = { bunnyData: { stream: { videoId: 'v-shared' } }, id: 'doc-2' }
+
+      await hook({ data: sharedData(), operation: 'update', originalDoc, req } as never)
+
+      expect(findOne).not.toHaveBeenCalled()
     })
   })
 

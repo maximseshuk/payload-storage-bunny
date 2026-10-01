@@ -42,7 +42,7 @@ The admin UI calls `POST /api/storage-bunny/stream/tus-auth` with the target col
 
 <Step title="Authorize">
 
-The plugin checks access (via `checkAccess` or the default rule), creates the video in Bunny Stream, and returns a signed TUS authorization. The response also contains a `videoToken` that is bound to the video, the collection and the library.
+The plugin checks access (via `checkAccess` or the default rule) and the file. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type (HTML, scripts, SVG or XML) and a file over Payload's `upload.limits.fileSize`, whatever `checkAccess` returns. Then it creates the video in Bunny Stream and returns a signed TUS authorization. The response also contains a `videoToken` that is bound to the video, the collection, the library and the signed-in user. It expires after 24 hours.
 
 </Step>
 
@@ -54,7 +54,7 @@ The browser uploads directly to Bunny using the TUS protocol.
 
 <Step title="Save">
 
-The admin UI saves the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken`. Payload only accepts a `videoId` that comes with a matching `videoToken`. To resume an upload, send both values to `tus-auth` again. Without a valid token, `tus-auth` creates a new video.
+The admin UI saves the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken`. Payload only accepts a `videoId` that comes with a matching `videoToken`. To resume an upload, send both values to `tus-auth` again. Without a valid token, `tus-auth` creates a new video. Payload also rejects a `videoId` that another document in a Stream collection of the same library already uses.
 
 </Step>
 

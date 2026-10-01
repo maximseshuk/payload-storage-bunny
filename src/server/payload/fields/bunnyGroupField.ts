@@ -32,6 +32,7 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
         libraryId: context.streamConfig.libraryId,
         secret: req.payload.secret,
         token: siblingData?.videoToken,
+        user: req.user,
         videoId,
       })
     )

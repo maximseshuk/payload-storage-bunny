@@ -1,5 +1,6 @@
 import { buildUploadStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
-import type { PayloadHandler, PayloadRequest } from 'payload'
+import type { PayloadHandler, PayloadRequest, SanitizedCollectionConfig } from 'payload'
+import { APIError } from 'payload'
 import {
   assertClientUploadAccess,
   assertClientUploadAllowed,
@@ -22,6 +23,44 @@ type ClientUploadRequestBody = {
   filename?: string
   filesize?: unknown
   mimeType?: string
+}
+
+type AssertClientUploadFileArgs = {
+  collection: SanitizedCollectionConfig
+  filename: string
+  filesize: unknown
+  mimeType: string
+  req: PayloadRequest
+}
+
+export const assertClientUploadFile = ({
+  collection,
+  filename,
+  filesize,
+  mimeType,
+  req,
+}: AssertClientUploadFileArgs): void => {
+  assertClientUploadFileSize(filesize)
+  assertClientUploadAllowed({ collection, filename, mimeType })
+
+  const allowRestrictedFileTypes = typeof collection.upload === 'object' && collection.upload.allowRestrictedFileTypes
+  if (!allowRestrictedFileTypes && isRestrictedFileType(sanitize(filename), mimeType)) {
+    throw new APIError(`File type "${mimeType}" is not allowed`, 415)
+  }
+
+  const allowedMimeTypes = typeof collection.upload === 'object' ? collection.upload.mimeTypes : undefined
+  if (
+    Array.isArray(allowedMimeTypes) &&
+    allowedMimeTypes.length > 0 &&
+    !allowedMimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
+  ) {
+    throw new APIError(`File type "${mimeType}" is not allowed`, 415)
+  }
+
+  const sizeLimit = req.payload.config.upload?.limits?.fileSize
+  if (typeof sizeLimit === 'number' && (filesize as number) > sizeLimit) {
+    throw new APIError('File exceeds the configured size limit', 413)
+  }
 }
 
 export const getClientUploadHandler =
@@ -62,32 +101,13 @@ export const getClientUploadHandler =
     }
 
     try {
-      assertClientUploadFileSize(filesize)
-      assertClientUploadAllowed({ collection, filename, mimeType })
+      assertClientUploadFile({ collection, filename, filesize, mimeType, req })
     } catch (err) {
-      return jsonResponse({ error: (err as Error).message }, 400)
+      return jsonResponse({ error: (err as APIError).message }, (err as APIError).status)
     }
     const size = filesize as number
 
-    const allowRestrictedFileTypes = typeof collection.upload === 'object' && collection.upload.allowRestrictedFileTypes
-    if (!allowRestrictedFileTypes && isRestrictedFileType(sanitize(filename), mimeType)) {
-      return jsonResponse({ error: `File type "${mimeType}" is not allowed` }, 415)
-    }
-
-    const allowedMimeTypes = typeof collection.upload === 'object' ? collection.upload.mimeTypes : undefined
-    if (
-      Array.isArray(allowedMimeTypes) &&
-      allowedMimeTypes.length > 0 &&
-      !allowedMimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
-    ) {
-      return jsonResponse({ error: `File type "${mimeType}" is not allowed` }, 415)
-    }
-
-    const sizeLimit = req.payload.config.upload?.limits?.fileSize
-    if (
-      (typeof sizeLimit === 'number' && size > sizeLimit) ||
-      (!storage.s3 && clientUploads.edge && size > clientUploads.edge.maxSize)
-    ) {
+    if (!storage.s3 && clientUploads.edge && size > clientUploads.edge.maxSize) {
       return jsonResponse({ error: 'File exceeds the configured size limit' }, 413)
     }
 

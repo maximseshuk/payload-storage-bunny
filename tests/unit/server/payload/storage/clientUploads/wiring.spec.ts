@@ -125,4 +125,21 @@ describe('client uploads plugin wiring', () => {
     const response = await endpoint!.handler(req as never)
     expect((response as Response).status).toBe(403)
   })
+
+  it('applies the signed file size and MIME type on stream-only TUS collections', () => {
+    const buildStream = (tus: boolean) =>
+      findMedia(
+        bunnyStorage({
+          collections: { media: { disablePayloadAccessControl: true } },
+          stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, tus },
+        } as never)({
+          collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
+        } as unknown as Config) as Config,
+      )
+
+    const withTus = buildStream(true)
+    const withoutTus = buildStream(false)
+    expect(withTus?.hooks?.beforeChange?.length).toBe((withoutTus?.hooks?.beforeChange?.length ?? 0) + 1)
+    expect(withTus?.hooks?.beforeOperation?.length).toBe((withoutTus?.hooks?.beforeOperation?.length ?? 0) + 1)
+  })
 })

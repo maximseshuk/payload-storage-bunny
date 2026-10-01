@@ -387,11 +387,19 @@ describe('generateStreamTusUploadSignature', () => {
 })
 
 describe('stream video token', () => {
-  const input = { collection: 'media', libraryId: 12345, secret: 'payload-secret', videoId: 'video-1' }
+  const user = { collection: 'users', id: 'user-1' } as never
+  const input = { collection: 'media', libraryId: 12345, secret: 'payload-secret', user, videoId: 'video-1' }
 
-  it('is an HMAC-SHA256 of the collection, library and video keyed by the Payload secret', () => {
-    const expected = createHmac('sha256', 'payload-secret').update('stream-video:media:12345:video-1').digest('hex')
-    expect(signStreamVideoToken(input)).toBe(expected)
+  it('is an expiry and an HMAC-SHA256 of the collection, library, video, user and expiry keyed by the Payload secret', () => {
+    vi.useFakeTimers({ now: 1_700_000_000_500 })
+    const token = signStreamVideoToken(input)
+    vi.useRealTimers()
+    const [expiresAt, digest] = token.split('.')
+    const expected = createHmac('sha256', 'payload-secret')
+      .update(`stream-video:media:12345:video-1:users:user-1:${expiresAt}`)
+      .digest('hex')
+    expect(digest).toBe(expected)
+    expect(Number(expiresAt)).toBe(1_700_000_000 + 24 * 60 * 60)
   })
 
   it('verifies a token signed for the same video', () => {
@@ -403,6 +411,8 @@ describe('stream video token', () => {
     ['another library', { libraryId: 1 }],
     ['another video', { videoId: 'video-2' }],
     ['another secret', { secret: 'other-secret' }],
+    ['another user', { user: { collection: 'users', id: 'user-2' } as never }],
+    ['no user', { user: null }],
   ])('rejects a token signed for %s', (_label, change) => {
     const token = signStreamVideoToken({ ...input, ...change })
     expect(verifyStreamVideoToken({ ...input, token })).toBe(false)

@@ -69,6 +69,7 @@ const buildReq = (body: Record<string, unknown>, overrides: Record<string, unkno
   ({
     json: async () => body,
     payload: {
+      config: { upload: {} },
       collections: { media: { config: collection } },
       logger: { debug: vi.fn(), error: vi.fn() },
       secret: 'payload-secret',
@@ -77,8 +78,14 @@ const buildReq = (body: Record<string, unknown>, overrides: Record<string, unkno
     ...overrides,
   }) as never
 
-const tokenFor = (videoId: string, collectionSlug = 'media', libraryId = 12345) =>
-  signStreamVideoToken({ collection: collectionSlug, libraryId, secret: 'payload-secret', videoId })
+const tokenFor = (videoId: string, collectionSlug = 'media', libraryId = 12345, user: unknown = null) =>
+  signStreamVideoToken({
+    collection: collectionSlug,
+    libraryId,
+    secret: 'payload-secret',
+    user: user as never,
+    videoId,
+  })
 
 const getTusHandler = (config: ReturnType<typeof buildConfig>) => {
   const endpoint = getStreamEndpoints(config).find((e) => e.path === '/storage-bunny/stream/tus-auth')
@@ -215,6 +222,7 @@ describe('TUS auth endpoint', () => {
     ['a token for another collection', tokenFor('reuse-1', 'other')],
     ['a token for another library', tokenFor('reuse-1', 'media', 999)],
     ['a token for another video', tokenFor('other-video')],
+    ['a token for another user', tokenFor('reuse-1', 'media', 12345, { collection: 'users', id: 'user-2' })],
   ])('creates a new video when the videoId comes with %s', async (_label, videoToken) => {
     canUploadToVideoMock.mockReturnValue(true)
 
@@ -228,16 +236,88 @@ describe('TUS auth endpoint', () => {
     expect(json.videoToken).toBe(tokenFor('new-video-1'))
   })
 
+  it('binds the video token to the signed-in user', async () => {
+    const user = { collection: 'users', id: 'user-1' }
+    const json = await (await getTusHandler(buildConfig())(buildReq(validBody, { user }))).json()
+
+    expect(json.videoToken).toBe(tokenFor('new-video-1', 'media', 12345, user))
+    expect(json.videoToken).not.toBe(tokenFor('new-video-1'))
+  })
+
+  it('creates a new video when the video token has expired', async () => {
+    vi.useFakeTimers()
+    try {
+      const videoToken = tokenFor('reuse-1')
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1000)
+      const json = await (
+        await getTusHandler(buildConfig())(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
+      ).json()
+
+      expect(getVideoMock).not.toHaveBeenCalled()
+      expect(json.videoId).toBe('new-video-1')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('returns a signed client upload context when the file head is sent', async () => {
     const handler = getTusHandler(buildConfig())
     const req = buildReq({ ...validBody, head: 'AAAA' }, { user: { collection: 'users', id: 'user-1' } })
     const json = await (await handler(req)).json()
 
     const { signedReceipt, ...context } = json.clientUploadContext
-    expect(context).toEqual({ head: 'AAAA', videoId: 'new-video-1', videoToken: tokenFor('new-video-1') })
+    expect(context).toEqual({
+      filesize: 1000,
+      head: 'AAAA',
+      mimeType: 'video/mp4',
+      videoId: 'new-video-1',
+      videoToken: json.videoToken,
+    })
     const receipt = verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt })
     expect(receipt.filename).toBe('clip.mp4')
     expect(receipt.context).toEqual(context)
+  })
+
+  describe('file checks', () => {
+    const buildCheckReq = (body: Record<string, unknown>, upload: Record<string, unknown>, fileSize?: number) =>
+      buildReq(body, {
+        payload: {
+          collections: { media: { config: { slug: 'media', upload } } },
+          config: { upload: fileSize === undefined ? {} : { limits: { fileSize } } },
+          logger: { debug: vi.fn(), error: vi.fn() },
+          secret: 'payload-secret',
+        },
+      })
+
+    it.each([
+      ['a type outside upload.mimeTypes', { filetype: 'video/webm' }, { mimeTypes: ['video/mp4'] }, 415],
+      ['a type the stream config does not accept', { filename: 'a.png', filetype: 'image/png' }, {}, 415],
+      ['a restricted file type', { filename: 'clip.html' }, { mimeTypes: ['video/mp4'] }, 415],
+      ['an SVG file', { filename: 'a.svg', filetype: 'image/svg+xml' }, {}, 400],
+      ['an invalid MIME type', { filetype: 'not a type' }, {}, 400],
+      ['a fractional file size', { filesize: 1.5 }, {}, 400],
+    ])('rejects %s before creating a video', async (_label, overrides, upload, status) => {
+      const handler = getTusHandler(buildConfig())
+      await expect(handler(buildCheckReq({ ...validBody, ...overrides }, upload))).rejects.toMatchObject({ status })
+      expect(createVideoMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects a file over upload.limits.fileSize', async () => {
+      const handler = getTusHandler(buildConfig())
+      await expect(handler(buildCheckReq(validBody, {}, 999))).rejects.toMatchObject({ status: 413 })
+      expect(createVideoMock).not.toHaveBeenCalled()
+    })
+
+    it('checks the file before returning an already processed video', async () => {
+      getVideoMock.mockResolvedValue({ status: 4, title: 'Existing Title' })
+      isErrorMock.mockReturnValue(false)
+      isProcessedMock.mockReturnValue(true)
+
+      const handler = getTusHandler(buildConfig())
+      const body = { ...validBody, filetype: 'text/html', videoId: 'existing-1', videoToken: tokenFor('existing-1') }
+      await expect(handler(buildCheckReq(body, {}))).rejects.toMatchObject({ status: 415 })
+      expect(getVideoMock).not.toHaveBeenCalled()
+    })
   })
 
   it('rejects an oversized file head', async () => {
@@ -329,6 +409,7 @@ describe('TUS auth endpoint', () => {
         ({
           json: async () => body,
           payload: {
+            config: { upload: {} },
             collections: { alpha: { config: alpha }, beta: { config: beta } },
             logger: { debug: vi.fn(), error: vi.fn() },
             secret: 'payload-secret',
@@ -406,6 +487,7 @@ describe('TUS auth endpoint', () => {
       ({
         json: async () => body,
         payload: {
+          config: { upload: {} },
           collections: { alpha: { config: alpha }, beta: { config: beta } },
           logger: { debug: vi.fn(), error: vi.fn() },
           secret: 'payload-secret',
