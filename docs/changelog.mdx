@@ -5,6 +5,28 @@ description: 'Release history for the Bunny Storage plugin for Payload.'
 
 Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
 
+<Update label="v4.0.0-beta.1" description="October 1, 2026" tags={['Beta']}>
+  The first beta for Payload 4. It has breaking changes, so follow the [upgrade guide](/v4/upgrade-guide#v3-to-v4). v3 keeps getting critical and high-severity security fixes.
+
+**Breaking**
+
+- Requires Payload 4 and Node.js 24.15 or later.
+- Register `bunnyStorage` in the top-level `storage` array instead of `plugins`.
+- Upload collections get a hidden `prefix` column. SQL databases need a migration.
+- Client uploads use Payload's `POST /api/upload-instructions` endpoint. The plugin's own upload endpoint is removed.
+- Client upload errors use Payload's `{ "errors": [...] }` format.
+- Client uploads are stored under a random UUID folder inside the prefix.
+- `clientUploads.access` can only narrow Payload's own access check.
+- The `i18n` option is removed. Override the labels in Payload's `i18n` config.
+- The `@seshuk/payload-storage-bunny/migrations` subpath is removed.
+
+**Changes**
+
+- The TUS upload sits inside Payload's file panel.
+- `bunny:deploy-edge-script` is registered as a Payload CLI command.
+
+</Update>
+
 <Update label="v3.1.2" description="October 1, 2026">
   This release contains security fixes for Stream TUS uploads. See the [upgrade guide](/upgrade-guide#v311-to-v312).
 
