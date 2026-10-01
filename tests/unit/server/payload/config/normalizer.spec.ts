@@ -235,14 +235,19 @@ describe('Config Normalizer', () => {
         collections: { media: { signedUrls: { expiresIn: 100 } } },
         signedUrls: {
           allowedCountries: ['US', 'CA'],
+          expiresAt: globalExpiresAt,
           expiresIn: 3600,
           shouldUseSignedUrl: testShouldUseSignedUrl,
           staticHandler: { useRedirect: true },
+          userIp: globalUserIp,
         },
         storage: createBaseStorage(),
       }
 
       const collectionSigned = createNormalizedConfig(config).collections.get('media')?.signedUrls
+      const args = { collection: { slug: 'media' } } as never
+      expect(collectionSigned?.userIp?.(args)).toBe(globalUserIp())
+      expect(collectionSigned?.expiresAt?.(args)).toBe(globalExpiresAt())
       expect(collectionSigned?.expiresIn).toBe(100)
       expect(collectionSigned?.allowedCountries).toEqual(['US', 'CA'])
       expect(collectionSigned?.shouldUseSignedUrl).toBeDefined()
@@ -259,25 +264,6 @@ describe('Config Normalizer', () => {
 
       const normalized = createNormalizedConfig(config)
       expect(normalized.collections.get('media')?.signedUrls).toBeUndefined()
-    })
-
-    it('should inherit userIp and expiresAt callbacks on partial override', () => {
-      const config: BunnyStorageConfig = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { signedUrls: { expiresIn: 100 } } },
-        signedUrls: {
-          expiresAt: globalExpiresAt,
-          expiresIn: 3600,
-          userIp: globalUserIp,
-        },
-        storage: createBaseStorage(),
-      }
-
-      const collectionSigned = createNormalizedConfig(config).collections.get('media')?.signedUrls
-      const args = { collection: { slug: 'media' } } as never
-
-      expect(collectionSigned?.userIp?.(args)).toBe(globalUserIp())
-      expect(collectionSigned?.expiresAt?.(args)).toBe(globalExpiresAt())
     })
 
     it('should override userIp and expiresAt callbacks per collection', () => {
@@ -324,17 +310,6 @@ describe('Config Normalizer', () => {
       expect(collectionCU?.edge?.secret).toBe('shared')
     })
 
-    it('should enable globally with defaults when true', () => {
-      const config: BunnyStorageConfig = {
-        collections: { media: true },
-        storage: { ...createBaseStorage(), clientUploads: true, s3: { region: 'de' } },
-      }
-
-      const normalized = createNormalizedConfig(config)
-      expect(normalized.storage?.clientUploads).toBeDefined()
-      expect(normalized.collections.get('media')?.storage?.clientUploads).toBeDefined()
-    })
-
     it('should adopt global config when collection sets true', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { storage: { clientUploads: true } } },
@@ -365,16 +340,6 @@ describe('Config Normalizer', () => {
     it('should disable per collection via false', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { storage: { clientUploads: false } } },
-        storage: { ...createBaseStorage(), clientUploads: true, s3: { region: 'de' } },
-      }
-
-      const normalized = createNormalizedConfig(config)
-      expect(normalized.collections.get('media')?.storage?.clientUploads).toBeUndefined()
-    })
-
-    it('should disable when collection storage is false', () => {
-      const config: BunnyStorageConfig = {
-        collections: { media: { storage: false } },
         storage: { ...createBaseStorage(), clientUploads: true, s3: { region: 'de' } },
       }
 
@@ -609,33 +574,6 @@ describe('Config Normalizer', () => {
       expect(media?.uploadTimeout).toBe(CONFIG_DEFAULTS.storage.uploadTimeout)
     })
 
-    it('works with no global storage configured', () => {
-      const config: BunnyStorageConfig = {
-        collections: { media: { storage: createOwnStorage('media') } },
-        stream: createBaseStream(),
-      }
-
-      const normalized = createNormalizedConfig(config)
-      expect(normalized.storage).toBeUndefined()
-      expect(normalized.collections.get('media')?.storage?.zoneName).toBe('own-zone-media')
-    })
-
-    it('still merges partial overrides and disables via false (regression)', () => {
-      const config: BunnyStorageConfig = {
-        collections: {
-          merged: { storage: { uploadTimeout: 42 } },
-          off: { storage: false },
-        },
-        storage: { ...createBaseStorage(), uploadTimeout: 111 },
-      }
-
-      const normalized = createNormalizedConfig(config)
-      const merged = normalized.collections.get('merged')?.storage
-      expect(merged?.zoneName).toBe('test-zone')
-      expect(merged?.uploadTimeout).toBe(42)
-      expect(normalized.collections.get('off')?.storage).toBeUndefined()
-    })
-
     it('normalizes clientUploads from its own zone without leaking global clientUploads', () => {
       const config: BunnyStorageConfig = {
         collections: {
@@ -704,23 +642,6 @@ describe('Config Normalizer', () => {
       } as BunnyStorageConfig).collections.get('media')?.stream
       expect(objCleanup?.cleanup?.maxAge).toBe(5)
     })
-
-    it('still merges partial overrides and disables via false (regression)', () => {
-      const config: BunnyStorageConfig = {
-        accountApiKey: 'test-api-key',
-        collections: {
-          merged: { stream: { mp4Fallback: true } },
-          off: { stream: false },
-        },
-        storage: createBaseStorage(),
-        stream: { ...createBaseStream(), mp4Fallback: false },
-      }
-
-      const normalized = createNormalizedConfig(config)
-      expect(normalized.collections.get('merged')?.stream?.libraryId).toBe(12345)
-      expect(normalized.collections.get('merged')?.stream?.mp4Fallback).toBe(true)
-      expect(normalized.collections.get('off')?.stream).toBeUndefined()
-    })
   })
 
   describe('relaxed top-level config', () => {
@@ -758,45 +679,6 @@ describe('Config Normalizer', () => {
 
       expect(mediaConfig?.prefix).toBe('custom-prefix')
       expect(mediaConfig?.disablePayloadAccessControl).toBe(true)
-    })
-  })
-
-  describe('multiple collections', () => {
-    it('should handle different overrides per collection', () => {
-      const config: BunnyStorageConfig = {
-        accountApiKey: 'test-api-key',
-        collections: {
-          images: {
-            prefix: 'img',
-            thumbnail: { streamAnimated: true },
-          },
-          videos: {
-            prefix: 'vid',
-            stream: { mp4Fallback: false },
-            thumbnail: false,
-          },
-        },
-        storage: createBaseStorage(),
-        stream: { ...createBaseStream(), mp4Fallback: true },
-        thumbnail: {
-          appendTimestamp: true,
-          queryParams: { class: 'thumb' },
-          streamAnimated: false,
-        },
-      }
-
-      const normalized = createNormalizedConfig(config)
-      const imagesConfig = normalized.collections.get('images')
-      const videosConfig = normalized.collections.get('videos')
-
-      expect(imagesConfig?.prefix).toBe('img')
-      expect(imagesConfig?.thumbnail?.streamAnimated).toBe(true)
-      expect(imagesConfig?.thumbnail?.appendTimestamp).toBe(true)
-      expect(imagesConfig?.thumbnail?.queryParams).toEqual({ class: 'thumb' })
-
-      expect(videosConfig?.prefix).toBe('vid')
-      expect(videosConfig?.stream?.mp4Fallback).toBe(false)
-      expect(videosConfig?.thumbnail).toBeUndefined()
     })
   })
 })

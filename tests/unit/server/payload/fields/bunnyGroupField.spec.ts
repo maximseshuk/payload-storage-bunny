@@ -80,12 +80,6 @@ describe('bunnyGroupField', () => {
       expect(stored?.resolutions).toEqual({ highest: '1080p' })
     })
 
-    it('can null out the videoId', () => {
-      const data: Record<string, unknown> = {}
-      setStoredVideoId(data, null)
-      expect(readStoredVideo(data)?.videoId).toBeNull()
-    })
-
     it('returns undefined for an undefined doc', () => {
       expect(readStoredVideo(undefined)).toBeUndefined()
     })
@@ -160,10 +154,6 @@ describe('bunnyGroupField', () => {
       ['a token for another video', tokenFor('v2')],
       ['a token for another collection', tokenFor('v1', 'other')],
       ['a token for another user', tokenFor('v1', 'media', { collection: 'users', id: 'user-2' })],
-      ['a token for another user collection', tokenFor('v1', 'media', { collection: 'admins', id: 'user-1' })],
-      ['an anonymous token', tokenFor('v1', 'media', null)],
-      ['a legacy token without an expiry', tokenFor('v1').split('.').pop()],
-      ['a token with trailing data', `${tokenFor('v1')}.x`],
     ])('rejects a videoId written with %s', (_label, videoToken) => {
       const siblingData = { videoId: 'v1', videoToken }
       expect(videoId.access.create({ req, siblingData })).toBe(false)

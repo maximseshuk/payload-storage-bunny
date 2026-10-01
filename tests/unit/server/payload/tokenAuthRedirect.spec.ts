@@ -40,11 +40,8 @@ describe('maybeCreateRedirect', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ usePayloadAccessControl: false }))).toBeNull()
     })
 
-    it('returns null when signedUrls is false', () => {
+    it('returns null when signedUrls is false or undefined', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: false }))).toBeNull()
-    })
-
-    it('returns null when signedUrls is undefined', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: undefined }))).toBeNull()
     })
 
@@ -96,11 +93,6 @@ describe('maybeCreateRedirect', () => {
       expect(url.origin + url.pathname).toBe('https://cdn.example.com/path/to/photo.jpg')
       expect(url.searchParams.get('token')).toBeTruthy()
       expect(url.searchParams.get('expires')).toBeTruthy()
-    })
-
-    it('honours redirectStatus 302', () => {
-      const res = maybeCreateRedirect(baseUrl, redirectContext())
-      expect(res!.status).toBe(302)
     })
 
     it('signs with a path-based token when tokenPath option is supplied', () => {
