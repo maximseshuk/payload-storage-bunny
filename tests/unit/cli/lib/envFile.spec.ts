@@ -1,26 +1,24 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { reloadNormalizedConfig } from '@/cli/commands/deployEdgeScript.js'
-import { applyEnvFile } from '@/cli/lib/envFile.js'
+import { appendEnvLines, applyEnvFile } from '@/cli/lib/envFile.js'
+import type { EnvEntry } from '@/cli/lib/envFile.js'
+
+import { useTmpDir } from '../../../helpers/unit/tmpDir.js'
 
 describe('applyEnvFile', () => {
-  let dir: string
+  const makeDir = useTmpDir('psb-env-')
 
   afterEach(() => {
-    if (dir) {
-      rmSync(dir, { force: true, recursive: true })
-    }
     delete process.env.PSB_ENVFILE_PRESET
     delete process.env.PSB_ENVFILE_NEW
   })
 
   const writeEnvFile = (contents: string): string => {
-    dir = mkdtempSync(path.join(tmpdir(), 'psb-env-'))
-    const file = path.join(dir, '.env.test')
+    const file = path.join(makeDir(), '.env.test')
     writeFileSync(file, contents)
     return file
   }
@@ -50,53 +48,71 @@ describe('applyEnvFile', () => {
   })
 })
 
-const hoisted = vi.hoisted(() => ({ configPath: '' }))
+describe('appendEnvLines', () => {
+  const makeDir = useTmpDir('psb-init-env-')
+  const envPath = (): string => path.join(makeDir(), '.env')
 
-vi.mock('payload/node', () => ({
-  findConfig: () => hoisted.configPath,
-}))
+  const entries: EnvEntry[] = [
+    { name: 'BUNNY_STORAGE_API_KEY', value: 'zone-pass' },
+    { name: 'BUNNY_STORAGE_HOSTNAME', value: 'my-app.b-cdn.net' },
+  ]
 
-describe('reloadNormalizedConfig', () => {
-  let dir: string
+  it('creates the file when it is missing', () => {
+    const file = envPath()
+    const result = appendEnvLines(file, entries)
 
-  beforeAll(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'psb-reload-'))
-    hoisted.configPath = path.join(dir, 'payload.config.mjs')
-    writeFileSync(
-      hoisted.configPath,
-      [
-        'export default Promise.resolve({',
-        "  custom: { '@seshuk/payload-storage-bunny': { config: { marker: process.env.PSB_RELOAD_MARKER } } },",
-        '})',
-        '',
-      ].join('\n'),
+    expect(result.created).toBe(true)
+    expect(result.appended).toEqual(['BUNNY_STORAGE_API_KEY', 'BUNNY_STORAGE_HOSTNAME'])
+    expect(result.skipped).toEqual([])
+    expect(readFileSync(file, 'utf8')).toBe(
+      'BUNNY_STORAGE_API_KEY=zone-pass\nBUNNY_STORAGE_HOSTNAME=my-app.b-cdn.net\n',
     )
   })
 
-  afterAll(() => {
-    rmSync(dir, { force: true, recursive: true })
-    delete process.env.PSB_RELOAD_MARKER
+  it('appends only missing names to an existing file and preserves a trailing newline', () => {
+    const file = envPath()
+    writeFileSync(file, 'EXISTING=1\n')
+
+    const result = appendEnvLines(file, entries)
+
+    expect(result.created).toBe(false)
+    expect(result.appended).toEqual(['BUNNY_STORAGE_API_KEY', 'BUNNY_STORAGE_HOSTNAME'])
+    expect(readFileSync(file, 'utf8')).toBe(
+      'EXISTING=1\nBUNNY_STORAGE_API_KEY=zone-pass\nBUNNY_STORAGE_HOSTNAME=my-app.b-cdn.net\n',
+    )
   })
 
-  it('cache-busts the config re-import so changed env is picked up between calls', async () => {
-    process.env.PSB_RELOAD_MARKER = 'first'
-    const first = (await reloadNormalizedConfig()) as unknown as { marker: string }
-    expect(first.marker).toBe('first')
+  it('adds a separating newline when the existing file has no trailing newline', () => {
+    const file = envPath()
+    writeFileSync(file, 'EXISTING=1')
 
-    process.env.PSB_RELOAD_MARKER = 'second'
-    const second = (await reloadNormalizedConfig()) as unknown as { marker: string }
-    expect(second.marker).toBe('second')
+    appendEnvLines(file, [{ name: 'NEW_ONE', value: 'x' }])
+
+    expect(readFileSync(file, 'utf8')).toBe('EXISTING=1\nNEW_ONE=x\n')
   })
 
-  it('throws when the reloaded config lacks the plugin key', async () => {
-    const missingDir = mkdtempSync(path.join(tmpdir(), 'psb-reload-missing-'))
-    const missingPath = path.join(missingDir, 'payload.config.mjs')
-    writeFileSync(missingPath, 'export default Promise.resolve({ custom: {} })\n')
-    hoisted.configPath = missingPath
+  it('never overwrites an existing value and reports the collision', () => {
+    const file = envPath()
+    writeFileSync(file, 'BUNNY_STORAGE_API_KEY=do-not-touch\n')
 
-    await expect(reloadNormalizedConfig()).rejects.toThrow(/does not include the @seshuk\/payload-storage-bunny plugin/)
+    const result = appendEnvLines(file, entries)
 
-    hoisted.configPath = path.join(dir, 'payload.config.mjs')
-    rmSync(missingDir, { force: true, recursive: true })
+    expect(result.skipped).toEqual(['BUNNY_STORAGE_API_KEY'])
+    expect(result.appended).toEqual(['BUNNY_STORAGE_HOSTNAME'])
+    const contents = readFileSync(file, 'utf8')
+    expect(contents).toContain('BUNNY_STORAGE_API_KEY=do-not-touch')
+    expect(contents).not.toContain('zone-pass')
+    expect(contents).toContain('BUNNY_STORAGE_HOSTNAME=my-app.b-cdn.net')
+  })
+
+  it('writes nothing new when every name already exists', () => {
+    const file = envPath()
+    writeFileSync(file, 'BUNNY_STORAGE_API_KEY=a\nBUNNY_STORAGE_HOSTNAME=b\n')
+
+    const result = appendEnvLines(file, entries)
+
+    expect(result.appended).toEqual([])
+    expect(result.skipped).toEqual(['BUNNY_STORAGE_API_KEY', 'BUNNY_STORAGE_HOSTNAME'])
+    expect(readFileSync(file, 'utf8')).toBe('BUNNY_STORAGE_API_KEY=a\nBUNNY_STORAGE_HOSTNAME=b\n')
   })
 })

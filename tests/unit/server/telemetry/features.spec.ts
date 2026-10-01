@@ -71,26 +71,16 @@ describe('buildFeatures', () => {
     expect(result.streamTusAutoMode).toBe(false)
   })
 
-  it('signedUrls with a country list sets signedUrlsCountryLock', () => {
-    const result = features({
+  it('signedUrls sets signedUrlsCountryLock only with a country list', () => {
+    const withCountries = features({
       collections: { media: true },
       signedUrls: { allowedCountries: ['US'] },
       storage: createBaseStorage(),
     })
+    const withoutCountries = features({ collections: { media: true }, signedUrls: true, storage: createBaseStorage() })
 
-    expect(result.signedUrls).toBe(true)
-    expect(result.signedUrlsCountryLock).toBe(true)
-  })
-
-  it('signedUrls without countries leaves the country lock off', () => {
-    const result = features({
-      collections: { media: true },
-      signedUrls: true,
-      storage: createBaseStorage(),
-    })
-
-    expect(result.signedUrls).toBe(true)
-    expect(result.signedUrlsCountryLock).toBe(false)
+    expect(withCountries).toMatchObject({ signedUrls: true, signedUrlsCountryLock: true })
+    expect(withoutCountries).toMatchObject({ signedUrls: true, signedUrlsCountryLock: false })
   })
 
   it('cdnPurge requires both purge and an accountApiKey', () => {
@@ -108,23 +98,18 @@ describe('buildFeatures', () => {
     ).toBe(true)
   })
 
-  it('a collection with its own zone sets collectionZones', () => {
-    const result = features({
+  it('sets collectionZones for a full own zone but not for a partial override', () => {
+    const ownZone = features({
       collections: { media: true, other: { storage: createOwnStorage() } },
       storage: createBaseStorage(),
     })
-
-    expect(result.collectionZones).toBe(true)
-  })
-
-  it('an override that is not a full zone does not set collectionZones', () => {
-    const result = features({
+    const partial = features({
       collections: { media: { storage: { uploadTimeout: 5000 } } },
       storage: createBaseStorage(),
     })
 
-    expect(result.collectionOverrides).toBe(true)
-    expect(result.collectionZones).toBe(false)
+    expect(ownZone.collectionZones).toBe(true)
+    expect(partial).toMatchObject({ collectionOverrides: true, collectionZones: false })
   })
 
   it('accountApiKey reflects an account-level key', () => {

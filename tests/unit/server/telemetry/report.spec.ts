@@ -32,7 +32,7 @@ describe('buildReport', () => {
     projectIdSource: 'git',
   })
 
-  it('matches the wire contract', () => {
+  it('matches the wire contract with the node major and a short lowercase os', () => {
     expect(report).toMatchObject({
       features,
       payloadVersion: '3.86.0',
@@ -43,9 +43,6 @@ describe('buildReport', () => {
       runtime: 'node',
       schema: 1,
     })
-  })
-
-  it('derives runtimeVersion (node major) and a short lowercase os', () => {
     expect(report.runtimeVersion).toBe(process.versions.node.split('.')[0])
     expect(report.os).toBe(process.platform.toLowerCase())
     expect(report.os.length).toBeLessThanOrEqual(16)
