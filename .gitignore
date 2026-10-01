@@ -16,6 +16,7 @@ tests/.next/
 tests/node_modules/
 tests/next-env.d.ts
 tests/payload.config.ts
+tests/dev.db*
 tests/playwright/
 tests/app/(payload)/admin/importMap.js
 tests/**/*.d.ts

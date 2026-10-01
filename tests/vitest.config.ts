@@ -16,7 +16,6 @@ export default defineConfig({
     },
     environment: 'node',
     globals: true,
-    globalSetup: path.resolve(__dirname, './helpers/int/vitestGlobalSetup.ts'),
     include: ['tests/unit/**/*.spec.ts', 'tests/integration/**/*.int.spec.ts'],
     root: path.resolve(__dirname, '..'),
     testTimeout: 30000,

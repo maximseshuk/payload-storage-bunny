@@ -1,12 +1,11 @@
-import { randomUUID } from 'node:crypto'
-
-import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { en } from '@payloadcms/translations/languages/en'
 import type { CollectionConfig, Config, SanitizedConfig } from 'payload'
 import { buildConfig } from 'payload'
 import { de } from 'payload/i18n/de'
 import { ru } from 'payload/i18n/ru'
 import sharp from 'sharp'
+
+import { testDatabase } from './testDatabase.js'
 
 export const devUser = {
   email: 'dev@example.com',
@@ -22,16 +21,6 @@ export const Users: CollectionConfig = {
   fields: [],
 }
 
-const resolveDatabaseUrl = (): string => {
-  const memoryUri = process.env.MONGODB_MEMORY_SERVER_URI
-  if (memoryUri) {
-    const url = new URL(memoryUri)
-    url.pathname = `/psb-test-${randomUUID()}`
-    return url.toString()
-  }
-  return process.env.DATABASE_URI || 'mongodb://127.0.0.1/payload-storage-bunny'
-}
-
 export const buildConfigWithDefaults = async (config?: Partial<Config>): Promise<SanitizedConfig> => {
   const finalConfig: Config = {
     admin: {
@@ -41,14 +30,7 @@ export const buildConfigWithDefaults = async (config?: Partial<Config>): Promise
       },
     },
     collections: [Users, ...(config?.collections || [])],
-    db: mongooseAdapter({
-      collation: {
-        strength: 1,
-      },
-      ensureIndexes: true,
-      mongoMemoryServer: (global as any)._mongoMemoryServer,
-      url: resolveDatabaseUrl(),
-    }),
+    db: await testDatabase(),
     i18n: {
       supportedLanguages: {
         de,
