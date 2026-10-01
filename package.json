@@ -85,6 +85,7 @@
     "test:deploy-edge": "pnpm runts tests/manual/deployEdge.ts",
     "test:e2e": "dotenv -e .env -- pnpm runts tests/runE2E.ts",
     "test:e2e:ui": "dotenv -e .env -v UI_MODE=1 -- pnpm runts tests/runE2E.ts",
+    "test:int": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.int.config.ts",
     "test:provision": "pnpm runts tests/manual/provision.ts",
     "test:unit": "vitest run -c tests/vitest.unit.config.ts",
     "test:verify-edge": "pnpm runts tests/manual/verifyEdge.ts",

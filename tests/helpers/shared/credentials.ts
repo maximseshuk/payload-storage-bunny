@@ -1,4 +1,10 @@
-const hasEnv = (...keys: string[]): boolean => keys.every((key) => Boolean(process.env[key]))
+const hasEnv = (...keys: string[]): boolean => {
+  const missing = keys.filter((key) => !process.env[key])
+  if (missing.length > 0 && process.env.CI) {
+    throw new Error(`Missing credentials in CI: ${missing.join(', ')}`)
+  }
+  return missing.length === 0
+}
 
 export const hasBunnyCredentials = (): boolean =>
   hasEnv(
