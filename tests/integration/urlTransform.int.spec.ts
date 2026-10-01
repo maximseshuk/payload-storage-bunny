@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos } from '../helpers/e2e/bunnyStream.js'
 import { getPayload } from '../helpers/int/getPayload.js'
+import { videoFile } from '../helpers/int/videoFile.js'
 import { hasBunnyCredentials } from '../helpers/shared/credentials.js'
 
 describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
@@ -70,11 +71,8 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
     it('should apply custom urlTransform.transformUrl to stream video', async () => {
       const created = await payload.create({
         collection: 'url-transform-custom',
-        data: {
-          alt: 'Test stream URL transform',
-          filename: 'url-transform-custom-video.mp4',
-        },
-        filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        data: { alt: 'Test stream URL transform' },
+        file: await videoFile('url-transform-custom-video.mp4'),
         overrideAccess: true,
       })
 
@@ -97,11 +95,8 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
     it('should serve stream video with MP4 fallback URL', async () => {
       const created = await payload.create({
         collection: 'url-transform-static',
-        data: {
-          alt: 'Test static handler for stream video',
-          filename: 'url-transform-static-video.mp4',
-        },
-        filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        data: { alt: 'Test static handler for stream video' },
+        file: await videoFile('url-transform-static-video.mp4'),
         overrideAccess: true,
       })
 
@@ -125,11 +120,8 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
     it('should apply global urlTransform to stream video', async () => {
       const created = await payload.create({
         collection: 'url-transform-global',
-        data: {
-          alt: 'Test stream signed URL',
-          filename: 'url-transform-global-video.mp4',
-        },
-        filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        data: { alt: 'Test stream signed URL' },
+        file: await videoFile('url-transform-global-video.mp4'),
         overrideAccess: true,
       })
 

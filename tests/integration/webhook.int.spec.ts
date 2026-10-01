@@ -1,11 +1,11 @@
 import { createHmac } from 'node:crypto'
-import path from 'node:path'
 
 import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../helpers/e2e/bunnyStream.js'
 import { getPayload } from '../helpers/int/getPayload.js'
+import { videoFile } from '../helpers/int/videoFile.js'
 import { hasBunnyCredentials } from '../helpers/shared/credentials.js'
 
 const WEBHOOK_SECRET = 'test-webhook-secret'
@@ -96,13 +96,13 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
       const upload = await payload.create({
         collection: 'webhook-test',
         data: { alt: 'Webhook test video' },
-        filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        file: await videoFile('webhook-test.mp4'),
         overrideAccess: true,
       })
       expect((upload.bunnyData as any)?.stream?.videoId).toBeTruthy()
 
       const videoId = (upload.bunnyData as any).stream.videoId as string
-      await waitForVideoProcessed(videoId)
+      expect(await waitForVideoProcessed(videoId)).toBe(true)
 
       const response = await callWebhook({
         Status: 3,
