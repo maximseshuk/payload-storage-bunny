@@ -29,6 +29,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
         collection: 'url-transform-global',
         data: { alt: 'Test URL transform with global config' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -39,6 +40,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
       await payload.delete({
         id: doc.id,
         collection: 'url-transform-global',
+        overrideAccess: true,
       })
     })
 
@@ -47,6 +49,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
         collection: 'url-transform-unsigned',
         data: { alt: 'Test URL transform without signed URLs' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -58,6 +61,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
       await payload.delete({
         id: doc.id,
         collection: 'url-transform-unsigned',
+        overrideAccess: true,
       })
     })
   })
@@ -71,9 +75,10 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
           filename: 'url-transform-custom-video.mp4',
         },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        overrideAccess: true,
       })
 
-      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-custom' })
+      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-custom', overrideAccess: true })
 
       expect(doc.id).toBeTruthy()
       expect(doc.url).toBeTruthy()
@@ -85,6 +90,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
       await payload.delete({
         id: doc.id,
         collection: 'url-transform-custom',
+        overrideAccess: true,
       })
     }, 60000)
 
@@ -96,9 +102,10 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
           filename: 'url-transform-static-video.mp4',
         },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        overrideAccess: true,
       })
 
-      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-static' })
+      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-static', overrideAccess: true })
 
       expect(doc.id).toBeTruthy()
       expect(doc.url).toBeTruthy()
@@ -111,6 +118,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
       await payload.delete({
         id: doc.id,
         collection: 'url-transform-static',
+        overrideAccess: true,
       })
     }, 60000)
 
@@ -122,9 +130,10 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
           filename: 'url-transform-global-video.mp4',
         },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        overrideAccess: true,
       })
 
-      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-global' })
+      const doc = await payload.findByID({ id: created.id, collection: 'url-transform-global', overrideAccess: true })
 
       expect(doc.id).toBeTruthy()
       expect(doc.url).toBeTruthy()
@@ -135,6 +144,7 @@ describe.skipIf(!hasBunnyCredentials())('URL Transform', () => {
       await payload.delete({
         id: doc.id,
         collection: 'url-transform-global',
+        overrideAccess: true,
       })
     }, 60000)
   })

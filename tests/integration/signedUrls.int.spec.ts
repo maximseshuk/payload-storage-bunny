@@ -25,6 +25,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
         collection: 'storageMedia',
         data: { alt: 'Signed storage URL test' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -35,6 +36,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
       await payload.delete({
         id: doc.id,
         collection: 'storageMedia',
+        overrideAccess: true,
       })
     })
 
@@ -43,6 +45,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
         collection: 'storageMedia',
         data: { alt: 'Signed storage URL accessibility test' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
+        overrideAccess: true,
       })
 
       expect(doc.url).toBeTruthy()
@@ -54,6 +57,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
       await payload.delete({
         id: doc.id,
         collection: 'storageMedia',
+        overrideAccess: true,
       })
     })
   })
@@ -67,6 +71,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
           filename: 'signed-stream-url-test.mp4',
         },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -80,6 +85,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
       const freshDoc = await payload.findByID({
         id: doc.id,
         collection: 'streamMedia',
+        overrideAccess: true,
       })
 
       expect(freshDoc.url).toBeTruthy()
@@ -93,6 +99,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
       await payload.delete({
         id: doc.id,
         collection: 'streamMedia',
+        overrideAccess: true,
       })
     }, 180000)
   })

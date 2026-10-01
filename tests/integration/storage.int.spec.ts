@@ -24,6 +24,7 @@ describe.skipIf(!hasBunnyCredentials())('Storage - Upload and Delete', () => {
       data: { alt: 'Test image alt text' },
       filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
       showHiddenFields: true,
+      overrideAccess: true,
     })
 
     expect(doc.id).toBeTruthy()
@@ -34,11 +35,13 @@ describe.skipIf(!hasBunnyCredentials())('Storage - Upload and Delete', () => {
     await payload.delete({
       id: doc.id,
       collection: 'storage-basic',
+      overrideAccess: true,
     })
 
     const found = await payload.find({
       collection: 'storage-basic',
       where: { id: { equals: doc.id } },
+      overrideAccess: true,
     })
     expect(found.totalDocs).toBe(0)
   })
@@ -50,6 +53,7 @@ describe.skipIf(!hasBunnyCredentials())('Storage - Upload and Delete', () => {
       data: { alt: 'Test document alt text' },
       file: { name: 'test-document.txt', data: buffer, mimetype: 'text/plain', size: buffer.length },
       showHiddenFields: true,
+      overrideAccess: true,
     })
 
     expect(doc.id).toBeTruthy()
@@ -60,11 +64,13 @@ describe.skipIf(!hasBunnyCredentials())('Storage - Upload and Delete', () => {
     await payload.delete({
       id: doc.id,
       collection: 'storage-basic',
+      overrideAccess: true,
     })
 
     const found = await payload.find({
       collection: 'storage-basic',
       where: { id: { equals: doc.id } },
+      overrideAccess: true,
     })
     expect(found.totalDocs).toBe(0)
   })

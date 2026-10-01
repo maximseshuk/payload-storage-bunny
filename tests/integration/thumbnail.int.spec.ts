@@ -26,6 +26,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
         collection: 'thumbnail-global',
         data: { alt: 'Test thumbnail with global config' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -37,6 +38,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
       await payload.delete({
         id: doc.id,
         collection: 'thumbnail-global',
+        overrideAccess: true,
       })
     })
 
@@ -45,6 +47,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
         collection: 'thumbnail-custom',
         data: { alt: 'Test thumbnail with custom transform' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -56,6 +59,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
       await payload.delete({
         id: doc.id,
         collection: 'thumbnail-custom',
+        overrideAccess: true,
       })
     })
 
@@ -64,6 +68,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
         collection: 'thumbnail-disabled',
         data: { alt: 'Test without thumbnail' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -72,6 +77,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
       await payload.delete({
         id: doc.id,
         collection: 'thumbnail-disabled',
+        overrideAccess: true,
       })
     })
   })
@@ -90,6 +96,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
         collection: 'thumbnail-stream-static',
         data: { alt: 'Test stream thumbnail static' },
         file: videoFile,
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -102,6 +109,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
       await payload.delete({
         id: doc.id,
         collection: 'thumbnail-stream-static',
+        overrideAccess: true,
       })
     }, 60000)
 
@@ -118,6 +126,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
           mimetype: 'video/mp4',
           size: videoBuffer.length,
         },
+        overrideAccess: true,
       })
 
       expect(doc.id).toBeTruthy()
@@ -128,6 +137,7 @@ describe.skipIf(!hasBunnyCredentials())('Thumbnail', () => {
       await payload.delete({
         id: doc.id,
         collection: 'thumbnail-stream-animated',
+        overrideAccess: true,
       })
     }, 60000)
   })

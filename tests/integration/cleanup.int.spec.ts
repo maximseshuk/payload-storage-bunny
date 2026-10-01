@@ -53,8 +53,13 @@ describe.skipIf(!hasBunnyCredentials())('Stream Cleanup Task', () => {
     })
     expect(sessionsBefore.totalDocs).toBe(1)
 
-    await payload.jobs.queue({ input: {}, queue: 'bunny-cleanup-test-queue', task: 'StorageBunnyStreamCleanup' })
-    await payload.jobs.run({ queue: 'bunny-cleanup-test-queue' })
+    await payload.jobs.queue({
+      input: {},
+      overrideAccess: true,
+      queue: 'bunny-cleanup-test-queue',
+      task: 'StorageBunnyStreamCleanup',
+    })
+    await payload.jobs.run({ overrideAccess: true, queue: 'bunny-cleanup-test-queue' })
 
     const sessionsAfter = await payload.find({
       collection: streamUploadSessionsCollectionSlug,
@@ -80,8 +85,13 @@ describe.skipIf(!hasBunnyCredentials())('Stream Cleanup Task', () => {
     await createOrphanedSession(video.guid)
     await deleteStreamVideo({ apiKey, libraryId, videoId: video.guid })
 
-    await payload.jobs.queue({ input: {}, queue: 'bunny-cleanup-test-queue', task: 'StorageBunnyStreamCleanup' })
-    await payload.jobs.run({ queue: 'bunny-cleanup-test-queue' })
+    await payload.jobs.queue({
+      input: {},
+      overrideAccess: true,
+      queue: 'bunny-cleanup-test-queue',
+      task: 'StorageBunnyStreamCleanup',
+    })
+    await payload.jobs.run({ overrideAccess: true, queue: 'bunny-cleanup-test-queue' })
 
     const sessionsAfter = await payload.find({
       collection: streamUploadSessionsCollectionSlug,

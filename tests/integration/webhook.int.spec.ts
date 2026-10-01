@@ -97,6 +97,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
         collection: 'webhook-test',
         data: { alt: 'Webhook test video' },
         filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        overrideAccess: true,
       })
       expect((upload.bunnyData as any)?.stream?.videoId).toBeTruthy()
 
@@ -114,11 +115,12 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
         id: upload.id,
         collection: 'webhook-test',
         showHiddenFields: true,
+        overrideAccess: true,
       })
       expect((updatedDoc.bunnyData as any)?.stream?.resolutions).toBeTruthy()
       expect((updatedDoc.bunnyData as any).stream.resolutions.highest).toMatch(/^\d+p$/)
 
-      await payload.delete({ id: upload.id, collection: 'webhook-test' })
+      await payload.delete({ id: upload.id, collection: 'webhook-test', overrideAccess: true })
     }, 180000)
   })
 })
