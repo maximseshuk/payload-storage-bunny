@@ -16,7 +16,7 @@ import {
 import { initAnswers } from '../../../helpers/unit/initAnswers.js'
 
 describe('sanitizeName', () => {
-  it('lowercases, strips the scope and non-word characters, collapses hyphens and truncates to 20 chars', () => {
+  it('lowercases, strips the scope and non-word characters, collapses hyphens and truncates to 20 characters', () => {
     expect(sanitizeName('@acme/My_App!!')).toBe('my-app')
     expect(sanitizeName('--Foo   Bar--')).toBe('foo-bar')
     expect(sanitizeName('abcdefghijklmnopqrstuvwxyz')).toBe('abcdefghijklmnopqrst')
@@ -79,7 +79,7 @@ describe('storageMainRegionOptions', () => {
 })
 
 describe('storageReplicationRegionOptions', () => {
-  it('offers 9 for HTTP + Standard and 15 for HTTP + Edge/SSD', () => {
+  it('offers 9 regions for HTTP Standard and 15 for HTTP Edge (SSD)', () => {
     expect(storageReplicationRegionOptions('http', 'standard')).toHaveLength(9)
     const edge = storageReplicationRegionOptions('http', 'edge').map((r) => r.code)
     expect(edge).toHaveLength(15)
@@ -95,7 +95,7 @@ describe('storageReplicationRegionOptions', () => {
 })
 
 describe('streamRegionOptions', () => {
-  it('offers 9 regions defaulting to Frankfurt first', () => {
+  it('offers 9 regions with Frankfurt first', () => {
     const options = streamRegionOptions()
     expect(options).toHaveLength(9)
     expect(options[0].code).toBe('de')
@@ -136,7 +136,7 @@ describe('buildInitPlan', () => {
     expect(plan.storage?.s3).toBe(true)
   })
 
-  it('forces the main region to Frankfurt (DE) for the Edge/SSD tier, ignoring any selection', () => {
+  it('forces the main region to Frankfurt (DE) for the Edge (SSD) tier and ignores the selection', () => {
     const plan = buildInitPlan(initAnswers({ region: 'ny', storageTier: 'edge' }))
     expect(plan.storage?.ssd).toBe(true)
     expect(plan.storage?.region).toBe('DE')
@@ -166,7 +166,7 @@ describe('buildInitPlan', () => {
     )
   })
 
-  it('flags an edge deploy only for HTTP + client uploads + deploy-now', () => {
+  it('plans an Edge Script deploy only for HTTP with client uploads and deploy now', () => {
     expect(
       buildInitPlan(initAnswers({ clientUploads: true, deployEdge: true, storageAccess: 'http' })).storage?.deployEdge,
     ).toBe(true)

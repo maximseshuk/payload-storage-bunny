@@ -16,7 +16,7 @@ const collection: CollectionConfig = {
   hooks: { afterRead: [getAfterReadHook()] },
 }
 
-describe('bunnyData afterRead — non-video doc in a stream-enabled collection', () => {
+describe('bunnyData afterRead for a non-video doc in a stream collection', () => {
   let payload: Payload
 
   beforeAll(async () => {
@@ -27,7 +27,7 @@ describe('bunnyData afterRead — non-video doc in a stream-enabled collection',
     await payload?.destroy?.()
   })
 
-  it('create, read, list and delete of a doc without a videoId do not throw', async () => {
+  it('handles create, read, list and delete of a doc without a videoId', async () => {
     const created = await payload.create({ collection: SLUG, overrideAccess: true, data: { title: 'no video' } })
     expect(created.bunnyData).toBeUndefined()
 

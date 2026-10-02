@@ -86,7 +86,7 @@ describe('streamStaticHandler', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('proxies the saved-resolution MP4 and injects a video/mp4 content-type', async () => {
+  it('proxies the MP4 of the saved resolution and sets a video/mp4 content type', async () => {
     headThenGet()
 
     const req = makeReq()
@@ -204,7 +204,7 @@ describe('streamStaticHandler', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('gracefully falls back to 404 when the HEAD check and the Stream API both throw', async () => {
+  it('falls back to 404 when the HEAD check and the Stream API both throw', async () => {
     fetchMock.mockRejectedValue(new Error('network down'))
     getStreamVideoResolutionsMock.mockRejectedValue(new Error('api down'))
 

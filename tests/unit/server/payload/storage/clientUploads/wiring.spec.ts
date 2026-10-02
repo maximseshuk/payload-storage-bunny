@@ -54,7 +54,7 @@ describe('client uploads plugin wiring', () => {
     ).toBeDefined()
   })
 
-  it('lets Payload PUT storage uploads and keeps the client handler as an admin dependency', () => {
+  it('lets Payload send storage uploads with PUT and keeps the client handler as an admin dependency', () => {
     const result = buildResult()
     const handlerPath = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
     const providers = result.admin?.components?.providers ?? []
@@ -75,7 +75,7 @@ describe('client uploads plugin wiring', () => {
     )
   })
 
-  it('mints a signed edge URL through the registered upload instructions', async () => {
+  it('creates a signed Edge URL through the registered upload instructions', async () => {
     const result = buildResult()
 
     const req = {

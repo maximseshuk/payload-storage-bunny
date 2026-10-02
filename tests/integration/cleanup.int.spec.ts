@@ -8,7 +8,7 @@ import { streamUploadSessionsCollectionSlug } from '@/server/payload/stream/sess
 import { getPayload } from '../helpers/int/getPayload.js'
 import { hasBunnyCredentials } from '../helpers/shared/credentials.js'
 
-describe.skipIf(!hasBunnyCredentials())('Stream Cleanup Task', () => {
+describe.skipIf(!hasBunnyCredentials())('Stream cleanup task', () => {
   let payload: Payload
   let libraryId: number
   let apiKey: string

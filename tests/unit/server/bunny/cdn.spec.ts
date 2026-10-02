@@ -14,7 +14,7 @@ beforeEach(() => {
 })
 
 describe('purgeCache', () => {
-  it('POSTs to the purge endpoint with AccessKey, searchParams and default timeout', async () => {
+  it('sends a POST to the purge endpoint with AccessKey, searchParams and the default timeout', async () => {
     postMock.mockResolvedValue(undefined)
 
     await purgeCache({ apiKey: 'key-123', url: 'https://cdn.example.com/x.jpg' })

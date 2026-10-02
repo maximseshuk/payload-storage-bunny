@@ -33,7 +33,7 @@ beforeEach(() => {
 })
 
 describe('getStreamVideo', () => {
-  it('GETs the video URL with headers/timeout and returns parsed JSON', async () => {
+  it('sends a GET to the video URL with headers and timeout and returns the parsed JSON', async () => {
     const video = { guid: 'vid-1', title: 'hello' }
     getMock.mockResolvedValue(jsonResponse(video))
 
@@ -61,14 +61,14 @@ describe('getStreamVideo', () => {
     await expect(getStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Bunny Stream: Server error')
   })
 
-  it('falls back to generic message for other HTTPError statuses', async () => {
+  it('falls back to the generic message for other HTTPError statuses', async () => {
     getMock.mockRejectedValue(httpError(400))
     await expect(getStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Unable to get video: vid-1')
   })
 })
 
 describe('createStreamVideo', () => {
-  it('POSTs a trimmed title and numeric thumbnailTime with JSON headers', async () => {
+  it('sends a POST with a trimmed title, a numeric thumbnailTime and JSON headers', async () => {
     const created = { guid: 'new-vid' }
     postMock.mockReturnValue(jsonResponse(created))
 
@@ -82,7 +82,7 @@ describe('createStreamVideo', () => {
     })
   })
 
-  it('defaults thumbnailTime to null when not a number', async () => {
+  it('defaults thumbnailTime to null when it is not a number', async () => {
     postMock.mockReturnValue(jsonResponse({ guid: 'x' }))
 
     await createStreamVideo({ ...creds, title: 'Clip' })
@@ -105,19 +105,19 @@ describe('createStreamVideo', () => {
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Bunny Stream: Server error')
   })
 
-  it('falls back to generic message for other HTTPError statuses', async () => {
+  it('falls back to the generic message for other HTTPError statuses', async () => {
     postMock.mockRejectedValue(httpError(404))
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Unable to create video: Clip')
   })
 
-  it('falls back to generic message for an unreadable response body', async () => {
+  it('falls back to the generic message for an unreadable response body', async () => {
     postMock.mockReturnValue({ json: () => Promise.reject(new Error('boom')) })
     await expect(createStreamVideo({ ...creds, title: 'Clip' })).rejects.toThrow('Unable to create video: Clip')
   })
 })
 
 describe('deleteStreamVideo', () => {
-  it('DELETEs the video URL, tolerating 404 via throwHttpErrors', async () => {
+  it('sends a DELETE to the video URL and accepts a 404 through throwHttpErrors', async () => {
     deleteMock.mockResolvedValue(undefined)
 
     await deleteStreamVideo({ ...creds, videoId: 'vid-1' })
@@ -143,14 +143,14 @@ describe('deleteStreamVideo', () => {
     await expect(deleteStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Bunny Stream: Server error')
   })
 
-  it('falls back to generic message for other HTTPError statuses', async () => {
+  it('falls back to the generic message for other HTTPError statuses', async () => {
     deleteMock.mockRejectedValue(httpError(400))
     await expect(deleteStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Unable to delete video: vid-1')
   })
 })
 
 describe('uploadStreamVideo', () => {
-  it('PUTs the buffer with the default stream-upload timeout', async () => {
+  it('sends a PUT with the buffer and the default Stream upload timeout', async () => {
     putMock.mockResolvedValue(undefined)
     const buffer = Buffer.from('video-bytes')
 
@@ -199,7 +199,7 @@ describe('uploadStreamVideo', () => {
     )
   })
 
-  it('falls back to generic message for other HTTPError statuses', async () => {
+  it('falls back to the generic message for other HTTPError statuses', async () => {
     putMock.mockRejectedValue(httpError(403))
     await expect(uploadStreamVideo({ ...creds, buffer: Buffer.from('x'), videoId: 'vid-1' })).rejects.toThrow(
       'Unable to upload video: vid-1',
@@ -208,7 +208,7 @@ describe('uploadStreamVideo', () => {
 })
 
 describe('listStreamVideos', () => {
-  it('GETs with default page and itemsPerPage searchParams', async () => {
+  it('sends a GET with the default page and itemsPerPage searchParams', async () => {
     const list = { currentPage: 1, items: [], itemsPerPage: 100, totalItems: 0 }
     getMock.mockResolvedValue(jsonResponse(list))
 
@@ -240,14 +240,14 @@ describe('listStreamVideos', () => {
     await expect(listStreamVideos({ ...creds })).rejects.toThrow('Bunny Stream: Server error')
   })
 
-  it('falls back to generic message for other HTTPError statuses', async () => {
+  it('falls back to the generic message for other HTTPError statuses', async () => {
     getMock.mockRejectedValue(httpError(404))
     await expect(listStreamVideos({ ...creds })).rejects.toThrow('Unable to list videos')
   })
 })
 
 describe('getStreamVideoResolutions', () => {
-  it('GETs the resolutions URL and returns parsed JSON', async () => {
+  it('sends a GET to the resolutions URL and returns the parsed JSON', async () => {
     const payload = { data: { mp4Resolutions: [] }, message: null, statusCode: 200, success: true }
     getMock.mockResolvedValue(jsonResponse(payload))
 
@@ -281,7 +281,7 @@ describe('getStreamVideoResolutions', () => {
     )
   })
 
-  it('falls back to generic message for other HTTPError statuses', async () => {
+  it('falls back to the generic message for other HTTPError statuses', async () => {
     getMock.mockRejectedValue(httpError(400))
     await expect(getStreamVideoResolutions({ ...creds, videoId: 'vid-1' })).rejects.toThrow(
       'Unable to get video resolutions: vid-1',

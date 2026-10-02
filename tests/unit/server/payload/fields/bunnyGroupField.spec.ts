@@ -86,7 +86,7 @@ describe('bunnyGroupField', () => {
   })
 
   describe('field afterRead hooks', () => {
-    it("type virtual resolves to 'stream' or null", () => {
+    it("resolves the virtual type field to 'stream' or null", () => {
       const field = bunnyGroupField(context({ libraryId: 12345 } as never)) as any
       const hook = findField(field, 'type').hooks.afterRead[0]
 
@@ -95,7 +95,7 @@ describe('bunnyGroupField', () => {
       expect(hook({ siblingData: undefined })).toBeNull()
     })
 
-    it('libraryId virtual resolves to the configured library when a videoId exists', () => {
+    it('resolves the virtual libraryId field to the configured library when a videoId exists', () => {
       const field = bunnyGroupField(context({ libraryId: 999 } as never)) as any
       const streamGroup = findField(field, 'stream')
       const hook = findField(streamGroup, 'libraryId').hooks.afterRead[0]
@@ -104,7 +104,7 @@ describe('bunnyGroupField', () => {
       expect(hook({ siblingData: {} })).toBeNull()
     })
 
-    it('libraryId virtual resolves to null when streamConfig is absent', () => {
+    it('resolves the virtual libraryId field to null without a streamConfig', () => {
       const field = bunnyGroupField(context(undefined)) as any
       const streamGroup = findField(field, 'stream')
       const hook = findField(streamGroup, 'libraryId').hooks.afterRead[0]

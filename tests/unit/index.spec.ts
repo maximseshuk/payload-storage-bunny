@@ -91,7 +91,7 @@ describe('client upload handler registration', () => {
     expect(provider?.clientProps.collectionSlug).toBe('media')
   })
 
-  it('leaves Storage + Stream collections without client uploads on server uploads', () => {
+  it('leaves Storage and Stream collections without client uploads on server uploads', () => {
     expect(getHandlerProviders(true)).toEqual([])
   })
 
@@ -141,7 +141,7 @@ describe('schema when the plugin is disabled', () => {
     )
   }
 
-  it('still inserts the prefix and object key fields', () => {
+  it('inserts the prefix and object key fields', () => {
     const fields = fieldNames(false)
 
     expect(fields).toEqual(expect.arrayContaining(['prefix', '_objectKey', 'url', 'sizes']))

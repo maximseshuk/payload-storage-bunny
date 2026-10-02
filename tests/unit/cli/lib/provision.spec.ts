@@ -189,7 +189,7 @@ const answers = (overrides = {}) => ({
 describe('provisionInit — create path', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('creates storage + pull + library with the documented request bodies (S3 + signed)', async () => {
+  it('creates the storage zone, pull zone and library with the documented request bodies (S3, signed)', async () => {
     const calls = installFetch({ pullZones: {} })
     const plan = buildInitPlan(answers({ signedUrls: true, storageAccess: 's3' }))
 
@@ -250,7 +250,7 @@ describe('provisionInit — create path', () => {
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
   })
 
-  it('sends ZoneTier 1 and forces Region DE for the Edge (SSD) tier, ignoring the selected region', async () => {
+  it('sends ZoneTier 1 and forces Region DE for the Edge (SSD) tier and ignores the selected region', async () => {
     const calls = installFetch({ pullZones: {} })
     const plan = buildInitPlan(answers({ region: 'uk', service: 'storage', storageTier: 'edge' }))
 
@@ -273,7 +273,7 @@ describe('provisionInit — create path', () => {
     expect(libPost?.body).not.toHaveProperty('Region')
   })
 
-  it('deploys the Edge Script for an HTTP zone with client uploads and returns its url + secret', async () => {
+  it('deploys the Edge Script for an HTTP zone with client uploads and returns its URL and secret', async () => {
     const calls = installFetch({ pullZones: {} })
     const plan = buildInitPlan(
       answers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' }),
@@ -361,7 +361,7 @@ describe('provisionInit — edge reuse path', () => {
 describe('provisionInit — reuse path', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('reuses existing resources and issues no create POST', async () => {
+  it('reuses existing resources and sends no create POST', async () => {
     const calls = installFetch({
       libraries: [{ ApiKey: 'existing-lib', Id: 555, Name: 'my-app-stream', PullZoneId: 777 }],
       pullZones: {
@@ -427,7 +427,7 @@ describe('provisionInit — conflicts and failures', () => {
     await expect(runProvision(buildInitPlan(answers({ service: 'storage' })))).rejects.toThrow(/already taken/)
   })
 
-  it('propagates a mid-run error and preserves the created-so-far ledger', async () => {
+  it('rethrows a mid-run error and keeps the list of created resources', async () => {
     installFetch({ pullZones: {}, rejectPathname: '/pullzone' })
     const ledger = createLedger()
 
@@ -438,7 +438,7 @@ describe('provisionInit — conflicts and failures', () => {
 })
 
 describe('resolveAvailableName', () => {
-  it('returns the first name when it is available, without re-prompting', async () => {
+  it('returns the first name when it is available without asking again', async () => {
     const reprompt = vi.fn()
     const result = await resolveAvailableName(
       'media',
@@ -454,7 +454,7 @@ describe('resolveAvailableName', () => {
     expect(result).toEqual({ name: 'media', reuse: true })
   })
 
-  it('re-prompts with the detail until a usable name is given', async () => {
+  it('asks again with the reason until a usable name is given', async () => {
     const checks: NameCheck[] = [{ detail: 'taken globally', status: 'taken' }, { status: 'available' }]
     const check = vi.fn(async () => checks.shift() as NameCheck)
     const reprompt = vi.fn(async () => 'my-app')

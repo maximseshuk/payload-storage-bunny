@@ -291,7 +291,7 @@ describe('Stream webhook endpoint', () => {
       expect((await res.json()).success).toBe(true)
     })
 
-    it('rejects a body signed with another library’s secret (HMAC mismatch)', async () => {
+    it('rejects a body signed with the secret of another library', async () => {
       const handler = getWebhookHandler(buildMultiConfig())
 
       const res = await handler(
@@ -315,7 +315,7 @@ describe('Stream webhook endpoint', () => {
       expect(res.status).toBe(403)
     })
 
-    it('searches only collections on the incoming library', async () => {
+    it('searches only collections of the incoming library', async () => {
       const find = vi.fn().mockResolvedValue({ docs: [] })
       const handler = getWebhookHandler(buildMultiConfig())
       await handler(buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 }, { find, secret: 'alpha-hook' }))

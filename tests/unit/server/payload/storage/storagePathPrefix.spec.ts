@@ -33,7 +33,7 @@ const upload = { imageSizes: [{ name: 'thumb', width: 4 }] }
 const uploadedPaths = (): string[] => uploadStorageFileMock.mock.calls.map(([args]) => args.path).toSorted()
 const deletedPaths = (): string[] => deleteStorageFileMock.mock.calls.map(([args]) => args.path).toSorted()
 
-describe('storage object keys for a document created with prefix: "" in a prefixed collection', () => {
+describe('storage keys for a document with an empty prefix in a prefixed collection', () => {
   let payload: Payload
   let image: Buffer
 

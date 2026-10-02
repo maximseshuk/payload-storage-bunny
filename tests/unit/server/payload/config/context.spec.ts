@@ -57,7 +57,7 @@ describe('createCollectionContext', () => {
   })
 
   describe('full per-collection override contexts', () => {
-    it('exposes own storage/stream configs while a sibling keeps global', () => {
+    it('exposes its own storage and stream configs while a sibling keeps the global ones', () => {
       const config: BunnyStorageConfig = {
         collections: {
           own: {
@@ -83,7 +83,7 @@ describe('createCollectionContext', () => {
   })
 
   describe('prefix and access control', () => {
-    it('uses collection prefix or prefixOverride', () => {
+    it('uses the collection prefix or prefixOverride', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { prefix: 'config-prefix' } },
         storage: createBaseStorage(),
@@ -115,7 +115,7 @@ describe('createCollectionContext', () => {
   })
 
   describe('TUS upload support', () => {
-    it('disables TUS when config or upload missing', () => {
+    it('disables TUS when the config or upload is missing', () => {
       const config1: BunnyStorageConfig = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: createBaseStream(),
@@ -151,7 +151,7 @@ describe('createCollectionContext', () => {
       expect(ctx.streamConfig?.mimeTypes).not.toContain('audio/mpeg')
     })
 
-    it('disables TUS when no MIME type intersection', () => {
+    it('disables TUS when the MIME types do not intersect', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: { ...createBaseStream(), mimeTypes: ['video/mp4'], tus: true },
@@ -165,7 +165,7 @@ describe('createCollectionContext', () => {
       expect(ctx.isTusUploadSupported).toBe(false)
     })
 
-    it('keeps original mimeTypes and enables TUS when collection has no restriction', () => {
+    it('keeps the original mimeTypes and enables TUS when the collection has no restriction', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: { ...createBaseStream(), mimeTypes: ['video/mp4', 'video/webm'], tus: true },

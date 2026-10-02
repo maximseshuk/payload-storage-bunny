@@ -75,7 +75,7 @@ beforeEach(() => {
 })
 
 describe('getStaticHandler dispatch', () => {
-  it('answers a client-direct Stream upload with the complete boxes of the head the browser sent, untyped', async () => {
+  it('serves the complete boxes of the head the browser sent for a client-direct Stream upload, without a type', async () => {
     const handler = getStaticHandler(context())
     const ftyp = Buffer.from('00000010667479706973736f00000200', 'hex')
     const truncatedMoov = Buffer.from(`000010006d6f6f76${'00'.repeat(32)}`, 'hex')
@@ -129,7 +129,7 @@ describe('getStaticHandler dispatch', () => {
     )
   })
 
-  it('serves stream directly when the doc already carries matching bunnyData', async () => {
+  it('serves the stream directly when the doc already has matching bunnyData', async () => {
     getBunnyDataMock.mockReturnValue({ stream: { videoId: 'vid1' } })
     const req = makeReq()
     const handler = getStaticHandler(context())
@@ -141,7 +141,7 @@ describe('getStaticHandler dispatch', () => {
     expect(streamHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ docId: 'doc1' }))
   })
 
-  it('looks the video up by filename when the doc lacks bunnyData', async () => {
+  it('looks up the video by filename when the doc has no bunnyData', async () => {
     getBunnyDataMock.mockReturnValueOnce(null).mockReturnValueOnce({ stream: { videoId: 'vid2' } })
     const req = makeReq({ docs: [{ filename: 'video.mp4', id: 'found1' }] })
     const handler = getStaticHandler(context())
@@ -153,7 +153,7 @@ describe('getStaticHandler dispatch', () => {
     expect(streamHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ docId: 'found1' }))
   })
 
-  it('falls through to storage when no stream video is found', async () => {
+  it('falls back to storage when no stream video is found', async () => {
     const handler = getStaticHandler(context())
     const res = await handler(makeReq(), { doc: undefined, params: { filename: 'photo.jpg' } })
 
@@ -248,7 +248,7 @@ describe('getStaticHandler storage prefix resolution', () => {
     expect(req.payload.find).not.toHaveBeenCalled()
   })
 
-  it('refuses a read-back with an unsigned upload reference', async () => {
+  it('rejects a read-back with an unsigned upload reference', async () => {
     const req = makeReq()
     const handler = getStaticHandler(context({ streamConfig: undefined }))
 
@@ -271,7 +271,7 @@ describe('getStaticHandler storage prefix resolution', () => {
     expect(req.payload.find).not.toHaveBeenCalled()
   })
 
-  it('hands the collection prefix to the storage handler for an empty doc.prefix', async () => {
+  it('passes the collection prefix to the storage handler for an empty doc.prefix', async () => {
     const req = makeReq()
     const handler = getStaticHandler(context({ prefix: 'media', streamConfig: undefined }))
 

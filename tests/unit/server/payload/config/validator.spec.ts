@@ -17,9 +17,9 @@ const normalizeAndValidate = (config: BunnyStorageConfig) => {
   return normalized
 }
 
-describe('Config Validator', () => {
+describe('config validator', () => {
   describe('service requirements', () => {
-    it('throws if neither storage nor stream configured', () => {
+    it('throws when neither storage nor stream is configured', () => {
       const config = {
         collections: { media: true },
       } as unknown as BunnyStorageConfig
@@ -27,7 +27,7 @@ describe('Config Validator', () => {
       expect(() => normalizeAndValidate(config)).toThrow('collections [media] must have at least one service enabled')
     })
 
-    it('throws if collection has no service (storage=false, stream=false)', () => {
+    it('throws when a collection has no service (storage: false, stream: false)', () => {
       const config: BunnyStorageConfig = {
         collections: {
           media: {
@@ -83,7 +83,7 @@ describe('Config Validator', () => {
   })
 
   describe('purge validation', () => {
-    it('throws if purge enabled without accountApiKey', () => {
+    it('throws when purge is enabled without accountApiKey', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
         purge: true,
@@ -93,7 +93,7 @@ describe('Config Validator', () => {
       expect(() => normalizeAndValidate(config)).toThrow('`purge` requires global `accountApiKey` to be provided')
     })
 
-    it.each([true, { async: true }])('throws if collection-level purge %o is set without accountApiKey', (purge) => {
+    it.each([true, { async: true }])('throws when collection purge %o is set without accountApiKey', (purge) => {
       const config: BunnyStorageConfig = {
         collections: { media: { purge } },
         storage: createBaseStorage(),
@@ -106,7 +106,7 @@ describe('Config Validator', () => {
   })
 
   describe('storage hostname validation', () => {
-    it('throws if storage hostname includes storage.bunnycdn.com', () => {
+    it('throws when the storage hostname includes storage.bunnycdn.com', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
         storage: {
@@ -120,7 +120,7 @@ describe('Config Validator', () => {
   })
 
   describe('storage S3 validation', () => {
-    it('throws if s3 is enabled without a region', () => {
+    it('throws when s3 is enabled without a region', () => {
       const config = {
         collections: { media: true },
         storage: {
@@ -134,7 +134,7 @@ describe('Config Validator', () => {
   })
 
   describe('signed URLs validation', () => {
-    it('throws if signedUrls enabled without storage.tokenSecurityKey', () => {
+    it('throws when signedUrls is enabled without storage.tokenSecurityKey', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
         signedUrls: true,
@@ -150,7 +150,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('throws if signedUrls + stream without stream.tokenSecurityKey', () => {
+    it('throws when signedUrls and stream are set without stream.tokenSecurityKey', () => {
       const config: BunnyStorageConfig = {
         collections: {
           media: {
@@ -171,7 +171,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('throws if collection-level signedUrls is enabled without storage.tokenSecurityKey', () => {
+    it('throws when collection signedUrls is enabled without storage.tokenSecurityKey', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { signedUrls: true } },
         storage: createBaseStorage({ tokenSecurityKey: undefined }),
@@ -182,7 +182,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('throws if collection-level signedUrls is enabled without stream.tokenSecurityKey', () => {
+    it('throws when collection signedUrls is enabled without stream.tokenSecurityKey', () => {
       const config: BunnyStorageConfig = {
         collections: {
           media: {
@@ -205,8 +205,8 @@ describe('Config Validator', () => {
     })
   })
 
-  describe('access control + stream validation', () => {
-    it('throws if access control + stream without mp4Fallback or signed redirect', () => {
+  describe('access control and stream validation', () => {
+    it('throws when access control and stream are set without mp4Fallback or a signed redirect', () => {
       const config = {
         collections: {
           videos: {
@@ -245,7 +245,7 @@ describe('Config Validator', () => {
   })
 
   describe('per-collection full override validation', () => {
-    it('errors when a full storage override is missing zoneName', () => {
+    it('throws when a full storage override is missing zoneName', () => {
       const config = {
         collections: { media: { storage: { apiKey: 'k', hostname: 'media.b-cdn.net' } } },
       } as unknown as BunnyStorageConfig
@@ -255,7 +255,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('errors when a full stream override is missing hostname and libraryId', () => {
+    it('throws when a full stream override is missing hostname and libraryId', () => {
       const config = {
         collections: { media: { disablePayloadAccessControl: true, stream: { apiKey: 'k' } } },
       } as unknown as BunnyStorageConfig
@@ -268,7 +268,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('errors when an own zone lacks tokenSecurityKey under global-inherited signedUrls', () => {
+    it('throws when an own zone has no tokenSecurityKey but inherits global signedUrls', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { storage: createOwnStorage('media') } },
         signedUrls: true,
@@ -280,7 +280,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('errors when an own zone hostname includes storage.bunnycdn.com', () => {
+    it('throws when an own zone hostname includes storage.bunnycdn.com', () => {
       const config = {
         collections: { media: { storage: createOwnStorage('media', { hostname: 'x.storage.bunnycdn.com' }) } },
       } as unknown as BunnyStorageConfig
@@ -290,7 +290,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('errors when an own zone enables s3 without a region', () => {
+    it('throws when an own zone enables s3 without a region', () => {
       const config = {
         collections: { media: { storage: createOwnStorage('media', { s3: { region: '' } }) } },
       } as unknown as BunnyStorageConfig
@@ -300,7 +300,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('fires the edge-transport error for an own zone with clientUploads but no s3 or edge', () => {
+    it('throws the edge transport error for an own zone with clientUploads but no s3 or edge', () => {
       const config = {
         collections: { media: { storage: createOwnStorage('media', { clientUploads: true }) } },
       } as unknown as BunnyStorageConfig
@@ -310,7 +310,7 @@ describe('Config Validator', () => {
   })
 
   describe('cross-collection conflicts', () => {
-    it('errors when the same library is configured with different apiKeys', () => {
+    it('throws when the same library is configured with different apiKeys', () => {
       const config = {
         collections: {
           a: { disablePayloadAccessControl: true, stream: { apiKey: 'key-a', hostname: 'a.b-cdn.net', libraryId: 55 } },
@@ -323,7 +323,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('errors when the same library is configured with different webhook secrets', () => {
+    it('throws when the same library is configured with different webhook secrets', () => {
       const config = {
         collections: {
           a: {
@@ -342,7 +342,7 @@ describe('Config Validator', () => {
       )
     })
 
-    it('errors when a webhook secret is an empty string', () => {
+    it('throws when a webhook secret is an empty string', () => {
       const config = {
         collections: {
           a: {
@@ -357,7 +357,7 @@ describe('Config Validator', () => {
   })
 
   describe('relaxed top-level requirements', () => {
-    it('errors when a collection has only a partial override and no global service', () => {
+    it('throws when a collection has only a partial override and no global service', () => {
       const config = {
         collections: { media: { storage: { uploadTimeout: 5 } } },
       } as unknown as BunnyStorageConfig

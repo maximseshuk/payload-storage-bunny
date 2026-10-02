@@ -10,7 +10,7 @@ import { hasBunnyCredentials, hasSignedBunnyCredentials } from '../helpers/share
 const globalStorageHost = process.env.BUNNY_STORAGE_HOSTNAME || ''
 const signedStorageHost = process.env.BUNNY_SIGNED_STORAGE_HOSTNAME || ''
 
-describe.skipIf(!(hasBunnyCredentials() && hasSignedBunnyCredentials()))('Multi-zone', () => {
+describe.skipIf(!(hasBunnyCredentials() && hasSignedBunnyCredentials()))('multi-zone', () => {
   let payload: Payload
 
   beforeAll(async () => {
@@ -51,7 +51,7 @@ describe.skipIf(!(hasBunnyCredentials() && hasSignedBunnyCredentials()))('Multi-
     expect(signed.status).toBe(200)
   })
 
-  it('mints tus-auth against each collection stream library', async () => {
+  it('signs TUS uploads for the Stream library of each collection', async () => {
     const endpoint = payload.config.endpoints?.find((e) => e.path === '/storage-bunny/stream/tus-auth')
     if (!endpoint) {
       throw new Error('tus-auth endpoint not found')

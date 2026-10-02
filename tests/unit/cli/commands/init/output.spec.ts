@@ -30,7 +30,7 @@ const result = (overrides: Partial<ProvisionResult> = {}): ProvisionResult => ({
 const names = (entries: { name: string }[]) => entries.map((entry) => entry.name)
 
 describe('buildEnvEntries', () => {
-  it('emits the documented storage + stream names for the basic case', () => {
+  it('returns the documented storage and stream names for a basic setup', () => {
     expect(names(buildEnvEntries(initAnswers(), result()))).toEqual([
       'BUNNY_STORAGE_API_KEY',
       'BUNNY_STORAGE_HOSTNAME',
@@ -49,7 +49,7 @@ describe('buildEnvEntries', () => {
     expect(account?.value).toBe('the-account-key')
   })
 
-  it('emits only stream names for a stream-only setup', () => {
+  it('returns only stream names for a stream-only setup', () => {
     expect(names(buildEnvEntries(initAnswers({ service: 'stream' }), result()))).toEqual([
       'BUNNY_STREAM_API_KEY',
       'BUNNY_STREAM_LIBRARY_ID',
@@ -59,7 +59,7 @@ describe('buildEnvEntries', () => {
 })
 
 describe('buildInitOutput config block', () => {
-  it('renders an S3 + signed + client-uploads block with disablePayloadAccessControl', () => {
+  it('renders an S3 block with signed URLs, client uploads and disablePayloadAccessControl', () => {
     const { configBlock } = buildInitOutput(
       initAnswers({ clientUploads: true, purge: true, signedUrls: true, storageAccess: 's3' }),
       result(),
@@ -80,7 +80,7 @@ describe('buildInitOutput config block', () => {
     expect(configBlock).not.toContain('clientUploads')
   })
 
-  it('renders an edge clientUploads block + BUNNY_EDGE_SECRET for an HTTP zone with a deployed script', () => {
+  it('renders an Edge clientUploads block and BUNNY_EDGE_SECRET for an HTTP zone with a deployed script', () => {
     const output = buildInitOutput(
       initAnswers({ clientUploads: true, deployEdge: true, storageAccess: 'http' }),
       result(),
@@ -92,7 +92,7 @@ describe('buildInitOutput config block', () => {
     expect(secret?.value).toBe('edge-secret')
   })
 
-  it('omits the storage region for HTTP + Frankfurt and includes it otherwise', () => {
+  it('omits the storage region for HTTP in Frankfurt and includes it otherwise', () => {
     expect(buildInitOutput(initAnswers({ region: 'de', storageAccess: 'http' }), result()).configBlock).not.toContain(
       'region:',
     )
@@ -117,7 +117,7 @@ describe('buildInitOutput config block', () => {
   })
 })
 
-describe('generated config passes the plugin validator', () => {
+describe('generated config validation', () => {
   const cases: Array<Partial<InitAnswers>> = [
     { service: 'storage' },
     { service: 'stream' },
@@ -125,7 +125,7 @@ describe('generated config passes the plugin validator', () => {
     { clientUploads: true, deployEdge: true, optimizer: true, purge: true, service: 'both', signedUrls: true },
   ]
 
-  it.each(cases)('validates for answers %o', (overrides) => {
+  it.each(cases)('passes the plugin validator for answers %o', (overrides) => {
     const config = buildConfigObject(initAnswers(overrides), result())
     expect(() => validateNormalizedConfig(createNormalizedConfig(config))).not.toThrow()
   })

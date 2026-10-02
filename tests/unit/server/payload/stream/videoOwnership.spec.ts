@@ -17,7 +17,7 @@ const FIRST_SLUG = 'ownership-first-videos'
 const SECOND_SLUG = 'ownership-second-videos'
 const OTHER_LIBRARY_SLUG = 'ownership-other-library-videos'
 
-describe('a Stream video belongs to one document', () => {
+describe('Stream video ownership', () => {
   let payload: Payload
 
   beforeAll(async () => {

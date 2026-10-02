@@ -10,7 +10,7 @@ import { hasBunnyCredentials } from '../helpers/shared/credentials.js'
 
 const WEBHOOK_SECRET = 'test-webhook-secret'
 
-describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
+describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
   let payload: Payload
 
   beforeAll(async () => {
@@ -44,7 +44,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
     } as any)
   }
 
-  it('should update bunnyData.stream.resolutions on webhook', async () => {
+  it('updates bunnyData.stream.resolutions from the webhook', async () => {
     const upload = await payload.create({
       collection: 'webhook-test',
       data: { alt: 'Webhook test video' },

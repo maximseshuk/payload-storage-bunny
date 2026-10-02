@@ -64,7 +64,7 @@ test.afterAll(async () => {
   await cleanupStreamVideos(['stream-bulk-'])
 })
 
-test.describe('Stream - bulk upload behind a request body limit', () => {
+test.describe('Stream bulk upload behind a request body limit', () => {
   test.setTimeout(5 * 60_000)
 
   test('uploads a video larger than the limit from the list view', async ({ page }) => {

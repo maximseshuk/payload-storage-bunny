@@ -52,7 +52,7 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.zoneNames).toEqual(['media'])
   })
 
-  it('enumerates a per-collection non-s3 zone even when the global zone is s3 (CLI gap fix)', () => {
+  it('lists a per-collection non-s3 zone even when the global zone is s3', () => {
     const config = createNormalizedConfig({
       collections: {
         archives: {
@@ -83,7 +83,7 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.sharedSecret).toBe('shared')
   })
 
-  it('collapses two non-s3 zones sharing a scriptUrl and secret into one group', () => {
+  it('merges two non-s3 zones that share a scriptUrl and secret into one group', () => {
     const config = createNormalizedConfig({
       collections: {
         archives: {
@@ -212,7 +212,7 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.zones.media.host).toBe('storage.bunnycdn.com')
   })
 
-  it('forms a single unassigned bootstrap group when none enables clientUploads', () => {
+  it('builds a single unassigned bootstrap group when no zone enables clientUploads', () => {
     const config = createNormalizedConfig({
       collections: { media: true },
       storage: {
@@ -232,7 +232,7 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.scriptUrl).toBeUndefined()
   })
 
-  it('errors when there are no non-s3 zones to serve', () => {
+  it('reports an error when there are no non-s3 zones', () => {
     const config = createNormalizedConfig({
       collections: { media: true },
       storage: {
@@ -265,7 +265,7 @@ describe('loadZonesFileGroup', () => {
     return file
   }
 
-  it('builds a group from inline accessKey + region', () => {
+  it('builds a group from an inline accessKey and region', () => {
     const file = writeZonesFile({
       archives: { accessKey: 'archives-key', region: 'ny' },
       media: { accessKey: 'media-key' },
@@ -278,7 +278,7 @@ describe('loadZonesFileGroup', () => {
     expect(group.zones.media).toEqual({ accessKey: 'media-key', host: 'storage.bunnycdn.com' })
   })
 
-  it('resolves accessKeyEnv indirection from process.env', () => {
+  it('reads the key named by accessKeyEnv from process.env', () => {
     process.env.PSB_ZONES_TEST_KEY = 'from-env'
     const file = writeZonesFile({ media: { accessKeyEnv: 'PSB_ZONES_TEST_KEY' } })
 
@@ -346,7 +346,7 @@ describe('deployEdgeScript secrets', () => {
     vi.restoreAllMocks()
   })
 
-  it('writes SHARED_SECRET + per-zone ZONE_* secrets', async () => {
+  it('writes SHARED_SECRET and a ZONE_* secret for each zone', async () => {
     const calls = mockSecrets([])
 
     const zones = { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } }
@@ -360,7 +360,7 @@ describe('deployEdgeScript secrets', () => {
     })
   })
 
-  it('reconcile-prunes ZONE_* secrets no longer in config, leaving shared/user secrets untouched', async () => {
+  it('removes ZONE_* secrets that are no longer in the config and keeps shared and user secrets', async () => {
     const calls = mockSecrets([
       { Id: 10, Name: 'ZONE_MEDIA' },
       { Id: 11, Name: 'ZONE_OLD' },

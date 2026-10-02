@@ -28,7 +28,7 @@ beforeEach(() => {
 })
 
 describe('reportTelemetry', () => {
-  it('sends once, prints the notice, and persists the throttle on a fresh run', async () => {
+  it('sends once, prints the notice and saves the throttle on a fresh run', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
     const writeState = vi.fn()
 
@@ -69,7 +69,7 @@ describe('reportTelemetry', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
-  it('does not send again the same UTC day (throttle)', async () => {
+  it('does not send again on the same UTC day', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
     const now = new Date('2026-07-30T10:00:00Z')
 

@@ -107,7 +107,7 @@ describe('TUS auth endpoint', () => {
     createVideoMock.mockResolvedValue({ guid: 'new-video-1', videoLibraryId: 12345 })
   })
 
-  it('creates a new video and returns a signed upload payload (happy path)', async () => {
+  it('creates a new video and returns a signed upload payload', async () => {
     vi.useFakeTimers()
     try {
       const handler = getTusHandler(buildConfig())
@@ -164,7 +164,7 @@ describe('TUS auth endpoint', () => {
     await expect(handler(buildReq({ ...validBody, filename: '   ', title: '' }))).rejects.toMatchObject({ status: 400 })
   })
 
-  it('short-circuits to type "uploaded" when the video is already processed', async () => {
+  it('returns type "uploaded" at once when the video is already processed', async () => {
     getVideoMock.mockResolvedValue({ status: 4, title: 'Existing Title' })
     isErrorMock.mockReturnValue(false)
     isProcessedMock.mockReturnValue(true)
@@ -410,7 +410,7 @@ describe('TUS auth endpoint', () => {
   describe('default access control (getAccessResults)', () => {
     const noCheckAccessConfig = () => buildConfig({ tus: true })
 
-    it('grants access when admin has create on a configured collection', async () => {
+    it('grants access with admin access and create access on a configured collection', async () => {
       getAccessResultsMock.mockResolvedValue({
         canAccessAdmin: true,
         collections: { media: { create: true } },
@@ -434,7 +434,7 @@ describe('TUS auth endpoint', () => {
       expect(createVideoMock).not.toHaveBeenCalled()
     })
 
-    describe('is scoped to the requested collection', () => {
+    describe('per-collection scope', () => {
       const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
       const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
 
@@ -535,7 +535,7 @@ describe('TUS auth endpoint', () => {
     const alphaBody = { collection: 'alpha', filename: 'a.mp4', filesize: 10, filetype: 'video/mp4', title: 'A' }
     const betaBody = { collection: 'beta', filename: 'b.mp4', filesize: 10, filetype: 'video/mp4', title: 'B' }
 
-    it('mints the signature and response for the requested collection library', async () => {
+    it('creates the signature and response for the library of the requested collection', async () => {
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
       const handler = getTusHandler(buildMultiConfig())
       const res = await handler(buildMultiReq(alphaBody))
@@ -572,7 +572,7 @@ describe('TUS auth endpoint', () => {
       expect(createSessionMock).not.toHaveBeenCalled()
     })
 
-    it('invokes only the requested collection checkAccess', async () => {
+    it('calls only the checkAccess of the requested collection', async () => {
       const alphaAccess = vi.fn().mockResolvedValue(true)
       const betaAccess = vi.fn().mockResolvedValue(true)
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })

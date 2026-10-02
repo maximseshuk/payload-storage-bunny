@@ -340,7 +340,7 @@ describe('client upload endpoint', () => {
     )
   })
 
-  it('mints a signed Edge Script URL in edge mode', async () => {
+  it('creates a signed Edge Script URL in edge mode', async () => {
     const config = createNormalizedConfig({
       collections: { media: true },
       storage: {
@@ -379,7 +379,7 @@ describe('client upload endpoint', () => {
     await expect(generate(config, photo)).rejects.toMatchObject({ status: 413 })
   })
 
-  it('refuses instructions for a collection without client uploads', async () => {
+  it('rejects instructions for a collection without client uploads', async () => {
     const config = createNormalizedConfig({
       collections: { media: true },
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
@@ -395,7 +395,7 @@ describe('client upload endpoint', () => {
     ).rejects.toMatchObject({ status: 403 })
   })
 
-  it('dispatches Stream videos to the TUS handler without minting a storage URL', async () => {
+  it('sends Stream videos to the TUS handler without creating a storage URL', async () => {
     const config = createNormalizedConfig({
       collections: { media: true },
       storage: {
@@ -454,7 +454,7 @@ describe('client upload endpoint', () => {
     const generateFor = (slug: string) =>
       generate(config, { ...photo, collectionSlug: slug }, {}, { ...collection, slug })
 
-    it('presigns an S3 PUT against the override collection s3 zone, not the global one', async () => {
+    it('presigns an S3 PUT for the zone of the override collection, not the global zone', async () => {
       const { request } = await generateFor('ownS3')
 
       expect(request.method).toBe('PUT')
@@ -468,7 +468,7 @@ describe('client upload endpoint', () => {
       )
     })
 
-    it('mints edge URLs for the override zone and the global sibling, each with its own secret', async () => {
+    it('creates Edge URLs for the override zone and the global sibling, each with its own secret', async () => {
       const own = (await generateFor('ownEdge')).request.url
       const sibling = (await generateFor('sibling')).request.url
 

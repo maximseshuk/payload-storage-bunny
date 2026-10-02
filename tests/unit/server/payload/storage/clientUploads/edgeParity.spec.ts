@@ -44,8 +44,8 @@ const setup = (secret = base.secret) => {
   return { fetchMock, handler }
 }
 
-describe('edge script accepts what mint.ts signs', () => {
-  it('uploads a URL minted by mint.ts', async () => {
+describe('Edge Script parity with mint.ts', () => {
+  it('uploads with a URL signed by mint.ts', async () => {
     const { fetchMock, handler } = setup()
     const res = await put(handler, mintEdgeUploadUrl({ ...base, nonce: 'n' }))
 

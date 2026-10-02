@@ -6,7 +6,7 @@ import type { TelemetryReport } from '@/server/telemetry/types.js'
 const report = { product: 'payload-storage-bunny', schema: 1 } as unknown as TelemetryReport
 
 describe('postReport', () => {
-  it('POSTs the report JSON to the endpoint with an abort signal', async () => {
+  it('sends a POST with the report JSON to the endpoint with an abort signal', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
 
     await postReport(report, 'https://telemetry.example/v1/collect', { send })
@@ -18,7 +18,7 @@ describe('postReport', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal)
   })
 
-  it('never throws when the network / timeout fails', async () => {
+  it('never throws on a network error or timeout', async () => {
     const send = vi.fn().mockRejectedValue(new Error('network down'))
 
     await expect(postReport(report, 'https://telemetry.example/v1/collect', { send })).resolves.toBeUndefined()

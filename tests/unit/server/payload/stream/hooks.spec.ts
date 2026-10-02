@@ -82,7 +82,7 @@ describe('stream hooks', () => {
       )
     })
 
-    it('nulls out the videoId on a normal create with a file', async () => {
+    it('clears the videoId on a normal create with a file', async () => {
       const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
       const data: Record<string, unknown> = {}
 
@@ -162,7 +162,7 @@ describe('stream hooks', () => {
       expect(result.bunnyData.stream.videoId).toBe('v-123')
     })
 
-    it('processes a changed videoId on update and stashes the old doc', async () => {
+    it('processes a changed videoId on update and keeps the old doc', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-new', status: 4, storageSize: 100, title: 'New' })
       isProcessedMock.mockReturnValue(true)
       getSafeFileNameMock.mockResolvedValue('new.mp4')
@@ -298,7 +298,7 @@ describe('stream hooks', () => {
       await expect(hook({ data: {}, operation: 'create', req } as never)).rejects.toBeInstanceOf(ValidationError)
     })
 
-    it('only searches Stream collections of the same library', async () => {
+    it('searches only Stream collections of the same library', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
       const hook = getBeforeValidateHook({
         config: libraryConfig,
@@ -361,14 +361,14 @@ describe('stream hooks', () => {
       expect((req as any).payload.logger.debug).toHaveBeenCalled()
     })
 
-    it('is a no-op for a TUS upload without a valid old doc', async () => {
+    it('does nothing for a TUS upload without a valid old doc', async () => {
       const hook = getAfterChangeHook(buildContext({ isTusUploadSupported: true }))
       await hook({ data: {}, req: buildReq({ context: {} }) } as never)
 
       expect(handleDeleteMock).not.toHaveBeenCalled()
     })
 
-    it('logs and swallows errors thrown by the delete', async () => {
+    it('logs delete errors without throwing', async () => {
       handleDeleteMock.mockRejectedValueOnce(new Error('boom'))
       const req = buildReq({ context: { oldDoc: { filename: 'old.mp4', id: 'doc-1' } } })
       const hook = getAfterChangeHook(buildContext({ isTusUploadSupported: true }))
