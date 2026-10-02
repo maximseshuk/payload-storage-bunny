@@ -14,7 +14,7 @@ cli
   .option('--api-key <key>', 'Bunny account API key (else BUNNY_ACCOUNT_API_KEY env, else prompt).')
   .option('--dry-run', 'Show the plan without creating anything.')
   .action(async (options: { apiKey?: string; dryRun?: boolean }) => {
-    await runInit({ apiKey: options.apiKey, dryRun: Boolean(options.dryRun) })
+    await runInit({ apiKey: options.apiKey, dryRun: Boolean(options.dryRun), version: pkg.version })
   })
 
 cli.help()

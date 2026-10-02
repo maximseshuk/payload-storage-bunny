@@ -129,6 +129,14 @@ export const buildInitOutput = (answers: InitAnswers, result: ProvisionResult, a
   }
 }
 
+export const buildInstallLines = (pluginVersion: string, payloadVersion: string | undefined): string[] =>
+  payloadVersion
+    ? [`pnpm add @seshuk/payload-storage-bunny@${pluginVersion} @payloadcms/plugin-cloud-storage@${payloadVersion}`]
+    : [
+        `pnpm add @seshuk/payload-storage-bunny@${pluginVersion} @payloadcms/plugin-cloud-storage`,
+        'Pin @payloadcms/plugin-cloud-storage to the same version as your `payload` package.',
+      ]
+
 export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult): BunnyStorageConfig => {
   const config: BunnyStorageConfig = {
     collections: { [answers.collectionSlug]: { disablePayloadAccessControl: true } },
