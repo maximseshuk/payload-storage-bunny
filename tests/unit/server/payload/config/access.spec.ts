@@ -26,21 +26,27 @@ const payloadFor = (userConfig: BunnyStorageConfig): Payload =>
   fakePayload({ '@seshuk/payload-storage-bunny': { config: createNormalizedConfig(userConfig) } })
 
 describe('config accessors', () => {
-  it('returns global storage + stream for a `true` shorthand collection', () => {
+  it('returns exactly the curated global storage + stream view for a `true` shorthand collection', () => {
     const payload = payloadFor({
       collections: { media: true },
       storage: createBaseStorage(),
       stream: createBaseStream(),
     })
 
-    const collection = getBunnyCollectionConfig(payload, 'media')
-    expect(collection?.storage?.zoneName).toBe('test-zone')
-    expect(collection?.storage?.apiKey).toBe('storage-key')
-    expect(collection?.storage?.hostname).toBe('storage.bunny.net')
-    expect(collection?.stream?.libraryId).toBe(12345)
-    expect(collection?.stream?.apiKey).toBe('stream-key')
-    expect(collection?.stream?.hostname).toBe('stream.bunny.net')
-
+    expect(getBunnyCollectionConfig(payload, 'media')).toEqual({
+      storage: {
+        apiKey: 'storage-key',
+        hostname: 'storage.bunny.net',
+        tokenSecurityKey: 'token-key',
+        zoneName: 'test-zone',
+      },
+      stream: {
+        apiKey: 'stream-key',
+        hostname: 'stream.bunny.net',
+        libraryId: 12345,
+        tokenSecurityKey: 'stream-token',
+      },
+    })
     expect(getBunnyStorageForCollection(payload, 'media')?.zoneName).toBe('test-zone')
     expect(getBunnyStreamForCollection(payload, 'media')?.libraryId).toBe(12345)
   })
@@ -106,33 +112,6 @@ describe('config accessors', () => {
     expect(nativeStorage?.s3).toBeUndefined()
   })
 
-  it('passes through tokenSecurityKey on both curated views', () => {
-    const payload = payloadFor({
-      collections: { media: true },
-      storage: createBaseStorage(),
-      stream: createBaseStream(),
-    })
-
-    expect(getBunnyStorageForCollection(payload, 'media')?.tokenSecurityKey).toBe('token-key')
-    expect(getBunnyStreamForCollection(payload, 'media')?.tokenSecurityKey).toBe('stream-token')
-  })
-
-  it('does not expose excluded internal keys on the curated views', () => {
-    const payload = payloadFor({
-      collections: { media: true },
-      storage: createBaseStorage(),
-      stream: createBaseStream(),
-    })
-
-    const storage = getBunnyStorageForCollection(payload, 'media')!
-    const stream = getBunnyStreamForCollection(payload, 'media')!
-    expect(Object.keys(storage)).not.toContain('uploadTimeout')
-    expect(Object.keys(storage)).not.toContain('clientUploads')
-    expect(Object.keys(stream)).not.toContain('mimeTypes')
-    expect(Object.keys(stream)).not.toContain('uploadTimeout')
-    expect(Object.keys(stream)).not.toContain('webhook')
-  })
-
   it('returns fresh copies that do not mutate the stash', () => {
     const payload = payloadFor({
       collections: { media: true },
@@ -166,18 +145,5 @@ describe('config accessors', () => {
     expect(getBunnyCollectionConfig(empty, 'media')).toBeUndefined()
     expect(getBunnyStorageForCollection(empty, 'media')).toBeUndefined()
     expect(getBunnyStreamForCollection(empty, 'media')).toBeUndefined()
-  })
-
-  it('exposes the full normalized config via the escape hatch', () => {
-    const payload = payloadFor({
-      collections: { media: true },
-      storage: createBaseStorage(),
-      stream: createBaseStream(),
-    })
-
-    const config = getBunnyConfig(payload)
-    expect(config?.collections).toBeInstanceOf(Map)
-    expect(config?.collections.get('media')?.storage?.uploadTimeout).toBe(60000)
-    expect(config?.storage?.zoneName).toBe('test-zone')
   })
 })

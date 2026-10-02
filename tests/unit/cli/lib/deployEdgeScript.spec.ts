@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -12,11 +12,12 @@ import {
 } from '@/cli/lib/deployEdgeScript.js'
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
 
+import { type FetchCall, jsonResponse, spyFetch } from '../../../helpers/unit/fetchMock.js'
+import { useTmpDir } from '../../../helpers/unit/tmpDir.js'
+
 const edge = (secret: string, scriptUrl = 'https://uploader.b-cdn.net') => ({
   edge: { scriptUrl, secret },
 })
-
-const jsonResponse = (value: unknown) => new Response(JSON.stringify(value), { status: 200 })
 
 describe('storageHostFor', () => {
   it('uses the regional host when a region is set', () => {
@@ -252,18 +253,14 @@ describe('buildEdgeDeployPlan', () => {
 })
 
 describe('loadZonesFileGroup', () => {
-  let dir: string
+  const makeDir = useTmpDir('psb-zones-')
 
   afterEach(() => {
-    if (dir) {
-      rmSync(dir, { force: true, recursive: true })
-    }
     delete process.env.PSB_ZONES_TEST_KEY
   })
 
   const writeZonesFile = (value: unknown): string => {
-    dir = mkdtempSync(path.join(tmpdir(), 'psb-zones-'))
-    const file = path.join(dir, 'zones.json')
+    const file = path.join(makeDir(), 'zones.json')
     writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value))
     return file
   }
@@ -307,8 +304,6 @@ describe('loadZonesFileGroup', () => {
   })
 })
 
-type SecretCall = { body?: unknown; method: string; url: string }
-
 const nullLogger = { error: () => {}, info: () => {}, warn: () => {} }
 
 const baseDeploy = {
@@ -324,16 +319,8 @@ const baseDeploy = {
   skipHarden: true,
 }
 
-const mockSecrets = (existing: Array<{ Id: number; Name: string }>): SecretCall[] => {
-  const calls: SecretCall[] = []
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const request = input instanceof Request ? input : undefined
-    const url = request ? request.url : String(input)
-    const method = request ? request.method : (init?.method ?? 'GET')
-    const rawBody = request ? await request.text() : (init?.body as string | undefined)
-    const body = rawBody ? JSON.parse(rawBody) : undefined
-    calls.push({ body, method, url })
-
+const mockSecrets = (existing: Array<{ Id: number; Name: string }>): FetchCall[] =>
+  spyFetch(({ method, url }) => {
     if (url.includes('/compute/script?')) {
       return jsonResponse({
         Items: [{ Id: 7, LinkedPullZones: [{ DefaultHostname: 'uploader.b-cdn.net', Id: 3 }], Name: 'test-script' }],
@@ -344,17 +331,15 @@ const mockSecrets = (existing: Array<{ Id: number; Name: string }>): SecretCall[
     }
     return jsonResponse({})
   })
-  return calls
-}
 
-const postedSecrets = (calls: SecretCall[]): Map<string, string> =>
+const postedSecrets = (calls: FetchCall[]): Map<string, string> =>
   new Map(
     calls
       .filter((c) => c.url.includes('/secrets') && c.method === 'POST')
       .map((c) => [(c.body as { Name: string }).Name, (c.body as { Secret: string }).Secret]),
   )
 
-const deletedUrls = (calls: SecretCall[]): string[] => calls.filter((c) => c.method === 'DELETE').map((c) => c.url)
+const deletedUrls = (calls: FetchCall[]): string[] => calls.filter((c) => c.method === 'DELETE').map((c) => c.url)
 
 describe('deployEdgeScript secrets', () => {
   afterEach(() => {

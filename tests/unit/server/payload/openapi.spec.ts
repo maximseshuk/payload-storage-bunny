@@ -1,8 +1,16 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
 import { bunnyGroupField } from '@/server/payload/fields/bunnyGroupField.js'
-import { bunnyDataFieldOpenApi, streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
+import {
+  bunnyDataFieldOpenApi,
+  openApiDocument,
+  streamWebhookOperation,
+  tusAuthOperation,
+} from '@/server/payload/openapi.js'
 import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
@@ -32,9 +40,13 @@ describe('openapi metadata', () => {
     expect(field.custom?.openapi).toBe(bunnyDataFieldOpenApi)
   })
 
-  it('describes each operation with a summary and Bunny tags', () => {
-    expect(tusAuthOperation.summary).toBeDefined()
-    expect(tusAuthOperation.tags).toEqual(['Bunny Stream'])
-    expect(streamWebhookOperation.tags).toEqual(['Bunny Stream'])
+  it('matches the committed docs/v4/api-reference/openapi.json (run pnpm docs:openapi)', () => {
+    const root = resolve(import.meta.dirname, '../../../..')
+    const { version } = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as { version: string }
+    const committed = JSON.parse(readFileSync(resolve(root, 'docs/v4/api-reference/openapi.json'), 'utf8'))
+
+    expect(committed).toEqual(
+      JSON.parse(JSON.stringify({ ...openApiDocument, info: { ...openApiDocument.info, version } })),
+    )
   })
 })

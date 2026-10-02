@@ -15,32 +15,13 @@ vi.mock('@/shared/urlTransform.js', () => ({
   applyUrlTransform: applyUrlTransformMock,
 }))
 
+import { buildContext, storageConfig, streamConfig } from '../../../../helpers/unit/context.js'
+
 const { getGenerateUrl: rawGetGenerateUrl } = await import('@/server/payload/storage/generateUrl.js')
 
 const getGenerateUrl = rawGetGenerateUrl as unknown as (
   ctx: CollectionContext,
 ) => (args: { data: unknown; filename: string; prefix?: string }) => string
-
-const streamConfig = {
-  apiKey: 'stream-key',
-  hostname: 'stream.b-cdn.net',
-  libraryId: 12345,
-  tokenSecurityKey: 'stream-token',
-}
-
-const storageConfig = {
-  apiKey: 'storage-key',
-  hostname: 'storage.b-cdn.net',
-  region: 'de',
-  tokenSecurityKey: 'storage-token',
-  zoneName: 'my-zone',
-}
-
-const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionContext =>
-  ({
-    collection: { slug: 'media' },
-    ...overrides,
-  }) as unknown as CollectionContext
 
 const streamData = { bunnyData: { stream: { videoId: 'video-guid' } } }
 
@@ -53,7 +34,8 @@ beforeEach(() => {
 describe('getGenerateUrl', () => {
   describe('stream branch', () => {
     it('builds the playlist URL and signs it with a videoId token path', () => {
-      const generate = getGenerateUrl(buildContext({ streamConfig } as Partial<CollectionContext>))
+      const signedUrls = { expiresIn: 3600 }
+      const generate = getGenerateUrl(buildContext({ signedUrls, streamConfig } as Partial<CollectionContext>))
 
       const result = generate({ data: streamData, filename: 'clip.mp4' })
 
@@ -63,7 +45,7 @@ describe('getGenerateUrl', () => {
         {
           collection: { slug: 'media' },
           filename: 'clip.mp4',
-          signedUrls: undefined,
+          signedUrls,
           tokenSecurityKey: 'stream-token',
         },
         { tokenPath: '/video-guid/' },
@@ -89,15 +71,6 @@ describe('getGenerateUrl', () => {
         'transformed:https://stream.b-cdn.net/video-guid/playlist.m3u8',
       )
       expect(result).toBe('signed:transformed:https://stream.b-cdn.net/video-guid/playlist.m3u8')
-    })
-
-    it('passes signedUrls config through to the signer', () => {
-      const signedUrls = { expiresIn: 3600 }
-      const generate = getGenerateUrl(buildContext({ signedUrls, streamConfig } as Partial<CollectionContext>))
-
-      generate({ data: streamData, filename: 'clip.mp4' })
-
-      expect(maybeGenerateSignedUrlMock.mock.calls[0][1]).toMatchObject({ signedUrls })
     })
   })
 

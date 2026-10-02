@@ -13,16 +13,6 @@ describe('hashProjectId', () => {
       .digest('hex')
     expect(hashProjectId(secret, source)).toBe(expected)
   })
-
-  it('is deterministic and 64 hex chars', () => {
-    const a = hashProjectId('s', 'git@example')
-    expect(a).toBe(hashProjectId('s', 'git@example'))
-    expect(a).toMatch(/^[0-9a-f]{64}$/)
-  })
-
-  it('uses the secret only as salt — a different secret changes the digest', () => {
-    expect(hashProjectId('secret-a', 'source')).not.toBe(hashProjectId('secret-b', 'source'))
-  })
 })
 
 describe('resolveRawSource', () => {

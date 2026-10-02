@@ -10,7 +10,7 @@ import {
   resolveAvailableName,
 } from '@/cli/lib/provision.js'
 
-type Call = { body?: Record<string, unknown>; method: string; pathname: string }
+import { type FetchCall, jsonResponse, spyFetch } from '../../../helpers/unit/fetchMock.js'
 
 type PullZone = {
   Hostnames: Array<{ Value: string }>
@@ -33,23 +33,12 @@ type MockState = {
   storageZones?: Array<{ Id: number; Name: string; Password: string }>
 }
 
-const jsonResponse = (value: unknown) => new Response(JSON.stringify(value), { status: 200 })
-
 const nextPullZoneId = { value: 900 }
 
-const installFetch = (state: MockState): Call[] => {
-  const calls: Call[] = []
+const installFetch = (state: MockState): FetchCall[] => {
   nextPullZoneId.value = 900
 
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const request = input instanceof Request ? input : undefined
-    const url = new URL(request ? request.url : String(input))
-    const { pathname } = url
-    const method = request ? request.method : (init?.method ?? 'GET')
-    const rawBody = request ? await request.text() : (init?.body as string | undefined)
-    const body = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : undefined
-    calls.push({ body, method, pathname })
-
+  return spyFetch(({ body, method, pathname }) => {
     if (state.rejectPathname && pathname === state.rejectPathname && method === 'POST') {
       return new Response('boom', { status: 500 })
     }
@@ -150,8 +139,6 @@ const installFetch = (state: MockState): Call[] => {
 
     return jsonResponse({})
   })
-
-  return calls
 }
 
 const runProvision = async (

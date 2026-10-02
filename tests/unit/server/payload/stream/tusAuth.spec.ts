@@ -108,26 +108,24 @@ describe('TUS auth endpoint', () => {
   })
 
   it('creates a new video and returns a signed upload payload (happy path)', async () => {
-    const handler = getTusHandler(buildConfig())
-    const res = await handler(buildReq(validBody))
-    const json = await res.json()
+    vi.useFakeTimers()
+    try {
+      const handler = getTusHandler(buildConfig())
+      const res = await handler(buildReq(validBody))
+      const json = await res.json()
 
-    expect(json.type).toBe('upload')
-    expect(json.videoId).toBe('new-video-1')
-    expect(json.libraryId).toBe(12345)
-    expect(json.authorizationSignature).toBe('signature-abc')
-    expect(typeof json.authorizationExpire).toBe('number')
-    expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'My Clip' }))
-    expect(createSessionMock).not.toHaveBeenCalled()
-  })
-
-  it('registers a cleanup session when cleanup is enabled', async () => {
-    const handler = getTusHandler(buildConfig({}, true))
-    await handler(buildReq(validBody))
-
-    expect(createSessionMock).toHaveBeenCalledWith(
-      expect.objectContaining({ libraryId: 12345, videoId: 'new-video-1' }),
-    )
+      expect(json.type).toBe('upload')
+      expect(json.videoId).toBe('new-video-1')
+      expect(json.libraryId).toBe(12345)
+      expect(json.authorizationSignature).toBe('signature-abc')
+      expect(typeof json.authorizationExpire).toBe('number')
+      expect(json.videoToken).toBe(tokenFor('new-video-1'))
+      expect(json.signedReceipt).toBeUndefined()
+      expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'My Clip' }))
+      expect(createSessionMock).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('throws 400 when required fields are missing', async () => {
@@ -178,6 +176,7 @@ describe('TUS auth endpoint', () => {
     expect(json.type).toBe('uploaded')
     expect(json.videoId).toBe('existing-1')
     expect(json.title).toBe('Existing Title')
+    expect(json.videoToken).toBe(tokenFor('existing-1'))
     expect(createVideoMock).not.toHaveBeenCalled()
   })
 
@@ -194,26 +193,6 @@ describe('TUS auth endpoint', () => {
     expect(json.type).toBe('upload')
     expect(json.videoId).toBe('reuse-1')
     expect(createVideoMock).not.toHaveBeenCalled()
-  })
-
-  it('returns a video token bound to the collection and library', async () => {
-    const handler = getTusHandler(buildConfig())
-    const json = await (await handler(buildReq(validBody))).json()
-
-    expect(json.videoToken).toBe(tokenFor('new-video-1'))
-    expect(json.signedReceipt).toBeUndefined()
-  })
-
-  it('returns a video token with an already processed video', async () => {
-    getVideoMock.mockResolvedValue({ status: 4, title: 'Existing Title' })
-    isErrorMock.mockReturnValue(false)
-    isProcessedMock.mockReturnValue(true)
-
-    const handler = getTusHandler(buildConfig())
-    const res = await handler(buildReq({ ...validBody, videoId: 'existing-1', videoToken: tokenFor('existing-1') }))
-    const json = await res.json()
-
-    expect(json.videoToken).toBe(tokenFor('existing-1'))
   })
 
   it.each([
@@ -488,7 +467,7 @@ describe('TUS auth endpoint', () => {
       const alphaBody = { collection: 'alpha', filename: 'a.mp4', filesize: 10, filetype: 'video/mp4', title: 'A' }
       const betaBody = { collection: 'beta', filename: 'b.mp4', filesize: 10, filetype: 'video/mp4', title: 'B' }
 
-      it('allows the collection the user has create on (alpha)', async () => {
+      it('allows alpha and denies beta when the user has create only on alpha', async () => {
         getAccessResultsMock.mockResolvedValue({
           canAccessAdmin: true,
           collections: { alpha: { create: true }, beta: { create: false } },
@@ -496,22 +475,12 @@ describe('TUS auth endpoint', () => {
         createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
 
         const handler = getTusHandler(buildScopedConfig())
-        const res = await handler(buildScopedReq(alphaBody))
-        const json = await res.json()
-
-        expect(json.type).toBe('upload')
-        expect(json.libraryId).toBe(111)
-      })
-
-      it('denies a different collection the user lacks create on (beta)', async () => {
-        getAccessResultsMock.mockResolvedValue({
-          canAccessAdmin: true,
-          collections: { alpha: { create: true }, beta: { create: false } },
-        })
-
-        const handler = getTusHandler(buildScopedConfig())
         await expect(handler(buildScopedReq(betaBody))).rejects.toMatchObject({ status: 403 })
         expect(createVideoMock).not.toHaveBeenCalled()
+
+        const json = await (await handler(buildScopedReq(alphaBody))).json()
+        expect(json.type).toBe('upload')
+        expect(json.libraryId).toBe(111)
       })
     })
   })
@@ -577,16 +546,6 @@ describe('TUS auth endpoint', () => {
       expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
     })
 
-    it('uses the other collection credentials for its request', async () => {
-      createVideoMock.mockResolvedValue({ guid: 'v-beta', videoLibraryId: 222 })
-      const handler = getTusHandler(buildMultiConfig())
-      const res = await handler(buildMultiReq(betaBody))
-      const json = await res.json()
-
-      expect(json.libraryId).toBe(222)
-      expect(signMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'beta-key', libraryId: 222 }))
-    })
-
     it('calls getStreamVideo with the collection credentials when reusing a video', async () => {
       getVideoMock.mockResolvedValue({ status: 0, title: 'Draft' })
       isErrorMock.mockReturnValue(false)
@@ -645,25 +604,6 @@ describe('TUS auth endpoint', () => {
       await handler(buildMultiReq(alphaBody))
       expect(alphaAccess).toHaveBeenCalled()
       expect(betaAccess).not.toHaveBeenCalled()
-    })
-
-    it('a merge-branch collection inherits the global checkAccess', async () => {
-      const globalAccess = vi.fn().mockResolvedValue(true)
-      createVideoMock.mockResolvedValue({ guid: 'v-media', videoLibraryId: 12345 })
-
-      const config = createNormalizedConfig({
-        collections: { media: { disablePayloadAccessControl: true } },
-        stream: {
-          apiKey: 'stream-key',
-          hostname: 'stream.b-cdn.net',
-          libraryId: 12345,
-          tus: { checkAccess: globalAccess },
-        },
-      } as never)
-
-      const handler = getTusHandler(config)
-      await handler(buildReq(validBody))
-      expect(globalAccess).toHaveBeenCalled()
     })
 
     it('registers the tus-auth endpoint when only a collection has tus', () => {

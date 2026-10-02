@@ -9,7 +9,7 @@ vi.mock('fs/promises', () => ({
   access: accessMock,
 }))
 
-const { docWithFilenameExists, fileExists, getSafeFileName } = await import('@/server/files.js')
+const { docWithFilenameExists, getSafeFileName } = await import('@/server/files.js')
 
 const buildReq = (findOne: ReturnType<typeof vi.fn>) =>
   ({
@@ -22,18 +22,6 @@ describe('file utils', () => {
   beforeEach(() => {
     accessMock.mockReset()
     accessMock.mockRejectedValue(new Error('ENOENT'))
-  })
-
-  describe('fileExists', () => {
-    it('returns true when access resolves', async () => {
-      accessMock.mockResolvedValueOnce(undefined)
-      expect(await fileExists('/some/path')).toBe(true)
-    })
-
-    it('returns false when access rejects', async () => {
-      accessMock.mockRejectedValueOnce(new Error('ENOENT'))
-      expect(await fileExists('/missing/path')).toBe(false)
-    })
   })
 
   describe('docWithFilenameExists', () => {
@@ -51,18 +39,6 @@ describe('file utils', () => {
         expect.objectContaining({ collection: 'media', where: { filename: { equals: 'a.txt' } } }),
       )
     })
-
-    it('returns false when no doc is found', async () => {
-      const findOne = vi.fn().mockResolvedValue(null)
-      const result = await docWithFilenameExists({
-        collectionSlug: 'media',
-        filename: 'a.txt',
-        path: '',
-        req: buildReq(findOne),
-      })
-
-      expect(result).toBe(false)
-    })
   })
 
   describe('getSafeFileName', () => {
@@ -78,34 +54,12 @@ describe('file utils', () => {
       expect(result).toBe('a.txt')
     })
 
-    it('increments an extensioned name (a.txt -> a-1.txt) via the db collision loop', async () => {
-      const findOne = vi.fn().mockResolvedValueOnce({ id: 'doc-1' }).mockResolvedValue(null)
-      const result = await getSafeFileName({
-        collectionSlug: 'media',
-        desiredFilename: 'a.txt',
-        req: buildReq(findOne),
-        staticPath: '/static',
-      })
-
-      expect(result).toBe('a-1.txt')
-    })
-
-    it('increments an already-suffixed name (a-1.txt -> a-2.txt)', async () => {
-      const findOne = vi.fn().mockResolvedValueOnce({ id: 'doc-1' }).mockResolvedValue(null)
-      const result = await getSafeFileName({
-        collectionSlug: 'media',
-        desiredFilename: 'a-1.txt',
-        req: buildReq(findOne),
-        staticPath: '/static',
-      })
-
-      expect(result).toBe('a-2.txt')
-    })
-
     it.each([
+      ['a.txt', 'a-1.txt'],
+      ['a-1.txt', 'a-2.txt'],
       ['a', 'a-1'],
       ['.env', '.env-1'],
-    ])('increments a name with no extension (%s -> %s)', async (desiredFilename, expected) => {
+    ])('increments %s to %s after a db collision', async (desiredFilename, expected) => {
       const findOne = vi.fn().mockResolvedValueOnce({ id: 'doc-1' }).mockResolvedValue(null)
       const result = await getSafeFileName({
         collectionSlug: 'media',

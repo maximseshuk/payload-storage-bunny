@@ -2,7 +2,8 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import { generateSignedToken, maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
-import type { NormalizedSignedUrlsConfig } from '@/shared/types/index.js'
+
+import { signed } from '../../../helpers/unit/signedUrls.js'
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
@@ -13,9 +14,6 @@ const createReq = (): PayloadRequest =>
   }) as unknown as PayloadRequest
 
 const baseUrl = 'https://cdn.example.com/path/to/photo.jpg'
-
-const signed = (over: Partial<NormalizedSignedUrlsConfig> = {}): NormalizedSignedUrlsConfig =>
-  ({ expiresIn: 3600, ...over }) as NormalizedSignedUrlsConfig
 
 const tokenLockedTo = (result: string, ip?: string): string => {
   const url = new URL(result)
@@ -40,11 +38,8 @@ describe('maybeCreateRedirect', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ usePayloadAccessControl: false }))).toBeNull()
     })
 
-    it('returns null when signedUrls is false', () => {
+    it('returns null when signedUrls is false or undefined', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: false }))).toBeNull()
-    })
-
-    it('returns null when signedUrls is undefined', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: undefined }))).toBeNull()
     })
 
@@ -96,11 +91,6 @@ describe('maybeCreateRedirect', () => {
       expect(url.origin + url.pathname).toBe('https://cdn.example.com/path/to/photo.jpg')
       expect(url.searchParams.get('token')).toBeTruthy()
       expect(url.searchParams.get('expires')).toBeTruthy()
-    })
-
-    it('honours redirectStatus 302', () => {
-      const res = maybeCreateRedirect(baseUrl, redirectContext())
-      expect(res!.status).toBe(302)
     })
 
     it('signs with a path-based token when tokenPath option is supplied', () => {

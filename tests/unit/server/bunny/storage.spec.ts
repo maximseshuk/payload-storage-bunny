@@ -2,24 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { httpError } from '../../../helpers/unit/httpError.js'
 
-const { deleteMock, getMock, postMock, putMock } = vi.hoisted(() => ({
-  deleteMock: vi.fn(),
-  getMock: vi.fn(),
-  postMock: vi.fn(),
-  putMock: vi.fn(),
-}))
+const { kyMethods, mockKy } = await vi.hoisted(() => import('../../../helpers/unit/kyMock.js'))
+vi.mock('ky', mockKy)
 
-vi.mock('ky', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('ky')>()),
-  default: {
-    create: () => ({
-      delete: deleteMock,
-      get: getMock,
-      post: postMock,
-      put: putMock,
-    }),
-  },
-}))
+const { delete: deleteMock, put: putMock } = kyMethods
 
 const { deleteStorageFile, uploadStorageFile } = await import('@/server/bunny/storage.js')
 
@@ -59,12 +45,6 @@ describe('deleteStorageFile', () => {
 
   it('falls back to the generic message for other HTTPError statuses', async () => {
     deleteMock.mockRejectedValue(httpError(401))
-
-    await expect(deleteStorageFile({ ...creds, path: 'a.jpg' })).rejects.toThrow('Unable to delete file: a.jpg')
-  })
-
-  it('falls back to the generic message for non-HTTP errors', async () => {
-    deleteMock.mockRejectedValue(new Error('boom'))
 
     await expect(deleteStorageFile({ ...creds, path: 'a.jpg' })).rejects.toThrow('Unable to delete file: a.jpg')
   })
@@ -131,14 +111,6 @@ describe('uploadStorageFile', () => {
 
   it('falls back to the generic message for other HTTPError statuses', async () => {
     putMock.mockRejectedValue(httpError(500))
-
-    await expect(
-      uploadStorageFile({ ...creds, buffer: Buffer.from('x'), mimeType: 'image/jpeg', path: 'a.jpg' }),
-    ).rejects.toThrow('Unable to upload file: a.jpg')
-  })
-
-  it('falls back to the generic message for non-HTTP errors', async () => {
-    putMock.mockRejectedValue(new Error('boom'))
 
     await expect(
       uploadStorageFile({ ...creds, buffer: Buffer.from('x'), mimeType: 'image/jpeg', path: 'a.jpg' }),

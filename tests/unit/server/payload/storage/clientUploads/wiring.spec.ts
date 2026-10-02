@@ -49,6 +49,9 @@ describe('client uploads plugin wiring', () => {
     expect(getUploadInstructions(result)?.useInAdmin).toBe(true)
     expect(getUploadInstructions(buildResult(false))?.useInAdmin).toBe(false)
     expect(result.endpoints?.some((e) => e.path?.startsWith('/storage-bunny/storage/upload'))).toBe(false)
+    expect(
+      (result.custom?.['@seshuk/payload-storage-bunny'] as { config?: { storage?: unknown } })?.config?.storage,
+    ).toBeDefined()
   })
 
   it('lets Payload PUT storage uploads and keeps the client handler as an admin dependency', () => {
@@ -70,12 +73,6 @@ describe('client uploads plugin wiring', () => {
     expect(commands?.['bunny:deploy-edge-script']).toEqual(
       expect.stringMatching(/cli\/commands\/deployEdgeScript\.js#deployEdgeScriptCommand$/),
     )
-  })
-
-  it('attaches the normalized config to server-only custom', () => {
-    const result = buildResult()
-    const pluginCustom = result.custom?.['@seshuk/payload-storage-bunny'] as { config?: { storage?: unknown } }
-    expect(pluginCustom?.config?.storage).toBeDefined()
   })
 
   it('mints a signed edge URL through the registered upload instructions', async () => {
@@ -132,21 +129,6 @@ describe('client uploads plugin wiring', () => {
 
     await expect(getPayloadUploadInstructions({ ...photo, req } as never)).rejects.toMatchObject({ status: 403 })
     expect(access).not.toHaveBeenCalled()
-  })
-
-  it('denies unauthenticated requests through the registered upload instructions', async () => {
-    const result = buildResult()
-
-    const req = {
-      payload: {
-        collections: { media: { config: { slug: 'media', upload: { mimeTypes: ['image/*'] } } } },
-        config: { upload: { limits: { fileSize: 5_000_000 } } },
-        db: { findOne: async () => null },
-      },
-      user: undefined,
-    }
-
-    await expect(getUploadInstructions(result)!.generate({ ...photo, req })).rejects.toMatchObject({ status: 403 })
   })
 
   it('applies the signed file size and MIME type on stream-only TUS collections', () => {

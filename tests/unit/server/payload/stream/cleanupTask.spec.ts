@@ -171,6 +171,7 @@ describe('stream cleanup task', () => {
       } as never)
       const task = getStreamCleanupTask(config)
       expect(task?.schedule?.[0]).toEqual(CONFIG_DEFAULTS.stream.cleanup.schedule)
+      expect(hasAnyStreamCleanup(config)).toBe(true)
     })
 
     it('returns undefined and reports no cleanup when nothing enables it', () => {
@@ -181,14 +182,6 @@ describe('stream cleanup task', () => {
       } as never)
       expect(getStreamCleanupTask(config)).toBeUndefined()
       expect(hasAnyStreamCleanup(config)).toBe(false)
-    })
-
-    it('is defined exactly when hasAnyStreamCleanup is true', () => {
-      const config = createNormalizedConfig({
-        collections: { videos: { disablePayloadAccessControl: true, stream: createOwnStream(1, { cleanup: true }) } },
-      } as never)
-      expect(getStreamCleanupTask(config)).toBeDefined()
-      expect(hasAnyStreamCleanup(config)).toBe(true)
     })
   })
 })

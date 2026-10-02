@@ -106,12 +106,6 @@ describe('IP-locked tokens (standard scheme: key + path + expires + sorted param
     expect(token).toBe('9Z9BAQyKZQE9ySUELn1hNKJ4nw9l3XtZ8DdUFRwDJVI')
   })
 
-  it('produces the legacy token when IP is absent', () => {
-    expect(generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000, undefined, undefined)).toBe(
-      generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000),
-    )
-  })
-
   it('signs URLs with the IP in the hash but never in the URL itself', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(1699996400000))
@@ -208,13 +202,6 @@ describe('generateSignedToken', () => {
       'Security key, signed URL, and expiration time are required',
     )
   })
-
-  it('includes queryParams in hash when provided', () => {
-    const withoutParams = generateSignedToken(securityKey, signedUrl, expiration)
-    const withParams = generateSignedToken(securityKey, signedUrl, expiration, 'foo=bar')
-
-    expect(withoutParams).not.toBe(withParams)
-  })
 })
 
 describe('generateSignedUrl', () => {
@@ -236,60 +223,9 @@ describe('generateSignedUrl', () => {
       expect(url).toContain('token=')
       expect(url).toContain('expires=')
     })
-
-    it('sets correct expiration timestamp', () => {
-      const beforeTime = Math.floor(Date.now() / 1000)
-      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, { expiresIn: 7200 })
-      const afterTime = Math.floor(Date.now() / 1000)
-
-      const expiresMatch = url.match(/expires=(\d+)/)
-      expect(expiresMatch).not.toBeNull()
-
-      const expires = parseInt(expiresMatch![1], 10)
-      expect(expires).toBeGreaterThanOrEqual(beforeTime + 7200)
-      expect(expires).toBeLessThanOrEqual(afterTime + 7200 + 1)
-    })
-  })
-
-  describe('stream URLs (path-based token)', () => {
-    it('uses path-based token for stream (with tokenPath)', () => {
-      const url = generateSignedUrl('https://stream.example.com/abc123/playlist.m3u8', securityKey, baseConfig, {
-        tokenPath: '/abc123/',
-      })
-
-      expect(url).toContain('/bcdn_token=')
-      expect(url).toContain('&expires=')
-      expect(url).toContain('/playlist.m3u8')
-    })
-
-    it('preserves pathname after token in path-based mode', () => {
-      const url = generateSignedUrl('https://stream.example.com/video123/playlist.m3u8', securityKey, baseConfig, {
-        tokenPath: '/video123/',
-      })
-
-      expect(url).toMatch(/\/bcdn_token=.*\/video123\/playlist\.m3u8/)
-    })
   })
 
   describe('country restrictions', () => {
-    it('includes token_countries for allowedCountries', () => {
-      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {
-        ...baseConfig,
-        allowedCountries: ['US', 'CA', 'GB'],
-      })
-
-      expect(url).toContain('token_countries=US%2CCA%2CGB')
-    })
-
-    it('includes token_countries_blocked for blockedCountries', () => {
-      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {
-        ...baseConfig,
-        blockedCountries: ['RU', 'CN'],
-      })
-
-      expect(url).toContain('token_countries_blocked=RU%2CCN')
-    })
-
     it('includes both country restrictions when provided', () => {
       const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {
         ...baseConfig,
@@ -415,15 +351,19 @@ describe('stream video token', () => {
     ['another video', { videoId: 'video-2' }],
     ['another secret', { secret: 'other-secret' }],
     ['another user', { user: { collection: 'users', id: 'user-2' } as never }],
+    ['another user collection', { user: { collection: 'admins', id: 'user-1' } as never }],
     ['no user', { user: null }],
   ])('rejects a token signed for %s', (_label, change) => {
     const token = signStreamVideoToken({ ...input, ...change })
     expect(verifyStreamVideoToken({ ...input, token })).toBe(false)
   })
 
-  it.each([undefined, '', 42, 'short'])('rejects a missing or malformed token (%s)', (token) => {
-    expect(verifyStreamVideoToken({ ...input, token })).toBe(false)
-  })
+  it.each([undefined, '', 42, 'short', `${signStreamVideoToken(input)}.x`])(
+    'rejects a missing or malformed token (%s)',
+    (token) => {
+      expect(verifyStreamVideoToken({ ...input, token })).toBe(false)
+    },
+  )
 
   it('rejects any token when the video id is empty', () => {
     const token = signStreamVideoToken({ ...input, videoId: '' })

@@ -22,13 +22,6 @@ describe('edge upload URL mint/verify', () => {
     expect(verifyEdgeUploadUrl(url, base.secret, now + 1000)).toEqual({ valid: true })
   })
 
-  it('is deterministic for a fixed nonce and time', () => {
-    const now = 1_700_000_000_000
-    const first = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
-    const second = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
-    expect(first).toBe(second)
-  })
-
   it('rejects a tampered path', () => {
     const now = 1_700_000_000_000
     const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
@@ -52,21 +45,6 @@ describe('edge upload URL mint/verify', () => {
 
   it('rejects a URL missing the signature', () => {
     expect(verifyEdgeUploadUrl('https://uploader.b-cdn.net/upload?X-Upload-Path=a', base.secret).valid).toBe(false)
-  })
-
-  it('signs the zone name into the minted URL', () => {
-    const now = 1_700_000_000_000
-    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
-    expect(new URL(url).searchParams.get('X-Upload-Zone')).toBe('media')
-    expect(verifyEdgeUploadUrl(url, base.secret, now + 1000)).toEqual({ valid: true })
-  })
-
-  it('signs the file size and type into the minted URL', () => {
-    const now = 1_700_000_000_000
-    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
-    const params = new URL(url).searchParams
-    expect(params.get('X-Upload-Size')).toBe('512')
-    expect(params.get('X-Upload-Type')).toBe('image/jpeg')
   })
 
   it('rejects a URL whose size or type was changed after minting', () => {

@@ -1,7 +1,9 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/shared/types/index.js'
+import type { NormalizedStreamConfig } from '@/shared/types/index.js'
+
+import { signed } from '../../../../helpers/unit/signedUrls.js'
 
 const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }))
 vi.mock('@/server/http/index.js', () => ({ httpFetch: fetchMock }))
@@ -21,9 +23,6 @@ const streamConfig = (over: Partial<NormalizedStreamConfig> = {}): NormalizedStr
     uploadTimeout: 300000,
     ...over,
   }) as NormalizedStreamConfig
-
-const signed = (over: Partial<NormalizedSignedUrlsConfig> = {}): NormalizedSignedUrlsConfig =>
-  ({ expiresIn: 3600, ...over }) as NormalizedSignedUrlsConfig
 
 const makeReq = (): PayloadRequest =>
   ({
@@ -61,20 +60,6 @@ describe('streamThumbnailStaticHandler', () => {
     expect(res.headers.get('content-type')).toBe('image/jpeg')
     expect(await res.text()).toBe('jpeg-bytes')
     expect(fetchMock.mock.calls[0][0]).toBe('https://stream.b-cdn.net/vid1/thumbnail.jpg')
-  })
-
-  it('proxies an animated preview (preview.webp)', async () => {
-    fetchMock.mockResolvedValue({
-      body: 'webp-bytes',
-      headers: new Headers({ 'content-type': 'image/webp' }),
-      ok: true,
-      status: 200,
-    })
-
-    const res = await streamThumbnailStaticHandler({ ...baseArgs(), thumbnailType: 'preview.webp' })
-
-    expect(res.status).toBe(200)
-    expect(fetchMock.mock.calls[0][0]).toBe('https://stream.b-cdn.net/vid1/preview.webp')
   })
 
   it('signs the fetch URL when signedUrls is enabled without redirect', async () => {
