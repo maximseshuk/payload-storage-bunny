@@ -81,6 +81,7 @@ Run `pnpm typecheck && pnpm lint && pnpm format && pnpm test:unit` before you pu
 
 - Add or update tests for every behavior change.
 - Unit tests live in `tests/unit/` and mirror the `src/` layout.
+- Name a `describe` after the function or feature under test (`purgeCache`, `config validator`). Start an `it` name with a present-tense verb and write it in plain English: `throws when s3 is enabled without a region`, not `should throw…`.
 - A bug fix should come with a test that fails without the fix.
 - Don't commit `.only`, `.skip` or placeholder tests.
 

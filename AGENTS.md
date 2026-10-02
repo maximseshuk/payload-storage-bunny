@@ -85,6 +85,7 @@ New per-collection override (e.g. `stream.quality`):
 ## Testing
 
 - Unit tests in `tests/unit/` mirror `src/`. Add or update tests for behavior changes.
+- Test names: `describe` = function or feature (`purgeCache`, `config validator`); `it` = present-tense verb in plain English (`throws when …`), never `should …`.
 - E2E (`tests/e2e/*`, `pnpm test:e2e`) hits real Bunny. Keep it out of the default gate.
 
 ## Docs
