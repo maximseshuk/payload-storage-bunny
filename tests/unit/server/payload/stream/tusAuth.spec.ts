@@ -108,19 +108,24 @@ describe('TUS auth endpoint', () => {
   })
 
   it('creates a new video and returns a signed upload payload (happy path)', async () => {
-    const handler = getTusHandler(buildConfig())
-    const res = await handler(buildReq(validBody))
-    const json = await res.json()
+    vi.useFakeTimers()
+    try {
+      const handler = getTusHandler(buildConfig())
+      const res = await handler(buildReq(validBody))
+      const json = await res.json()
 
-    expect(json.type).toBe('upload')
-    expect(json.videoId).toBe('new-video-1')
-    expect(json.libraryId).toBe(12345)
-    expect(json.authorizationSignature).toBe('signature-abc')
-    expect(typeof json.authorizationExpire).toBe('number')
-    expect(json.videoToken).toBe(tokenFor('new-video-1'))
-    expect(json.signedReceipt).toBeUndefined()
-    expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'My Clip' }))
-    expect(createSessionMock).not.toHaveBeenCalled()
+      expect(json.type).toBe('upload')
+      expect(json.videoId).toBe('new-video-1')
+      expect(json.libraryId).toBe(12345)
+      expect(json.authorizationSignature).toBe('signature-abc')
+      expect(typeof json.authorizationExpire).toBe('number')
+      expect(json.videoToken).toBe(tokenFor('new-video-1'))
+      expect(json.signedReceipt).toBeUndefined()
+      expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'My Clip' }))
+      expect(createSessionMock).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('throws 400 when required fields are missing', async () => {
