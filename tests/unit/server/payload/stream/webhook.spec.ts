@@ -212,6 +212,7 @@ describe('Stream webhook endpoint', () => {
   describe('multiple stream libraries', () => {
     const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
     const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
+    const gamma = { slug: 'gamma', upload: { mimeTypes: ['video/mp4'] } }
 
     const buildMultiConfig = () =>
       createNormalizedConfig({
@@ -228,7 +229,17 @@ describe('Stream webhook endpoint', () => {
           },
           beta: {
             disablePayloadAccessControl: true,
-            stream: { apiKey: 'beta-key', hostname: 'beta.b-cdn.net', libraryId: 222, mp4Fallback: false },
+            stream: {
+              apiKey: 'beta-key',
+              hostname: 'beta.b-cdn.net',
+              libraryId: 222,
+              mp4Fallback: false,
+              webhook: { secret: 'beta-hook' },
+            },
+          },
+          gamma: {
+            disablePayloadAccessControl: true,
+            stream: { apiKey: 'gamma-key', hostname: 'gamma.b-cdn.net', libraryId: 333, mp4Fallback: true },
           },
         },
         stream: {
@@ -261,7 +272,7 @@ describe('Stream webhook endpoint', () => {
       return {
         headers,
         payload: {
-          collections: { alpha: { config: alpha }, beta: { config: beta } },
+          collections: { alpha: { config: alpha }, beta: { config: beta }, gamma: { config: gamma } },
           find,
           logger: { debug: vi.fn(), error: vi.fn() },
           update,
@@ -293,7 +304,7 @@ describe('Stream webhook endpoint', () => {
       const handler = getWebhookHandler(buildMultiConfig())
 
       const res = await handler(
-        buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 222 }, { secret: 'beta-key' }),
+        buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 333 }, { secret: 'global-hook' }),
       )
       expect(res.status).toBe(401)
     })
@@ -326,9 +337,10 @@ describe('Stream webhook endpoint', () => {
       expect(getResolutionsMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
 
       const findBeta = vi.fn()
-      await handler(
-        buildMultiReq({ Status: 3, VideoGuid: 'v2', VideoLibraryId: 222 }, { find: findBeta, secret: 'beta-key' }),
+      const res = await handler(
+        buildMultiReq({ Status: 3, VideoGuid: 'v2', VideoLibraryId: 222 }, { find: findBeta, secret: 'beta-hook' }),
       )
+      expect((await res.json()).success).toBe(true)
       expect(findBeta).not.toHaveBeenCalled()
     })
 

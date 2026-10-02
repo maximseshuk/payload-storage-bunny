@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos, waitForVideoProcessed } from '../helpers/e2e/bunnyStream.js'
 import { getPayload } from '../helpers/int/getPayload.js'
+import { videoFile } from '../helpers/int/videoFile.js'
 import { hasSignedBunnyCredentials } from '../helpers/shared/credentials.js'
 
 describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
@@ -66,11 +67,8 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
     it('generates signed URL with bcdn_token and is accessible', async () => {
       const doc = await payload.create({
         collection: 'streamMedia',
-        data: {
-          alt: 'Signed stream URL test',
-          filename: 'signed-stream-url-test.mp4',
-        },
-        filePath: path.resolve(import.meta.dirname, '../fixtures/test-video.mp4'),
+        data: { alt: 'Signed stream URL test' },
+        file: await videoFile('signed-stream-url-test.mp4'),
         overrideAccess: true,
       })
 

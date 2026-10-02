@@ -1,5 +1,4 @@
 import { bunnyRequest } from '@/server/bunny/client.js'
-import { HTTPError } from '@/server/http/index.js'
 import { BUNNY_API, TIMEOUTS } from '@/shared/constants.js'
 
 export enum BunnyStreamVideoStatus {
@@ -218,9 +217,6 @@ export const createStreamVideo = async ({
   try {
     return await res.json<BunnyStreamVideo>()
   } catch (err) {
-    if (err instanceof HTTPError && statusErrors[err.response.status as keyof typeof statusErrors]) {
-      throw new Error(statusErrors[err.response.status as keyof typeof statusErrors], { cause: err })
-    }
     throw new Error(genericError, { cause: err })
   }
 }

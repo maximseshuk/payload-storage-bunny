@@ -1,4 +1,3 @@
-import { APIError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
@@ -445,14 +444,15 @@ describe('TUS auth endpoint', () => {
       expect(json.type).toBe('upload')
     })
 
-    it('denies access when admin lacks create on every collection', async () => {
+    it('denies access without admin access even when create is granted', async () => {
       getAccessResultsMock.mockResolvedValue({
         canAccessAdmin: false,
-        collections: { media: { create: false } },
+        collections: { media: { create: true } },
       })
 
       const handler = getTusHandler(noCheckAccessConfig())
-      await expect(handler(buildReq(validBody))).rejects.toBeInstanceOf(APIError)
+      await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
+      expect(createVideoMock).not.toHaveBeenCalled()
     })
 
     describe('is scoped to the requested collection', () => {

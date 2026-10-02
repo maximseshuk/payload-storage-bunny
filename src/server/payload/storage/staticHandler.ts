@@ -1,4 +1,5 @@
 import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
+import { APIError } from 'payload'
 
 import { HTTPError } from '@/server/http/index.js'
 import { getBunnyData } from '@/server/payload/fields/bunnyGroupField.js'
@@ -104,6 +105,10 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         usePayloadAccessControl,
       })
     } catch (err) {
+      if (err instanceof APIError && err.status < 500) {
+        return new Response(null, { status: err.status })
+      }
+
       if (err instanceof HTTPError) {
         req.payload.logger.error({
           err,

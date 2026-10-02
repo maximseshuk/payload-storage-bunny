@@ -178,6 +178,18 @@ describe('stream hooks', () => {
       expect(getVideoMock).toHaveBeenCalled()
     })
 
+    it('does not treat the cloud-storage metadata update after a server upload as a replacement', async () => {
+      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
+      const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-new' } } }
+      const originalDoc = { bunnyData: { stream: { videoId: null } }, filename: 'clip.mp4' }
+      const req = buildReq({ context: { skipCloudStorage: true } })
+
+      await hook({ data, operation: 'update', originalDoc, req } as never)
+
+      expect((req as any).context.oldDoc).toBeUndefined()
+      expect(getVideoMock).not.toHaveBeenCalled()
+    })
+
     it('skips processing when the context has no stream config', async () => {
       const hook = getBeforeValidateHook({
         config: emptyConfig,
