@@ -21,7 +21,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
   })
 
   describe('Storage', () => {
-    it('generates signed URL with token and expires params', async () => {
+    it('generates a signed URL that is accessible', async () => {
       const doc = await payload.create({
         collection: 'storageMedia',
         data: { alt: 'Signed storage URL test' },
@@ -29,27 +29,8 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
         overrideAccess: true,
       })
 
-      expect(doc.id).toBeTruthy()
-      expect(doc.url).toBeTruthy()
       expect(doc.url).toContain('token=')
       expect(doc.url).toContain('expires=')
-
-      await payload.delete({
-        id: doc.id,
-        collection: 'storageMedia',
-        overrideAccess: true,
-      })
-    })
-
-    it('signed URL is accessible', async () => {
-      const doc = await payload.create({
-        collection: 'storageMedia',
-        data: { alt: 'Signed storage URL accessibility test' },
-        filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
-        overrideAccess: true,
-      })
-
-      expect(doc.url).toBeTruthy()
 
       const response = await fetch(doc.url as string)
       expect(response.status).toBe(200)

@@ -51,8 +51,8 @@ if (args.includes('--help') || args.includes('-h')) {
   log.blank()
   console.log('  Examples:')
   console.log('    pnpm test:e2e              # Run all suites')
-  console.log('    pnpm test:e2e thumbnail    # Run specific suite')
-  console.log('    pnpm test:e2e --ui thumb   # UI mode for suite')
+  console.log('    pnpm test:e2e stream       # Run specific suite')
+  console.log('    pnpm test:e2e --ui stream  # UI mode for suite')
   log.blank()
   process.exit(0)
 }
@@ -169,12 +169,7 @@ const main = async () => {
   const results: TestResult[] = []
 
   for (const suite of suitesToRun) {
-    const result = await runSuite(suite, false)
-    results.push(result)
-
-    if (result.code !== 0 && suitesToRun.length === 1) {
-      break
-    }
+    results.push(await runSuite(suite, false))
   }
 
   log.header('Results')

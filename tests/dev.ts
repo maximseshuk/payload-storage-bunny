@@ -10,7 +10,6 @@ import { initDev } from './helpers/e2e/initDev.js'
 import { findAvailablePort } from './helpers/e2e/server.js'
 import { getSuiteDir } from './helpers/shared/getSuiteDir.js'
 import { log } from './helpers/shared/log.js'
-import { startMongoMemoryServer, stopMongoMemoryServer } from './helpers/shared/mongoMemoryServer.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,7 +19,7 @@ const suite = process.argv[2] || process.env.SUITE
 
 if (!suite) {
   log.error('Usage: pnpm dev <suite>')
-  log.info('Example: pnpm dev thumbnail')
+  log.info('Example: pnpm dev storage')
   process.exit(1)
 }
 
@@ -55,16 +54,15 @@ const setupSuite = (suiteName: string) => {
 const startDev = async () => {
   log.header(`Dev Server: ${suite}`)
   log.info(enableTurbo ? 'Mode: Turbopack' : 'Mode: Webpack')
-  log.info(shouldStartMemoryDB ? 'Database: Memory' : 'Database: External')
+  log.info(shouldStartMemoryDB ? 'Database: Memory' : 'Database: tests/dev.db')
 
   const { suiteConfigPath } = setupSuite(suite)
 
-  await initDev(projectRoot, suiteConfigPath)
-
-  if (shouldStartMemoryDB) {
-    const dbName = `payload-${suite}-${Date.now()}`
-    await startMongoMemoryServer(dbName)
+  if (!shouldStartMemoryDB) {
+    process.env.DATABASE_URL = `file:${path.join(__dirname, 'dev.db')}`
   }
+
+  await initDev(projectRoot, suiteConfigPath)
 
   const requestedPort = parseInt(process.env.PORT || '3000', 10)
   const port = await findAvailablePort(requestedPort)
@@ -140,8 +138,6 @@ const startDev = async () => {
 
       await app.close()
       log.success('Next.js closed')
-
-      await stopMongoMemoryServer()
     } catch (error) {
       log.error(`Cleanup error: ${error instanceof Error ? error.message : String(error)}`)
     }

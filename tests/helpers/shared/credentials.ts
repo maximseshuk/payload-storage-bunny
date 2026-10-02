@@ -1,4 +1,10 @@
-const hasEnv = (...keys: string[]): boolean => keys.every((key) => Boolean(process.env[key]))
+const hasEnv = (...keys: string[]): boolean => {
+  const missing = keys.filter((key) => !process.env[key])
+  if (missing.length > 0 && process.env.CI) {
+    throw new Error(`Missing credentials in CI: ${missing.join(', ')}`)
+  }
+  return missing.length === 0
+}
 
 export const hasBunnyCredentials = (): boolean =>
   hasEnv(
@@ -10,9 +16,6 @@ export const hasBunnyCredentials = (): boolean =>
     'BUNNY_STREAM_LIBRARY_ID',
     'BUNNY_STREAM_HOSTNAME',
   )
-
-export const hasStorageCredentials = (): boolean =>
-  hasEnv('BUNNY_STORAGE_API_KEY', 'BUNNY_STORAGE_ZONE_NAME', 'BUNNY_STORAGE_HOSTNAME')
 
 export const hasS3StorageCredentials = (): boolean =>
   hasEnv(

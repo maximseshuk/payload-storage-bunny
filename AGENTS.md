@@ -20,6 +20,7 @@ pnpm clean            # remove dist/ + tsbuildinfo
 
 pnpm test:unit        # vitest, no env: default fast gate
 pnpm test             # vitest with .env
+pnpm test:int         # live integration tests only (needs .env); TEST_DB=postgres|mongodb (in-memory), default SQLite
 pnpm test:coverage
 pnpm test:e2e         # live e2e on real Bunny resources (needs .env)
 

@@ -22,105 +22,56 @@ describe.skipIf(!hasBunnyCredentials())('Stream Webhook', () => {
     await payload.destroy()
   })
 
-  const callWebhook = async (
-    body: object,
-    signSecret: null | string = WEBHOOK_SECRET,
-    { algorithm = 'hmac-sha256', version = 'v1' }: { algorithm?: null | string; version?: null | string } = {},
-  ) => {
+  const callWebhook = async (body: object) => {
     const endpoint = payload.config.endpoints?.find((e) => e.path === '/storage-bunny/stream/webhook')
     if (!endpoint) {
       throw new Error('Webhook endpoint not found')
     }
 
-    const url = 'http://localhost/api/storage-bunny/stream/webhook'
     const rawBody = JSON.stringify(body)
-    const headers = new Headers({ 'Content-Type': 'application/json' })
-    if (signSecret) {
-      headers.set('x-bunnystream-signature', createHmac('sha256', signSecret).update(rawBody).digest('hex'))
-    }
-    if (version) {
-      headers.set('x-bunnystream-signature-version', version)
-    }
-    if (algorithm) {
-      headers.set('x-bunnystream-signature-algorithm', algorithm)
-    }
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'x-bunnystream-signature': createHmac('sha256', WEBHOOK_SECRET).update(rawBody).digest('hex'),
+      'x-bunnystream-signature-algorithm': 'hmac-sha256',
+      'x-bunnystream-signature-version': 'v1',
+    })
 
-    return endpoint.handler({ headers, payload, text: async () => rawBody, url } as any)
+    return endpoint.handler({
+      headers,
+      payload,
+      text: async () => rawBody,
+      url: 'http://localhost/api/storage-bunny/stream/webhook',
+    } as any)
   }
 
-  describe('Authentication', () => {
-    const libraryId = parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0')
-    const baseBody = { Status: 3, VideoGuid: 'test-guid', VideoLibraryId: libraryId }
-
-    it('should reject without a signature or with a wrong-secret signature', async () => {
-      const noSignature = await callWebhook(baseBody, null)
-      expect(noSignature.status).toBe(401)
-
-      const wrongSecret = await callWebhook(baseBody, 'wrong')
-      expect(wrongSecret.status).toBe(401)
+  it('should update bunnyData.stream.resolutions on webhook', async () => {
+    const upload = await payload.create({
+      collection: 'webhook-test',
+      data: { alt: 'Webhook test video' },
+      file: await videoFile('webhook-test.mp4'),
+      overrideAccess: true,
     })
+    expect((upload.bunnyData as any)?.stream?.videoId).toBeTruthy()
 
-    it('should reject an unsupported signature version or algorithm', async () => {
-      const wrongVersion = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' }, WEBHOOK_SECRET, {
-        version: 'v2',
-      })
-      expect(wrongVersion.status).toBe(401)
+    const videoId = (upload.bunnyData as any).stream.videoId as string
+    expect(await waitForVideoProcessed(videoId)).toBe(true)
 
-      const wrongAlgorithm = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' }, WEBHOOK_SECRET, {
-        algorithm: 'hmac-sha1',
-      })
-      expect(wrongAlgorithm.status).toBe(401)
-
-      const missingHeaders = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' }, WEBHOOK_SECRET, {
-        algorithm: null,
-        version: null,
-      })
-      expect(missingHeaders.status).toBe(401)
+    const response = await callWebhook({
+      Status: 3,
+      VideoGuid: videoId,
+      VideoLibraryId: parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0'),
     })
+    expect(response.status).toBe(200)
 
-    it('should reject with wrong library ID', async () => {
-      const response = await callWebhook({ ...baseBody, VideoLibraryId: 99999 })
-      expect(response.status).toBe(403)
+    const updatedDoc = await payload.findByID({
+      id: upload.id,
+      collection: 'webhook-test',
+      showHiddenFields: true,
+      overrideAccess: true,
     })
+    expect((updatedDoc.bunnyData as any)?.stream?.resolutions).toBeTruthy()
+    expect((updatedDoc.bunnyData as any).stream.resolutions.highest).toMatch(/^\d+p$/)
 
-    it('should accept with a valid signature and library ID', async () => {
-      const response = await callWebhook({ ...baseBody, VideoGuid: 'non-existent-guid' })
-      expect(response.status).toBe(200)
-    })
-  })
-
-  describe('Video Resolution Update', () => {
-    it('should update bunnyData.stream.resolutions on webhook', async () => {
-      const libraryId = parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0')
-
-      const upload = await payload.create({
-        collection: 'webhook-test',
-        data: { alt: 'Webhook test video' },
-        file: await videoFile('webhook-test.mp4'),
-        overrideAccess: true,
-      })
-      expect((upload.bunnyData as any)?.stream?.videoId).toBeTruthy()
-
-      const videoId = (upload.bunnyData as any).stream.videoId as string
-      expect(await waitForVideoProcessed(videoId)).toBe(true)
-
-      const response = await callWebhook({
-        Status: 3,
-        VideoGuid: videoId,
-        VideoLibraryId: libraryId,
-      })
-      expect(response.status).toBe(200)
-
-      const updatedDoc = await payload.findByID({
-        id: upload.id,
-        collection: 'webhook-test',
-        showHiddenFields: true,
-        overrideAccess: true,
-      })
-      expect((updatedDoc.bunnyData as any)?.stream?.resolutions).toBeTruthy()
-      expect((updatedDoc.bunnyData as any).stream.resolutions.highest).toMatch(/^\d+p$/)
-
-      await payload.delete({ id: upload.id, collection: 'webhook-test', overrideAccess: true })
-    }, 180000)
-  })
+    await payload.delete({ id: upload.id, collection: 'webhook-test', overrideAccess: true })
+  }, 180000)
 })

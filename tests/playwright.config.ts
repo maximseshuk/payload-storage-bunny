@@ -9,7 +9,6 @@ const suiteName = process.env.E2E_SUITE_NAME || 'default'
 export default defineConfig({
   forbidOnly: !!process.env.CI,
   fullyParallel: false,
-  maxFailures: process.env.CI ? undefined : undefined,
   outputDir: `./playwright/results/${suiteName}`,
   preserveOutput: 'always',
   projects: [
@@ -24,7 +23,7 @@ export default defineConfig({
         ['json', { outputFile: `./playwright/reports/${suiteName}.json` }],
       ]
     : [['list', { printSteps: true }]],
-  retries: process.env.CI ? 3 : undefined,
+  retries: process.env.CI ? 1 : undefined,
   testDir: '.',
   testMatch: '**/*.e2e.ts',
   timeout: 60 * 1000,

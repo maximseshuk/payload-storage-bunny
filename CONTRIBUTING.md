@@ -39,7 +39,7 @@ Use separate zones and libraries for tests, never ones with real content. The te
    The script creates three storage zones (plain, signed URLs, S3), their pull zones, and two Stream libraries (plain and signed URLs). All names start with `psb-e2e`. Change it with `--prefix`, but keep storage zone names within 20 characters. Pick the main region with `--region` (default `DE`). Use `--dry-run` to see the plan first. Running it again reuses resources that already exist.
 
 4. The script prints a `.env` block with every name, key and hostname. Paste it into `.env` over the matching lines.
-5. Set `PAYLOAD_SECRET` to any random string. `DATABASE_URI` is only needed for `pnpm dev`. Tests and e2e start an in-memory database.
+5. Set `PAYLOAD_SECRET` to any random string. Tests and e2e use an in-memory SQLite database. `pnpm dev` keeps its data in `tests/dev.db`. To run the tests on Postgres or MongoDB, as CI does for integration tests, set `TEST_DB=postgres` (in-memory PGlite) or `TEST_DB=mongodb` (in-memory MongoDB server).
 6. Optional: the Edge Script tests need a deployed uploader. Deploy it to your plain storage zone and paste the two printed lines (`BUNNY_EDGE_SCRIPT_URL`, `BUNNY_EDGE_SECRET`) into `.env`:
 
    ```bash

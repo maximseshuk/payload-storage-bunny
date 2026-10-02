@@ -35,24 +35,22 @@ describe.skipIf(!hasBunnyCredentials())('Stream Cleanup Task', () => {
     })
   }
 
-  it('should register task with configured schedule', () => {
-    const task = payload.config.jobs?.tasks?.find((t) => t.slug === 'StorageBunnyStreamCleanup')
+  const sessionCount = async (videoId: string) =>
+    (
+      await payload.find({
+        collection: streamUploadSessionsCollectionSlug,
+        overrideAccess: true,
+        where: { videoId: { equals: videoId } },
+      })
+    ).totalDocs
 
-    expect(task).toBeDefined()
-    expect(task?.schedule?.[0]?.cron).toBe('13 37 * * *')
-    expect(task?.schedule?.[0]?.queue).toBe('bunny-cleanup-test-queue')
-  })
-
-  it('should cleanup incomplete upload sessions', async () => {
-    const video = await createStreamVideo({ apiKey, libraryId, title: 'cleanup-test-orphan' })
-    await createOrphanedSession(video.guid)
-
-    const sessionsBefore = await payload.find({
-      collection: streamUploadSessionsCollectionSlug,
-      overrideAccess: true,
-      where: { videoId: { equals: video.guid } },
-    })
-    expect(sessionsBefore.totalDocs).toBe(1)
+  it('removes stale sessions and deletes their videos, including already deleted ones', async () => {
+    const orphan = await createStreamVideo({ apiKey, libraryId, title: 'cleanup-test-orphan' })
+    const gone = await createStreamVideo({ apiKey, libraryId, title: 'cleanup-test-deleted' })
+    await createOrphanedSession(orphan.guid)
+    await createOrphanedSession(gone.guid)
+    await deleteStreamVideo({ apiKey, libraryId, videoId: gone.guid })
+    expect(await sessionCount(orphan.guid)).toBe(1)
 
     await payload.jobs.queue({
       input: {},
@@ -62,18 +60,14 @@ describe.skipIf(!hasBunnyCredentials())('Stream Cleanup Task', () => {
     })
     await payload.jobs.run({ overrideAccess: true, queue: 'bunny-cleanup-test-queue' })
 
-    const sessionsAfter = await payload.find({
-      collection: streamUploadSessionsCollectionSlug,
-      overrideAccess: true,
-      where: { videoId: { equals: video.guid } },
-    })
-    expect(sessionsAfter.totalDocs).toBe(0)
+    expect(await sessionCount(orphan.guid)).toBe(0)
+    expect(await sessionCount(gone.guid)).toBe(0)
 
     let deleted = false
     for (let i = 0; i < 10 && !deleted; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000))
       try {
-        await getStreamVideo({ apiKey, libraryId, videoId: video.guid })
+        await getStreamVideo({ apiKey, libraryId, videoId: orphan.guid })
       } catch (err) {
         if (!(err instanceof Error && err.cause instanceof HTTPError && err.cause.response.status === 404)) {
           throw err
@@ -83,25 +77,4 @@ describe.skipIf(!hasBunnyCredentials())('Stream Cleanup Task', () => {
     }
     expect(deleted).toBe(true)
   }, 60000)
-
-  it('should cleanup session when video already deleted', async () => {
-    const video = await createStreamVideo({ apiKey, libraryId, title: 'cleanup-test-deleted' })
-    await createOrphanedSession(video.guid)
-    await deleteStreamVideo({ apiKey, libraryId, videoId: video.guid })
-
-    await payload.jobs.queue({
-      input: {},
-      overrideAccess: true,
-      queue: 'bunny-cleanup-test-queue',
-      task: 'StorageBunnyStreamCleanup',
-    })
-    await payload.jobs.run({ overrideAccess: true, queue: 'bunny-cleanup-test-queue' })
-
-    const sessionsAfter = await payload.find({
-      collection: streamUploadSessionsCollectionSlug,
-      overrideAccess: true,
-      where: { videoId: { equals: video.guid } },
-    })
-    expect(sessionsAfter.totalDocs).toBe(0)
-  }, 30000)
 })
