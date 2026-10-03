@@ -120,7 +120,7 @@ describe('config validator', () => {
   })
 
   describe('storage S3 validation', () => {
-    it('throws when s3 is enabled without a region', () => {
+    it('throws when S3 is enabled without a region', () => {
       const config = {
         collections: { media: true },
         storage: {
@@ -290,7 +290,7 @@ describe('config validator', () => {
       )
     })
 
-    it('throws when an own zone enables s3 without a region', () => {
+    it('throws when an own zone enables S3 without a region', () => {
       const config = {
         collections: { media: { storage: createOwnStorage('media', { s3: { region: '' } }) } },
       } as unknown as BunnyStorageConfig
@@ -300,7 +300,7 @@ describe('config validator', () => {
       )
     })
 
-    it('throws the edge transport error for an own zone with clientUploads but no s3 or edge', () => {
+    it('throws the edge transport error for an own zone with clientUploads but no S3 or edge', () => {
       const config = {
         collections: { media: { storage: createOwnStorage('media', { clientUploads: true }) } },
       } as unknown as BunnyStorageConfig

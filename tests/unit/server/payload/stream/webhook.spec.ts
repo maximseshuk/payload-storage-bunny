@@ -209,7 +209,7 @@ describe('Stream webhook endpoint', () => {
     expect(res.status).toBe(500)
   })
 
-  describe('multiple stream libraries', () => {
+  describe('multiple Stream libraries', () => {
     const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
     const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
     const gamma = { slug: 'gamma', upload: { mimeTypes: ['video/mp4'] } }

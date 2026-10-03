@@ -140,7 +140,7 @@ describe('TUS auth endpoint', () => {
     await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
   })
 
-  it('throws 400 when the requested collection has no stream tus config', async () => {
+  it('throws 400 when the requested collection has no stream TUS config', async () => {
     const config = createNormalizedConfig({
       collections: { media: { disablePayloadAccessControl: true, stream: { tus: false } } },
       stream: {
@@ -485,7 +485,7 @@ describe('TUS auth endpoint', () => {
     })
   })
 
-  describe('per-collection stream libraries', () => {
+  describe('per-collection Stream libraries', () => {
     const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
     const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
 
@@ -606,7 +606,7 @@ describe('TUS auth endpoint', () => {
       expect(betaAccess).not.toHaveBeenCalled()
     })
 
-    it('registers the tus-auth endpoint when only a collection has tus', () => {
+    it('registers the tus-auth endpoint when only a collection has TUS', () => {
       const config = createNormalizedConfig({
         collections: {
           videos: {

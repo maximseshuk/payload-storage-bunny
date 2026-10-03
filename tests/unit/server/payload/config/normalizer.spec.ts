@@ -536,7 +536,7 @@ describe('config normalizer', () => {
       expect(normalized.collections.get('media')?.storage).toBeUndefined()
     })
 
-    it('passes the s3 config to collections', () => {
+    it('passes the S3 config to collections', () => {
       const config: BunnyStorageConfig = {
         accountApiKey: 'test-api-key',
         collections: { media: { storage: { uploadTimeout: 90000 } } },

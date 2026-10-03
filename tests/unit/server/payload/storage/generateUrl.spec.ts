@@ -135,7 +135,7 @@ describe('getGenerateUrl', () => {
   })
 
   describe('no configuration', () => {
-    it('returns an empty string when there is no stream video and no storage config', () => {
+    it('returns an empty string when there is no Stream video and no storage config', () => {
       const generate = getGenerateUrl(buildContext())
 
       const result = generate({ data: {}, filename: 'photo.jpg' })

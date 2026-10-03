@@ -110,7 +110,7 @@ describe('per-collection zone routing through the adapter', () => {
       expect(uploadStorageFileS3Mock).toHaveBeenCalledTimes(1)
     })
 
-    it('creates the stream video in the override collection library', async () => {
+    it('creates the Stream video in the override collection library', async () => {
       const file = {
         buffer: Buffer.from('x'),
         filename: 'clip.mp4',

@@ -325,7 +325,7 @@ describe('generateStreamTusUploadSignature', () => {
   })
 })
 
-describe('stream video token', () => {
+describe('Stream video token', () => {
   const user = { collection: 'users', id: 'user-1' } as never
   const input = { collection: 'media', libraryId: 12345, secret: 'payload-secret', user, videoId: 'video-1' }
 
