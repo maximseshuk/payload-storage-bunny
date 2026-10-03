@@ -12,6 +12,7 @@ import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { Config } from 'payload'
 
 import {
+  assertNoRemovedKeys,
   createCollectionContext,
   createNormalizedConfig,
   hasAnyStorage,
@@ -26,7 +27,7 @@ import {
 } from '@/server/payload/storage/clientUploads/persistPrefixHook.js'
 import { getGenerateUploadInstructions } from '@/server/payload/storage/clientUploads/uploadInstructions.js'
 import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from '@/server/payload/storage/index.js'
-import { getStreamCleanupTask } from '@/server/payload/stream/cleanupTask.js'
+import { getStreamCleanupTask, warnIfCleanupQueueNotRun } from '@/server/payload/stream/cleanupTask.js'
 import { hasStreamClientUploads } from '@/server/payload/stream/clientUploads.js'
 import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
 import { getAfterChangeHook, getBeforeValidateHook } from '@/server/payload/stream/hooks.js'
@@ -58,20 +59,27 @@ const getCloudStorageCollections = (
   adapter: Adapter | null,
 ): CloudStoragePluginOptions['collections'] =>
   Object.entries(collections).reduce(
-    (acc, [slug, collOptions]) => ({
-      ...acc,
-      [slug]: {
-        ...(collOptions === true ? {} : collOptions),
-        adapter,
-      },
-    }),
+    (acc, [slug, collOptions]) =>
+      collOptions
+        ? {
+            ...acc,
+            [slug]: {
+              ...(collOptions === true ? {} : collOptions),
+              adapter,
+            },
+          }
+        : acc,
     {} as Record<string, CollectionOptions>,
   )
 
 export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => ({
   name: 'bunny',
-  collections: Object.keys(pluginConfig.collections),
+  collections: Object.entries(pluginConfig.collections)
+    .filter(([, collOptions]) => collOptions)
+    .map(([slug]) => slug),
   init: (incomingConfig: Config): Config => {
+    assertNoRemovedKeys(pluginConfig)
+
     if (pluginConfig.enabled === false) {
       return cloudStoragePlugin({
         collections: getCloudStorageCollections(pluginConfig.collections, null),
@@ -258,6 +266,9 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageConfi
       },
       onInit: async (payload) => {
         await incomingConfig.onInit?.(payload)
+        if (cleanupTask) {
+          warnIfCleanupQueueNotRun({ payload, task: cleanupTask })
+        }
         void reportTelemetry({ config, payload }).catch(() => {})
       },
     }

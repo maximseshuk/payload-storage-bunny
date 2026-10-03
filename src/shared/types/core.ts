@@ -12,6 +12,7 @@ import type {
 export type CollectionContext = {
   accountApiKey?: string
   collection: CollectionConfig
+  hasGenerateFileURL: boolean
   isTusUploadSupported: boolean
   prefix?: string
   purgeConfig?: NormalizedPurgeConfig

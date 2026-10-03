@@ -1,0 +1,17 @@
+export const REGIONS = {
+  de: { hdd: true, label: 'Frankfurt, DE (default)', s3: true, ssd: true, stream: true },
+  uk: { hdd: true, label: 'London, UK', s3: true, ssd: true, stream: true },
+  se: { hdd: true, label: 'Stockholm, SE', s3: true, ssd: true, stream: true },
+  ny: { hdd: true, label: 'New York, US', s3: true, ssd: true, stream: true },
+  la: { hdd: true, label: 'Los Angeles, US', s3: true, ssd: true, stream: true },
+  sg: { hdd: true, label: 'Singapore, SG', s3: true, ssd: true, stream: true },
+  syd: { hdd: true, label: 'Sydney, SYD', s3: true, ssd: true, stream: true },
+  br: { hdd: true, label: 'São Paulo, BR', s3: false, ssd: true, stream: true },
+  jh: { hdd: true, label: 'Johannesburg, SA', s3: true, ssd: true, stream: true },
+  cz: { hdd: false, label: 'Prague, CZ', s3: false, ssd: true, stream: false },
+  es: { hdd: false, label: 'Madrid, ES', s3: false, ssd: true, stream: false },
+  mi: { hdd: false, label: 'Miami, US', s3: false, ssd: true, stream: false },
+  wa: { hdd: false, label: 'Seattle, US', s3: false, ssd: true, stream: false },
+  hk: { hdd: false, label: 'Hong Kong, HK', s3: false, ssd: true, stream: false },
+  jp: { hdd: false, label: 'Tokyo, JP', s3: false, ssd: true, stream: false },
+} as const

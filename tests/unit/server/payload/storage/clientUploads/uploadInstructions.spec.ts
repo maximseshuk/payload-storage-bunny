@@ -71,7 +71,7 @@ const s3Config = () =>
       apiKey: 'zone-pw',
       clientUploads: {},
       hostname: 'cdn.b-cdn.net',
-      s3: { region: 'de' },
+      s3: true,
       zoneName: 'zone',
     },
   } as never)
@@ -108,7 +108,7 @@ describe('client upload endpoint', () => {
         apiKey: 'zone-pw',
         clientUploads: { access: () => false },
         hostname: 'cdn.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'zone',
       },
     } as never)
@@ -214,7 +214,7 @@ describe('client upload endpoint', () => {
         apiKey: 'zone-pw',
         clientUploads: {},
         hostname: 'cdn.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'zone',
       },
     } as never)
@@ -287,7 +287,7 @@ describe('client upload endpoint', () => {
         apiKey: 'zone-pw',
         clientUploads: { prefix: () => 'tenants/acme' },
         hostname: 'cdn.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'zone',
       },
     } as never)
@@ -307,7 +307,7 @@ describe('client upload endpoint', () => {
         apiKey: 'zone-pw',
         clientUploads: { prefix: () => 'tenants/../acme' },
         hostname: 'cdn.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'zone',
       },
     } as never)
@@ -327,7 +327,7 @@ describe('client upload endpoint', () => {
         apiKey: 'zone-pw',
         clientUploads: { prefix: () => 'uploads/acme' },
         hostname: 'cdn.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'zone',
       },
     } as never)
@@ -402,7 +402,7 @@ describe('client upload endpoint', () => {
         apiKey: 'zone-pw',
         clientUploads: {},
         hostname: 'cdn.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'zone',
       },
       stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, tus: true },
@@ -438,7 +438,8 @@ describe('client upload endpoint', () => {
             apiKey: 's3-tenant-pw',
             clientUploads: {},
             hostname: 's3-tenant.b-cdn.net',
-            s3: { region: 'ny' },
+            region: 'ny',
+            s3: true,
             zoneName: 's3-tenant-zone',
           },
         },
@@ -462,7 +463,7 @@ describe('client upload endpoint', () => {
         expect.objectContaining({
           apiKey: 's3-tenant-pw',
           path: expect.stringMatching(keyed('')),
-          s3: { region: 'ny' },
+          region: 'ny',
           zoneName: 's3-tenant-zone',
         }),
       )

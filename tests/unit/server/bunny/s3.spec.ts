@@ -26,7 +26,7 @@ const { deleteStorageFileS3, getS3Endpoint, presignStoragePutUrl, storageObjectE
 
 const credentials = {
   apiKey: 'zone-password',
-  s3: { region: 'de' },
+  region: 'de',
   zoneName: 'my-zone',
 }
 

@@ -34,7 +34,7 @@ beforeEach(() => {
 describe('getGenerateUrl', () => {
   describe('stream branch', () => {
     it('builds the playlist URL and signs it with a videoId token path', () => {
-      const signedUrls = { expiresIn: 3600 }
+      const signedUrls = { expiresIn: () => 3600 }
       const generate = getGenerateUrl(buildContext({ signedUrls, streamConfig } as Partial<CollectionContext>))
 
       const result = generate({ data: streamData, filename: 'clip.mp4' })

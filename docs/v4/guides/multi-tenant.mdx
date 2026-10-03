@@ -30,7 +30,7 @@ bunnyStorage({
         webhook: { secret: process.env.TENANT_A_WEBHOOK_SECRET },
       },
       // access control is on, so the stream needs a redirect (or mp4Fallback: true)
-      signedUrls: { expiresIn: 3600, staticHandler: { useRedirect: true } },
+      signedUrls: { expiresIn: 3600, staticHandler: { redirect: true } },
     },
     tenantBMedia: {
       storage: {
@@ -163,9 +163,9 @@ bunnyStorage({
     media: {
       prefix: 'tenants',
       // disablePayloadAccessControl left at its default → access control ON
-      // add signedUrls.staticHandler.useRedirect to hand off signed CDN redirects
+      // add signedUrls.staticHandler.redirect to hand off signed CDN redirects
       // instead of proxying bytes through Payload:
-      signedUrls: { expiresIn: 3600, staticHandler: { useRedirect: true } },
+      signedUrls: { expiresIn: 3600, staticHandler: { redirect: true } },
     },
   },
   storage: {
@@ -188,7 +188,7 @@ With `disablePayloadAccessControl: true` and no signed URLs, files are served st
 
 ## Stream has no folders
 
-Bunny Stream videos are library-scoped GUIDs; there are no per-tenant folders, so the prefix recipe doesn't apply to Stream. Isolate Stream two ways: keep Payload access control on (collection read rules gate the video — no prefix is involved, so unlike Storage this works), or enable signed URLs (`stream.tokenSecurityKey`), which scope the token to the individual video. Gate uploads with `stream.tus.checkAccess(req, body)` against your own tenant model.
+Bunny Stream videos are library-scoped GUIDs; there are no per-tenant folders, so the prefix recipe doesn't apply to Stream. Isolate Stream two ways: keep Payload access control on (collection read rules gate the video — no prefix is involved, so unlike Storage this works), or enable signed URLs (`stream.tokenSecurityKey`), which scope the token to the individual video. Gate uploads with `stream.tus.access({ req, data })` against your own tenant model.
 
 To keep each tenant's videos tidy in the Bunny dashboard, you can drop them into a per-tenant Bunny **collection** — see [Stream collections](/v4/guides/stream-collections). Note that collections are organization only and do **not** isolate tenants; the two options above are what enforce isolation.
 

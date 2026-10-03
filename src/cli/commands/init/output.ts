@@ -75,7 +75,7 @@ export const buildConfigBlock = (answers: InitAnswers, result: ProvisionResult):
   }
 
   if (answers.optimizer) {
-    lines.push("  thumbnail: { queryParams: { width: '300' } },")
+    lines.push("  thumbnail: { urlTransform: { queryParams: { width: '300' } } },")
   }
 
   if (wantsStorage(answers.service)) {
@@ -85,14 +85,14 @@ export const buildConfigBlock = (answers: InitAnswers, result: ProvisionResult):
     lines.push('    apiKey: process.env.BUNNY_STORAGE_API_KEY,')
     lines.push('    hostname: process.env.BUNNY_STORAGE_HOSTNAME,')
     lines.push('    zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,')
-    if (answers.storageAccess === 'http' && region !== DEFAULT_REGION) {
+    if (region !== DEFAULT_REGION) {
       lines.push(`    region: '${region}',`)
     }
     if (answers.signedUrls) {
       lines.push('    tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,')
     }
     if (answers.storageAccess === 's3') {
-      lines.push(`    s3: { region: '${region}' },`)
+      lines.push('    s3: true,')
       if (usesS3ClientUploads(answers)) {
         lines.push('    clientUploads: true,')
       }
@@ -151,7 +151,7 @@ export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult)
   }
 
   if (answers.optimizer) {
-    config.thumbnail = { queryParams: { width: '300' } }
+    config.thumbnail = { urlTransform: { queryParams: { width: '300' } } }
   }
 
   if (wantsStorage(answers.service) && result.storage) {
@@ -161,7 +161,8 @@ export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult)
         apiKey: result.storage.apiKey,
         clientUploads: usesS3ClientUploads(answers) ? true : undefined,
         hostname: result.storage.hostname,
-        s3: { region },
+        region: region === DEFAULT_REGION ? undefined : region,
+        s3: true,
         tokenSecurityKey: answers.signedUrls ? result.storage.tokenSecurityKey : undefined,
         zoneName: result.storage.zoneName,
       }

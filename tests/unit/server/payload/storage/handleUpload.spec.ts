@@ -150,9 +150,8 @@ describe('getHandleUpload', () => {
     it('uploads via the S3 backend when S3 config is present', async () => {
       uploadStorageFileS3Mock.mockResolvedValue(undefined)
 
-      const s3 = { region: 'de' }
       const handler = getHandleUpload(
-        buildContext({ storageConfig: { ...storageConfig, s3 } } as unknown as Partial<CollectionContext>),
+        buildContext({ storageConfig: { ...storageConfig, s3: true } } as unknown as Partial<CollectionContext>),
       )
       const file = createFile({ filename: 'doc.pdf', mimeType: 'application/pdf' })
 
@@ -169,7 +168,7 @@ describe('getHandleUpload', () => {
         buffer: file.buffer,
         mimeType: 'application/pdf',
         path: 'doc.pdf',
-        s3,
+        region: 'de',
         timeout: 60000,
         zoneName: 'my-zone',
       })
@@ -200,7 +199,7 @@ describe('getHandleUpload', () => {
 
       expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('media/photo.jpg')
       expect(purgeCacheMock).toHaveBeenCalledWith(
-        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg' }),
+        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg*' }),
       )
     })
   })
@@ -226,7 +225,7 @@ describe('getHandleUpload', () => {
       expect(purgeCacheMock).toHaveBeenCalledWith({
         apiKey: 'account-key',
         async: false,
-        url: 'https://storage.b-cdn.net/photo.jpg',
+        url: 'https://storage.b-cdn.net/photo.jpg*',
       })
       expect(req.payload.logger.debug).toHaveBeenCalled()
       expect(result).toBeTruthy()
@@ -254,6 +253,32 @@ describe('getHandleUpload', () => {
       expect(purgeCacheMock).toHaveBeenCalled()
       expect(req.payload.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ msg: '[bunny:storage] upload: cache purge failed' }),
+      )
+    })
+
+    it('purges the plain CDN URL, not the transformed or signed one', async () => {
+      uploadStorageFileMock.mockResolvedValue(undefined)
+      purgeCacheMock.mockResolvedValue(undefined)
+
+      const handler = getHandleUpload(
+        buildContext({
+          purgeConfig: { async: false },
+          signedUrls: { expiresIn: () => 3600 },
+          storageConfig,
+          urlTransform: { appendTimestamp: true, queryParams: { v: '2' } },
+        } as unknown as Partial<CollectionContext>),
+      )
+
+      await handler({
+        collection: { slug: 'media' },
+        data: { prefix: 'docs' },
+        file: createFile(),
+        req: createReq(),
+        storageFilePath: 'docs/photo.jpg',
+      } as never)
+
+      expect(purgeCacheMock).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://storage.b-cdn.net/docs/photo.jpg*' }),
       )
     })
 

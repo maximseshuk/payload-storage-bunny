@@ -148,7 +148,7 @@ export const getUrlAfterReadFieldHook = ({ context, size }: FieldHookArgs): Fiel
     const prefix = data?.prefix
     let url = value
 
-    if (!context.usePayloadAccessControl && context.signedUrls && context.signedUrls.userIp && filename) {
+    if (!context.usePayloadAccessControl && !context.hasGenerateFileURL && context.signedUrls?.userIp && filename) {
       return getGenerateUrl(context)({
         collection: context.collection,
         data,

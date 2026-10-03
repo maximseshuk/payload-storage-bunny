@@ -6,12 +6,15 @@ import type {
   CollectionsConfig,
   PurgeConfig,
   SignedUrlsConfig,
+  SignedUrlsExpiresIn,
+  StaticHandlerRedirectConfig,
   StorageConfig,
   StreamConfig,
   ThumbnailConfig,
   UrlTransformConfig,
 } from '@/shared/types/config.js'
 import type {
+  ExpiresResolver,
   NormalizedBunnyStorageConfig,
   NormalizedClientUploadsConfig,
   NormalizedCollectionConfig,
@@ -35,9 +38,7 @@ export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedB
     _original: options,
     accountApiKey: options.accountApiKey,
     collections: new Map(),
-    purge: options.purge
-      ? normalizePurgeConfig({ accountApiKey: options.accountApiKey, purge: options.purge })
-      : undefined,
+    purge: normalizePurgeConfig({ accountApiKey: options.accountApiKey, value: options.purge }),
     signedUrls: normalizeSignedUrlsConfig({ value: options.signedUrls }),
     storage: options.storage ? normalizeStorageConfig(options.storage) : undefined,
     stream: options.stream ? normalizeStreamConfig(options.stream) : undefined,
@@ -81,8 +82,8 @@ const normalizeStorageConfig = (storage: StorageConfig): NormalizedStorageConfig
   apiKey: storage.apiKey,
   clientUploads: normalizeClientUploadsConfig({ value: storage.clientUploads }),
   hostname: storage.hostname,
-  region: storage.region,
-  s3: storage.s3,
+  region: storage.region ?? CONFIG_DEFAULTS.storage.region,
+  s3: storage.s3 === true,
   tokenSecurityKey: storage.tokenSecurityKey,
   uploadTimeout: storage.uploadTimeout ?? CONFIG_DEFAULTS.storage.uploadTimeout,
   zoneName: storage.zoneName,
@@ -112,14 +113,11 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
   }
 
   if (stream.tus === true) {
-    normalized.tus = {
-      checkAccess: undefined,
-      ...CONFIG_DEFAULTS.stream.tus,
-    }
+    normalized.tus = { ...CONFIG_DEFAULTS.stream.tus }
   } else if (typeof stream.tus === 'object') {
     normalized.tus = {
+      access: stream.tus.access,
       autoMode: stream.tus.autoMode ?? CONFIG_DEFAULTS.stream.tus.autoMode,
-      checkAccess: stream.tus.checkAccess,
       expiresIn: stream.tus.expiresIn ?? CONFIG_DEFAULTS.stream.tus.expiresIn,
     }
   }
@@ -129,30 +127,64 @@ const normalizeStreamConfig = (stream: StreamConfig): NormalizedStreamConfig => 
 
 const normalizePurgeConfig = ({
   accountApiKey,
-  purge,
+  globalConfig,
+  value,
 }: {
   accountApiKey?: string
-  purge: boolean | PurgeConfig
+  globalConfig?: NormalizedPurgeConfig
+  value: boolean | PurgeConfig | undefined
 }): NormalizedPurgeConfig | undefined => {
-  if (purge === true) {
-    if (!accountApiKey) {
-      return undefined
-    }
-    return {
-      async: CONFIG_DEFAULTS.purge.async,
-    }
-  }
-
-  if (purge === false) {
-    return undefined
-  }
-
-  if (!accountApiKey) {
+  if (!value || !accountApiKey) {
     return undefined
   }
 
   return {
-    async: purge.async ?? CONFIG_DEFAULTS.purge.async,
+    async: (value === true ? undefined : value.async) ?? globalConfig?.async ?? CONFIG_DEFAULTS.purge.async,
+  }
+}
+
+const toExpiresResolver = (value: SignedUrlsExpiresIn | undefined, fallback: ExpiresResolver): ExpiresResolver => {
+  if (value === undefined) {
+    return fallback
+  }
+
+  if (typeof value === 'number') {
+    return () => value
+  }
+
+  return (args) => {
+    const defaultValue = fallback(args)
+    return value({ ...args, defaultValue }) ?? defaultValue
+  }
+}
+
+const DEFAULT_EXPIRES_IN: ExpiresResolver = () => CONFIG_DEFAULTS.signedUrls.expiresIn
+
+const normalizeRedirectConfig = ({
+  expiresIn,
+  globalConfig,
+  value,
+}: {
+  expiresIn: ExpiresResolver
+  globalConfig?: NormalizedSignedUrlsConfig['redirect']
+  value: boolean | StaticHandlerRedirectConfig | undefined
+}): NormalizedSignedUrlsConfig['redirect'] => {
+  if (value === false) {
+    return undefined
+  }
+
+  if (value === undefined) {
+    return globalConfig
+  }
+
+  const config = value === true ? {} : value
+
+  return {
+    expiresIn:
+      config.expiresIn === undefined
+        ? globalConfig?.expiresIn
+        : toExpiresResolver(config.expiresIn, globalConfig?.expiresIn ?? expiresIn),
+    status: config.status ?? globalConfig?.status ?? 302,
   }
 }
 
@@ -168,32 +200,26 @@ const normalizeSignedUrlsConfig = ({
   }
 
   if (value === true) {
-    return globalConfig ?? { expiresIn: CONFIG_DEFAULTS.signedUrls.expiresIn }
+    return globalConfig ?? { expiresIn: DEFAULT_EXPIRES_IN }
   }
 
-  const normalized: NormalizedSignedUrlsConfig = {
+  const expiresIn = toExpiresResolver(value.expiresIn, globalConfig?.expiresIn ?? DEFAULT_EXPIRES_IN)
+
+  return {
     allowedCountries: value.allowedCountries ?? globalConfig?.allowedCountries,
     blockedCountries: value.blockedCountries ?? globalConfig?.blockedCountries,
-    expiresAt: value.expiresAt ? (...args) => value.expiresAt!(...args) : globalConfig?.expiresAt,
-    expiresIn: value.expiresIn ?? globalConfig?.expiresIn ?? CONFIG_DEFAULTS.signedUrls.expiresIn,
-    shouldUseSignedUrl: value.shouldUseSignedUrl
-      ? (...args) => value.shouldUseSignedUrl!(...args)
-      : globalConfig?.shouldUseSignedUrl,
-    userIp: value.userIp ? (...args) => value.userIp!(...args) : globalConfig?.userIp,
+    expiresIn,
+    redirect: normalizeRedirectConfig({
+      expiresIn,
+      globalConfig: globalConfig?.redirect,
+      value: value.staticHandler?.redirect,
+    }),
+    shouldUseSignedUrl: value.shouldUseSignedUrl ?? globalConfig?.shouldUseSignedUrl,
+    userIp: value.userIp ?? globalConfig?.userIp,
   }
-
-  if (value.staticHandler) {
-    normalized.staticHandler = {
-      expiresIn: value.staticHandler.expiresIn ?? globalConfig?.staticHandler?.expiresIn,
-      redirectStatus: value.staticHandler.redirectStatus ?? globalConfig?.staticHandler?.redirectStatus ?? 302,
-      useRedirect: value.staticHandler.useRedirect ?? globalConfig?.staticHandler?.useRedirect ?? false,
-    }
-  } else if (globalConfig?.staticHandler) {
-    normalized.staticHandler = globalConfig.staticHandler
-  }
-
-  return normalized
 }
+
+const NO_URL_TRANSFORM = { appendTimestamp: false, queryParams: {} }
 
 const normalizeThumbnailConfig = ({
   globalConfig,
@@ -202,60 +228,53 @@ const normalizeThumbnailConfig = ({
   globalConfig?: NormalizedThumbnailConfig
   value?: boolean | ThumbnailConfig
 }): NormalizedThumbnailConfig | undefined => {
-  const baseConfig = normalizeUrlTransformConfig({
-    defaults: globalConfig ?? CONFIG_DEFAULTS.thumbnail,
-    globalConfig,
-    value,
-  })
-
-  if (!baseConfig) {
+  if (!value) {
     return undefined
   }
 
+  const config = value === true ? {} : value
+  const urlTransform =
+    config.urlTransform === undefined || config.urlTransform === true
+      ? (globalConfig ?? normalizeUrlTransformConfig({ defaults: CONFIG_DEFAULTS.thumbnail, value: true }))
+      : normalizeUrlTransformConfig({
+          defaults: CONFIG_DEFAULTS.thumbnail,
+          globalConfig,
+          value: config.urlTransform,
+        })
+
   return {
-    ...baseConfig,
-    sizeName: typeof value === 'object' && value && 'sizeName' in value ? value.sizeName : globalConfig?.sizeName,
-    streamAnimated:
-      typeof value === 'object' && value && 'streamAnimated' in value
-        ? (value.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated)
-        : (globalConfig?.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated),
+    ...(urlTransform ?? NO_URL_TRANSFORM),
+    sizeName: 'sizeName' in config ? config.sizeName : globalConfig?.sizeName,
+    streamAnimated: config.streamAnimated ?? globalConfig?.streamAnimated ?? CONFIG_DEFAULTS.thumbnail.streamAnimated,
   }
 }
 
 const normalizeUrlTransformConfig = ({
-  defaults,
+  defaults = CONFIG_DEFAULTS.urlTransform,
   globalConfig,
   value,
 }: {
   defaults?: { appendTimestamp: boolean; queryParams: Record<string, string> }
   globalConfig?: NormalizedUrlTransformConfig
-  value?: boolean | UrlTransformConfig
+  value?: UrlTransformConfig
 }): NormalizedUrlTransformConfig | undefined => {
   if (!value) {
     return undefined
   }
 
-  const defaultConfig = defaults ?? CONFIG_DEFAULTS.urlTransform
-
   if (value === true) {
-    return {
-      ...defaultConfig,
-      transformUrl: undefined,
-    }
+    return { appendTimestamp: defaults.appendTimestamp, queryParams: defaults.queryParams }
   }
 
-  if ('transformUrl' in value) {
-    return {
-      appendTimestamp: false,
-      queryParams: {},
-      transformUrl: value.transformUrl,
-    }
+  if (typeof value === 'function') {
+    return { ...NO_URL_TRANSFORM, transformUrl: value }
   }
+
+  const inherited = globalConfig?.transformUrl ? undefined : globalConfig
 
   return {
-    appendTimestamp: value.appendTimestamp ?? globalConfig?.appendTimestamp ?? defaultConfig.appendTimestamp,
-    queryParams: value.queryParams ?? globalConfig?.queryParams ?? defaultConfig.queryParams,
-    transformUrl: undefined,
+    appendTimestamp: value.appendTimestamp ?? inherited?.appendTimestamp ?? defaults.appendTimestamp,
+    queryParams: value.queryParams ?? inherited?.queryParams ?? defaults.queryParams,
   }
 }
 
@@ -269,7 +288,7 @@ const normalizeCollectionsConfig = ({
   const map = new Map<string, NormalizedCollectionConfig>()
 
   for (const [slug, collectionConfig] of Object.entries(collections)) {
-    if (collectionConfig !== undefined) {
+    if (collectionConfig) {
       map.set(slug, normalizeCollectionConfig({ collectionConfig, globalConfig }))
     }
   }
@@ -287,6 +306,7 @@ const normalizeCollectionConfig = ({
   if (collectionConfig === true) {
     return {
       disablePayloadAccessControl: false,
+      hasGenerateFileURL: false,
       prefix: '',
       purge: globalConfig.purge,
       signedUrls: globalConfig.signedUrls,
@@ -304,12 +324,11 @@ const normalizeCollectionConfig = ({
 
   return {
     disablePayloadAccessControl: collectionConfig.disablePayloadAccessControl ?? false,
+    hasGenerateFileURL: typeof collectionConfig.generateFileURL === 'function',
     prefix: collectionConfig.prefix ?? '',
-    purge: resolveCollectionPurgeConfig({
-      accountApiKey: globalConfig.accountApiKey,
-      collectionOverride: collectionConfig.purge,
-      globalValue: globalConfig.purge,
-    }),
+    purge: resolveCollectionConfigSetting(collectionConfig.purge, globalConfig.purge, (value) =>
+      normalizePurgeConfig({ accountApiKey: globalConfig.accountApiKey, globalConfig: globalConfig.purge, value }),
+    ),
     signedUrls: resolveCollectionConfigSetting(collectionConfig.signedUrls, globalConfig.signedUrls, (value) =>
       normalizeSignedUrlsConfig({ globalConfig: globalConfig.signedUrls, value }),
     ),
@@ -429,44 +448,15 @@ const resolveCollectionStreamConfig = ({
     uploadTimeout: collectionOverride.uploadTimeout,
   })
 
-  if (collectionOverride.tus === false) {
+  const tus = collectionOverride.tus
+  if (tus === false) {
     streamConfig.tus = undefined
-  } else if (collectionOverride.tus && streamConfig.tus) {
-    streamConfig.tus = mergeDefined(streamConfig.tus, {
-      autoMode: collectionOverride.tus.autoMode,
-      expiresIn: collectionOverride.tus.expiresIn,
-    })
+  } else if (tus) {
+    const base = streamConfig.tus ?? { ...CONFIG_DEFAULTS.stream.tus }
+    streamConfig.tus = tus === true ? base : mergeDefined(base, { autoMode: tus.autoMode, expiresIn: tus.expiresIn })
   }
 
   return streamConfig
-}
-
-const resolveCollectionPurgeConfig = ({
-  accountApiKey,
-  collectionOverride,
-  globalValue,
-}: {
-  accountApiKey?: string
-  collectionOverride: boolean | Partial<PurgeConfig> | undefined
-  globalValue: NormalizedPurgeConfig | undefined
-}): NormalizedPurgeConfig | undefined => {
-  if (collectionOverride === false) {
-    return undefined
-  }
-
-  if (collectionOverride === undefined) {
-    return globalValue
-  }
-
-  if (collectionOverride === true) {
-    return globalValue ?? normalizePurgeConfig({ accountApiKey, purge: true })
-  }
-
-  if (!globalValue) {
-    return normalizePurgeConfig({ accountApiKey, purge: collectionOverride })
-  }
-
-  return mergeDefined(globalValue, { async: collectionOverride.async })
 }
 
 const resolveCollectionConfigSetting = <T, R>(

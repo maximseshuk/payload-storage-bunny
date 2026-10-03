@@ -14,7 +14,7 @@ const { CONFIG_DEFAULTS } = await import('@/server/payload/config/defaults.js')
 const { hasAnyStreamCleanup } = await import('@/server/payload/config/inspect.js')
 const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
 const { BunnyStreamVideoStatus } = await import('@/server/bunny/stream.js')
-const { getStreamCleanupTask } = await import('@/server/payload/stream/cleanupTask.js')
+const { getStreamCleanupTask, warnIfCleanupQueueNotRun } = await import('@/server/payload/stream/cleanupTask.js')
 
 const { createBaseStorage, createBaseStream, createOwnStream } =
   await import('../../../../helpers/unit/configBuilders.js')
@@ -182,6 +182,45 @@ describe('stream cleanup task', () => {
       } as never)
       expect(getStreamCleanupTask(config)).toBeUndefined()
       expect(hasAnyStreamCleanup(config)).toBe(false)
+    })
+  })
+
+  describe('queue warning', () => {
+    const task = { schedule: [{ cron: '0 2 * * *', queue: 'storage-bunny' }] } as never
+    const payloadWith = (autoRun: unknown) =>
+      ({ config: { jobs: { autoRun } }, logger: { warn: vi.fn() } }) as unknown as {
+        logger: { warn: ReturnType<typeof vi.fn> }
+      }
+
+    it.each([
+      { autoRun: undefined, name: 'no autoRun' },
+      { autoRun: [{ cron: '* * * * *' }], name: 'only the default queue' },
+      { autoRun: [{ cron: '* * * * *', queue: 'other' }], name: 'another queue' },
+    ])('warns when autoRun does not run the cleanup queue ($name)', ({ autoRun }) => {
+      const payload = payloadWith(autoRun)
+      warnIfCleanupQueueNotRun({ payload: payload as never, task })
+      expect(payload.logger.warn).toHaveBeenCalledWith({
+        msg: '[bunny:stream] cleanup: no jobs.autoRun entry runs the "storage-bunny" queue, so the cleanup task only runs if a worker processes that queue',
+      })
+    })
+
+    it('checks the queue of every schedule entry', () => {
+      const payload = payloadWith([{ cron: '* * * * *', queue: 'storage-bunny' }])
+      const schedule = [{ cron: '0 2 * * *', queue: 'storage-bunny' }, { cron: '0 3 * * *' }]
+      warnIfCleanupQueueNotRun({ payload: payload as never, task: { schedule } as never })
+      expect(payload.logger.warn).toHaveBeenCalledExactlyOnceWith({
+        msg: '[bunny:stream] cleanup: no jobs.autoRun entry runs the "default" queue, so the cleanup task only runs if a worker processes that queue',
+      })
+    })
+
+    it.each([
+      { autoRun: [{ cron: '* * * * *', queue: 'storage-bunny' }], name: 'the cleanup queue' },
+      { autoRun: [{ allQueues: true, cron: '* * * * *' }], name: 'allQueues' },
+      { autoRun: () => [], name: 'a function' },
+    ])('stays quiet when autoRun covers the queue ($name)', ({ autoRun }) => {
+      const payload = payloadWith(autoRun)
+      warnIfCleanupQueueNotRun({ payload: payload as never, task })
+      expect(payload.logger.warn).not.toHaveBeenCalled()
     })
   })
 })

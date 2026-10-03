@@ -36,7 +36,7 @@
 Requires **Payload 4** and **Node.js 24.15 or later**. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
 
 > [!IMPORTANT]
-> **Upgrading from v3?** Register the adapter under `storage` instead of `plugins`. Custom upload clients must move to Payload's `POST /api/upload-instructions` endpoint, and SQL databases need a migration for the new `prefix` column. Follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
+> **Upgrading from v3?** Register the adapter under `storage` instead of `plugins`. Some options are renamed, and the plugin throws at startup with the new name for each old key. Custom upload clients must move to Payload's `POST /api/upload-instructions` endpoint, and SQL databases need a migration for the new `prefix` column. Follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
 >
 > **Upgrading from v2?** Upgrade to v3 on Payload 3 first and run its one-time data migration. The migration helper ships only in v3 and is removed in v4. Back up your database, then follow the same [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
 

@@ -104,7 +104,7 @@ bunnyStorage({
       signedUrls: {
         expiresIn: 3600,
         allowedCountries: ['US', 'CA', 'GB'],
-        staticHandler: { useRedirect: true },
+        staticHandler: { redirect: true },
       },
     },
   },
@@ -161,7 +161,7 @@ bunnyStorage({
     tus: {
       autoMode: true,
       expiresIn: 7200, // 2 hours for large files
-      checkAccess: (req) => req.user?.role === 'admin' || req.user?.role === 'editor',
+      access: ({ req }) => req.user?.role === 'admin' || req.user?.role === 'editor',
     },
     cleanup: true,
   },
@@ -237,9 +237,7 @@ bunnyStorage({
         allowedCountries: ['US', 'CA', 'GB', 'AU'],
         shouldUseSignedUrl: ({ filename }) => /\.(mp4|webm|mov|avi)$/i.test(filename),
         staticHandler: {
-          useRedirect: true,
-          redirectStatus: 302,
-          expiresIn: 1800,
+          redirect: { status: 302, expiresIn: 1800 },
         },
       },
     },
@@ -269,7 +267,7 @@ bunnyStorage({
     media: {
       signedUrls: {
         expiresIn: 3600,
-        staticHandler: { useRedirect: true }, // userIp runs for redirect links
+        staticHandler: { redirect: true }, // userIp runs for redirect links
         userIp: ({ req }) => {
           // Pick the header your proxy/CDN sets for the real client IP.
           const forwarded = req.headers.get('x-forwarded-for')
@@ -306,11 +304,9 @@ bunnyStorage({
       },
     },
     avatars: {
-      urlTransform: {
-        transformUrl: ({ baseUrl, filename }) => {
-          const size = filename.includes('large') ? '300' : '150'
-          return `${baseUrl}?width=${size}&height=${size}&quality=90`
-        },
+      urlTransform: ({ baseUrl, filename }) => {
+        const size = filename.includes('large') ? '300' : '150'
+        return `${baseUrl}?width=${size}&height=${size}&quality=90`
       },
     },
   },
@@ -320,8 +316,9 @@ bunnyStorage({
     zoneName: 'my-zone',
   },
   thumbnail: {
-    appendTimestamp: true,
-    queryParams: { width: '200', height: '200', quality: '85' },
+    urlTransform: {
+      queryParams: { width: '200', height: '200', quality: '85' },
+    },
   },
 })
 ```
@@ -350,7 +347,6 @@ export default buildConfig({
         media: {
           thumbnail: {
             sizeName: 'thumbnail',
-            appendTimestamp: true,
           },
         },
       },
@@ -382,8 +378,8 @@ bunnyStorage({
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
-    s3: { region: 'de' },
-    clientUploads: true, // presigned S3, because storage.s3 is set
+    s3: true,
+    clientUploads: true, // presigned S3, because storage.s3 is true
   },
 })
 ```
@@ -545,15 +541,14 @@ bunnyStorage({
       prefix: 'public',
       disablePayloadAccessControl: true,
       thumbnail: {
-        appendTimestamp: true,
-        queryParams: { width: '200', height: '200' },
+        urlTransform: { queryParams: { width: '200', height: '200' } },
       },
     },
     documents: {
       prefix: 'private',
       signedUrls: {
         expiresIn: 1800,
-        staticHandler: { useRedirect: false }, // proxy through Payload
+        staticHandler: { redirect: false }, // proxy through Payload
       },
       purge: false,
     },
@@ -590,7 +585,7 @@ bunnyStorage({
     cleanup: { maxAge: 172800 },
   },
   purge: true,
-  thumbnail: { appendTimestamp: true },
+  thumbnail: true,
 })
 ```
 

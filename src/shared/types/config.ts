@@ -1,6 +1,8 @@
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
 import type { CollectionConfig, PayloadRequest, StorageAdapter, TaskConfig, UploadCollectionSlug } from 'payload'
 
+import type { REGIONS } from '@/shared/regions.js'
+
 import type { StreamTusAuthRequest } from './core.js'
 
 export type UrlTransformFunction = (args: {
@@ -16,26 +18,27 @@ export type UrlTransformFunction = (args: {
   prefix?: string
 }) => string
 
-export type UrlTransformConfig =
-  | {
-      /**
-       * Append timestamp to the URL
-       * @default false (true for admin thumbnails)
-       */
-      appendTimestamp?: boolean
-      /**
-       * Static query parameters to append to the URL
-       * Works together with appendTimestamp
-       */
-      queryParams?: Record<string, string>
-      transformUrl?: never
-    }
-  | {
-      /**
-       * Custom transform function for complete URL control
-       */
-      transformUrl: UrlTransformFunction
-    }
+export type UrlTransformOptions = {
+  /**
+   * Append a `t=<timestamp>` query parameter to the URL.
+   * @default false
+   */
+  appendTimestamp?: boolean
+  /**
+   * Static query parameters to append to the URL.
+   * @default {}
+   */
+  queryParams?: Record<string, string>
+}
+
+/**
+ * URL transformation.
+ * - `true`: use the defaults (inherit the global value at collection level).
+ * - `false`: no transformation.
+ * - An object: append a timestamp and/or static query parameters. Unset fields inherit the global object.
+ * - A function: build the URL yourself. It replaces the object form completely.
+ */
+export type UrlTransformConfig = boolean | UrlTransformFunction | UrlTransformOptions
 
 export type ThumbnailConfig = {
   /**
@@ -50,7 +53,14 @@ export type ThumbnailConfig = {
    * @default false
    */
   streamAnimated?: boolean
-} & UrlTransformConfig
+  /**
+   * URL transformation for thumbnail URLs. Same shape as the top-level `urlTransform`.
+   * Unset or `true`: inherit the global `thumbnail.urlTransform`, else append a timestamp.
+   * `false`: no transformation.
+   * @default { appendTimestamp: true }
+   */
+  urlTransform?: UrlTransformConfig
+}
 
 export type PurgeConfig = {
   /**
@@ -60,22 +70,18 @@ export type PurgeConfig = {
   async?: boolean
 }
 
-export type StorageS3Config = {
-  /**
-   * S3 region code of your storage zone — the region the zone was created in.
-   * The endpoint becomes `https://{region}-s3.storage.bunnycdn.com`.
-   * @example 'de'
-   */
-  region: 'de' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | ({} & string)
-}
+export type StorageRegion = keyof typeof REGIONS | ({} & string)
 
 type StorageBaseConfig = {
   /** Bunny Storage API key */
   apiKey: string
   /** CDN domain from your Pull Zone (e.g., 'example.b-cdn.net') */
   hostname: string
-  /** Storage region code (optional, defaults to primary region) */
-  region?: 'br' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | ({} & string)
+  /**
+   * Primary region of the storage zone.
+   * @default 'de'
+   */
+  region?: StorageRegion
   /** Security key for signing storage URLs. Used to generate signed URLs for secure file access */
   tokenSecurityKey?: string
   /**
@@ -101,14 +107,9 @@ type StorageBaseConfig = {
  * Edge Script is involved and `clientUploads.edge` is not applicable.
  */
 export type S3StorageConfig = StorageBaseConfig & {
-  /**
-   * Enable browser-direct uploads that bypass the Payload server for the file bytes,
-   * removing serverless body-size limits (e.g. Vercel's ~4.5 MB). Can be overridden per collection.
-   * Set to true to enable with defaults. Uses presigned S3 uploads.
-   */
+  /** Browser-direct uploads through presigned S3 URLs, so files skip the server body-size limit. */
   clientUploads?: boolean | { access?: ClientUploadsAccess; prefix?: ClientUploadsPrefix }
-  /** Enable S3-compatible access for this storage zone. */
-  s3: StorageS3Config
+  s3: true
 }
 
 /**
@@ -118,13 +119,9 @@ export type S3StorageConfig = StorageBaseConfig & {
  * `clientUploads.edge` is required whenever `clientUploads` is enabled.
  */
 export type HttpStorageConfig = StorageBaseConfig & {
-  /**
-   * Enable browser-direct uploads that bypass the Payload server for the file bytes,
-   * removing serverless body-size limits (e.g. Vercel's ~4.5 MB). Can be overridden per collection.
-   * Requires `edge` (Edge Script proxy) because the zone is not S3-enabled.
-   */
+  /** Browser-direct uploads through the Edge Script in `edge`, so files skip the server body-size limit. */
   clientUploads?: { access?: ClientUploadsAccess; edge: ClientUploadsEdgeConfig; prefix?: ClientUploadsPrefix }
-  s3?: never
+  s3?: false
 }
 
 export type StorageConfig = HttpStorageConfig | S3StorageConfig
@@ -157,7 +154,7 @@ export type ClientUploadsConfig = {
   access?: ClientUploadsAccess
   /**
    * Edge Script proxy settings. Required for edge transport, i.e. when `storage.s3`
-   * is not set (ignored when `storage.s3` is set).
+   * is not `true` (ignored when `storage.s3` is `true`).
    */
   edge?: ClientUploadsEdgeConfig
   /**
@@ -177,15 +174,16 @@ export type StreamTusConfig = {
    */
   autoMode?: boolean
   /**
-   * Custom authorization check for TUS API endpoints.
-   *
-   * By default, checks if user has admin access and create access to at least one collection
-   * configured in the plugin.
-   *
-   * Receives the parsed TUS auth request body as a second argument (e.g. to gate on
-   * `collection`, `filesize`, or `filename` before creating the upload).
+   * Decides who may create a TUS upload. It replaces the default check, so it can allow
+   * users the default rejects. Call `defaultAccess()` to keep the default and add rules.
+   * `data` is the parsed TUS auth request (`collection`, `filesize`, `filename`, ...).
+   * @default a logged-in admin user with create access to the collection
    */
-  checkAccess?: (req: PayloadRequest, body: StreamTusAuthRequest) => boolean | Promise<boolean>
+  access?: (args: {
+    data: StreamTusAuthRequest
+    defaultAccess: () => Promise<boolean>
+    req: PayloadRequest
+  }) => boolean | Promise<boolean>
   /**
    * Time in seconds for TUS upload session to expire
    * @default 3600
@@ -218,27 +216,8 @@ export type StreamConfig = {
   /** Video library ID from your Bunny Stream settings */
   libraryId: number
   /**
-   * Video and audio file types that should use Bunny Stream. Defaults include:
-   * - video/mp4 (mp4, m4p, m4v)
-   * - video/x-matroska (mkv)
-   * - video/webm (webm)
-   * - video/x-flv (flv)
-   * - video/x-ms-vod (vod)
-   * - video/x-msvideo (avi)
-   * - video/quicktime (mov)
-   * - video/x-ms-wmv (wmv)
-   * - video/x-amv (amv)
-   * - video/mpeg (mpeg, mpg)
-   * - video/4mv (4mv)
-   * - video/mp2t (ts)
-   * - video/mxf (mxf)
-   * - audio/mpeg (mp3)
-   * - audio/ogg (ogg)
-   * - audio/wav (wav)
-   *
-   * Collection mimeTypes settings override these stream settings.
-   * If you allow a format here but block it in your collection config,
-   * the collection setting wins.
+   * File types that go to Bunny Stream. The collection's own `mimeTypes` still applies.
+   * @default common video and audio types
    */
   mimeTypes?: string[]
   /**
@@ -261,7 +240,10 @@ export type StreamConfig = {
   thumbnailTime?: number
   /** Security key for signing stream URLs. Used to generate signed URLs for secure video access */
   tokenSecurityKey?: string
-  /** Enable TUS resumable uploads for large video files */
+  /**
+   * Enable TUS resumable uploads for large video files
+   * @default false
+   */
   tus?: boolean | StreamTusConfig
   /**
    * Upload timeout in milliseconds
@@ -285,28 +267,27 @@ export type StreamConfig = {
   }
 }
 
-export type StaticHandlerConfig = {
+export type StaticHandlerRedirectConfig = {
   /**
-   * Link expiration time in seconds for redirect URLs
-   * If not specified, uses the main expiresIn value from SignedUrlsConfig
-   *
-   * Useful for setting shorter expiration for redirects vs direct signed URLs
+   * Same shape as `signedUrls.expiresIn`.
+   * @default signedUrls.expiresIn
    */
-  expiresIn?: number
+  expiresIn?: SignedUrlsExpiresIn
   /**
-   * HTTP status code for redirects
+   * Redirect status. Only temporary redirects, because the signed target expires.
    * @default 302
    */
-  redirectStatus?: 301 | 302 | 307 | 308
+  status?: 302 | 307
+}
+
+export type StaticHandlerConfig = {
   /**
-   * Redirect to signed URL instead of proxying content through Payload
-   *
-   * When enabled, static handler responds with HTTP redirect instead of streaming content.
+   * Redirect to a signed URL instead of proxying the file through Payload.
+   * `true` inherits the global redirect, else uses status 302. An object sets the status and the link expiration.
    * Only works when `disablePayloadAccessControl` is false.
-   *
    * @default false
    */
-  useRedirect?: boolean
+  redirect?: boolean | StaticHandlerRedirectConfig
 }
 
 export type SignedUrlsCallbackArgs = {
@@ -322,24 +303,27 @@ export type SignedUrlsCallbackArgs = {
   req?: PayloadRequest
 }
 
+/**
+ * Signed URL expiration.
+ * - A number: seconds from now.
+ * - A function: return seconds from now (number), an absolute deadline (Date), or undefined for `defaultValue`.
+ *   `defaultValue` is the inherited value (the global setting at collection level), else 7200 seconds.
+ */
+export type SignedUrlsExpiresIn =
+  | ((args: { defaultValue: Date | number } & SignedUrlsCallbackArgs) => Date | number | undefined)
+  | number
+
 export type SignedUrlsConfig = {
   /** Allowed countries (ISO 3166-1 alpha-2 codes). Only requests from these countries will be allowed */
   allowedCountries?: string[]
   /** Blocked countries (ISO 3166-1 alpha-2 codes). Requests from these countries will be rejected */
   blockedCountries?: string[]
+  /** @default 7200 */
+  expiresIn?: SignedUrlsExpiresIn
   /**
-   * Resolve an absolute expiration time for a signed URL instead of the sliding
-   * expiresIn window. Return a Date or a UNIX timestamp in seconds; return a falsy
-   * value to fall back to expiresIn. Useful for links that must stop working at a
-   * fixed moment, such as the end of a live event.
+   * Decide per file whether its URL is signed.
+   * @default every file is signed
    */
-  expiresAt?(args: SignedUrlsCallbackArgs): Date | number | undefined
-  /**
-   * Link expiration time in seconds
-   * @default 7200
-   */
-  expiresIn?: number
-  /** Custom function to determine if a file should use signed URLs */
   shouldUseSignedUrl?(args: SignedUrlsCallbackArgs): boolean
   /**
    * Static handler behavior when Payload access control is enabled
@@ -347,79 +331,46 @@ export type SignedUrlsConfig = {
    */
   staticHandler?: StaticHandlerConfig
   /**
-   * Lock signed URLs to the client's IP address (Bunny token IP validation).
-   *
-   * Extract the client's IPv4 address from the incoming request — how the real client
-   * IP is obtained depends on your host and proxy setup (for example
-   * req.headers.get('x-forwarded-for') or a CDN-specific header). Return a falsy value
-   * when no IP can be determined; the URL is then signed without an IP lock instead of
-   * failing. The IP becomes part of the token hash only and is never added to the URL.
-   *
-   * Requires the pull zone's Token IP Validation setting (or the stream library's
-   * equivalent) to be enabled on Bunny for the lock to be enforced. Only IPv4 is
-   * supported by Bunny; enabling Token IP Validation disables IPv6 routing on the
-   * pull zone. Values that are not a plain IPv4 address are ignored with a warning.
-   *
-   * The callback is only invoked for URLs that end up in the client's hands while a
-   * request is available: document url fields, admin thumbnails and staticHandler
-   * redirects. URLs the server fetches itself (proxied downloads) and URLs generated
-   * without a request (cache purging) are never IP-locked.
+   * Lock signed URLs to the client's IPv4 address, for example from `x-forwarded-for`.
+   * Return a falsy value to sign without the lock. Values that are not IPv4 are ignored with a warning.
+   * Needs Token IP Validation on the pull zone or stream library, which turns off IPv6 routing on the zone.
+   * Applies to url fields, admin thumbnails and redirects, not to `generateFileURL`, proxied downloads or purges.
    */
   userIp?(args: { req: PayloadRequest } & SignedUrlsCallbackArgs): string | undefined
 }
 
 /** Partial storage override — merged onto the global storage zone. */
 export type CollectionStorageOverride = {
-  /**
-   * Override global client uploads config for this collection.
-   * Set to true to enable browser-direct uploads with defaults for this collection.
-   * Set to false to disable browser-direct uploads for this collection.
-   */
+  /** `true` uses the global config, else the defaults. `false` turns it off. Object fields inherit. */
   clientUploads?: boolean | ClientUploadsConfig
-  /**
-   * Override upload timeout in milliseconds for this collection
-   */
+  /** Upload timeout in milliseconds. */
   uploadTimeout?: number
 }
 
 /** Partial stream override — merged onto the global stream library. */
 export type CollectionStreamOverride = {
-  /**
-   * Override allowed MIME types for Bunny Stream uploads in this collection.
-   * Replaces the global stream.mimeTypes setting for this collection.
-   */
+  /** Replaces the global `stream.mimeTypes`. */
   mimeTypes?: string[]
-  /**
-   * Override MP4 fallback setting for this collection
-   */
   mp4Fallback?: boolean
-  /**
-   * Override default thumbnail time in milliseconds for Bunny Stream videos.
-   * Specifies which moment in the video to capture as thumbnail.
-   * Use with thumbnail: true to display the thumbnail in admin and API responses.
-   */
+  /** Thumbnail time in milliseconds. Use with `thumbnail: true`. */
   thumbnailTime?: number
   /**
-   * Override TUS resumable uploads config for this collection.
-   * Set to false to disable TUS resumable uploads for this collection.
+   * `true` or an object turns TUS on, even when the global `stream.tus` is off. `false` turns it off.
+   * Object fields inherit.
+   * @default the global `stream.tus`
    */
   tus?:
-    | false
+    | boolean
     | {
         /**
-         * Override automatic TUS mode enablement for this collection.
          * When true, TUS auto-enables for supported video MIME types.
          * When false, user must manually click "Enable TUS mode" button.
          */
         autoMode?: boolean
-        /**
-         * Override TUS upload session expiry in seconds for this collection
-         */
+        /** Upload session expiry in seconds. */
         expiresIn?: number
       }
-  /**
-   * Override upload timeout in milliseconds for this collection
-   */
+  /** Upload timeout in milliseconds. */
   uploadTimeout?: number
 }
 
@@ -439,53 +390,45 @@ export type CollectionStreamConfig = {
 
 export type BunnyStorageCollectionConfig = {
   /**
-   * Override global CDN cache purging config for this collection.
-   * Set to false to disable cache purging for this collection.
+   * `false` turns it off. `true` or an object turns it on, even when the global `purge` is off.
+   * Object fields inherit.
+   * @default the global `purge`
    */
-  purge?: boolean | Partial<PurgeConfig>
-  /** Override global signed URLs config for this collection */
+  purge?: boolean | PurgeConfig
+  /**
+   * Object fields inherit the global `signedUrls`.
+   * @default the global `signedUrls`
+   */
   signedUrls?: boolean | SignedUrlsConfig
   /**
-   * Storage settings for this collection.
-   * - Pass a full `StorageConfig` (with `apiKey`/`hostname`/`zoneName`) to point this
-   *   collection at its OWN storage zone; the global zone is ignored entirely.
-   * - Pass a partial override (`uploadTimeout`/`clientUploads`) to tweak the global zone.
-   * - Set to false to disable Bunny Storage uploads for this collection.
+   * - A full config (`apiKey`, `hostname`, `zoneName`) uses its own zone.
+   *   An object with `apiKey` replaces the global config.
+   * - A partial override (`uploadTimeout`, `clientUploads`) changes the global zone for this collection.
+   * - `false` turns Bunny Storage off for this collection.
    */
   storage?: CollectionStorageOverride | false | StorageConfig
   /**
-   * Stream settings for this collection.
-   * - Pass a full config (with `apiKey`/`hostname`/`libraryId`) to point this collection
-   *   at its OWN stream library; the global library is ignored entirely.
-   * - Pass a partial override (mimeTypes/mp4Fallback/thumbnailTime/tus/uploadTimeout)
-   *   to tweak the global library.
-   * - Set to false to disable Bunny Stream uploads for this collection.
+   * - A full config (`apiKey`, `hostname`, `libraryId`) uses its own library.
+   *   An object with `apiKey` replaces the global config.
+   * - A partial override (`mimeTypes`, `mp4Fallback`, `thumbnailTime`, `tus`, `uploadTimeout`) changes the
+   *   global library for this collection.
+   * - `false` turns Bunny Stream off for this collection.
    */
   stream?: CollectionStreamConfig | CollectionStreamOverride | false
-  /**
-   * Enable thumbnail display in admin panel and thumbnailURL field in API responses.
-   *
-   * For Bunny Stream videos: combines with stream.thumbnailTime to show video thumbnails.
-   * For images: can specify sizeName to use a particular image size as thumbnail.
-   *
-   * The plugin serves this through a hidden `thumbnailURL` field populated on read.
-   */
+  /** @default the global `thumbnail` */
   thumbnail?: boolean | ThumbnailConfig
-  /**
-   * Override global URL transformation config for this collection
-   * Set to false to disable URL transformation for this collection.
-   */
-  urlTransform?: boolean | UrlTransformConfig
+  /** @default the global `urlTransform` */
+  urlTransform?: UrlTransformConfig
 } & Omit<CollectionOptions, 'adapter' | 'disableLocalStorage'>
 
-/** Configuration for which collections use Bunny Storage */
-export type CollectionsConfig = Partial<Record<UploadCollectionSlug, BunnyStorageCollectionConfig | true>>
+/**
+ * Configuration for which collections use Bunny Storage.
+ * `true` uses the global settings, an object overrides them, `false` disables the collection.
+ */
+export type CollectionsConfig = Partial<Record<UploadCollectionSlug, boolean | BunnyStorageCollectionConfig>>
 
 type BunnyStorageBaseConfig = {
-  /**
-   * Bunny Account API key (AccessKey) for account-level operations.
-   * Required for CDN cache purging feature.
-   */
+  /** Bunny account API key. Required for `purge`. */
   accountApiKey?: string
   /** Which collections should use Bunny Storage */
   collections: CollectionsConfig
@@ -495,18 +438,19 @@ type BunnyStorageBaseConfig = {
    * @default true
    */
   enabled?: boolean
-  /** CDN cache purging configuration */
+  /**
+   * CDN cache purging after uploads and deletes. Needs `accountApiKey`.
+   * @default false
+   */
   purge?: boolean | PurgeConfig
-  /** Global signed URLs config (can be overridden per collection) */
+  /**
+   * Sign file URLs with Bunny token authentication.
+   * @default false
+   */
   signedUrls?: boolean | SignedUrlsConfig
   /**
-   * Global thumbnail settings for all collections.
-   *
-   * Enables thumbnail display in admin panel and thumbnailURL field in API responses.
-   * For Bunny Stream videos: works with stream.thumbnailTime setting.
-   * For images: can specify sizeName to use a particular image size.
-   *
-   * The plugin serves this through a hidden `thumbnailURL` field populated on read.
+   * Thumbnails in the admin panel and the `thumbnailURL` field.
+   * @default false
    */
   thumbnail?: boolean | ThumbnailConfig
   /**
@@ -517,22 +461,31 @@ type BunnyStorageBaseConfig = {
    *
    * Disabled automatically when `payload.config.telemetry` is `false`, when the
    * `DO_NOT_TRACK` or `BUNNY_TELEMETRY_DISABLED` env var is set, or in CI. Set to
-   * `false` to opt out explicitly; pass `{ endpoint }` to send to your own collector.
+   * `false` to opt out explicitly; pass `{ url }` to send to your own collector.
    *
    * @see https://payload-storage-bunny.seshuk.im/v4/configuration/telemetry
    * @default true
    */
-  telemetry?: boolean | { endpoint?: string }
+  telemetry?:
+    | boolean
+    | {
+        /**
+         * Collector URL that receives the telemetry report.
+         * @default the plugin's public collector
+         */
+        url?: string
+      }
   /**
-   * Global URL transformation config for all collections (can be overridden per collection)
+   * Add query parameters to file URLs, or build them yourself.
+   * @default false
    */
-  urlTransform?: boolean | UrlTransformConfig
+  urlTransform?: UrlTransformConfig
 }
 
 export type BunnyStorageConfig = {
-  /** Bunny Storage configuration (optional if every collection provides its own) */
+  /** Optional when every collection has its own zone. */
   storage?: StorageConfig
-  /** Bunny Stream configuration (optional if every collection provides its own) */
+  /** Optional when every collection has its own library. */
   stream?: StreamConfig
 } & BunnyStorageBaseConfig
 

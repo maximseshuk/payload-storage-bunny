@@ -4,8 +4,9 @@ import type {
   BunnyStorageConfig,
   ClientUploadsAccess,
   ClientUploadsPrefix,
+  SignedUrlsCallbackArgs,
   SignedUrlsConfig,
-  StorageS3Config,
+  StorageRegion,
   StreamConfig,
   StreamTusConfig,
   UrlTransformFunction,
@@ -25,8 +26,8 @@ export type NormalizedStorageConfig = {
   apiKey: string
   clientUploads?: NormalizedClientUploadsConfig
   hostname: string
-  region?: 'br' | 'jh' | 'la' | 'ny' | 'se' | 'sg' | 'syd' | 'uk' | ({} & string)
-  s3?: StorageS3Config
+  region: StorageRegion
+  s3: boolean
   tokenSecurityKey?: string
   uploadTimeout: number
   zoneName: string
@@ -46,14 +47,15 @@ export type NormalizedStreamConfig = {
   uploadTimeout: number
 } & Omit<StreamConfig, 'cleanup' | 'mimeTypes' | 'mp4Fallback' | 'tus' | 'uploadTimeout'>
 
+export type ExpiresResolver = (args: SignedUrlsCallbackArgs) => Date | number
+
 export type NormalizedSignedUrlsConfig = {
-  expiresIn: number
-  staticHandler?: {
-    expiresIn?: number
-    redirectStatus: 301 | 302 | 307 | 308
-    useRedirect: boolean
+  expiresIn: ExpiresResolver
+  redirect?: {
+    expiresIn?: ExpiresResolver
+    status: 302 | 307
   }
-} & Omit<SignedUrlsConfig, 'expiresIn' | 'staticHandler'>
+} & Pick<SignedUrlsConfig, 'allowedCountries' | 'blockedCountries' | 'shouldUseSignedUrl' | 'userIp'>
 
 export type NormalizedUrlTransformConfig = {
   appendTimestamp: boolean
@@ -72,6 +74,7 @@ export type NormalizedPurgeConfig = {
 
 export interface NormalizedCollectionConfig {
   disablePayloadAccessControl: boolean
+  hasGenerateFileURL: boolean
   prefix: string
   purge?: NormalizedPurgeConfig
   signedUrls?: NormalizedSignedUrlsConfig

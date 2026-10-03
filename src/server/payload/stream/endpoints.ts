@@ -70,18 +70,16 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorStreamConfigMissing'), 400, undefined, true)
           }
 
-          let accessResult = true
-          if (collectionStreamConfig.tus.checkAccess) {
-            accessResult = await collectionStreamConfig.tus.checkAccess(req, body)
-          } else {
+          const defaultAccess = async (): Promise<boolean> => {
             const accessResults = await getAccessResults({ req })
-            accessResult = false
-
-            if (accessResults.canAccessAdmin) {
-              const collectionAccess = accessResults.collections?.[body.collection]?.create
-              accessResult = collectionAccess === true
-            }
+            return (
+              accessResults.canAccessAdmin === true && accessResults.collections?.[body.collection]?.create === true
+            )
           }
+
+          const accessResult = collectionStreamConfig.tus.access
+            ? await collectionStreamConfig.tus.access({ data: body, defaultAccess, req })
+            : await defaultAccess()
 
           if (!accessResult) {
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 403, undefined, true)

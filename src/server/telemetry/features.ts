@@ -80,7 +80,7 @@ export const buildFeatures = (config: NormalizedBunnyStorageConfig): TelemetryFe
     storage: storages.length > 0,
     storageClientUploads: storages.some((s) => Boolean(s.clientUploads)),
     storageClientUploadsEdge: storages.some((s) => Boolean(s.clientUploads?.edge)),
-    storageS3: storages.some((s) => Boolean(s.s3)),
+    storageS3: storages.some((s) => s.s3),
     stream: streams.length > 0,
     streamCleanup: streams.some((s) => Boolean(s.cleanup)),
     streamTus: streams.some((s) => Boolean(s.tus)),

@@ -27,7 +27,6 @@ if (!zoneName || !apiKey || !region) {
   process.exit(1)
 }
 
-const s3 = { region }
 const reader = new S3mini({
   accessKeyId: zoneName,
   endpoint: `${getS3Endpoint(region)}/${zoneName}`,
@@ -57,20 +56,20 @@ const main = async (): Promise<void> => {
     buffer: Buffer.from(serverPayload),
     mimeType: 'text/plain',
     path: serverPath,
-    s3,
+    region,
     zoneName,
   })
   check('uploadStorageFileS3 succeeded', true)
   check('object exists after upload', (await reader.objectExists(serverPath)) === true)
   check('bytes match', (await reader.getObject(serverPath)) === serverPayload)
-  await deleteStorageFileS3({ apiKey, path: serverPath, s3, zoneName })
+  await deleteStorageFileS3({ apiKey, path: serverPath, region, zoneName })
   check('object gone after deleteStorageFileS3', (await reader.objectExists(serverPath)) === false)
 
   log.header('client upload (presignStoragePutUrl → direct PUT)')
   const clientPath = `s3-verify/client-${stamp}.txt`
   const clientPayload = `client upload ${stamp}`
   const signed = { contentLength: Buffer.byteLength(clientPayload), contentType: 'text/plain' }
-  const url = await presignStoragePutUrl({ ...signed, apiKey, path: clientPath, s3, zoneName })
+  const url = await presignStoragePutUrl({ ...signed, apiKey, path: clientPath, region, zoneName })
   const headers = { 'Content-Type': 'text/plain', 'If-None-Match': '*' }
   const wrongType = await fetch(url, {
     body: clientPayload,
@@ -97,7 +96,7 @@ const main = async (): Promise<void> => {
   check('repeated PUT to the same URL rejected', replay.status === 412, `status ${replay.status}`)
   await replay.text().catch(() => undefined)
   check('object unchanged after repeated PUT', (await reader.getObject(clientPath)) === clientPayload)
-  await deleteStorageFileS3({ apiKey, path: clientPath, s3, zoneName })
+  await deleteStorageFileS3({ apiKey, path: clientPath, region, zoneName })
   check('presigned object cleaned up', (await reader.objectExists(clientPath)) === false)
 
   if (failures === 0) {

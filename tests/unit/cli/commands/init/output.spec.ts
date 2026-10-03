@@ -68,7 +68,7 @@ describe('buildInitOutput config block', () => {
     expect(configBlock).toContain('accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY')
     expect(configBlock).toContain('purge: true')
     expect(configBlock).toContain('signedUrls: true')
-    expect(configBlock).toContain("s3: { region: 'de' }")
+    expect(configBlock).toContain('s3: true')
     expect(configBlock).toContain('clientUploads: true')
     expect(configBlock).toContain('libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID)')
     expect(configBlock).not.toContain('mp4Fallback')
@@ -76,7 +76,7 @@ describe('buildInitOutput config block', () => {
 
   it('omits clientUploads for an S3 zone when client uploads are not chosen', () => {
     const { configBlock } = buildInitOutput(initAnswers({ storageAccess: 's3' }), result())
-    expect(configBlock).toContain("s3: { region: 'de' }")
+    expect(configBlock).toContain('s3: true')
     expect(configBlock).not.toContain('clientUploads')
   })
 
@@ -99,11 +99,14 @@ describe('buildInitOutput config block', () => {
     const ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 'http' }), result()).configBlock
     expect(ny).toContain("region: 'ny'")
     expect(ny).not.toContain('s3:')
+    const s3ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 's3' }), result()).configBlock
+    expect(s3ny).toContain("region: 'ny'")
+    expect(s3ny).toContain('s3: true')
   })
 
   it('adds the thumbnail width hint only when the optimizer is enabled', () => {
     expect(buildInitOutput(initAnswers({ optimizer: true }), result()).configBlock).toContain(
-      "thumbnail: { queryParams: { width: '300' } }",
+      "thumbnail: { urlTransform: { queryParams: { width: '300' } } }",
     )
     expect(buildInitOutput(initAnswers(), result()).configBlock).not.toContain('thumbnail')
   })
@@ -112,7 +115,7 @@ describe('buildInitOutput config block', () => {
     const http = buildInitOutput(initAnswers({ region: 'uk', storageAccess: 'http', storageTier: 'edge' }), result())
     expect(http.configBlock).not.toContain('region:')
     const s3 = buildInitOutput(initAnswers({ region: 'uk', storageAccess: 's3', storageTier: 'edge' }), result())
-    expect(s3.configBlock).toContain("s3: { region: 'de' }")
+    expect(s3.configBlock).toContain('s3: true')
     expect(s3.configBlock).not.toContain("region: 'uk'")
   })
 })

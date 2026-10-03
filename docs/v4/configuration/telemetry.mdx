@@ -100,11 +100,11 @@ BUNNY_TELEMETRY_DISABLED=1
 
 ## Sending to your own collector
 
-Pass an object with an `endpoint` to point reports at a collector you control:
+Pass an object with a `url` to point reports at a collector you control:
 
 ```ts payload.config.ts
 telemetry: {
-  endpoint: 'https://telemetry.example.com/v1/collect'
+  url: 'https://telemetry.example.com/v1/collect'
 }
 ```
 

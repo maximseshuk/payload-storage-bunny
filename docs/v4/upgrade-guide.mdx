@@ -39,9 +39,49 @@ export default buildConfig({
 })
 ```
 
-The plugin options do not change. Payload's `npx @payloadcms/codemod --transform migrate-storage-adapters-to-config` codemod only knows the official adapters, so move `bunnyStorage` by hand.
+Payload's `npx @payloadcms/codemod --transform migrate-storage-adapters-to-config` codemod only knows the official adapters, so move `bunnyStorage` by hand.
 
-### 3. Add the `prefix` column (SQL databases)
+### 3. Update the renamed options
+
+Some options are renamed or merged. The plugin throws at startup and names the new key for each old one:
+
+```text
+[@seshuk/payload-storage-bunny] signedUrls.staticHandler.useRedirect was removed, use signedUrls.staticHandler.redirect
+```
+
+It also checks every `collections.<slug>`, even with `enabled: false`.
+
+| v3                                                   | v4                                                                                 |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `urlTransform: { transformUrl }`                     | `urlTransform: fn`                                                                 |
+| `thumbnail.appendTimestamp`, `thumbnail.queryParams` | `thumbnail.urlTransform: { appendTimestamp, queryParams }`                         |
+| `thumbnail.transformUrl`                             | `thumbnail.urlTransform: fn`                                                       |
+| `signedUrls.expiresAt`                               | `signedUrls.expiresIn: fn` that returns a `Date`                                   |
+| `staticHandler.useRedirect`                          | `staticHandler.redirect`                                                           |
+| `staticHandler.redirectStatus`                       | `staticHandler.redirect.status`                                                    |
+| `staticHandler.expiresIn`                            | `staticHandler.redirect.expiresIn`                                                 |
+| `storage.s3: { region }`                             | `storage.region` and `storage.s3: true`                                            |
+| `stream.tus.checkAccess(req, body)`                  | `stream.tus.access({ req, data, defaultAccess })`                                  |
+| `telemetry.endpoint`                                 | `telemetry.url`                                                                    |
+| `i18n`                                               | Payload's `i18n.translations`, see [step 12](#12-move-tus-labels-to-payloads-i18n) |
+
+Check these details too:
+
+- **`expiresIn` function.** `expiresAt` took a UNIX timestamp, but `expiresIn` reads a number as seconds. Return a `Date` instead, for example `expiresIn: () => eventEndsAt ?? 3600`. A number over 10 years throws an error. See [Signed URLs](/v4/configuration/signed-urls).
+- **`redirect.status`.** It accepts `302` or `307` only.
+- **`tus.access`.** It still replaces the default check. Call `defaultAccess()` to keep it, for example `access: async ({ data, defaultAccess }) => data.filesize < 5e9 && (await defaultAccess())`. See [TUS uploads](/v4/configuration/stream/tus).
+- **`getBunnyStorageForCollection()`.** It returns `s3: true` or `false` and the region in `region`. Read `region`, not `s3.region`.
+
+These changes do not throw an error. Check them if they apply to your app:
+
+- The `prefix` argument of a `urlTransform` function is now only the document's own `prefix` field. In v3 it also contained the collection `prefix`. If your function builds a path from `prefix`, add the collection prefix yourself.
+- A collection `thumbnail` now keeps the global `thumbnail.urlTransform` unless it sets its own. In v3, a collection that only set `sizeName` lost the global transform function.
+- A collection set to `false` is now left out, together with its hidden `prefix` field, so the SQL schema changes. In v3, `false` turned the collection on. To switch the plugin with an environment variable, use `enabled`.
+- A collection `stream.tus: true` or `stream.tus: { ... }` now turns TUS on for that collection, even when the global `stream.tus` is off. In v3, it was ignored.
+- When a collection sets `generateFileURL` and `signedUrls.userIp` is set, the plugin now keeps the `generateFileURL` result. In v3, it replaced it with an IP-locked signed URL.
+- Cache purge now purges the plain CDN URL with a trailing `*`. This also clears cached copies with query strings, such as signed or transformed URLs.
+
+### 4. Add the `prefix` column (SQL databases)
 
 Every upload collection that uses the plugin now has a hidden `prefix` field. Payload adds it even when the collection has no static `prefix`, and even when you set `enabled: false`. This keeps the schema the same in every environment.
 
@@ -56,7 +96,7 @@ In development, Payload pushes the schema for you. MongoDB needs no migration. T
 
 Payload 4 has more schema changes of its own, such as versions and job fields. One `migrate:create` run covers them all.
 
-### 4. Redeploy the Edge Script
+### 5. Redeploy the Edge Script
 
 If you use [client uploads](/v4/configuration/storage/client-uploads) with an Edge Script (HTTP API zones), redeploy it after the upgrade:
 
@@ -66,7 +106,7 @@ npx payload bunny:deploy-edge-script
 
 Payload 4 replaced `bin` scripts with `cli.commands`. The plugin registers `bunny:deploy-edge-script` there for you, so the command itself does not change. It is not available when you set `cli: false`.
 
-### 5. Custom upload clients
+### 6. Custom upload clients
 
 This step only applies if you wrote your own upload client. The admin UI needs no changes.
 
@@ -102,7 +142,7 @@ See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-uplo
 
 For Stream client uploads, `tus-auth` no longer returns `clientUploadContext`. When you send `head`, it returns `filename` and `signedReceipt`. Send the file as `{ filename, mimeType, size, uploadReference: { signedReceipt } }` with the document.
 
-### 6. Read errors from `errors`
+### 7. Read errors from `errors`
 
 Client upload errors now use Payload's standard error format:
 
@@ -112,7 +152,7 @@ Client upload errors now use Payload's standard error format:
 
 v3 returned `{ "error": "..." }`. Read `errors[0].message` instead. Some status codes changed too, because Payload now runs its own checks first. For example, a file over `upload.limits.fileSize` gets `400`, and a file type the collection does not accept gets a validation error. Check `response.ok` rather than exact codes. The `tus-auth` endpoint already used this format.
 
-### 7. Client upload keys have a UUID folder
+### 8. Client upload keys have a UUID folder
 
 Client uploads now store each file under its own random folder: `<prefix>/<uuid>/<filename>`. The stored `prefix` includes the UUID, for example `uploads/tenants/acme/3f2a…`.
 
@@ -125,21 +165,21 @@ If your access rules or queries match the stored `prefix` with `equals`, switch 
 
 Files that are already stored keep their path. Server-side uploads do not get a UUID folder.
 
-### 8. `clientUploads.access` only narrows
+### 9. `clientUploads.access` only narrows
 
 Payload now checks that the user is signed in and has `create` or `update` access to the collection before your `clientUploads.access` function runs. In v3, a custom `access` function replaced that check. Now it can only make it stricter.
 
-If your `access` function let in users without collection `create` or `update` access, for example anonymous visitors, give them that access in the collection's own `access` config instead.
+If your `access` function let in users without collection `create` or `update` access, for example anonymous visitors, give them that access in the collection's own `access` config instead. For example, `clientUploads: { access: () => true }` no longer allows public uploads.
 
-### 9. Files at the zone root
+### 10. Files at the zone root
 
 This step only applies if you upgrade from v3.1.0 or earlier. v3.1.1 and later already read these files under the collection prefix. If you have not moved them yet, follow [v3.1.0 to v3.1.1](#v310-to-v311) first.
 
-### 10. Stream cleanup schedule
+### 11. Stream cleanup schedule
 
 If you set `stream.cleanup.schedule.cron`, check that it uses Payload 4's stricter cron syntax. A step must follow `*` or a range, so write `*/10`, not `/10` or `5/10`. The default `0 2 * * *` is valid.
 
-### 11. Move TUS labels to Payload's `i18n`
+### 12. Move TUS labels to Payload's `i18n`
 
 The plugin's `i18n` option is removed. Override the plugin labels in Payload's own `i18n` config, under the `@seshuk/payload-storage-bunny` key:
 
@@ -160,10 +200,10 @@ export default buildConfig({
 
 Your values win over the plugin defaults. The TUS upload now sits inside Payload's file panel, and some labels changed with it. `tusUploadChecking`, `tusUploadFileSize` and `tusUploadFinalizing` are gone, and the status texts are new. See [Translations](/v4/configuration/overview#translations) for the current keys.
 
-### 12. Remove v2 leftovers
+### 13. Remove v2 leftovers
 
 - The `@seshuk/payload-storage-bunny/migrations` subpath is removed. If you still have v2 data, upgrade to v3 and run the [data migration](#migrate-your-data) on Payload 3 first.
-- v3 threw a startup error for the renamed v2 keys, such as `apiKey` or `stream.tus.uploadTimeout`. v4 no longer checks them, and TypeScript reports them instead. Remove any that are left.
+- The renamed v2 keys, such as `apiKey`, `adminThumbnail` or `stream.tus.uploadTimeout`, still throw a startup error with the new name. Remove any that are left.
 
 ## v3.1.1 to v3.1.2
 

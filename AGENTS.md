@@ -59,7 +59,7 @@ tests/
 └── helpers/, suites/, fixtures/, manual/
 ```
 
-- `telemetry` option (`boolean | { endpoint?: string }`) read from `config._original.telemetry`; no normalizer entry. Feature flags in `server/telemetry/features.ts` booleans only, never names or values.
+- `telemetry` option (`boolean | { url?: string }`) read from `config._original.telemetry`; no normalizer entry. Feature flags in `server/telemetry/features.ts` booleans only, never names or values.
 - `server/payload/openapi.ts` only OpenAPI source. `mediaPreview.ts` back `./media-preview` (optional peer `@seshuk/payload-plugin-media-preview` 2.x).
 
 ## Architecture
@@ -78,7 +78,11 @@ const timeout = context.storageConfig.uploadTimeout // CORRECT
 ## Coding rules
 
 - No code comments. Only JSDoc on plugin options types (`src/shared/types/config.ts`).
-- `false` handled explicitly for `purge`, `signedUrls`, `thumbnail`, `urlTransform` (`false | Config`): `collectionConfig.purge === false ? undefined : collectionConfig.purge`, never `collectionConfig.purge || undefined`.
+- `false` handled explicitly for `purge`, `signedUrls`, `thumbnail`, `urlTransform` (`false | Config`): `collectionConfig.purge === false ? undefined : collectionConfig.purge`, never `collectionConfig.purge || undefined`. `collections.<slug>: false` = collection not managed (skipped in normalizer and `getCloudStorageCollections`).
+- Removed/renamed v2/v3 keys: add to `REMOVED_KEYS` in `validator.ts`. `assertNoRemovedKeys` throws `[@seshuk/payload-storage-bunny] <old> was removed, use <new>` / `... was renamed to ...`, also with `enabled: false`. No aliases.
+- `accountApiKey` = top-level only. Never nest under `purge` or a collection. Purge URL = plain CDN URL + `*`, never transformed/signed URL.
+- Regions: `src/shared/regions.ts` (`REGIONS`) = only region list. Feeds `StorageRegion` and CLI `init` (`plan.ts`). Docs table `docs/v4/configuration/storage/overview.mdx#regions` must match (unit test). Runtime never validates region.
+- Option with function form gets the inherited value as `defaultValue` (`signedUrls.expiresIn`) or `defaultAccess()` (`stream.tus.access`).
 - Imports end in `.js`. `@/` (= `src/`) for import that leave folder, `./x.js` only in same folder, no `../`.
 - CLI: reuse `src/cli/lib/` (`Logger`/`consoleLogger`, `bunnyFetch`/`bunnyJson`). No duplicate types, no passthrough wrappers.
 - Match surrounding naming and idiom.
@@ -86,7 +90,7 @@ const timeout = context.storageConfig.uploadTimeout // CORRECT
 New per-collection override (e.g. `stream.quality`):
 
 1. `src/shared/types/config.ts`: add `quality?: number` with JSDoc.
-2. `normalizer.ts`: add to `mergeDefined(...)` in `resolveCollectionStreamConfig`. `false | Config` option: copy `resolveCollectionPurgeConfig`.
+2. `normalizer.ts`: add to `mergeDefined(...)` in `resolveCollectionStreamConfig`. `false | Config` option: use `resolveCollectionConfigSetting`.
 3. Update `README.md` and `docs/v4/`.
 
 ## Testing

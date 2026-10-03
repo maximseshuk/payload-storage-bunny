@@ -73,7 +73,7 @@ describe('streamThumbnailStaticHandler', () => {
   it('returns a redirect without fetching when signed redirect is enabled', async () => {
     const res = await streamThumbnailStaticHandler({
       ...baseArgs(),
-      signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true } }) as never,
+      signedUrls: signed({ redirect: { status: 302 } }) as never,
       usePayloadAccessControl: true,
     })
 

@@ -14,7 +14,7 @@ import { postReport } from './transport.js'
 import type { TelemetryReport } from './types.js'
 
 const resolveEndpoint = (telemetry: BunnyStorageConfig['telemetry']): string =>
-  typeof telemetry === 'object' && telemetry.endpoint ? telemetry.endpoint : TELEMETRY_ENDPOINT
+  typeof telemetry === 'object' && telemetry.url ? telemetry.url : TELEMETRY_ENDPOINT
 
 type ReportTelemetryDeps = {
   env?: Record<string, string | undefined>

@@ -60,7 +60,7 @@ const buildConfig = (streamOverrides: Record<string, unknown> = {}, cleanup = fa
       cleanup,
       hostname: 'stream.b-cdn.net',
       libraryId: 12345,
-      tus: { checkAccess: () => true },
+      tus: { access: () => true },
       ...streamOverrides,
     },
   } as never)
@@ -136,7 +136,7 @@ describe('TUS auth endpoint', () => {
   })
 
   it('throws 403 when access is denied', async () => {
-    const handler = getTusHandler(buildConfig({ tus: { checkAccess: () => false } }))
+    const handler = getTusHandler(buildConfig({ tus: { access: () => false } }))
     await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
   })
 
@@ -147,7 +147,7 @@ describe('TUS auth endpoint', () => {
         apiKey: 'stream-key',
         hostname: 'stream.b-cdn.net',
         libraryId: 12345,
-        tus: { checkAccess: () => true },
+        tus: { access: () => true },
       },
     } as never)
     const handler = getTusHandler(config)
@@ -276,7 +276,7 @@ describe('TUS auth endpoint', () => {
         apiKey: 'stream-key',
         hostname: 'stream.b-cdn.net',
         libraryId: 12345,
-        tus: { checkAccess: () => true },
+        tus: { access: () => true },
       },
     } as never)
     const req = buildReq(
@@ -408,7 +408,7 @@ describe('TUS auth endpoint', () => {
   })
 
   describe('default access control (getAccessResults)', () => {
-    const noCheckAccessConfig = () => buildConfig({ tus: true })
+    const noAccessConfig = () => buildConfig({ tus: true })
 
     it('grants access with admin access and create access on a configured collection', async () => {
       getAccessResultsMock.mockResolvedValue({
@@ -416,7 +416,7 @@ describe('TUS auth endpoint', () => {
         collections: { media: { create: true } },
       })
 
-      const handler = getTusHandler(noCheckAccessConfig())
+      const handler = getTusHandler(noAccessConfig())
       const res = await handler(buildReq(validBody))
       const json = await res.json()
 
@@ -429,9 +429,41 @@ describe('TUS auth endpoint', () => {
         collections: { media: { create: true } },
       })
 
-      const handler = getTusHandler(noCheckAccessConfig())
+      const handler = getTusHandler(noAccessConfig())
       await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
       expect(createVideoMock).not.toHaveBeenCalled()
+    })
+
+    it('replaces the default check with tus.access and skips getAccessResults', async () => {
+      const access = vi.fn().mockReturnValue(true)
+      const req = buildReq(validBody)
+
+      const res = await getTusHandler(buildConfig({ tus: { access } }))(req)
+
+      expect((await res.json()).type).toBe('upload')
+      expect(access).toHaveBeenCalledWith(
+        expect.objectContaining({ data: validBody, defaultAccess: expect.any(Function), req }),
+      )
+      expect(getAccessResultsMock).not.toHaveBeenCalled()
+    })
+
+    it('passes defaultAccess so tus.access can narrow the default check', async () => {
+      getAccessResultsMock.mockResolvedValue({
+        canAccessAdmin: true,
+        collections: { media: { create: true } },
+      })
+      const access = vi.fn(
+        async ({ data, defaultAccess }: { data: { filesize: number }; defaultAccess: () => Promise<boolean> }) =>
+          data.filesize < 500 && (await defaultAccess()),
+      )
+      const handler = getTusHandler(buildConfig({ tus: { access } }))
+
+      await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
+      expect(getAccessResultsMock).not.toHaveBeenCalled()
+
+      const res = await handler(buildReq({ ...validBody, filesize: 100 }))
+      expect((await res.json()).type).toBe('upload')
+      expect(getAccessResultsMock).toHaveBeenCalledTimes(1)
     })
 
     describe('per-collection scope', () => {
@@ -499,7 +531,7 @@ describe('TUS auth endpoint', () => {
               cleanup: true,
               hostname: 'alpha.b-cdn.net',
               libraryId: 111,
-              tus: { checkAccess: () => true },
+              tus: { access: () => true },
             },
           },
           beta: {
@@ -508,7 +540,7 @@ describe('TUS auth endpoint', () => {
               apiKey: 'beta-key',
               hostname: 'beta.b-cdn.net',
               libraryId: 222,
-              tus: { checkAccess: () => true },
+              tus: { access: () => true },
             },
           },
         },
@@ -516,7 +548,7 @@ describe('TUS auth endpoint', () => {
           apiKey: 'stream-key',
           hostname: 'stream.b-cdn.net',
           libraryId: 12345,
-          tus: { checkAccess: () => true },
+          tus: { access: () => true },
         },
       } as never)
 
@@ -572,7 +604,7 @@ describe('TUS auth endpoint', () => {
       expect(createSessionMock).not.toHaveBeenCalled()
     })
 
-    it('calls only the checkAccess of the requested collection', async () => {
+    it('calls only the access function of the requested collection', async () => {
       const alphaAccess = vi.fn().mockResolvedValue(true)
       const betaAccess = vi.fn().mockResolvedValue(true)
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
@@ -585,7 +617,7 @@ describe('TUS auth endpoint', () => {
               apiKey: 'alpha-key',
               hostname: 'alpha.b-cdn.net',
               libraryId: 111,
-              tus: { checkAccess: alphaAccess },
+              tus: { access: alphaAccess },
             },
           },
           beta: {
@@ -594,7 +626,7 @@ describe('TUS auth endpoint', () => {
               apiKey: 'beta-key',
               hostname: 'beta.b-cdn.net',
               libraryId: 222,
-              tus: { checkAccess: betaAccess },
+              tus: { access: betaAccess },
             },
           },
         },

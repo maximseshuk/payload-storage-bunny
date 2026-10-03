@@ -24,7 +24,7 @@ describe('buildFeatures', () => {
   it('sets storageS3 and storageClientUploads, not edge, for S3 with client uploads', () => {
     const result = features({
       collections: { media: true },
-      storage: createBaseStorage({ clientUploads: true, s3: { region: 'de' } }),
+      storage: createBaseStorage({ clientUploads: true, s3: true }),
     })
 
     expect(result).toMatchObject({

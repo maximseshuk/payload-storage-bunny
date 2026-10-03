@@ -7,29 +7,18 @@ import { deleteStorageFileS3 } from '@/server/bunny/s3.js'
 import { deleteStorageFile } from '@/server/bunny/storage.js'
 import { deleteStreamVideo } from '@/server/bunny/stream.js'
 import { getBunnyData } from '@/server/payload/fields/bunnyGroupField.js'
+import { buildStoragePurgeUrl } from '@/server/urls.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/shared/translations/index.js'
 import type { CollectionContext } from '@/shared/types/index.js'
-
-import { getGenerateUrl } from './generateUrl.js'
 
 export const getHandleDelete = (context: CollectionContext): HandleDelete => {
   const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
 
-  return async ({ collection, doc, filename, req, storageFilePath: path }) => {
+  return async ({ doc, filename, req, storageFilePath: path }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     try {
       const bunnyData = getBunnyData(doc, filename)
-
-      let fileUrl: null | string = null
-      if (!bunnyData?.stream && purgeConfig) {
-        fileUrl = await getGenerateUrl(context)({
-          collection,
-          data: doc,
-          filename,
-          prefix: doc.prefix || '',
-        })
-      }
 
       if (streamConfig && bunnyData?.stream) {
         await deleteStreamVideo({
@@ -42,7 +31,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
           await deleteStorageFileS3({
             apiKey: storageConfig.apiKey,
             path,
-            s3: storageConfig.s3,
+            region: storageConfig.region,
             zoneName: storageConfig.zoneName,
           })
         } else {
@@ -54,7 +43,13 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
           })
         }
 
-        if (purgeConfig && accountApiKey && fileUrl) {
+        if (purgeConfig && accountApiKey) {
+          const fileUrl = buildStoragePurgeUrl({
+            collectionPrefix: context.prefix,
+            filename,
+            hostname: storageConfig.hostname,
+            prefix: doc.prefix,
+          })
           try {
             await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url: fileUrl })
             req.payload.logger.debug({

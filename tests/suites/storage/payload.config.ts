@@ -35,7 +35,7 @@ export default buildConfigWithDefaults({
           signedUrls: false,
           thumbnail: {
             sizeName: 'thumbnail',
-            transformUrl: ({ baseUrl, data }) => `${baseUrl}?secure_thumb=true&id=${String(data?.id)}`,
+            urlTransform: ({ baseUrl, data }) => `${baseUrl}?secure_thumb=true&id=${String(data?.id)}`,
           },
         },
         'thumbnail-disabled': {
@@ -52,9 +52,11 @@ export default buildConfigWithDefaults({
         zoneName: process.env.BUNNY_STORAGE_ZONE_NAME || '',
       },
       thumbnail: {
-        appendTimestamp: true,
-        queryParams: { class: 'thumbnail', version: '2.0' },
         sizeName: 'preview',
+        urlTransform: {
+          appendTimestamp: true,
+          queryParams: { class: 'thumbnail', version: '2.0' },
+        },
       },
       urlTransform: {
         appendTimestamp: false,

@@ -139,7 +139,7 @@
   "peerDependencies": {
     "@payloadcms/plugin-cloud-storage": "4.0.0-canary.37",
     "@payloadcms/translations": "4.0.0-canary.37",
-    "@seshuk/payload-plugin-media-preview": "^1.0.0",
+    "@seshuk/payload-plugin-media-preview": "^2.0.0-0",
     "payload": "4.0.0-canary.37",
     "sanitize-filename": "1.6.4"
   },

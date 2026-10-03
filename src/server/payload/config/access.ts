@@ -1,14 +1,14 @@
 import type { Payload } from 'payload'
 
 import { PLUGIN_KEY } from '@/shared/constants.js'
-import type { StorageS3Config } from '@/shared/types/config.js'
+import type { StorageRegion } from '@/shared/types/config.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 
 export type BunnyCollectionStorage = {
   apiKey: string
   hostname: string
-  region?: string
-  s3?: StorageS3Config
+  region: StorageRegion
+  s3: boolean
   tokenSecurityKey?: string
   zoneName: string
 }
@@ -49,9 +49,9 @@ export const getBunnyCollectionConfig = (
     result.storage = {
       apiKey,
       hostname,
+      region,
+      s3,
       zoneName,
-      ...(region !== undefined ? { region } : {}),
-      ...(s3 !== undefined ? { s3: { ...s3 } } : {}),
       ...(tokenSecurityKey !== undefined ? { tokenSecurityKey } : {}),
     }
   }

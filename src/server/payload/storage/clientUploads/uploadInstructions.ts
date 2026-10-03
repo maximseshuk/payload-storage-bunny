@@ -134,7 +134,7 @@ export const getGenerateUploadInstructions =
     let url: string
     const headers: Record<string, string> = { 'Content-Type': mimeType }
     if (storage.s3) {
-      const credentials = { apiKey: storage.apiKey, s3: storage.s3, zoneName: storage.zoneName }
+      const credentials = { apiKey: storage.apiKey, region: storage.region, zoneName: storage.zoneName }
       if (await storageObjectExistsS3({ ...credentials, path })) {
         throw new APIError('A file already exists at this path', 409)
       }

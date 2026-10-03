@@ -7,7 +7,7 @@ const clean: Record<string, string | undefined> = {}
 describe('isTelemetryDisabled', () => {
   it('keeps telemetry on by default (clean env, no opt-out)', () => {
     expect(isTelemetryDisabled({ env: clean, payloadTelemetry: true, plugin: undefined })).toBe(false)
-    expect(isTelemetryDisabled({ env: clean, payloadTelemetry: undefined, plugin: { endpoint: 'x' } })).toBe(false)
+    expect(isTelemetryDisabled({ env: clean, payloadTelemetry: undefined, plugin: { url: 'x' } })).toBe(false)
   })
 
   it('respects the Payload telemetry opt-out', () => {

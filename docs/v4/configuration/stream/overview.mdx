@@ -52,7 +52,7 @@ The top-level `stream` block is optional. If every collection points at [its own
 By default, files are served through Payload's access control (`disablePayloadAccessControl` isn't set on the collection). For Stream videos in this mode, Bunny can't serve HLS directly through Payload's proxy, so you need one of:
 
 - **`mp4Fallback: true`** — Payload proxies the MP4 rendition instead of HLS.
-- **Signed URLs with redirect** — set `signedUrls.staticHandler.useRedirect: true` (globally or on the collection) so Payload redirects straight to Bunny's HLS stream instead of proxying it. This is the faster option — see [Signed URLs](/v4/configuration/signed-urls).
+- **Signed URLs with redirect** — set `signedUrls.staticHandler.redirect: true` (globally or on the collection) so Payload redirects straight to Bunny's HLS stream instead of proxying it. This is the faster option — see [Signed URLs](/v4/configuration/signed-urls).
 
 <Warning>
 
@@ -147,10 +147,6 @@ collections: {
 
 The plugin distinguishes a full config from a partial override by whether it includes `apiKey`. A full config **inherits nothing** from the global library — `mimeTypes`, `mp4Fallback`, `tus`, and the rest fall back to plugin defaults, not the global library's values. Provide that library's own `tokenSecurityKey` for [signed URLs](/v4/configuration/signed-urls), and its own `webhook.secret` if you use webhooks. Per-collection `cleanup` carries only `maxAge` — the cleanup `schedule` is global-only.
 
-<Warning>
-
-A partial `tus: { … }` override only applies when the global `stream.tus` is enabled — otherwise it is silently dropped. To turn TUS on for a single collection, either give that collection a full stream config, or enable `tus` globally and disable it per collection with `tus: false`.
-
-</Warning>
+A partial `tus: true` or `tus: { … }` turns TUS on for that collection, even when the global `stream.tus` is off. `tus: false` turns it off.
 
 See [Collection overrides](/v4/configuration/collection-overrides) for the full-config vs partial-override rules and the complete list of options.

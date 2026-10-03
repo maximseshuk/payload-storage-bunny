@@ -11,19 +11,50 @@ import {
   createOwnStream,
 } from '../../../../helpers/unit/configBuilders.js'
 
-const testShouldUseSignedUrl = () => true
+const testShouldUseSignedURL = () => true
 const testClientAccess = () => true
 const testCollectionClientAccess = () => false
 const testClientPrefix = () => 'global-prefix'
 const globalUserIp = () => '203.0.113.7'
-const globalExpiresAt = () => 1800000000
 const collectionUserIp = () => '198.51.100.1'
-const collectionExpiresAt = () => 1900000000
-const checkAccess = () => true
+const tusAccess = () => true
+const args = { collection: { slug: 'media' } } as never
 
 describe('config normalizer', () => {
+  describe('collections', () => {
+    it('leaves out collections set to false', () => {
+      const config: BunnyStorageConfig = {
+        collections: { docs: false, media: true },
+        storage: createBaseStorage(),
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect([...normalized.collections.keys()]).toEqual(['media'])
+    })
+
+    it('records whether the collection sets generateFileURL', () => {
+      const config: BunnyStorageConfig = {
+        collections: {
+          docs: { prefix: 'docs' },
+          files: { generateFileURL: () => 'https://example.com/x' },
+          media: true,
+        },
+        storage: createBaseStorage(),
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('files')?.hasGenerateFileURL).toBe(true)
+      expect(normalized.collections.get('docs')?.hasGenerateFileURL).toBe(false)
+      expect(normalized.collections.get('media')?.hasGenerateFileURL).toBe(false)
+    })
+  })
+
   describe('thumbnail', () => {
     const globalThumbnail = {
+      sizeName: 'preview',
+      urlTransform: { appendTimestamp: true, queryParams: { class: 'thumbnail', version: '2.0' } },
+    }
+    const normalizedGlobalThumbnail = {
       appendTimestamp: true,
       queryParams: { class: 'thumbnail', version: '2.0' },
       sizeName: 'preview',
@@ -42,7 +73,7 @@ describe('config normalizer', () => {
       const mediaConfig = normalized.collections.get('media')
 
       expect(mediaConfig?.thumbnail).toEqual({
-        ...globalThumbnail,
+        ...normalizedGlobalThumbnail,
         transformUrl: undefined,
       })
     })
@@ -61,17 +92,17 @@ describe('config normalizer', () => {
       const mediaConfig = normalized.collections.get('media')
 
       expect(mediaConfig?.thumbnail).toEqual({
-        ...globalThumbnail,
+        ...normalizedGlobalThumbnail,
         streamAnimated: true,
         transformUrl: undefined,
       })
     })
 
-    it('replaces queryParams', () => {
+    it('replaces queryParams and keeps the global appendTimestamp', () => {
       const config: BunnyStorageConfig = {
         accountApiKey: 'test-api-key',
         collections: {
-          media: { thumbnail: { queryParams: { custom: 'value' } } },
+          media: { thumbnail: { urlTransform: { queryParams: { custom: 'value' } } } },
         },
         storage: createBaseStorage(),
         thumbnail: globalThumbnail,
@@ -81,6 +112,62 @@ describe('config normalizer', () => {
       const mediaConfig = normalized.collections.get('media')
 
       expect(mediaConfig?.thumbnail?.queryParams).toEqual({ custom: 'value' })
+      expect(mediaConfig?.thumbnail?.appendTimestamp).toBe(true)
+    })
+
+    it('keeps the global urlTransform function when the collection only sets sizeName', () => {
+      const transform = () => 'https://cdn.example.com/x.jpg'
+      const config: BunnyStorageConfig = {
+        collections: { media: { thumbnail: { sizeName: 'small' } } },
+        storage: createBaseStorage(),
+        thumbnail: { urlTransform: transform },
+      }
+
+      const thumbnail = createNormalizedConfig(config).collections.get('media')?.thumbnail
+      expect(thumbnail?.sizeName).toBe('small')
+      expect(thumbnail?.transformUrl).toBe(transform)
+    })
+
+    it('uses the thumbnail defaults when a collection object replaces the global function', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { thumbnail: { urlTransform: { queryParams: { custom: 'value' } } } } },
+        storage: createBaseStorage(),
+        thumbnail: { urlTransform: () => 'https://cdn.example.com/x.jpg' },
+      }
+
+      const thumbnail = createNormalizedConfig(config).collections.get('media')?.thumbnail
+      expect(thumbnail?.appendTimestamp).toBe(true)
+      expect(thumbnail?.queryParams).toEqual({ custom: 'value' })
+      expect(thumbnail?.transformUrl).toBeUndefined()
+    })
+
+    it('uses a urlTransform function and drops the default timestamp', () => {
+      const transform = () => 'https://cdn.example.com/x.jpg'
+      const config: BunnyStorageConfig = {
+        collections: { media: true },
+        storage: createBaseStorage(),
+        thumbnail: { urlTransform: transform },
+      }
+
+      expect(createNormalizedConfig(config).thumbnail).toEqual({
+        appendTimestamp: false,
+        queryParams: {},
+        sizeName: undefined,
+        streamAnimated: false,
+        transformUrl: transform,
+      })
+    })
+
+    it('turns the URL transform off with urlTransform false', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: true },
+        storage: createBaseStorage(),
+        thumbnail: { urlTransform: false },
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.thumbnail?.appendTimestamp).toBe(false)
+      expect(normalized.thumbnail?.queryParams).toEqual({})
     })
 
     it('disables with false', () => {
@@ -164,6 +251,36 @@ describe('config normalizer', () => {
       })
     })
 
+    it('replaces the global object with a collection function', () => {
+      const transform = () => 'https://cdn.example.com/x.jpg'
+      const config: BunnyStorageConfig = {
+        collections: { media: { urlTransform: transform } },
+        storage: createBaseStorage(),
+        urlTransform: globalUrlTransform,
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('media')?.urlTransform).toEqual({
+        appendTimestamp: false,
+        queryParams: {},
+        transformUrl: transform,
+      })
+    })
+
+    it('replaces the global function with a collection object', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { urlTransform: { appendTimestamp: true } } },
+        storage: createBaseStorage(),
+        urlTransform: () => 'https://cdn.example.com/x.jpg',
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('media')?.urlTransform).toEqual({
+        appendTimestamp: true,
+        queryParams: {},
+      })
+    })
+
     it('disables with false', () => {
       const config: BunnyStorageConfig = {
         accountApiKey: 'test-api-key',
@@ -213,7 +330,7 @@ describe('config normalizer', () => {
         }
 
         const normalized = createNormalizedConfig(config)
-        expect(normalized.collections.get('media')?.signedUrls?.expiresIn).toBe(expected)
+        expect(normalized.collections.get('media')?.signedUrls?.expiresIn(args)).toBe(expected)
       })
     })
 
@@ -226,7 +343,8 @@ describe('config normalizer', () => {
 
       const normalized = createNormalizedConfig(config)
       expect(normalized.collections.get('media')?.signedUrls).toBeDefined()
-      expect(normalized.collections.get('media')?.signedUrls?.expiresIn).toBe(7200)
+      expect(normalized.collections.get('media')?.signedUrls?.expiresIn(args)).toBe(7200)
+      expect(normalized.collections.get('media')?.signedUrls?.redirect).toBeUndefined()
     })
 
     it('inherits global keys on a partial override', () => {
@@ -235,23 +353,42 @@ describe('config normalizer', () => {
         collections: { media: { signedUrls: { expiresIn: 100 } } },
         signedUrls: {
           allowedCountries: ['US', 'CA'],
-          expiresAt: globalExpiresAt,
           expiresIn: 3600,
-          shouldUseSignedUrl: testShouldUseSignedUrl,
-          staticHandler: { useRedirect: true },
+          shouldUseSignedUrl: testShouldUseSignedURL,
+          staticHandler: { redirect: { status: 307 } },
           userIp: globalUserIp,
         },
         storage: createBaseStorage(),
       }
 
       const collectionSigned = createNormalizedConfig(config).collections.get('media')?.signedUrls
-      const args = { collection: { slug: 'media' } } as never
-      expect(collectionSigned?.userIp?.(args)).toBe(globalUserIp())
-      expect(collectionSigned?.expiresAt?.(args)).toBe(globalExpiresAt())
-      expect(collectionSigned?.expiresIn).toBe(100)
+      expect(collectionSigned?.userIp).toBe(globalUserIp)
+      expect(collectionSigned?.expiresIn(args)).toBe(100)
       expect(collectionSigned?.allowedCountries).toEqual(['US', 'CA'])
       expect(collectionSigned?.shouldUseSignedUrl).toBeDefined()
-      expect(collectionSigned?.staticHandler?.useRedirect).toBe(true)
+      expect(collectionSigned?.redirect).toEqual({ expiresIn: undefined, status: 307 })
+    })
+
+    it('enables the redirect with status 302 for redirect true', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: true },
+        signedUrls: { staticHandler: { redirect: true } },
+        storage: createBaseStorage(),
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.signedUrls?.redirect).toEqual({ expiresIn: undefined, status: 302 })
+    })
+
+    it('turns the global redirect off per collection with redirect false', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { signedUrls: { staticHandler: { redirect: false } } } },
+        signedUrls: { staticHandler: { redirect: true } },
+        storage: createBaseStorage(),
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('media')?.signedUrls?.redirect).toBeUndefined()
     })
 
     it('disables with false', () => {
@@ -266,14 +403,13 @@ describe('config normalizer', () => {
       expect(normalized.collections.get('media')?.signedUrls).toBeUndefined()
     })
 
-    it('overrides userIp and expiresAt callbacks per collection', () => {
+    it('overrides userIp per collection', () => {
       const config: BunnyStorageConfig = {
         accountApiKey: 'test-api-key',
         collections: {
-          media: { signedUrls: { expiresAt: collectionExpiresAt, userIp: collectionUserIp } },
+          media: { signedUrls: { userIp: collectionUserIp } },
         },
         signedUrls: {
-          expiresAt: () => 1800000000,
           expiresIn: 3600,
           userIp: () => '203.0.113.7',
         },
@@ -281,10 +417,8 @@ describe('config normalizer', () => {
       }
 
       const collectionSigned = createNormalizedConfig(config).collections.get('media')?.signedUrls
-      const args = { collection: { slug: 'media' } } as never
 
-      expect(collectionSigned?.userIp?.(args)).toBe('198.51.100.1')
-      expect(collectionSigned?.expiresAt?.(args)).toBe(1900000000)
+      expect(collectionSigned?.userIp).toBe(collectionUserIp)
     })
   })
 
@@ -329,7 +463,7 @@ describe('config normalizer', () => {
     it('enables per collection with defaults for true without a global config', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { storage: { clientUploads: true } } },
-        storage: { ...createBaseStorage(), s3: { region: 'de' } },
+        storage: { ...createBaseStorage(), s3: true },
       }
 
       const normalized = createNormalizedConfig(config)
@@ -340,7 +474,7 @@ describe('config normalizer', () => {
     it('disables per collection with false', () => {
       const config: BunnyStorageConfig = {
         collections: { media: { storage: { clientUploads: false } } },
-        storage: { ...createBaseStorage(), clientUploads: true, s3: { region: 'de' } },
+        storage: { ...createBaseStorage(), clientUploads: true, s3: true },
       }
 
       const normalized = createNormalizedConfig(config)
@@ -350,7 +484,7 @@ describe('config normalizer', () => {
     it('nests the normalized clientUploads under storage, not the raw value', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
-        storage: { ...createBaseStorage(), clientUploads: true, s3: { region: 'de' } },
+        storage: { ...createBaseStorage(), clientUploads: true, s3: true },
       }
 
       const normalized = createNormalizedConfig(config)
@@ -389,16 +523,42 @@ describe('config normalizer', () => {
       })
     })
 
-    it('enables with defaults for true without a global purge', () => {
+    it('accepts true globally', () => {
       const config: BunnyStorageConfig = {
         accountApiKey: 'test-api-key',
-        collections: { media: { purge: true } },
+        collections: { media: true },
+        purge: true,
         storage: createBaseStorage(),
       }
 
       const normalized = createNormalizedConfig(config)
-      expect(normalized.collections.get('media')?.purge).toBeDefined()
-      expect(normalized.collections.get('media')?.purge?.async).toBe(false)
+      expect(normalized.purge).toEqual({ async: false })
+      expect(normalized.collections.get('media')?.purge).toEqual({ async: false })
+    })
+
+    it.each([true, { async: true }])('enables collection purge %o when the global purge is off', (purge) => {
+      const config: BunnyStorageConfig = {
+        accountApiKey: 'test-api-key',
+        collections: { docs: true, media: { purge } },
+        storage: createBaseStorage(),
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.purge).toBeUndefined()
+      expect(normalized.collections.get('media')?.purge).toEqual({ async: purge !== true })
+      expect(normalized.collections.get('docs')?.purge).toBeUndefined()
+    })
+
+    it.each([true, { async: true }])('leaves purge %o off without accountApiKey', (purge) => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { purge } },
+        purge,
+        storage: createBaseStorage(),
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.purge).toBeUndefined()
+      expect(normalized.collections.get('media')?.purge).toBeUndefined()
     })
 
     it('disables with false', () => {
@@ -483,19 +643,41 @@ describe('config normalizer', () => {
       expect(normalized.collections.get('videos')?.stream?.tus).toBeDefined()
     })
 
-    it('overrides TUS settings per collection', () => {
+    it('overrides TUS settings per collection and keeps the global access', () => {
       const config: BunnyStorageConfig = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { stream: { tus: { autoMode: false, expiresIn: 7200 } } },
         },
         storage: createBaseStorage(),
-        stream: { ...globalStream, tus: true },
+        stream: { ...globalStream, tus: { access: tusAccess } },
       }
 
       const mediaTus = createNormalizedConfig(config).collections.get('media')?.stream?.tus
-      expect(mediaTus?.autoMode).toBe(false)
-      expect(mediaTus?.expiresIn).toBe(7200)
+      expect(mediaTus).toEqual({ access: tusAccess, autoMode: false, expiresIn: 7200 })
+    })
+
+    it('enables TUS per collection with true when the global TUS is off', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { stream: { tus: true } }, videos: true },
+        storage: createBaseStorage(),
+        stream: globalStream,
+      }
+
+      const normalized = createNormalizedConfig(config)
+      expect(normalized.collections.get('media')?.stream?.tus).toEqual(CONFIG_DEFAULTS.stream.tus)
+      expect(normalized.collections.get('videos')?.stream?.tus).toBeUndefined()
+    })
+
+    it('enables TUS per collection with an object when the global TUS is off', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { stream: { tus: { expiresIn: 600 } } } },
+        storage: createBaseStorage(),
+        stream: globalStream,
+      }
+
+      const mediaTus = createNormalizedConfig(config).collections.get('media')?.stream?.tus
+      expect(mediaTus).toEqual({ autoMode: CONFIG_DEFAULTS.stream.tus.autoMode, expiresIn: 600 })
     })
   })
 
@@ -536,16 +718,33 @@ describe('config normalizer', () => {
       expect(normalized.collections.get('media')?.storage).toBeUndefined()
     })
 
+    it.each([
+      { expected: { region: 'de', s3: false }, storage: {} },
+      { expected: { region: 'de', s3: false }, storage: { region: 'de' } },
+      { expected: { region: 'ny', s3: false }, storage: { region: 'ny' } },
+      { expected: { region: 'de', s3: true }, storage: { s3: true } },
+      { expected: { region: 'de', s3: true }, storage: { region: 'de', s3: true } },
+      { expected: { region: 'ny', s3: true }, storage: { region: 'ny', s3: true } },
+    ])('maps region $storage.region with s3 $storage.s3', ({ expected, storage }) => {
+      const normalized = createNormalizedConfig({
+        collections: { media: true },
+        storage: { ...createBaseStorage(), ...storage },
+      } as BunnyStorageConfig)
+
+      expect(normalized.storage?.region).toBe(expected.region)
+      expect(normalized.storage?.s3).toBe(expected.s3)
+    })
+
     it('passes the S3 config to collections', () => {
       const config: BunnyStorageConfig = {
         accountApiKey: 'test-api-key',
         collections: { media: { storage: { uploadTimeout: 90000 } } },
-        storage: { ...createBaseStorage(), s3: { region: 'de' } },
+        storage: { ...createBaseStorage(), s3: true },
       }
 
       const normalized = createNormalizedConfig(config)
-      expect(normalized.storage?.s3).toEqual({ region: 'de' })
-      expect(normalized.collections.get('media')?.storage?.s3).toEqual({ region: 'de' })
+      expect(normalized.storage?.s3).toBe(true)
+      expect(normalized.collections.get('media')?.storage?.s3).toBe(true)
     })
   })
 
@@ -558,8 +757,8 @@ describe('config normalizer', () => {
         },
         storage: {
           ...createBaseStorage(),
-          region: 'de',
-          s3: { region: 'de' },
+          region: 'ny',
+          s3: true,
           uploadTimeout: 999999,
         },
       }
@@ -569,8 +768,8 @@ describe('config normalizer', () => {
       expect(media?.hostname).toBe('own-media.b-cdn.net')
       expect(media?.zoneName).toBe('own-zone-media')
       expect(media?.tokenSecurityKey).toBeUndefined()
-      expect(media?.s3).toBeUndefined()
-      expect(media?.region).toBeUndefined()
+      expect(media?.s3).toBe(false)
+      expect(media?.region).toBe('de')
       expect(media?.uploadTimeout).toBe(CONFIG_DEFAULTS.storage.uploadTimeout)
     })
 
@@ -606,7 +805,7 @@ describe('config normalizer', () => {
         accountApiKey: 'test-api-key',
         collections: {
           media: {
-            stream: createOwnStream(777, { thumbnailTime: 1000, tus: { checkAccess } }),
+            stream: createOwnStream(777, { thumbnailTime: 1000, tus: { access: tusAccess } }),
           },
         },
         storage: createBaseStorage(),
@@ -626,7 +825,7 @@ describe('config normalizer', () => {
       expect(media?.mimeTypes).not.toContain('video/x-custom')
       expect(media?.mp4Fallback).toBe(CONFIG_DEFAULTS.stream.mp4Fallback)
       expect(media?.thumbnailTime).toBe(1000)
-      expect(media?.tus?.checkAccess).toBe(checkAccess)
+      expect(media?.tus?.access).toBe(tusAccess)
     })
 
     it('normalizes cleanup on a full stream override', () => {

@@ -12,7 +12,7 @@ bunnyStorage({
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
-    s3: { region: 'de' },
+    s3: true,
     clientUploads: true, // enable with defaults
   },
 })
@@ -82,8 +82,8 @@ This is built on Payload's upload instructions, the same mechanism the official 
 
 The plugin picks the transport from the zone:
 
-- **[`storage.s3`](/v4/configuration/storage/overview#s3-mode) is set → presigned S3.** The browser `PUT`s straight to Bunny's S3 endpoint. No Edge Script is involved, and `clientUploads.edge` isn't applicable.
-- **`storage.s3` isn't set → edge.** The upload is proxied through a Bunny Edge Script, so `clientUploads.edge` is **required**.
+- **[`storage.s3`](/v4/configuration/storage/overview#s3-mode) is `true` → presigned S3.** The browser `PUT`s straight to Bunny's S3 endpoint. No Edge Script is involved, and `clientUploads.edge` isn't applicable.
+- **`storage.s3` isn't `true` → edge.** The upload is proxied through a Bunny Edge Script, so `clientUploads.edge` is **required**.
 
 A collection that points at [its own storage zone](/v4/configuration/collection-overrides) follows that zone's transport: its own `s3` presigns against its own endpoint, its own `edge` mints against its own script.
 
@@ -116,7 +116,7 @@ bunnyStorage({
     apiKey: process.env.BUNNY_STORAGE_API_KEY,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
-    s3: { region: 'de' },
+    s3: true,
     clientUploads: true, // presigned S3, because storage.s3 is set
   },
 })

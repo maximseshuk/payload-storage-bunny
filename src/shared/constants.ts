@@ -8,7 +8,7 @@ export const BUNNY_API = {
 } as const
 
 export const getStorageUrl = (region?: string): string => {
-  if (!region) {
+  if (!region || region === 'de') {
     return `https://${BUNNY_API.STORAGE_HOSTNAME}`
   }
   return `https://${region}.${BUNNY_API.STORAGE_HOSTNAME}`

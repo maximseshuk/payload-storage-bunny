@@ -19,6 +19,9 @@ export const buildStorageCdnUrl = ({
   return `https://${hostname}/${encode ? encodeURI(storageFilePath) : storageFilePath}`
 }
 
+export const buildStoragePurgeUrl = (args: Omit<StorageCdnUrlArgs, 'encode'>): string =>
+  `${buildStorageCdnUrl({ ...args, encode: true })}*`
+
 export const buildStreamCdnUrl = (hostname: string, videoId: string, asset: string): string => {
   return `https://${hostname}/${videoId}/${asset}`
 }

@@ -20,7 +20,7 @@ Errors use Payload's standard format, `{ "errors": [{ "message": "..." }] }`.
 
 ## Authentication
 
-- **`upload-instructions` and `stream/tus-auth`** run through Payload's access control. Send them with an authenticated session, for example the `payload-token` cookie. `clientUploads.access` and `tus.checkAccess` add their own checks.
+- **`upload-instructions` and `stream/tus-auth`** run through Payload's access control. Send them with an authenticated session, for example the `payload-token` cookie. `clientUploads.access` can only narrow Payload's check. `stream.tus.access` replaces the default check.
 - **`stream/webhook`** is not a Payload-authenticated route. Bunny signs each call, and the plugin verifies an HMAC-SHA256 `X-BunnyStream-Signature` header against the library's Read-Only API key (`stream.webhook.secret`).
 
 <Info>

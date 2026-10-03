@@ -36,7 +36,7 @@ describe('createCollectionContext', () => {
       signedUrls: { expiresIn: 3600 },
       storage: createBaseStorage(),
       stream: { ...createBaseStream(), mp4Fallback: true },
-      thumbnail: { appendTimestamp: true, queryParams: {}, streamAnimated: false },
+      thumbnail: { streamAnimated: false, urlTransform: { appendTimestamp: true, queryParams: {} } },
       urlTransform: { appendTimestamp: false, queryParams: { format: 'webp' } },
     })
     const media = normalized.collections.get('media')!
@@ -44,6 +44,7 @@ describe('createCollectionContext', () => {
     const context = createCollectionContext(normalized, createMockCollection('media'))
 
     expect(context.accountApiKey).toBe('global-api-key')
+    expect(context.hasGenerateFileURL).toBe(false)
     expect(context.storageConfig).toBe(media.storage)
     expect(context.streamConfig).toBe(media.stream)
     expect(context.purgeConfig).toBe(media.purge)
@@ -53,7 +54,7 @@ describe('createCollectionContext', () => {
     expect(context.storageConfig?.uploadTimeout).toBe(120000)
     expect(context.streamConfig?.thumbnailTime).toBe(5000)
     expect(context.purgeConfig?.async).toBe(true)
-    expect(context.signedUrls?.expiresIn).toBe(7200)
+    expect(context.signedUrls?.expiresIn({ collection: createMockCollection('media'), filename: 'a.jpg' })).toBe(7200)
   })
 
   describe('full per-collection override contexts', () => {
