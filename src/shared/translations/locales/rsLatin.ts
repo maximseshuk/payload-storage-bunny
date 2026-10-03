@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const rsLatin: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Isključi TUS režim',
     tusUploadEnableMode: 'Uključi TUS režim',
     tusUploadErrorFileType: 'Tip fajla nije dozvoljen',
@@ -33,7 +32,6 @@ export const rsLatin: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Nemate dozvolu za pristup ovom resursu',
     errorDeleteFileFailed: 'Nije moguće obrisati fajl: {{filename}}',
     errorMissingRequiredFields: 'Nedostaju neke potrebne informacije',

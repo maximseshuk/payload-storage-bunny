@@ -1,9 +1,8 @@
 import * as tus from 'tus-js-client'
 
+import { TUS_RETRY_DELAYS } from '@/client/TusUpload/FileManager/FileManager.constants.js'
 import { BUNNY_API } from '@/shared/constants.js'
 import type { StreamTusAuthResponse } from '@/shared/types/index.js'
-
-import { TUS_RETRY_DELAYS } from './TusUpload/FileManager/FileManager.constants.js'
 
 type UploadStreamVideoArgs = {
   apiRoute: string

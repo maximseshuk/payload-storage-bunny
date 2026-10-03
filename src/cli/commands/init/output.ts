@@ -1,9 +1,8 @@
 import type { EnvEntry } from '@/cli/lib/envFile.js'
+import type { InitAnswers } from '@/cli/lib/plan.js'
+import { DEFAULT_REGION, wantsStorage, wantsStream } from '@/cli/lib/plan.js'
+import type { ProvisionResult } from '@/cli/lib/provision.js'
 import type { BunnyStorageConfig } from '@/shared/types/config.js'
-
-import type { InitAnswers } from '../../lib/plan.js'
-import { DEFAULT_REGION, wantsStorage, wantsStream } from '../../lib/plan.js'
-import type { ProvisionResult } from '../../lib/provision.js'
 
 export type InitOutput = {
   configBlock: string

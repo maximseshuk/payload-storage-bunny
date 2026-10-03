@@ -41,7 +41,5 @@ export const cleanupTusLocalStorage = async (file: File, videoId: string): Promi
     await Promise.all(
       uploadsToRemove.map((u) => (u.urlStorageKey ? urlStorage.removeUpload(u.urlStorageKey) : Promise.resolve())),
     )
-  } catch {
-    /* empty */
-  }
+  } catch {}
 }

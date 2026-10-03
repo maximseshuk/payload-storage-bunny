@@ -5,8 +5,7 @@ import { cancel, confirm, isCancel, log, multiselect, note, password, select, sp
 
 import { bunnyJson, maskKey } from '@/cli/lib/bunnyApi.js'
 import type { Logger } from '@/cli/lib/logger.js'
-
-import type { InitAnswers, InitService, RegionOption, StorageAccess, StorageTier } from '../../lib/plan.js'
+import type { InitAnswers, InitService, RegionOption, StorageAccess, StorageTier } from '@/cli/lib/plan.js'
 import {
   DEFAULT_REGION,
   deriveBaseName,
@@ -22,8 +21,8 @@ import {
   validateStorageZoneName,
   wantsStorage,
   wantsStream,
-} from '../../lib/plan.js'
-import { checkLibraryName, checkStorageName, resolveAvailableName } from '../../lib/provision.js'
+} from '@/cli/lib/plan.js'
+import { checkLibraryName, checkStorageName, resolveAvailableName } from '@/cli/lib/provision.js'
 
 const SERVICE_OPTIONS = [
   { label: 'Both storage and stream', value: 'both' as const },

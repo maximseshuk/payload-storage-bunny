@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const hu: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'TUS mód kikapcsolása',
     tusUploadEnableMode: 'TUS mód bekapcsolása',
     tusUploadErrorFileType: 'Fájl típus nem engedélyezett',
@@ -33,7 +32,6 @@ export const hu: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'p',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Nincs jogosultsága ennek az erőforrásnak az eléréséhez',
     errorDeleteFileFailed: 'Nem sikerült törölni a fájlt: {{filename}}',
     errorMissingRequiredFields: 'Hiányzik néhány szükséges információ',

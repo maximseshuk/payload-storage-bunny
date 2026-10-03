@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const lt: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Išjungti TUS režimą',
     tusUploadEnableMode: 'Įjungti TUS režimą',
     tusUploadErrorFileType: 'Failo tipas neleidžiamas',
@@ -33,7 +32,6 @@ export const lt: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Neturite leidimo pasiekti šį išteklių',
     errorDeleteFileFailed: 'Nepavyko ištrinti failo: {{filename}}',
     errorMissingRequiredFields: 'Trūksta reikalingos informacijos',

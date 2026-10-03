@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const et: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Keela TUS režiim',
     tusUploadEnableMode: 'Luba TUS režiim',
     tusUploadErrorFileType: 'Failitüüp pole lubatud',
@@ -33,7 +32,6 @@ export const et: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Teil pole õigust sellele ressursile juurdepääsuks',
     errorDeleteFileFailed: 'Faili kustutamine ebaõnnestus: {{filename}}',
     errorMissingRequiredFields: 'Mõned nõutavad andmed puuduvad',

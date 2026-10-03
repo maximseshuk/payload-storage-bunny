@@ -19,8 +19,6 @@ type SignClientUploadArgs = {
   req: PayloadRequest
 }
 
-// Payload keeps only `_objectKey`, `prefix` and `signedReceipt` of a verified reference, so the
-// claims ride inside the signed receipt's otherwise unused `storageFilePath`.
 export const signClientUpload = ({ claims, collectionSlug, filename, prefix, req }: SignClientUploadArgs): string =>
   createClientUploadReceipt({
     collectionSlug,

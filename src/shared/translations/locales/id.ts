@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const id: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Nonaktifkan mode TUS',
     tusUploadEnableMode: 'Aktifkan mode TUS',
     tusUploadErrorFileType: 'Jenis file tidak diizinkan',
@@ -33,7 +32,6 @@ export const id: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Anda tidak memiliki izin untuk mengakses sumber daya ini',
     errorDeleteFileFailed: 'Tidak dapat menghapus file: {{filename}}',
     errorMissingRequiredFields: 'Beberapa informasi yang diperlukan hilang',

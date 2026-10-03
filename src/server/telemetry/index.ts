@@ -70,7 +70,5 @@ export const reportTelemetry = async (
     writeStateImpl(projectId, { lastSentDay: today, noticeShown: true })
 
     await send(report, resolveEndpoint(telemetry))
-  } catch {
-    // telemetry must never affect the host application.
-  }
+  } catch {}
 }

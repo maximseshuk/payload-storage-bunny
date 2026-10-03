@@ -17,39 +17,39 @@ import {
   hasAnyStorage,
   hasAnyStreamCleanup,
   validateNormalizedConfig,
-} from './server/payload/config/index.js'
-import { getAfterReadHook } from './server/payload/fields/bunnyGroupField.js'
-import { getFields } from './server/payload/fields/getFields.js'
+} from '@/server/payload/config/index.js'
+import { getAfterReadHook } from '@/server/payload/fields/bunnyGroupField.js'
+import { getFields } from '@/server/payload/fields/getFields.js'
 import {
   getBeforeChangeHook,
   getBeforeOperationHook,
-} from './server/payload/storage/clientUploads/persistPrefixHook.js'
-import { getGenerateUploadInstructions } from './server/payload/storage/clientUploads/uploadInstructions.js'
-import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from './server/payload/storage/index.js'
-import { getStreamCleanupTask } from './server/payload/stream/cleanupTask.js'
-import { hasStreamClientUploads } from './server/payload/stream/clientUploads.js'
-import { getStreamEndpoints } from './server/payload/stream/endpoints.js'
-import { getAfterChangeHook, getBeforeValidateHook } from './server/payload/stream/hooks.js'
-import { getStreamUploadSessionsCollection } from './server/payload/stream/sessionsCollection.js'
-import { reportTelemetry } from './server/telemetry/index.js'
-import { PLUGIN_KEY } from './shared/constants.js'
-import { translations } from './shared/translations/index.js'
-import type { PluginDefaultTranslationsObject } from './shared/translations/types.js'
-import type { NormalizedBunnyStorageConfig } from './shared/types/configNormalized.js'
-import type { BunnyStorageConfig, BunnyStoragePlugin, CollectionContext } from './shared/types/index.js'
+} from '@/server/payload/storage/clientUploads/persistPrefixHook.js'
+import { getGenerateUploadInstructions } from '@/server/payload/storage/clientUploads/uploadInstructions.js'
+import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from '@/server/payload/storage/index.js'
+import { getStreamCleanupTask } from '@/server/payload/stream/cleanupTask.js'
+import { hasStreamClientUploads } from '@/server/payload/stream/clientUploads.js'
+import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
+import { getAfterChangeHook, getBeforeValidateHook } from '@/server/payload/stream/hooks.js'
+import { getStreamUploadSessionsCollection } from '@/server/payload/stream/sessionsCollection.js'
+import { reportTelemetry } from '@/server/telemetry/index.js'
+import { PLUGIN_KEY } from '@/shared/constants.js'
+import { translations } from '@/shared/translations/index.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
+import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
+import type { BunnyStorageConfig, BunnyStoragePlugin, CollectionContext } from '@/shared/types/index.js'
 
 export {
   getBunnyCollectionConfig,
   getBunnyConfig,
   getBunnyStorageForCollection,
   getBunnyStreamForCollection,
-} from './server/payload/config/access.js'
+} from '@/server/payload/config/access.js'
 export type {
   BunnyCollectionConfig,
   BunnyCollectionStorage,
   BunnyCollectionStream,
-} from './server/payload/config/access.js'
-export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from './shared/types/configNormalized.js'
+} from '@/server/payload/config/access.js'
+export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from '@/shared/types/configNormalized.js'
 
 const CLIENT_UPLOAD_HANDLER_PATH = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
 
@@ -205,8 +205,6 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageConfi
             upload: {
               ...(typeof collection.upload === 'object' ? collection.upload : {}),
               adminThumbnail: undefined,
-              // Payload appends ?<updatedAt> to admin thumbnails. Bunny signs the query
-              // string, so on direct CDN URLs that extra param invalidates the token.
               ...(collectionContext.thumbnail?.appendTimestamp ||
               (collectionContext.signedUrls && !collectionContext.usePayloadAccessControl)
                 ? {

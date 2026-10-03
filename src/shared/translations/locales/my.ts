@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const my: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'TUS မုဒ်ကို ပိတ်ပါ',
     tusUploadEnableMode: 'TUS မုဒ်ကို ဖွင့်ပါ',
     tusUploadErrorFileType: 'ဖိုင်အမျိုးအစားကို ခွင့်မပြုပါ',
@@ -33,7 +32,6 @@ export const my: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'မ',
     tusUploadTimeSeconds: 'စ',
 
-    // Error messages
     errorAccessDenied: 'ဤအရင်းအမြစ်ကို ဝင်ရောက်ခွင့် မရှိပါ',
     errorDeleteFileFailed: 'ဖိုင်ကို ဖျက်၍ မရပါ: {{filename}}',
     errorMissingRequiredFields: 'လိုအပ်သော အချက်အလက်အချို့ ပျောက်နေပါသည်',

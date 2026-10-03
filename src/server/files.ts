@@ -19,8 +19,6 @@ type DocWithFilenameExistsArgs = {
   req: PayloadRequest
 }
 
-// Function taken from:
-// @https://github.com/payloadcms/payload/blob/main/packages/payload/src/uploads/docWithFilenameExists.ts
 export const docWithFilenameExists = async ({
   collectionSlug,
   filename,
@@ -42,8 +40,6 @@ export const docWithFilenameExists = async ({
   return false
 }
 
-// Function taken from:
-// @https://github.com/payloadcms/payload/blob/main/packages/payload/src/uploads/getSafeFileName.ts
 const incrementName = (name: string) => {
   const dot = name.lastIndexOf('.')
   const extension = dot > 0 ? name.slice(dot) : ''
@@ -69,8 +65,6 @@ type GetSafeFileNameArgs = {
   staticPath: string
 }
 
-// Function taken from:
-// @https://github.com/payloadcms/payload/blob/main/packages/payload/src/uploads/getSafeFileName.ts
 export const getSafeFileName = async ({
   collectionSlug,
   desiredFilename,

@@ -5,19 +5,18 @@ import { strictObject, z } from 'payload'
 import { defineCLICommand } from 'payload/cli'
 import { findConfig } from 'payload/node'
 
-import { applyEnvFile } from '@/cli/lib/envFile.js'
-import type { Logger } from '@/cli/lib/logger.js'
-import { EDGE_SCRIPT_SOURCE, EDGE_SCRIPT_VERSION } from '@/server/payload/storage/clientUploads/embedded.js'
-import { PLUGIN_KEY } from '@/shared/constants.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
-
 import {
   buildEdgeDeployPlan,
   checkEdgeScriptVersion,
   deployEdgeScript,
   type EdgeDeployGroup,
   loadZonesFileGroup,
-} from '../lib/deployEdgeScript.js'
+} from '@/cli/lib/deployEdgeScript.js'
+import { applyEnvFile } from '@/cli/lib/envFile.js'
+import type { Logger } from '@/cli/lib/logger.js'
+import { EDGE_SCRIPT_SOURCE, EDGE_SCRIPT_VERSION } from '@/server/payload/storage/clientUploads/embedded.js'
+import { PLUGIN_KEY } from '@/shared/constants.js'
+import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 
 /* eslint-disable no-console */
 const logger: Logger = { error: console.error, info: console.log, warn: console.warn }

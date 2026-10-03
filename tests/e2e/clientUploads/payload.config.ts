@@ -1,6 +1,7 @@
 import type { Config } from 'payload'
 
-import { bunnyStorage } from '../../../src/index.js'
+import { bunnyStorage } from '@/index.js'
+
 import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDefaults.js'
 import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
 import { hasS3StorageCredentials } from '../../helpers/shared/credentials.js'

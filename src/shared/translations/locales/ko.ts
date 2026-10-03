@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const ko: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'TUS 모드 비활성화',
     tusUploadEnableMode: 'TUS 모드 활성화',
     tusUploadErrorFileType: '파일 형식이 허용되지 않습니다',
@@ -33,7 +32,6 @@ export const ko: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: '분',
     tusUploadTimeSeconds: '초',
 
-    // Error messages
     errorAccessDenied: '이 리소스에 접근할 권한이 없습니다',
     errorDeleteFileFailed: '파일을 삭제할 수 없습니다: {{filename}}',
     errorMissingRequiredFields: '필수 정보가 누락되었습니다',

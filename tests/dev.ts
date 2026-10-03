@@ -79,7 +79,7 @@ const startDev = async () => {
 
   nextEnv.updateInitialEnv(process.env)
 
-  // @ts-expect-error Next.js types
+  // @ts-expect-error
   const app = next({
     dev: true,
     dir: __dirname,

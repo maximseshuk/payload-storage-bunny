@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const zhTw: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: '停用 TUS 模式',
     tusUploadEnableMode: '啟用 TUS 模式',
     tusUploadErrorFileType: '檔案類型不被允許',
@@ -33,7 +32,6 @@ export const zhTw: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: '分',
     tusUploadTimeSeconds: '秒',
 
-    // Error messages
     errorAccessDenied: '您沒有權限存取此資源',
     errorDeleteFileFailed: '無法刪除檔案：{{filename}}',
     errorMissingRequiredFields: '缺少一些必要的資訊',
