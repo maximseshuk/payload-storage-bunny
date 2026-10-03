@@ -1,40 +1,10 @@
+import { oxlintBase } from '@seshuk/payload-plugin-tooling/oxlint'
 import { defineConfig } from 'oxlint'
 
 export default defineConfig({
-  categories: {
-    correctness: 'error',
-    suspicious: 'warn',
-  },
-  env: {
-    browser: true,
-    es2024: true,
-    node: true,
-  },
-  ignorePatterns: ['dist', 'tests/app', '**/payload-types.ts', '**/importMap.js'],
-  plugins: ['eslint', 'typescript', 'unicorn', 'oxc', 'react', 'import', 'jsx-a11y', 'promise'],
-  rules: {
-    'import/no-unassigned-import': 'off',
-    'no-console': 'warn',
-    'no-underscore-dangle': 'off',
-    'react/react-in-jsx-scope': 'off',
-    'unicorn/no-useless-fallback-in-spread': 'off',
-  },
+  ...oxlintBase,
   overrides: [
-    {
-      files: ['tests/**', '**/*.spec.ts', '**/*.e2e.ts'],
-      plugins: ['vitest'],
-      rules: {
-        'no-console': 'off',
-        'unicorn/consistent-function-scoping': 'off',
-        'vitest/no-conditional-expect': 'off',
-        'vitest/require-mock-type-parameters': 'off',
-      },
-    },
-
-    // Boundary enforcement. Two axes:
-    //   • runtime (C): client/shared must not reach into server/cli/edge or node builtins
-    //   • dependency direction (B): inside server, payload → bunny → shared (one way)
-
+    ...oxlintBase.overrides,
     {
       files: ['src/client/**'],
       rules: {

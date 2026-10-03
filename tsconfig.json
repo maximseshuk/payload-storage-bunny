@@ -1,25 +1,15 @@
 {
+  "extends": "@seshuk/payload-plugin-tooling/tsconfig.json",
   "compilerOptions": {
     "incremental": true,
     "composite": true,
-    "target": "ES2022",
-    "jsx": "preserve",
-    "lib": ["DOM", "DOM.Iterable", "ES2023"],
     "rootDir": "./",
-    "module": "NodeNext",
-    "moduleResolution": "nodenext",
     "paths": {
       "@/*": ["./src/*"],
       "@seshuk/payload-storage-bunny": ["./src/index.ts"],
       "@seshuk/payload-storage-bunny/client": ["./src/client/index.ts"]
     },
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "strict": true,
     "emitDeclarationOnly": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "skipLibCheck": true,
     "plugins": [
       {
         "name": "next"
