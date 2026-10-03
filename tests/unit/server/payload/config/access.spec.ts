@@ -97,7 +97,7 @@ describe('config accessors', () => {
     expect(getBunnyStorageForCollection(payload, 'media')).toBeUndefined()
   })
 
-  it('passes through s3 and region on the curated storage view', () => {
+  it('passes through S3 and region on the curated storage view', () => {
     const payload = payloadFor({
       collections: { media: true },
       storage: createBaseStorage({ region: 'de', s3: { region: 'de' } }),

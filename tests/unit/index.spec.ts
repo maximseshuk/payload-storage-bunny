@@ -33,19 +33,19 @@ const buildMediaUpload = (media: MediaOptions, options: Partial<BunnyStorageConf
 }
 
 describe('upload.cacheTags wiring', () => {
-  it('disables cache tags for direct CDN urls signed by Bunny', () => {
+  it('disables cache tags for direct CDN URLs signed by Bunny', () => {
     const upload = buildMediaUpload({ disablePayloadAccessControl: true }, { signedUrls: true })
 
     expect(upload.cacheTags).toBe(false)
   })
 
-  it('keeps cache tags when signed urls are served through the Payload handler', () => {
+  it('keeps cache tags when signed URLs are served through the Payload handler', () => {
     const upload = buildMediaUpload(true, { signedUrls: true })
 
     expect(upload.cacheTags).toBeUndefined()
   })
 
-  it('keeps cache tags when nothing signs the url', () => {
+  it('keeps cache tags when nothing signs the URL', () => {
     const upload = buildMediaUpload({ disablePayloadAccessControl: true })
 
     expect(upload.cacheTags).toBeUndefined()
@@ -79,7 +79,7 @@ describe('client upload handler registration', () => {
     ) as Array<{ clientProps: Record<string, unknown> }>
   }
 
-  it('routes Stream-only TUS collections through the handler with their video types', () => {
+  it('routes stream-only TUS collections through the handler with their video types', () => {
     const [provider] = getHandlerProviders({ disablePayloadAccessControl: true, storage: false })
 
     expect(provider?.clientProps.collectionSlug).toBe('media')
@@ -91,11 +91,11 @@ describe('client upload handler registration', () => {
     expect(provider?.clientProps.collectionSlug).toBe('media')
   })
 
-  it('leaves Storage and Stream collections without client uploads on server uploads', () => {
+  it('leaves storage and stream collections without client uploads on server uploads', () => {
     expect(getHandlerProviders(true)).toEqual([])
   })
 
-  it('dispatches only Stream videos to the handler of a Stream-only TUS collection', async () => {
+  it('dispatches only Stream videos to the handler of a stream-only TUS collection', async () => {
     const incoming = {
       collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
     } as unknown as Config

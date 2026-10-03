@@ -159,7 +159,7 @@ describe('buildInitPlan', () => {
     expect(plan.stream?.replication).toEqual(['LA'])
   })
 
-  it('enables s3 presigned client uploads only for the S3 access method', () => {
+  it('enables S3 presigned client uploads only for the S3 access method', () => {
     expect(buildInitPlan(initAnswers({ clientUploads: true, storageAccess: 's3' })).storage?.clientUploads).toBe(true)
     expect(buildInitPlan(initAnswers({ clientUploads: true, storageAccess: 'http' })).storage?.clientUploads).toBe(
       false,

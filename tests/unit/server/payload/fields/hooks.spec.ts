@@ -58,7 +58,7 @@ describe('field hooks', () => {
     })
 
     describe('image branch', () => {
-      it('builds the storage CDN url when access control is off', () => {
+      it('builds the storage CDN URL when access control is off', () => {
         const fn = getAdminThumbnail(buildContext({ storageConfig }))!
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('https://storage.b-cdn.net/up/pic.png')
       })
@@ -70,7 +70,7 @@ describe('field hooks', () => {
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('https://storage.b-cdn.net/up/pic.png?v=2')
       })
 
-      it('signs the url when signedUrls and a tokenSecurityKey are present', () => {
+      it('signs the URL when signedUrls and a tokenSecurityKey are present', () => {
         const fn = getAdminThumbnail(
           buildContext({
             signedUrls: { expiresIn: 3600 } as NormalizedSignedUrlsConfig,
@@ -90,7 +90,7 @@ describe('field hooks', () => {
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('https://storage.b-cdn.net/up/pic.png')
       })
 
-      it('returns the internal api url when access control is on', () => {
+      it('returns the internal API URL when access control is on', () => {
         const fn = getAdminThumbnail(buildContext({ storageConfig, usePayloadAccessControl: true }))!
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('/api/media/file/pic.png')
       })
@@ -102,7 +102,7 @@ describe('field hooks', () => {
     })
 
     describe('sizeName branch', () => {
-      it('builds the storage CDN url for the requested size filename', () => {
+      it('builds the storage CDN URL for the requested size filename', () => {
         const fn = getAdminThumbnail(buildContext({ storageConfig, thumbnail: thumbnail({ sizeName: 'card' }) }))!
         const doc = {
           filename: 'orig.png',
@@ -115,7 +115,7 @@ describe('field hooks', () => {
     })
 
     describe('stream branch', () => {
-      it('builds the stream thumbnail url when access control is off', () => {
+      it('builds the Stream thumbnail URL when access control is off', () => {
         const fn = getAdminThumbnail(buildContext({ streamConfig }))!
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('https://stream.b-cdn.net/v-9/thumbnail.jpg')
       })
@@ -125,7 +125,7 @@ describe('field hooks', () => {
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('https://stream.b-cdn.net/v-9/preview.webp')
       })
 
-      it('returns the internal api url when access control is on', () => {
+      it('returns the internal API URL when access control is on', () => {
         const fn = getAdminThumbnail(buildContext({ streamConfig, usePayloadAccessControl: true }))!
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('/api/media/file/bunny%3Astream%3Av-9%3Athumbnail.jpg')
       })
@@ -193,7 +193,7 @@ describe('field hooks', () => {
       expect(seen).toEqual(['card.png'])
     })
 
-    it('re-signs the url with the request IP when userIp is configured and access control is off', () => {
+    it('re-signs the URL with the request IP when userIp is configured and access control is off', () => {
       const req = {
         headers: new Headers({ 'x-forwarded-for': '203.0.113.7' }),
         payload: { logger: { warn: () => undefined } },

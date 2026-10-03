@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe('getHandleDelete', () => {
   describe('stream documents', () => {
-    it('deletes the stream video and skips storage and purge', async () => {
+    it('deletes the Stream video and skips storage and purge', async () => {
       deleteStreamVideoMock.mockResolvedValue(undefined)
 
       const handler = getHandleDelete(
@@ -66,7 +66,7 @@ describe('getHandleDelete', () => {
   })
 
   describe('storage documents', () => {
-    it('deletes via the s3 backend when s3 config is present', async () => {
+    it('deletes via the S3 backend when S3 config is present', async () => {
       deleteStorageFileS3Mock.mockResolvedValue(undefined)
 
       const s3 = { region: 'de' }

@@ -64,7 +64,7 @@ describe('config inspect helpers', () => {
   })
 
   describe('TUS, cleanup and webhook flags', () => {
-    it('detects tus, cleanup and webhook secrets across global and per-collection sources', () => {
+    it('detects TUS, cleanup and webhook secrets across global and per-collection sources', () => {
       const config: BunnyStorageConfig = {
         collections: {
           global: true,

@@ -30,7 +30,7 @@ describe('storageHostFor', () => {
 })
 
 describe('buildEdgeDeployPlan', () => {
-  it('builds a single group for a single global non-s3 zone with edge config', () => {
+  it('builds a single group for a single global non-S3 zone with edge config', () => {
     const config = createNormalizedConfig({
       collections: { media: true },
       storage: {
@@ -52,7 +52,7 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.zoneNames).toEqual(['media'])
   })
 
-  it('lists a per-collection non-s3 zone even when the global zone is s3', () => {
+  it('lists a per-collection non-S3 zone even when the global zone is S3', () => {
     const config = createNormalizedConfig({
       collections: {
         archives: {
@@ -83,7 +83,7 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.sharedSecret).toBe('shared')
   })
 
-  it('merges two non-s3 zones that share a scriptUrl and secret into one group', () => {
+  it('merges two non-S3 zones that share a scriptUrl and secret into one group', () => {
     const config = createNormalizedConfig({
       collections: {
         archives: {
@@ -232,7 +232,7 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.scriptUrl).toBeUndefined()
   })
 
-  it('reports an error when there are no non-s3 zones', () => {
+  it('reports an error when there are no non-S3 zones', () => {
     const config = createNormalizedConfig({
       collections: { media: true },
       storage: {

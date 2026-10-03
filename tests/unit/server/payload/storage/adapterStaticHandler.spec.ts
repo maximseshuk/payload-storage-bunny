@@ -153,7 +153,7 @@ describe('getStaticHandler dispatch', () => {
     expect(streamHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ docId: 'found1' }))
   })
 
-  it('falls back to storage when no stream video is found', async () => {
+  it('falls back to storage when no Stream video is found', async () => {
     const handler = getStaticHandler(context())
     const res = await handler(makeReq(), { doc: undefined, params: { filename: 'photo.jpg' } })
 

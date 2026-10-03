@@ -59,7 +59,7 @@ beforeEach(() => {
 
 describe('getHandleUpload', () => {
   describe('stream path', () => {
-    it('creates and uploads a stream video for a matching MIME type without cleanup', async () => {
+    it('creates and uploads a Stream video for a matching MIME type without cleanup', async () => {
       createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
       uploadStreamVideoMock.mockResolvedValue(undefined)
 
@@ -118,7 +118,7 @@ describe('getHandleUpload', () => {
   })
 
   describe('storage path', () => {
-    it('uploads via the HTTP backend when no s3 config is present', async () => {
+    it('uploads via the HTTP backend when no S3 config is present', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
 
       const handler = getHandleUpload(buildContext({ storageConfig } as unknown as Partial<CollectionContext>))
@@ -147,7 +147,7 @@ describe('getHandleUpload', () => {
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
 
-    it('uploads via the s3 backend when s3 config is present', async () => {
+    it('uploads via the S3 backend when S3 config is present', async () => {
       uploadStorageFileS3Mock.mockResolvedValue(undefined)
 
       const s3 = { region: 'de' }

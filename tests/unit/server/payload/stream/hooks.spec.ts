@@ -298,7 +298,7 @@ describe('stream hooks', () => {
       await expect(hook({ data: {}, operation: 'create', req } as never)).rejects.toBeInstanceOf(ValidationError)
     })
 
-    it('searches only Stream collections of the same library', async () => {
+    it('searches only stream collections of the same library', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
       const hook = getBeforeValidateHook({
         config: libraryConfig,
