@@ -61,7 +61,7 @@ test.afterAll(async () => {
   ])
 })
 
-test.describe('Stream - TUS uploads', () => {
+test.describe('Stream TUS uploads', () => {
   test('uploads and deletes a video in auto mode', async ({ page }) => {
     await openCreate(page, 'stream-auto')
 

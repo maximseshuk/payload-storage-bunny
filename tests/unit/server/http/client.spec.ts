@@ -32,7 +32,7 @@ beforeEach(() => {
 })
 
 describe('httpFetch', () => {
-  it('GETs by default and forwards no extra options', async () => {
+  it('uses GET by default and forwards no extra options', async () => {
     const response = new Response('ok')
     getMock.mockResolvedValue(response)
 
@@ -40,7 +40,7 @@ describe('httpFetch', () => {
     expect(getMock).toHaveBeenCalledWith('https://x.test/a', {})
   })
 
-  it('dispatches by method and forwards json/headers/timeout/signal/searchParams', async () => {
+  it('calls the given method and forwards json, headers, timeout, signal and searchParams', async () => {
     postMock.mockResolvedValue(new Response(null))
     const signal = AbortSignal.timeout(1000)
 
@@ -62,7 +62,7 @@ describe('httpFetch', () => {
     })
   })
 
-  it('honors an explicit retry option', async () => {
+  it('uses an explicit retry option', async () => {
     getMock.mockResolvedValue(new Response(null))
 
     await httpFetch('https://x.test/a', { retry: 3 })
@@ -70,7 +70,7 @@ describe('httpFetch', () => {
     expect(getMock).toHaveBeenCalledWith('https://x.test/a', { retry: 3 })
   })
 
-  it('marks streaming requests via ky context so the drain hook is skipped', async () => {
+  it('marks streaming requests in the ky context so the drain hook skips them', async () => {
     getMock.mockResolvedValue(new Response(null))
 
     await httpFetch('https://x.test/a', { stream: true })
@@ -95,7 +95,7 @@ describe('httpJson', () => {
     await expect(httpJson<{ value: number }>('https://x.test/a')).resolves.toEqual({ value: 42 })
   })
 
-  it('passes errors through unchanged (no wrapping)', async () => {
+  it('passes errors through without wrapping', async () => {
     const err = httpError(404)
     getMock.mockRejectedValue(err)
 

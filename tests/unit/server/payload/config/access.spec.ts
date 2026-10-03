@@ -26,7 +26,7 @@ const payloadFor = (userConfig: BunnyStorageConfig): Payload =>
   fakePayload({ '@seshuk/payload-storage-bunny': { config: createNormalizedConfig(userConfig) } })
 
 describe('config accessors', () => {
-  it('returns exactly the curated global storage + stream view for a `true` shorthand collection', () => {
+  it('returns exactly the curated global storage and stream view for a `true` shorthand collection', () => {
     const payload = payloadFor({
       collections: { media: true },
       storage: createBaseStorage(),
@@ -51,7 +51,7 @@ describe('config accessors', () => {
     expect(getBunnyStreamForCollection(payload, 'media')?.libraryId).toBe(12345)
   })
 
-  it('returns own-zone/own-library override values, not globals', () => {
+  it('returns the values of its own zone and library, not the global ones', () => {
     const payload = payloadFor({
       collections: {
         own: {

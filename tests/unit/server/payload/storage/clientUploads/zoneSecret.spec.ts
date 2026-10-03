@@ -9,7 +9,7 @@ describe('zoneSecretName', () => {
     expect(zoneSecretName('my-zone-2')).toBe('ZONE_MY_ZONE_2')
   })
 
-  it('always emits a valid env-var identifier that matches the pattern', () => {
+  it('always returns a valid env var name that matches the pattern', () => {
     for (const zone of ['media', 'my-zone-2', 'a', 'z9', 'zone-with-many-parts', 'a'.repeat(64)]) {
       const name = zoneSecretName(zone)
       expect(name.startsWith(ZONE_SECRET_PREFIX)).toBe(true)
@@ -18,15 +18,15 @@ describe('zoneSecretName', () => {
     }
   })
 
-  it('is injective for the allowed zone-name alphabet ([a-z0-9-])', () => {
+  it('gives a different name to each zone name in [a-z0-9-]', () => {
     const zones = ['media', 'archives', 'my-zone', 'my-zone-2', 'a-b', 'ab', 'a-b-c', 'x1', 'x-1']
     const encoded = zones.map(zoneSecretName)
     expect(new Set(encoded).size).toBe(zones.length)
   })
 })
 
-describe('worker/deploy encoder parity', () => {
-  it('the deployed worker inlines the exact canonical derivation', () => {
+describe('Edge Script parity', () => {
+  it('matches the name rule inlined in the deployed Edge Script', () => {
     expect(EDGE_SCRIPT_SOURCE).toContain("'ZONE_' + zoneName.toUpperCase().replaceAll('-', '_')")
   })
 })

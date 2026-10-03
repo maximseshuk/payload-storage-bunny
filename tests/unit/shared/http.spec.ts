@@ -12,7 +12,7 @@ describe('http utils', () => {
       expect(copy.get('x-custom')).toBe('abc')
     })
 
-    it('returns an independent Headers (mutations do not affect the source)', () => {
+    it('returns independent Headers that do not change the source', () => {
       const src = new Headers({ 'X-Custom': 'original' })
       const copy = copyHeaders(src)
 
@@ -33,7 +33,7 @@ describe('http utils', () => {
       expect(await res.json()).toEqual({ hello: 'world' })
     })
 
-    it('honors an explicit status code', async () => {
+    it('uses an explicit status code', async () => {
       const res = jsonResponse({ error: 'nope' }, 401)
 
       expect(res.status).toBe(401)

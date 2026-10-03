@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { deriveProjectId, hashProjectId, resolveRawSource } from '@/server/telemetry/projectId.js'
 
 describe('hashProjectId', () => {
-  it('is sha256(secret + rawSource) hex', () => {
+  it('returns the hex SHA-256 of the secret and rawSource', () => {
     const secret = 'secret'
     const source = 'source'
     const expected = createHash('sha256')
@@ -16,7 +16,7 @@ describe('hashProjectId', () => {
 })
 
 describe('resolveRawSource', () => {
-  it('prefers git over everything', () => {
+  it('prefers git over other sources', () => {
     expect(resolveRawSource({ cwd: '/app', git: 'git@x', packageJSON: 'app', serverURL: 'https://x' })).toEqual({
       source: 'git',
       value: 'git@x',

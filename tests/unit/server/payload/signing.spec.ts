@@ -12,30 +12,30 @@ import { generateSignedToken, generateSignedUrl } from '@/server/payload/tokenAu
 const rawToken = (hashable: string) =>
   createHash('sha256').update(hashable).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 
-describe('token output lock (must stay byte-identical to the verified Bunny standard scheme)', () => {
+describe('pinned token output of the Bunny standard scheme', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('pins token for key + path + expires', () => {
+  it('pins the token for key, path and expires', () => {
     expect(generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000)).toBe(
       'SxFvxHGdfK9v7p53gmnSvd84VLGy2GlsIrPBoCPGqns',
     )
   })
 
-  it('pins token for key + path + expires + sorted params', () => {
+  it('pins the token for key, path, expires and sorted params', () => {
     expect(
       generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000, 'token_countries=US,CA&width=500'),
     ).toBe('d8_U6ufdeoXh1KgeBCjJHu3Di1Tlh_uMPWAbCfi9Ahg')
   })
 
-  it('pins token for token_path signing', () => {
+  it('pins the token for token_path signing', () => {
     expect(generateSignedToken('test-security-key', '/videos/', 1700000000, 'token_path=/videos/')).toBe(
       'LK4PNazpPWHPtkD4ShDMsm7fGD8Bvg0HV5monXaghkg',
     )
   })
 
-  it('pins full query-mode URL output', () => {
+  it('pins the full query mode URL', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(1699996400000))
 
@@ -49,7 +49,7 @@ describe('token output lock (must stay byte-identical to the verified Bunny stan
     )
   })
 
-  it('pins full path-mode URL output', () => {
+  it('pins the full path mode URL', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(1699996400000))
 
@@ -69,7 +69,7 @@ describe('token output lock (must stay byte-identical to the verified Bunny stan
     )
   })
 
-  it('pins plain URL output without extra params', () => {
+  it('pins the plain URL without extra params', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(1699996400000))
 
@@ -81,7 +81,7 @@ describe('token output lock (must stay byte-identical to the verified Bunny stan
   })
 })
 
-describe('IP-locked tokens (standard scheme: key + path + expires + sorted params + ip)', () => {
+describe('IP-locked tokens', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -274,7 +274,7 @@ describe('generateSignedUrl', () => {
       )
     })
 
-    it('uses default expiresIn (7200s) when not provided', () => {
+    it('uses the default expiresIn (7200 s) when none is given', () => {
       const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {})
 
       const expiresMatch = url.match(/expires=(\d+)/)
@@ -296,7 +296,7 @@ describe('generateStreamTusUploadSignature', () => {
     videoId: 'abc-123-def',
   }
 
-  it('generates correct hex SHA256', () => {
+  it('generates the correct hex SHA-256', () => {
     const signature = generateStreamTusUploadSignature(validParams)
 
     expect(signature).toMatch(/^[a-f0-9]{64}$/)
@@ -329,7 +329,7 @@ describe('stream video token', () => {
   const user = { collection: 'users', id: 'user-1' } as never
   const input = { collection: 'media', libraryId: 12345, secret: 'payload-secret', user, videoId: 'video-1' }
 
-  it('is an expiry and an HMAC-SHA256 of the collection, library, video, user and expiry keyed by the Payload secret', () => {
+  it('builds the token from the expiry and an HMAC-SHA256 of the collection, library, video, user and expiry, keyed by the Payload secret', () => {
     vi.useFakeTimers({ now: 1_700_000_000_500 })
     const token = signStreamVideoToken(input)
     vi.useRealTimers()

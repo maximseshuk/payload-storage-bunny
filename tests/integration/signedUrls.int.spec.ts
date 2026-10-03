@@ -8,7 +8,7 @@ import { getPayload } from '../helpers/int/getPayload.js'
 import { videoFile } from '../helpers/int/videoFile.js'
 import { hasSignedBunnyCredentials } from '../helpers/shared/credentials.js'
 
-describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
+describe.skipIf(!hasSignedBunnyCredentials())('signed URLs', () => {
   let payload: Payload
 
   beforeAll(async () => {
@@ -45,7 +45,7 @@ describe.skipIf(!hasSignedBunnyCredentials())('Signed URLs', () => {
   })
 
   describe('Stream', () => {
-    it('generates signed URL with bcdn_token and is accessible', async () => {
+    it('generates a signed URL with bcdn_token that is accessible', async () => {
       const doc = await payload.create({
         collection: 'streamMedia',
         data: { alt: 'Signed stream URL test' },

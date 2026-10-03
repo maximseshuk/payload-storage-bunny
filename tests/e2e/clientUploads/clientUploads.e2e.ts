@@ -46,13 +46,13 @@ const uploadDirect = async (page: Page, slug: string, directHost: string): Promi
   await deleteDocAndAssert(page)
 }
 
-test.describe('Client uploads', () => {
-  test('edge: bytes go browser → edge script, not through Payload', async ({ page }) => {
+test.describe('client uploads', () => {
+  test('uploads through the Edge Script without sending the file to Payload', async ({ page }) => {
     test.skip(!hasClientUploadsEdgeCredentials(), 'Requires BUNNY_STORAGE_* and BUNNY_EDGE_*')
     await uploadDirect(page, 'client-uploads-edge', new URL(process.env.BUNNY_EDGE_SCRIPT_URL as string).host)
   })
 
-  test('s3: bytes go browser → S3 endpoint via presigned PUT, not through Payload', async ({ page }) => {
+  test('uploads to S3 with a presigned URL without sending the file to Payload', async ({ page }) => {
     test.skip(!hasS3StorageCredentials(), 'Requires BUNNY_S3_STORAGE_* (an S3-compatible zone)')
     await uploadDirect(page, 'client-uploads-s3', `${process.env.BUNNY_S3_STORAGE_REGION}-s3.storage.bunnycdn.com`)
   })

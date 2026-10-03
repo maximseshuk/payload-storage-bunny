@@ -33,7 +33,7 @@ describe('matchesMimeTypePattern', () => {
     expect(matchesMimeTypePattern('application/pdf', 'application/*')).toBe(true)
   })
 
-  it('wildcards do not match different categories', () => {
+  it('does not match a wildcard across categories', () => {
     expect(matchesMimeTypePattern('audio/mp3', 'video/*')).toBe(false)
     expect(matchesMimeTypePattern('video/mp4', 'image/*')).toBe(false)
   })
@@ -46,13 +46,13 @@ describe('matchesMimeTypePattern', () => {
 })
 
 describe('intersectMimeTypes', () => {
-  it('returns other array if one is undefined', () => {
+  it('returns the other array when one is undefined', () => {
     expect(intersectMimeTypes(undefined, ['video/mp4'])).toEqual(['video/mp4'])
     expect(intersectMimeTypes(['image/jpeg'], undefined)).toEqual(['image/jpeg'])
     expect(intersectMimeTypes(undefined, undefined)).toBeUndefined()
   })
 
-  it('returns intersection with exact matches', () => {
+  it('returns the intersection of exact matches', () => {
     const result = intersectMimeTypes(['video/mp4', 'video/webm', 'audio/mpeg'], ['video/mp4', 'image/jpeg'])
 
     expect(result).toContain('video/mp4')
@@ -61,7 +61,7 @@ describe('intersectMimeTypes', () => {
     expect(result).not.toContain('image/jpeg')
   })
 
-  it('handles wildcards in intersection', () => {
+  it('handles wildcards in the intersection', () => {
     const result1 = intersectMimeTypes(['video/*'], ['video/mp4', 'video/webm', 'audio/mpeg'])
     expect(result1).toContain('video/mp4')
     expect(result1).toContain('video/webm')
@@ -76,7 +76,7 @@ describe('intersectMimeTypes', () => {
     expect(result3).toContain('image/jpeg')
   })
 
-  it('returns undefined when no intersection or empty arrays', () => {
+  it('returns undefined for no intersection or empty arrays', () => {
     expect(intersectMimeTypes(['video/mp4'], ['audio/mpeg'])).toBeUndefined()
     expect(intersectMimeTypes([], ['video/mp4'])).toBeUndefined()
     expect(intersectMimeTypes(['video/mp4'], [])).toBeUndefined()

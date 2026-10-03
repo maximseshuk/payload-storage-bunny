@@ -9,7 +9,7 @@ import { createBaseStorage, createBaseStream, createOwnStorage } from '../../../
 const features = (config: BunnyStorageConfig) => buildFeatures(createNormalizedConfig(config))
 
 describe('buildFeatures', () => {
-  it('storage-only (HTTP API) sets storage, leaves S3/stream/clientUploads off', () => {
+  it('sets only storage for an HTTP API storage-only config', () => {
     const result = features({ collections: { media: true }, storage: createBaseStorage() })
 
     expect(result).toMatchObject({
@@ -21,7 +21,7 @@ describe('buildFeatures', () => {
     })
   })
 
-  it('S3 backend with client uploads sets storageS3 + storageClientUploads (no edge)', () => {
+  it('sets storageS3 and storageClientUploads, not edge, for S3 with client uploads', () => {
     const result = features({
       collections: { media: true },
       storage: createBaseStorage({ clientUploads: true, s3: { region: 'de' } }),
@@ -34,7 +34,7 @@ describe('buildFeatures', () => {
     })
   })
 
-  it('HTTP client uploads via edge script sets storageClientUploadsEdge', () => {
+  it('sets storageClientUploadsEdge for HTTP client uploads through the Edge Script', () => {
     const result = features({
       collections: { media: true },
       storage: createBaseStorage({
@@ -46,7 +46,7 @@ describe('buildFeatures', () => {
     expect(result.storageClientUploadsEdge).toBe(true)
   })
 
-  it('stream with tus + webhook + cleanup sets the stream flags', () => {
+  it('sets the stream flags for TUS, webhook and cleanup', () => {
     const result = features({
       collections: { videos: true },
       stream: { ...createBaseStream(), cleanup: true, tus: true, webhook: { secret: 'wh' } },
@@ -61,7 +61,7 @@ describe('buildFeatures', () => {
     })
   })
 
-  it('tus.autoMode:false keeps streamTus on but streamTusAutoMode off', () => {
+  it('keeps streamTus on and streamTusAutoMode off for tus.autoMode: false', () => {
     const result = features({
       collections: { videos: true },
       stream: { ...createBaseStream(), tus: { autoMode: false } },
@@ -71,7 +71,7 @@ describe('buildFeatures', () => {
     expect(result.streamTusAutoMode).toBe(false)
   })
 
-  it('signedUrls sets signedUrlsCountryLock only with a country list', () => {
+  it('sets signedUrlsCountryLock only when signedUrls has a country list', () => {
     const withCountries = features({
       collections: { media: true },
       signedUrls: { allowedCountries: ['US'] },
@@ -83,7 +83,7 @@ describe('buildFeatures', () => {
     expect(withoutCountries).toMatchObject({ signedUrls: true, signedUrlsCountryLock: false })
   })
 
-  it('cdnPurge requires both purge and an accountApiKey', () => {
+  it('sets cdnPurge only with both purge and an accountApiKey', () => {
     expect(
       features({ accountApiKey: 'k', collections: { media: true }, purge: true, storage: createBaseStorage() })
         .cdnPurge,
@@ -91,7 +91,7 @@ describe('buildFeatures', () => {
     expect(features({ collections: { media: true }, purge: true, storage: createBaseStorage() }).cdnPurge).toBe(false)
   })
 
-  it('an object collection config sets collectionOverrides; `true` alone does not', () => {
+  it('sets collectionOverrides for an object collection config but not for `true`', () => {
     expect(features({ collections: { media: true }, storage: createBaseStorage() }).collectionOverrides).toBe(false)
     expect(
       features({ collections: { media: { thumbnail: true } }, storage: createBaseStorage() }).collectionOverrides,
@@ -112,7 +112,7 @@ describe('buildFeatures', () => {
     expect(partial).toMatchObject({ collectionOverrides: true, collectionZones: false })
   })
 
-  it('accountApiKey reflects an account-level key', () => {
+  it('sets accountApiKey when an account-level key exists', () => {
     expect(
       features({ accountApiKey: 'k', collections: { media: true }, storage: createBaseStorage() }).accountApiKey,
     ).toBe(true)

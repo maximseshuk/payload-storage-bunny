@@ -33,7 +33,7 @@ const redirectContext = (
 })
 
 describe('maybeCreateRedirect', () => {
-  describe('guard branches returning null', () => {
+  describe('guards that return null', () => {
     it('returns null when access control is disabled', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ usePayloadAccessControl: false }))).toBeNull()
     })

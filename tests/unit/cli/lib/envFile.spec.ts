@@ -23,7 +23,7 @@ describe('applyEnvFile', () => {
     return file
   }
 
-  it('overrides a pre-set process env var (the whole point of --env-file)', () => {
+  it('overrides an env var that is already set', () => {
     process.env.PSB_ENVFILE_PRESET = 'ambient'
     const file = writeEnvFile('PSB_ENVFILE_PRESET=from-file\nPSB_ENVFILE_NEW=added\n')
 
@@ -43,7 +43,7 @@ describe('applyEnvFile', () => {
     expect(JSON.stringify(result)).not.toContain('secret-value')
   })
 
-  it('throws (fails closed) on a missing file', () => {
+  it('throws on a missing file', () => {
     expect(() => applyEnvFile(path.join(tmpdir(), 'psb-missing.env'))).toThrow(/could not read env file/)
   })
 })

@@ -59,7 +59,7 @@ beforeEach(() => {
 
 describe('getHandleUpload', () => {
   describe('stream path', () => {
-    it('creates and uploads a stream video for a matching mime type (no cleanup)', async () => {
+    it('creates and uploads a stream video for a matching MIME type without cleanup', async () => {
       createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
       uploadStreamVideoMock.mockResolvedValue(undefined)
 
@@ -232,7 +232,7 @@ describe('getHandleUpload', () => {
       expect(result).toBeTruthy()
     })
 
-    it('swallows and logs purge failures without failing the upload', async () => {
+    it('logs purge failures without failing the upload', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockRejectedValue(new Error('purge boom'))
 
@@ -281,7 +281,7 @@ describe('getHandleUpload', () => {
   })
 
   describe('error handling', () => {
-    it('throws the upload-failed APIError (logging the no-service cause) when neither storage nor stream is configured', async () => {
+    it('throws the upload-failed APIError and logs the cause when neither storage nor stream is configured', async () => {
       const req = createReq()
       const handler = getHandleUpload(buildContext())
 

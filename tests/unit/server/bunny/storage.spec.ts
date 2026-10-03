@@ -17,7 +17,7 @@ beforeEach(() => {
 })
 
 describe('deleteStorageFile', () => {
-  it('DELETEs the regional zone URL with Accept/AccessKey headers and default timeout', async () => {
+  it('sends a DELETE to the regional zone URL with Accept and AccessKey headers and the default timeout', async () => {
     deleteMock.mockResolvedValue(undefined)
 
     await deleteStorageFile({ ...creds, path: 'nested/image.jpg' })
@@ -51,7 +51,7 @@ describe('deleteStorageFile', () => {
 })
 
 describe('uploadStorageFile', () => {
-  it('PUTs the buffer to the zone URL with Content-Type and default timeout', async () => {
+  it('sends a PUT with the buffer to the zone URL with Content-Type and the default timeout', async () => {
     putMock.mockResolvedValue(undefined)
     const buffer = Buffer.from('data')
 

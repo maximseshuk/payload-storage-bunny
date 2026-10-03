@@ -12,8 +12,8 @@ const base = {
   zoneName: 'media',
 }
 
-describe('edge upload URL mint/verify', () => {
-  it('mints a URL that verifies with the same secret', () => {
+describe('Edge upload URL signing', () => {
+  it('creates a URL that verifies with the same secret', () => {
     const now = 1_700_000_000_000
     const url = mintEdgeUploadUrl({ ...base, nonce: 'fixed-nonce', now })
 
@@ -47,7 +47,7 @@ describe('edge upload URL mint/verify', () => {
     expect(verifyEdgeUploadUrl('https://uploader.b-cdn.net/upload?X-Upload-Path=a', base.secret).valid).toBe(false)
   })
 
-  it('rejects a URL whose size or type was changed after minting', () => {
+  it('rejects a URL whose size or type was changed after signing', () => {
     const now = 1_700_000_000_000
     const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
     const biggerFile = url.replace('X-Upload-Size=512', 'X-Upload-Size=1024')
@@ -56,7 +56,7 @@ describe('edge upload URL mint/verify', () => {
     expect(verifyEdgeUploadUrl(otherType, base.secret, now + 1000).valid).toBe(false)
   })
 
-  it('rejects a URL whose zone was re-pointed after minting', () => {
+  it('rejects a URL whose zone was changed after signing', () => {
     const now = 1_700_000_000_000
     const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
     const tampered = url.replace('X-Upload-Zone=media', 'X-Upload-Zone=other')

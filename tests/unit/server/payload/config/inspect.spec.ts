@@ -20,7 +20,7 @@ import {
 
 describe('config inspect helpers', () => {
   describe('collectStreamConfigs', () => {
-    it('keys by libraryId, global first, first config wins', () => {
+    it('keys configs by libraryId and keeps the first one, global first', () => {
       const config: BunnyStorageConfig = {
         collections: {
           a: { stream: createOwnStream(200, { mp4Fallback: true }) },
@@ -40,7 +40,7 @@ describe('config inspect helpers', () => {
   })
 
   describe('collectStorageConfigs', () => {
-    it('dedups by zoneName across global and collections', () => {
+    it('removes duplicate zones by zoneName across global and collection configs', () => {
       const config: BunnyStorageConfig = {
         collections: {
           own: { storage: createOwnStorage('own') },
@@ -63,7 +63,7 @@ describe('config inspect helpers', () => {
     })
   })
 
-  describe('tus / cleanup / webhook flags', () => {
+  describe('TUS, cleanup and webhook flags', () => {
     it('detects tus, cleanup and webhook secrets across global and per-collection sources', () => {
       const config: BunnyStorageConfig = {
         collections: {
@@ -87,7 +87,7 @@ describe('config inspect helpers', () => {
       )
     })
 
-    it('keys webhook secrets by libraryId, first configured secret wins per library', () => {
+    it('keys webhook secrets by libraryId and keeps the first secret of each library', () => {
       const config: BunnyStorageConfig = {
         collections: {
           global: true,
@@ -104,7 +104,7 @@ describe('config inspect helpers', () => {
       expect(map.size).toBe(1)
     })
 
-    it('reports no tus/cleanup when none configured', () => {
+    it('reports no TUS or cleanup when none is configured', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
         storage: createBaseStorage(),

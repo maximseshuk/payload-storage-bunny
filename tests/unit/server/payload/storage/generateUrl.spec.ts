@@ -75,7 +75,7 @@ describe('getGenerateUrl', () => {
   })
 
   describe('storage branch', () => {
-    it('builds an encoded storage URL and signs it (no token path)', () => {
+    it('builds an encoded storage URL and signs it without a token path', () => {
       const generate = getGenerateUrl(buildContext({ storageConfig } as Partial<CollectionContext>))
 
       const result = generate({ data: {}, filename: 'my photo.jpg', prefix: 'a b' })
@@ -124,7 +124,7 @@ describe('getGenerateUrl', () => {
       )
     })
 
-    it('falls through to the storage branch when a videoId exists but no streamConfig is set', () => {
+    it('falls back to the storage branch when a videoId exists but no streamConfig is set', () => {
       const generate = getGenerateUrl(buildContext({ storageConfig } as Partial<CollectionContext>))
 
       const result = generate({ data: streamData, filename: 'clip.mp4' })

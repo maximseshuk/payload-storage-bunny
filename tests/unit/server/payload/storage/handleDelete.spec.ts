@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe('getHandleDelete', () => {
   describe('stream documents', () => {
-    it('deletes the stream video and skips storage/purge', async () => {
+    it('deletes the stream video and skips storage and purge', async () => {
       deleteStreamVideoMock.mockResolvedValue(undefined)
 
       const handler = getHandleDelete(
@@ -218,7 +218,7 @@ describe('getHandleDelete', () => {
   })
 
   describe('no configuration', () => {
-    it('debug-logs and performs no work when neither storage nor stream is configured', async () => {
+    it('logs a debug message and does nothing when neither storage nor stream is configured', async () => {
       const req = createReq()
       const handler = getHandleDelete(buildContext())
 

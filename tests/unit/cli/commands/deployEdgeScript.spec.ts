@@ -70,7 +70,7 @@ describe('reloadNormalizedConfig', () => {
     delete process.env.PSB_RELOAD_MARKER
   })
 
-  it('cache-busts the config re-import so changed env is picked up between calls', async () => {
+  it('re-imports the config on each call so it picks up env changes', async () => {
     hoisted.configPath = writeConfig(
       [
         'export default Promise.resolve({',
