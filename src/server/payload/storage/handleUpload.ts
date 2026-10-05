@@ -9,16 +9,15 @@ import { createStreamVideo, uploadStreamVideo } from '@/server/bunny/stream.js'
 import { setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { getAdminThumbnail } from '@/server/payload/fields/hooks.js'
 import { createStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
+import { buildStoragePurgeUrl } from '@/server/urls.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/shared/translations/index.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
-import { getGenerateUrl } from './generateUrl.js'
-
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
   const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
 
-  return async ({ collection, data, file, req, storageFilePath: path }) => {
+  return async ({ data, file, req, storageFilePath: path }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     try {
@@ -60,7 +59,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             buffer: file.buffer,
             mimeType: file.mimeType,
             path,
-            s3: storageConfig.s3,
+            region: storageConfig.region,
             timeout: storageConfig.uploadTimeout,
             zoneName: storageConfig.zoneName,
           })
@@ -79,7 +78,12 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         setStoredVideoId(data, null)
 
         if (purgeConfig && accountApiKey) {
-          const url = await getGenerateUrl(context)({ collection, data, filename: fileName, prefix: data.prefix })
+          const url = buildStoragePurgeUrl({
+            collectionPrefix: context.prefix,
+            filename: fileName,
+            hostname: storageConfig.hostname,
+            prefix: data.prefix,
+          })
           try {
             await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url })
             req.payload.logger.debug({

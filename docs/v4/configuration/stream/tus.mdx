@@ -19,16 +19,16 @@ stream: {
   tus: {
     autoMode: true,       // auto-enable TUS for supported video/audio files (default: true)
     expiresIn: 7200,      // seconds until the TUS session expires (default: 3600)
-    checkAccess: (req, body) => req.user?.role === 'admin',
+    access: async ({ data, defaultAccess }) => data.filesize < 5e9 && (await defaultAccess()),
   },
 }
 ```
 
-| Option        | Type                                         | Default        | Description                                                                                                                                                                                                                                                                                             |
-| ------------- | -------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `autoMode`    | `boolean`                                    | `true`         | When `true`, TUS is used automatically for supported files and the admin UI hides the mode toggle. When `false`, editors get a button to switch between standard and TUS upload.                                                                                                                        |
-| `expiresIn`   | `number`                                     | `3600`         | Seconds before the TUS upload session expires.                                                                                                                                                                                                                                                          |
-| `checkAccess` | `(req, body) => boolean \| Promise<boolean>` | built-in check | Custom authorization for the TUS auth endpoint. Receives the parsed request body (`collection`, `filename`, `filesize`, `filetype`, ...) so you can gate on file size or target collection. The default check requires admin access and create access to at least one collection managed by the plugin. |
+| Option      | Type                                                            | Default        | Description                                                                                                                                                                                                                                                                   |
+| ----------- | --------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoMode`  | `boolean`                                                       | `true`         | When `true`, TUS is used automatically for supported files and the admin UI hides the mode toggle. When `false`, editors get a button to switch between standard and TUS upload.                                                                                              |
+| `expiresIn` | `number`                                                        | `3600`         | Seconds before the TUS upload session expires.                                                                                                                                                                                                                                |
+| `access`    | `({ req, data, defaultAccess }) => boolean \| Promise<boolean>` | built-in check | Replaces the default check for the TUS auth endpoint. `data` is the parsed request body (`collection`, `filename`, `filesize`, `filetype`, ...). Call `defaultAccess()` to run the built-in check, which requires admin access and create access to the requested collection. |
 
 How it works:
 
@@ -42,7 +42,7 @@ The admin UI calls `POST /api/storage-bunny/stream/tus-auth` with the target col
 
 <Step title="Authorize">
 
-The plugin checks access (via `checkAccess` or the default rule) and the file. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type (HTML, scripts, SVG or XML) and a file over Payload's `upload.limits.fileSize`, whatever `checkAccess` returns. Then it creates the video in Bunny Stream and returns a signed TUS authorization. The response also contains a `videoToken` that is bound to the video, the collection, the library and the signed-in user. It expires after 24 hours.
+The plugin checks access (via `access` or the default rule) and the file. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type (HTML, scripts, SVG or XML) and a file over Payload's `upload.limits.fileSize`, whatever `access` returns. Then it creates the video in Bunny Stream and returns a signed TUS authorization. The response also contains a `videoToken` that is bound to the video, the collection, the library and the signed-in user. It expires after 24 hours.
 
 </Step>
 

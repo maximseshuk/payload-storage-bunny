@@ -1,11 +1,10 @@
 import { en } from '@payloadcms/translations/languages/en'
+import { testDatabase } from '@seshuk/payload-plugin-tooling/test-database'
 import type { CollectionConfig, Config, SanitizedConfig } from 'payload'
 import { buildConfig } from 'payload'
 import { de } from 'payload/i18n/de'
 import { ru } from 'payload/i18n/ru'
 import sharp from 'sharp'
-
-import { testDatabase } from './testDatabase.js'
 
 export const devUser = {
   email: 'dev@example.com',

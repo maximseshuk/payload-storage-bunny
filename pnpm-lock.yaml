@@ -242,6 +242,9 @@ importers:
       '@seshuk/payload-plugin-media-preview':
         specifier: ^1.1.1
         version: 1.1.1(@payloadcms/translations@4.0.0-canary.37)(@payloadcms/ui@4.0.0-canary.37(@types/react@19.3.0)(monaco-editor@0.52.2)(payload@4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@7.2.0)(typescript@7.0.2))(payload@4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))
+      '@seshuk/payload-plugin-tooling':
+        specifier: 0.1.0
+        version: 0.1.0(97d60d6db943c6ac1536326767d8ec67)
       '@types/node':
         specifier: 'catalog:'
         version: 26.1.2
@@ -2494,6 +2497,42 @@ packages:
       '@payloadcms/translations': ^3.53.0
       '@payloadcms/ui': ^3.53.0
       payload: ^3.53.0
+
+  '@seshuk/payload-plugin-tooling@0.1.0':
+    resolution: {integrity: sha512-ly7bWUFMPPOfPhXIisOCwMws+lsymTmQfl0kvUbM18ZxQWjRU9Gz8XANlGcDjNbTtmMiSQqngrIL/8Z4AM7uFQ==}
+    engines: {node: '>=24.15.0'}
+    peerDependencies:
+      '@electric-sql/pglite': '>=0.5.0'
+      '@electric-sql/pglite-socket': '>=0.2.0'
+      '@payloadcms/db-mongodb': '>=4.0.0-0'
+      '@payloadcms/db-postgres': '>=4.0.0-0'
+      '@payloadcms/db-sqlite': '>=4.0.0-0'
+      mongodb-memory-server: '>=10.0.0'
+      oxfmt: '>=0.71.0'
+      oxlint: '>=1.77.0'
+      payload: '>=4.0.0-0'
+      tsdown: '>=0.23.0'
+    peerDependenciesMeta:
+      '@electric-sql/pglite':
+        optional: true
+      '@electric-sql/pglite-socket':
+        optional: true
+      '@payloadcms/db-mongodb':
+        optional: true
+      '@payloadcms/db-postgres':
+        optional: true
+      '@payloadcms/db-sqlite':
+        optional: true
+      mongodb-memory-server:
+        optional: true
+      oxfmt:
+        optional: true
+      oxlint:
+        optional: true
+      payload:
+        optional: true
+      tsdown:
+        optional: true
 
   '@shikijs/core@3.23.0':
     resolution: {integrity: sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA==}
@@ -9401,6 +9440,19 @@ snapshots:
       '@payloadcms/translations': 4.0.0-canary.37
       '@payloadcms/ui': 4.0.0-canary.37(@types/react@19.3.0)(monaco-editor@0.52.2)(payload@4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@7.2.0)(typescript@7.0.2)
       payload: 4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2)
+
+  '@seshuk/payload-plugin-tooling@0.1.0(97d60d6db943c6ac1536326767d8ec67)':
+    optionalDependencies:
+      '@electric-sql/pglite': 0.5.8
+      '@electric-sql/pglite-socket': 0.2.11(@electric-sql/pglite-age@0.0.9(@electric-sql/pglite@0.5.8))(@electric-sql/pglite-pg_hashids@0.0.9(@electric-sql/pglite@0.5.8))(@electric-sql/pglite-pg_ivm@0.0.9(@electric-sql/pglite@0.5.8))(@electric-sql/pglite-pg_textsearch@0.0.10(@electric-sql/pglite@0.5.8))(@electric-sql/pglite-pg_uuidv7@0.0.9(@electric-sql/pglite@0.5.8))(@electric-sql/pglite-pgtap@0.0.9(@electric-sql/pglite@0.5.8))(@electric-sql/pglite-pgvector@0.0.9(@electric-sql/pglite@0.5.8))(@electric-sql/pglite@0.5.8)
+      '@payloadcms/db-mongodb': 4.0.0-canary.37(payload@4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(socks@2.8.9)
+      '@payloadcms/db-postgres': 4.0.0-canary.37(@electric-sql/pglite@0.5.8)(@libsql/client@0.14.0)(payload@4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(supports-color@7.2.0)
+      '@payloadcms/db-sqlite': 4.0.0-canary.37(@electric-sql/pglite@0.5.8)(@types/pg@8.20.0)(payload@4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(pg@8.20.0)(supports-color@7.2.0)
+      mongodb-memory-server: 11.3.0(socks@2.8.9)(supports-color@7.2.0)
+      oxfmt: 0.71.0
+      oxlint: 1.86.0
+      payload: 4.0.0-canary.37(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2)
+      tsdown: 0.23.0(oxc-resolver@11.23.0)(tsx@4.23.15)(typescript@7.0.2)
 
   '@shikijs/core@3.23.0':
     dependencies:

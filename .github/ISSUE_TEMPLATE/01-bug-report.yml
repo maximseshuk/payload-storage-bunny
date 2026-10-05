@@ -24,8 +24,8 @@ body:
         What happened:
         What you expected:
         Steps to reproduce:
-        1. 
-        2. 
+        1.
+        2.
         3.
     validations:
       required: true
@@ -60,13 +60,14 @@ body:
     attributes:
       label: Environment Info
       description: |
-        Paste output from `pnpm payload info` or list your versions. 
+        Paste output from `pnpm payload info` or list your versions.
         Please use specific version numbers instead of "latest" to help us debug faster.
       placeholder: |
-        @seshuk/payload-storage-bunny: 3.0.0
-        payload: 3.86.0
-        next: 16.2.10
-        node: 24.14.0
+        @seshuk/payload-storage-bunny: 4.0.0
+        payload: 4.0.0
+        next: 16.3.6
+        node: 24.15.0
+        database adapter: @payloadcms/db-sqlite 4.0.0
       render: shell
     validations:
       required: true

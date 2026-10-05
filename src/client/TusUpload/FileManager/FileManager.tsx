@@ -19,12 +19,12 @@ import { formatFilesize } from 'payload/shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as tus from 'tus-js-client'
 
+import { ToggleButton } from '@/client/TusUpload/ToggleButton/ToggleButton.js'
 import { BUNNY_API, TUS_MIME_TYPES } from '@/shared/constants.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/shared/translations/index.js'
 import type { StreamTusAuthResponse } from '@/shared/types/index.js'
 
-import { ToggleButton } from '../ToggleButton/ToggleButton.js'
 import { BASE_CLASS, INITIAL_STATE, TUS_RETRY_DELAYS } from './FileManager.constants.js'
 import type { UploadState } from './FileManager.types.js'
 import './FileManager.css'

@@ -5,11 +5,11 @@ import { cancel, confirm, intro, isCancel, log, note, outro, password, spinner }
 
 import { appendEnvLines } from '@/cli/lib/envFile.js'
 import type { Logger } from '@/cli/lib/logger.js'
+import type { InitPlan } from '@/cli/lib/plan.js'
+import { buildInitPlan, PRICING, PRICING_NOTE } from '@/cli/lib/plan.js'
+import type { EdgeProvisionInput, Ledger, PreflightResult } from '@/cli/lib/provision.js'
+import { createLedger, preflightInit, provisionInit } from '@/cli/lib/provision.js'
 
-import type { InitPlan } from '../../lib/plan.js'
-import { buildInitPlan, PRICING, PRICING_NOTE } from '../../lib/plan.js'
-import type { EdgeProvisionInput, Ledger, PreflightResult } from '../../lib/provision.js'
-import { createLedger, preflightInit, provisionInit } from '../../lib/provision.js'
 import { buildInitOutput, buildInstallLines } from './output.js'
 import { resolveAccountApiKey, runWizard } from './wizard.js'
 

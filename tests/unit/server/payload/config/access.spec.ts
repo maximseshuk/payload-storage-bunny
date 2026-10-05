@@ -37,6 +37,8 @@ describe('config accessors', () => {
       storage: {
         apiKey: 'storage-key',
         hostname: 'storage.bunny.net',
+        region: 'de',
+        s3: false,
         tokenSecurityKey: 'token-key',
         zoneName: 'test-zone',
       },
@@ -100,16 +102,20 @@ describe('config accessors', () => {
   it('passes through S3 and region on the curated storage view', () => {
     const payload = payloadFor({
       collections: { media: true },
-      storage: createBaseStorage({ region: 'de', s3: { region: 'de' } }),
+      storage: createBaseStorage({ s3: true }),
     })
 
     const storage = getBunnyStorageForCollection(payload, 'media')
     expect(storage?.region).toBe('de')
-    expect(storage?.s3).toEqual({ region: 'de' })
+    expect(storage?.s3).toBe(true)
+
+    const ny = payloadFor({ collections: { media: true }, storage: createBaseStorage({ region: 'ny', s3: true }) })
+    expect(getBunnyStorageForCollection(ny, 'media')).toMatchObject({ region: 'ny', s3: true })
 
     const native = payloadFor({ collections: { media: true }, storage: createBaseStorage() })
     const nativeStorage = getBunnyStorageForCollection(native, 'media')
-    expect(nativeStorage?.s3).toBeUndefined()
+    expect(nativeStorage?.s3).toBe(false)
+    expect(nativeStorage?.region).toBe('de')
   })
 
   it('returns fresh copies that do not mutate the stash', () => {

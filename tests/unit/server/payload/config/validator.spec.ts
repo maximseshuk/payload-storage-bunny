@@ -83,10 +83,10 @@ describe('config validator', () => {
   })
 
   describe('purge validation', () => {
-    it('throws when purge is enabled without accountApiKey', () => {
+    it.each([true, { async: true }])('throws when purge %o is enabled without accountApiKey', (purge) => {
       const config: BunnyStorageConfig = {
         collections: { media: true },
-        purge: true,
+        purge,
         storage: createBaseStorage(),
       }
 
@@ -95,12 +95,12 @@ describe('config validator', () => {
 
     it.each([true, { async: true }])('throws when collection purge %o is set without accountApiKey', (purge) => {
       const config: BunnyStorageConfig = {
-        collections: { media: { purge } },
+        collections: { docs: { purge: false }, media: { purge }, photos: { purge } },
         storage: createBaseStorage(),
       }
 
       expect(() => normalizeAndValidate(config)).toThrow(
-        'collections [media] enable `purge` but global `accountApiKey` is not provided',
+        'collections [media, photos] enable `purge` but global `accountApiKey` is not provided',
       )
     })
   })
@@ -119,17 +119,62 @@ describe('config validator', () => {
     })
   })
 
-  describe('storage S3 validation', () => {
-    it('throws when S3 is enabled without a region', () => {
+  describe('signed URL redirect validation', () => {
+    it('throws for a permanent redirect status', () => {
       const config = {
         collections: { media: true },
-        storage: {
-          ...createBaseStorage(),
-          s3: { region: '' },
-        },
+        signedUrls: { staticHandler: { redirect: { status: 301 } } },
+        storage: createBaseStorage(),
       } as unknown as BunnyStorageConfig
 
-      expect(() => normalizeAndValidate(config)).toThrow('storage `s3.region` is required when S3 mode is enabled')
+      expect(() => normalizeAndValidate(config)).toThrow(
+        '`signedUrls.staticHandler.redirect.status` must be 302 or 307',
+      )
+    })
+
+    it('names the collection in the redirect status error', () => {
+      const config = {
+        collections: { media: { signedUrls: { staticHandler: { redirect: { status: 308 } } } } },
+        storage: createBaseStorage(),
+      } as unknown as BunnyStorageConfig
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        '`collections.media.signedUrls.staticHandler.redirect.status` must be 302 or 307',
+      )
+    })
+  })
+
+  describe('signed URL expiry validation', () => {
+    it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 400000000])('throws for signedUrls.expiresIn %s', (value) => {
+      const config: BunnyStorageConfig = {
+        collections: { media: true },
+        signedUrls: { expiresIn: value },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).toThrow('`signedUrls.expiresIn` must be more than 0')
+    })
+
+    it('names the collection and the redirect key', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { signedUrls: { staticHandler: { redirect: { expiresIn: 0 } } } } },
+        signedUrls: true,
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).toThrow(
+        '`collections.media.signedUrls.staticHandler.redirect.expiresIn` must be more than 0',
+      )
+    })
+
+    it('accepts 10 years and functions', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: { signedUrls: { expiresIn: () => 0 } } },
+        signedUrls: { expiresIn: 315360000, staticHandler: { redirect: { expiresIn: 60 } } },
+        storage: createBaseStorage(),
+      }
+
+      expect(() => normalizeAndValidate(config)).not.toThrow()
     })
   })
 
@@ -290,16 +335,6 @@ describe('config validator', () => {
       )
     })
 
-    it('throws when an own zone enables S3 without a region', () => {
-      const config = {
-        collections: { media: { storage: createOwnStorage('media', { s3: { region: '' } }) } },
-      } as unknown as BunnyStorageConfig
-
-      expect(() => normalizeAndValidate(config)).toThrow(
-        'collection "media" storage `s3.region` is required when S3 mode is enabled',
-      )
-    })
-
     it('throws the edge transport error for an own zone with clientUploads but no S3 or edge', () => {
       const config = {
         collections: { media: { storage: createOwnStorage('media', { clientUploads: true }) } },
@@ -422,13 +457,13 @@ describe('config validator', () => {
     ],
     [
       's3 transport without edge config',
-      { collections: { media: true }, storage: { ...createBaseStorage(), clientUploads: {}, s3: { region: 'de' } } },
+      { collections: { media: true }, storage: { ...createBaseStorage(), clientUploads: {}, s3: true } },
     ],
     [
       'global clientUploads on a collection with storage: false',
       {
         collections: { media: { disablePayloadAccessControl: true, storage: false } },
-        storage: { ...createBaseStorage(), clientUploads: true, s3: { region: 'de' } },
+        storage: { ...createBaseStorage(), clientUploads: true, s3: true },
         stream: createBaseStream(),
       },
     ],
@@ -439,6 +474,19 @@ describe('config validator', () => {
     [
       'collection-level purge with accountApiKey',
       { accountApiKey: 'global-api-key', collections: { media: { purge: true } }, storage: createBaseStorage() },
+    ],
+    [
+      'accountApiKey without purge',
+      { accountApiKey: 'global-api-key', collections: { media: true }, storage: createBaseStorage() },
+    ],
+    ['S3 in the default region', { collections: { media: true }, storage: { ...createBaseStorage(), s3: true } }],
+    [
+      'S3 in any region the user sets',
+      { collections: { media: true }, storage: { ...createBaseStorage(), region: 'br', s3: true } },
+    ],
+    [
+      'a disabled collection next to an enabled one',
+      { collections: { docs: false, media: true }, storage: createBaseStorage() },
     ],
     [
       'collection-level purge: false without accountApiKey',
@@ -478,7 +526,7 @@ describe('config validator', () => {
       'access control + stream with signed redirect',
       {
         collections: { videos: { disablePayloadAccessControl: false } },
-        signedUrls: { staticHandler: { useRedirect: true } },
+        signedUrls: { staticHandler: { redirect: true } },
         storage: createBaseStorage(),
         stream: { ...createBaseStream(), mp4Fallback: false },
       },

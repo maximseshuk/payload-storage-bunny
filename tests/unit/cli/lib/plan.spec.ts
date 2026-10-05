@@ -98,7 +98,18 @@ describe('streamRegionOptions', () => {
   it('offers 9 regions with Frankfurt first', () => {
     const options = streamRegionOptions()
     expect(options).toHaveLength(9)
-    expect(options[0].code).toBe('de')
+    expect(options[0]).toEqual({ code: 'de', label: 'Frankfurt, DE (default)' })
+  })
+})
+
+describe('region options', () => {
+  it('builds every list from the shared region table', () => {
+    const hdd = ['de', 'uk', 'se', 'ny', 'la', 'sg', 'syd', 'br', 'jh']
+    const codes = (options: { code: string }[]) => options.map((r) => r.code)
+    expect(codes(storageMainRegionOptions('http'))).toEqual(hdd)
+    expect(codes(storageMainRegionOptions('s3'))).toEqual(hdd.filter((code) => code !== 'br'))
+    expect(codes(storageReplicationRegionOptions('http', 'edge'))).toEqual([...hdd, 'cz', 'es', 'mi', 'wa', 'hk', 'jp'])
+    expect(codes(streamRegionOptions())).toEqual(hdd)
   })
 })
 

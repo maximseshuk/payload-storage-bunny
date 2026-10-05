@@ -27,7 +27,7 @@ export type DeployEdgeScriptOptions = {
 }
 
 export const storageHostFor = (region?: string): string =>
-  region ? `${region}.storage.bunnycdn.com` : 'storage.bunnycdn.com'
+  region && region !== 'de' ? `${region}.storage.bunnycdn.com` : 'storage.bunnycdn.com'
 
 export type EdgeDeployGroup = {
   scriptUrl?: string

@@ -18,6 +18,8 @@ tests/next-env.d.ts
 tests/payload.config.ts
 tests/dev.db*
 tests/playwright/
+tests/AGENTS.md
+tests/CLAUDE.md
 tests/app/(payload)/admin/importMap.js
 tests/**/*.d.ts
 

@@ -1,3 +1,5 @@
+import { REGIONS } from '@/shared/regions.js'
+
 export type InitService = 'both' | 'storage' | 'stream'
 
 export type StorageAccess = 'http' | 's3'
@@ -31,44 +33,18 @@ export const storageTierPrice = (tier: StorageTier): string => PRICING.storagePe
 export const PRICING_NOTE =
   'Prices shown are approximate Bunny storage prices only. Storage and Stream also charge for CDN delivery. Stream encoding is free, but the optional Premium Encoding costs extra. Check the full, current pricing in the bunny.net dashboard after setup.'
 
-const REGION_LABELS: Record<string, string> = {
-  br: 'São Paulo, BR',
-  cz: 'Prague, CZ',
-  de: 'Frankfurt, DE (default)',
-  es: 'Madrid, ES',
-  hk: 'Hong Kong, HK',
-  jh: 'Johannesburg, SA',
-  jp: 'Tokyo, JP',
-  la: 'Los Angeles, US',
-  mi: 'Miami, US',
-  ny: 'New York, US',
-  se: 'Stockholm, SE',
-  sg: 'Singapore, SG',
-  syd: 'Sydney, SYD',
-  uk: 'London, UK',
-  wa: 'Seattle, US',
-}
-
-const HDD_REGION_CODES = ['de', 'uk', 'se', 'ny', 'la', 'sg', 'syd', 'br', 'jh']
-
-const SSD_EXTRA_REGION_CODES = ['cz', 'es', 'mi', 'wa', 'hk', 'jp']
-
-const SSD_REGION_CODES = [...HDD_REGION_CODES, ...SSD_EXTRA_REGION_CODES]
-
-const S3_REGION_CODES = ['de', 'uk', 'se', 'ny', 'la', 'sg', 'syd', 'jh']
-
-const STREAM_REGION_CODES = ['de', 'uk', 'se', 'la', 'ny', 'sg', 'syd', 'br', 'jh']
-
-const toRegionOptions = (codes: string[]): RegionOption[] =>
-  codes.map((code) => ({ code, label: REGION_LABELS[code] ?? code }))
+const regionOptions = (feature: 'hdd' | 's3' | 'ssd' | 'stream'): RegionOption[] =>
+  Object.entries(REGIONS)
+    .filter(([, region]) => region[feature])
+    .map(([code, { label }]) => ({ code, label }))
 
 export const storageMainRegionOptions = (access: StorageAccess): RegionOption[] =>
-  toRegionOptions(access === 's3' ? S3_REGION_CODES : HDD_REGION_CODES)
+  regionOptions(access === 's3' ? 's3' : 'hdd')
 
 export const storageReplicationRegionOptions = (access: StorageAccess, tier: StorageTier): RegionOption[] =>
-  toRegionOptions(access === 's3' ? S3_REGION_CODES : tier === 'edge' ? SSD_REGION_CODES : HDD_REGION_CODES)
+  regionOptions(access === 's3' ? 's3' : tier === 'edge' ? 'ssd' : 'hdd')
 
-export const streamRegionOptions = (): RegionOption[] => toRegionOptions(STREAM_REGION_CODES)
+export const streamRegionOptions = (): RegionOption[] => regionOptions('stream')
 
 export const replicationOptions = (all: RegionOption[], mainCode: string): RegionOption[] =>
   all.filter((option) => option.code !== mainCode)

@@ -104,6 +104,16 @@ describe('config inspect helpers', () => {
       expect(map.size).toBe(1)
     })
 
+    it('detects TUS that a collection turns on over a global stream without TUS', () => {
+      const config: BunnyStorageConfig = {
+        collections: { media: true, videos: { stream: { tus: true } } },
+        storage: createBaseStorage(),
+        stream: createBaseStream(),
+      }
+
+      expect(hasAnyStreamTus(createNormalizedConfig(config))).toBe(true)
+    })
+
     it('reports no TUS or cleanup when none is configured', () => {
       const config: BunnyStorageConfig = {
         collections: { media: true },

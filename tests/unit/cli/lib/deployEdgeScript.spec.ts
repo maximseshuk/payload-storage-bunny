@@ -24,8 +24,9 @@ describe('storageHostFor', () => {
     expect(storageHostFor('ny')).toBe('ny.storage.bunnycdn.com')
   })
 
-  it('falls back to the default host without a region', () => {
+  it('falls back to the default host without a region or for de', () => {
     expect(storageHostFor()).toBe('storage.bunnycdn.com')
+    expect(storageHostFor('de')).toBe('storage.bunnycdn.com')
   })
 })
 
@@ -68,7 +69,7 @@ describe('buildEdgeDeployPlan', () => {
         apiKey: 'media-key',
         clientUploads: {},
         hostname: 'media.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'media',
       },
     } as never)
@@ -239,7 +240,7 @@ describe('buildEdgeDeployPlan', () => {
         apiKey: 'media-key',
         clientUploads: {},
         hostname: 'media.b-cdn.net',
-        s3: { region: 'de' },
+        s3: true,
         zoneName: 'media',
       },
     } as never)

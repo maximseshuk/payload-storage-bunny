@@ -42,10 +42,10 @@ describe('reportTelemetry', () => {
     expect(writeState).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ noticeShown: true }))
   })
 
-  it('uses a custom endpoint from telemetry.endpoint', async () => {
+  it('uses the custom collector from telemetry.url', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
 
-    await run(makeConfig({ telemetry: { endpoint: 'https://my.collector/v1/collect' } }), { send, writeState: vi.fn() })
+    await run(makeConfig({ telemetry: { url: 'https://my.collector/v1/collect' } }), { send, writeState: vi.fn() })
 
     expect(send.mock.calls[0][1]).toBe('https://my.collector/v1/collect')
   })

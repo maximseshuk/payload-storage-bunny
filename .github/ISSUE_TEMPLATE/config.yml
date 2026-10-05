@@ -3,6 +3,6 @@ contact_links:
   - name: 📚 Documentation
     url: https://payload-storage-bunny.seshuk.im
     about: Check the documentation for setup and configuration guides
-  - name: 🔄 Migration Guide
-    url: https://payload-storage-bunny.seshuk.im/migration
-    about: Migration guide for upgrading from older versions
+  - name: 🔄 Upgrade Guide
+    url: https://payload-storage-bunny.seshuk.im/upgrade-guide
+    about: How to upgrade from an older major version

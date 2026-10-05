@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const is: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Slökkva á TUS stillingu',
     tusUploadEnableMode: 'Kveikja á TUS stillingu',
     tusUploadErrorFileType: 'Skráartegund ekki leyfð',
@@ -33,7 +32,6 @@ export const is: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Þú hefur ekki heimild til að nálgast þetta tilfang',
     errorDeleteFileFailed: 'Mistókst að eyða skrá: {{filename}}',
     errorMissingRequiredFields: 'Sumar nauðsynlegar upplýsingar vantar',

@@ -9,7 +9,7 @@ const { delete: deleteMock, put: putMock } = kyMethods
 
 const { deleteStorageFile, uploadStorageFile } = await import('@/server/bunny/storage.js')
 
-const creds = { apiKey: 'zone-pass', region: 'de', zoneName: 'my-zone' }
+const creds = { apiKey: 'zone-pass', region: 'ny', zoneName: 'my-zone' }
 
 beforeEach(() => {
   deleteMock.mockReset()
@@ -23,16 +23,16 @@ describe('deleteStorageFile', () => {
     await deleteStorageFile({ ...creds, path: 'nested/image.jpg' })
 
     expect(deleteMock).toHaveBeenCalledTimes(1)
-    expect(deleteMock).toHaveBeenCalledWith('https://de.storage.bunnycdn.com/my-zone/nested/image.jpg', {
+    expect(deleteMock).toHaveBeenCalledWith('https://ny.storage.bunnycdn.com/my-zone/nested/image.jpg', {
       headers: { Accept: 'application/json', AccessKey: 'zone-pass' },
       timeout: 15000,
     })
   })
 
-  it('uses the region-less storage host when no region is given', async () => {
+  it('uses the region-less storage host for the de region', async () => {
     deleteMock.mockResolvedValue(undefined)
 
-    await deleteStorageFile({ apiKey: 'zone-pass', path: 'a.jpg', zoneName: 'my-zone' })
+    await deleteStorageFile({ apiKey: 'zone-pass', path: 'a.jpg', region: 'de', zoneName: 'my-zone' })
 
     expect(deleteMock.mock.calls[0][0]).toBe('https://storage.bunnycdn.com/my-zone/a.jpg')
   })
@@ -58,7 +58,7 @@ describe('uploadStorageFile', () => {
     await uploadStorageFile({ ...creds, buffer, mimeType: 'image/jpeg', path: 'nested/img.jpg' })
 
     expect(putMock).toHaveBeenCalledTimes(1)
-    expect(putMock).toHaveBeenCalledWith('https://de.storage.bunnycdn.com/my-zone/nested/img.jpg', {
+    expect(putMock).toHaveBeenCalledWith('https://ny.storage.bunnycdn.com/my-zone/nested/img.jpg', {
       body: buffer,
       headers: { Accept: 'application/json', AccessKey: 'zone-pass', 'Content-Type': 'image/jpeg' },
       timeout: 15000,

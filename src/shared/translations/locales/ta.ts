@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const ta: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'TUS முறையை முடக்கு',
     tusUploadEnableMode: 'TUS முறையை இயக்கு',
     tusUploadErrorFileType: 'கோப்பு வகை அனுமதிக்கப்படவில்லை',
@@ -33,7 +32,6 @@ export const ta: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'நி',
     tusUploadTimeSeconds: 'வி',
 
-    // Error messages
     errorAccessDenied: 'இந்த ஆதாரத்தை அணுக உங்களுக்கு அனுமति இல்லை',
     errorDeleteFileFailed: 'கோப்பை நீக்க முடியவில்லை: {{filename}}',
     errorMissingRequiredFields: 'சில தேவையான தகவல்கள் விடுபட்டுள்ளன',

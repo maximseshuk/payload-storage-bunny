@@ -1,7 +1,9 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
+import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
 import { generateSignedToken, maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
+import type { SignedUrlsConfig } from '@/shared/types/index.js'
 
 import { signed } from '../../../helpers/unit/signedUrls.js'
 
@@ -26,7 +28,7 @@ const redirectContext = (
 ): Parameters<typeof maybeCreateRedirect>[1] => ({
   collection,
   filename: 'photo.jpg',
-  signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true } }),
+  signedUrls: signed({ redirect: { status: 302 } }),
   tokenSecurityKey: 'security-key',
   usePayloadAccessControl: true,
   ...over,
@@ -47,17 +49,8 @@ describe('maybeCreateRedirect', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ tokenSecurityKey: undefined }))).toBeNull()
     })
 
-    it('returns null when staticHandler is not configured', () => {
+    it('returns null when the redirect is not configured', () => {
       expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: signed() }))).toBeNull()
-    })
-
-    it('returns null when useRedirect is false', () => {
-      expect(
-        maybeCreateRedirect(
-          baseUrl,
-          redirectContext({ signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: false } }) }),
-        ),
-      ).toBeNull()
     })
 
     it('returns null when shouldUseSignedUrl returns false', () => {
@@ -66,7 +59,7 @@ describe('maybeCreateRedirect', () => {
         maybeCreateRedirect(
           baseUrl,
           redirectContext({
-            signedUrls: signed({ shouldUseSignedUrl, staticHandler: { redirectStatus: 302, useRedirect: true } }),
+            signedUrls: signed({ redirect: { status: 302 }, shouldUseSignedUrl }),
           }),
         ),
       ).toBeNull()
@@ -75,11 +68,8 @@ describe('maybeCreateRedirect', () => {
   })
 
   describe('success response', () => {
-    it('returns a redirect with the signed Location, redirectStatus and no-store Cache-Control', () => {
-      const res = maybeCreateRedirect(
-        baseUrl,
-        redirectContext({ signedUrls: signed({ staticHandler: { redirectStatus: 307, useRedirect: true } }) }),
-      )
+    it('returns a redirect with the signed Location, status and no-store Cache-Control', () => {
+      const res = maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: signed({ redirect: { status: 307 } }) }))
 
       expect(res).toBeInstanceOf(Response)
       expect(res!.status).toBe(307)
@@ -105,15 +95,12 @@ describe('maybeCreateRedirect', () => {
       expect(location).toContain('/vid1/play_720p.mp4')
     })
 
-    it('uses staticHandler.expiresIn to override the base expiresIn', () => {
+    it('uses redirect.expiresIn to override the base expiresIn', () => {
       const before = Math.floor(Date.now() / 1000)
       const res = maybeCreateRedirect(
         baseUrl,
         redirectContext({
-          signedUrls: signed({
-            expiresIn: 9999,
-            staticHandler: { expiresIn: 100, redirectStatus: 302, useRedirect: true },
-          }),
+          signedUrls: signed({ expiresIn: () => 9999, redirect: { expiresIn: () => 100, status: 302 } }),
         }),
       )
       const after = Math.floor(Date.now() / 1000)
@@ -123,13 +110,11 @@ describe('maybeCreateRedirect', () => {
       expect(expires).toBeLessThanOrEqual(after + 100 + 1)
     })
 
-    it('falls back to signedUrls.expiresIn when staticHandler.expiresIn is absent', () => {
+    it('falls back to signedUrls.expiresIn when redirect.expiresIn is absent', () => {
       const before = Math.floor(Date.now() / 1000)
       const res = maybeCreateRedirect(
         baseUrl,
-        redirectContext({
-          signedUrls: signed({ expiresIn: 500, staticHandler: { redirectStatus: 302, useRedirect: true } }),
-        }),
+        redirectContext({ signedUrls: signed({ expiresIn: () => 500, redirect: { status: 302 } }) }),
       )
       const after = Math.floor(Date.now() / 1000)
 
@@ -247,46 +232,128 @@ describe('maybeGenerateSignedUrl with userIp', () => {
   })
 })
 
-describe('maybeGenerateSignedUrl with expiresAt', () => {
-  const context = {
-    collection,
-    filename: 'photo.jpg',
-    signedUrls: signed(),
-    tokenSecurityKey: 'security-key',
+describe('signedUrls.expiresIn', () => {
+  const signedFrom = (global: SignedUrlsConfig, collectionValue?: SignedUrlsConfig) => {
+    const normalized = createNormalizedConfig({
+      collections: { media: collectionValue ? { signedUrls: collectionValue } : true },
+      signedUrls: global,
+    })
+    return normalized.collections.get('media')!.signedUrls!
   }
 
-  it('uses the absolute expiry returned by the callback', () => {
-    const expiresAt = vi.fn().mockReturnValue(1800000000)
+  const sign = (signedUrls: ReturnType<typeof signedFrom>, filename = 'photo.jpg'): number =>
+    Number(
+      new URL(
+        maybeGenerateSignedUrl(baseUrl, { collection, filename, signedUrls, tokenSecurityKey: 'security-key' }),
+      ).searchParams.get('expires'),
+    )
 
-    const result = maybeGenerateSignedUrl(baseUrl, { ...context, signedUrls: signed({ expiresAt }) })
+  const now = (): number => Math.floor(Date.now() / 1000)
 
-    expect(expiresAt).toHaveBeenCalledWith({ collection, filename: 'photo.jpg', req: undefined })
-    expect(new URL(result).searchParams.get('expires')).toBe('1800000000')
+  it('treats a number as seconds from now', () => {
+    const before = now()
+    const expires = sign(signedFrom({ expiresIn: 600 }))
+    expect(expires).toBeGreaterThanOrEqual(before + 600)
+    expect(expires).toBeLessThanOrEqual(now() + 601)
   })
 
-  it('converts a Date to a UNIX timestamp in seconds', () => {
-    const expiresAt = vi.fn().mockReturnValue(new Date(1800000000 * 1000))
-
-    const result = maybeGenerateSignedUrl(baseUrl, { ...context, signedUrls: signed({ expiresAt }) })
-
-    expect(new URL(result).searchParams.get('expires')).toBe('1800000000')
+  it('defaults to 7200 seconds', () => {
+    const before = now()
+    expect(sign(signedFrom({}))).toBeGreaterThanOrEqual(before + 7200)
   })
 
-  it('falls back to expiresIn when the callback returns undefined', () => {
-    const before = Math.floor(Date.now() / 1000)
-    const result = maybeGenerateSignedUrl(baseUrl, {
-      ...context,
-      signedUrls: signed({ expiresAt: () => undefined, expiresIn: 3600 }),
-    })
-    const after = Math.floor(Date.now() / 1000)
+  it('uses a Date returned by the function as the absolute expiry', () => {
+    const expiresIn = vi.fn().mockReturnValue(new Date(1800000000 * 1000))
 
-    const expires = Number(new URL(result).searchParams.get('expires'))
-    expect(expires).toBeGreaterThanOrEqual(before + 3600)
-    expect(expires).toBeLessThanOrEqual(after + 3600 + 1)
+    expect(sign(signedFrom({ expiresIn }))).toBe(1800000000)
+    expect(expiresIn).toHaveBeenCalledWith({ collection, defaultValue: 7200, filename: 'photo.jpg', req: undefined })
+  })
+
+  it('falls back to defaultValue when the function returns undefined', () => {
+    const before = now()
+    const expires = sign(
+      signedFrom({
+        expiresIn: ({ defaultValue, filename }) => (filename.startsWith('live/') ? defaultValue : undefined),
+      }),
+    )
+    expect(expires).toBeGreaterThanOrEqual(before + 7200)
+  })
+
+  it('passes the global result as defaultValue at collection level', () => {
+    const deadline = new Date(1800000000 * 1000)
+    const signedUrls = signedFrom(
+      { expiresIn: ({ filename }) => (filename.startsWith('live/') ? deadline : 600) },
+      { expiresIn: ({ defaultValue }) => (defaultValue instanceof Date ? defaultValue : 300) },
+    )
+
+    expect(sign(signedUrls, 'live/a.mp4')).toBe(1800000000)
+    const before = now()
+    const expires = sign(signedUrls, 'other.jpg')
+    expect(expires).toBeGreaterThanOrEqual(before + 300)
+    expect(expires).toBeLessThanOrEqual(now() + 301)
+  })
+
+  it('keeps the global function when the collection only changes other fields', () => {
+    const signedUrls = signedFrom({ expiresIn: () => new Date(1800000000 * 1000) }, { allowedCountries: ['DE'] })
+
+    expect(sign(signedUrls)).toBe(1800000000)
+  })
+
+  it('throws when the function returns more than 10 years in seconds', () => {
+    expect(() => sign(signedFrom({ expiresIn: () => 1800000000 }))).toThrow(
+      '[@seshuk/payload-storage-bunny] signedUrls.expiresIn returned 1800000000 seconds',
+    )
+  })
+
+  it.each([0, -5, Number.NaN, Number.POSITIVE_INFINITY])('throws when the function returns %s', (value) => {
+    expect(() => sign(signedFrom({ expiresIn: () => value }))).toThrow(
+      `[@seshuk/payload-storage-bunny] signedUrls.expiresIn returned ${value} seconds`,
+    )
+  })
+
+  it('throws when the function returns an invalid Date', () => {
+    expect(() => sign(signedFrom({ expiresIn: () => new Date('nope') }))).toThrow(
+      '[@seshuk/payload-storage-bunny] signedUrls.expiresIn returned an invalid Date',
+    )
+  })
+
+  it('names redirect.expiresIn when the redirect function returns an invalid value', () => {
+    const signedUrls = signedFrom({ staticHandler: { redirect: { expiresIn: () => 0 } } })
+
+    expect(() => maybeCreateRedirect(baseUrl, redirectContext({ signedUrls }))).toThrow(
+      '[@seshuk/payload-storage-bunny] signedUrls.staticHandler.redirect.expiresIn returned 0 seconds',
+    )
+  })
+
+  it('passes signedUrls.expiresIn as defaultValue to redirect.expiresIn', () => {
+    const redirectExpiresIn = vi.fn(({ defaultValue }: { defaultValue: Date | number }) =>
+      typeof defaultValue === 'number' ? defaultValue / 2 : defaultValue,
+    )
+    const signedUrls = signedFrom({ expiresIn: 1000, staticHandler: { redirect: { expiresIn: redirectExpiresIn } } })
+    const before = now()
+
+    const res = maybeCreateRedirect(baseUrl, redirectContext({ signedUrls }))
+    const expires = Number(new URL(res!.headers.get('Location')!).searchParams.get('expires'))
+
+    expect(redirectExpiresIn).toHaveBeenCalledWith(expect.objectContaining({ defaultValue: 1000 }))
+    expect(expires).toBeGreaterThanOrEqual(before + 500)
+    expect(expires).toBeLessThanOrEqual(now() + 501)
+    expect(res!.status).toBe(302)
+  })
+
+  it('uses the collection expiresIn for an inherited redirect without its own expiresIn', () => {
+    const signedUrls = signedFrom({ staticHandler: { redirect: true } }, { expiresIn: 300 })
+    const before = now()
+
+    const res = maybeCreateRedirect(baseUrl, redirectContext({ signedUrls }))
+    const expires = Number(new URL(res!.headers.get('Location')!).searchParams.get('expires'))
+
+    expect(expires).toBeGreaterThanOrEqual(before + 300)
+    expect(expires).toBeLessThanOrEqual(now() + 301)
   })
 })
 
-describe('maybeCreateRedirect with userIp and expiresAt', () => {
+describe('maybeCreateRedirect with userIp and an absolute expiry', () => {
   it('locks the redirect Location token to the client IP', () => {
     const req = createReq()
     const userIp = vi.fn(({ req: callbackReq }) => callbackReq.headers.get('x-forwarded-for') ?? undefined)
@@ -295,7 +362,7 @@ describe('maybeCreateRedirect with userIp and expiresAt', () => {
       baseUrl,
       redirectContext({
         req,
-        signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true }, userIp }),
+        signedUrls: signed({ redirect: { status: 302 }, userIp }),
       }),
     )
 
@@ -308,15 +375,12 @@ describe('maybeCreateRedirect with userIp and expiresAt', () => {
     )
   })
 
-  it('uses the absolute expiry from expiresAt over staticHandler.expiresIn', () => {
+  it('uses an absolute Date from redirect.expiresIn', () => {
     const res = maybeCreateRedirect(
       baseUrl,
       redirectContext({
         req: createReq(),
-        signedUrls: signed({
-          expiresAt: () => 1800000000,
-          staticHandler: { expiresIn: 100, redirectStatus: 302, useRedirect: true },
-        }),
+        signedUrls: signed({ redirect: { expiresIn: () => new Date(1800000000 * 1000), status: 302 } }),
       }),
     )
 

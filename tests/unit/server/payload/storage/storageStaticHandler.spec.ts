@@ -122,7 +122,7 @@ describe('storageStaticHandler', () => {
       filename: 'photo.jpg',
       prefix: 'tenants/acme',
       req: makeReq({}, '/api/media/file/photo.jpg?prefix=tenants/acme'),
-      signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true } }),
+      signedUrls: signed({ redirect: { status: 302 } }),
       storageConfig: storageConfig(),
       usePayloadAccessControl: true,
     })

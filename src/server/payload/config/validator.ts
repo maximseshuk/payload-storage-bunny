@@ -1,5 +1,7 @@
 import { collectStorageConfigs } from '@/server/payload/config/inspect.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import { MAX_EXPIRES_IN_SECONDS } from '@/server/payload/tokenAuth.js'
+import { PLUGIN_KEY } from '@/shared/constants.js'
+import type { BunnyStorageConfig, SignedUrlsConfig } from '@/shared/types/config.js'
 import type {
   NormalizedBunnyStorageConfig,
   NormalizedStorageConfig,
@@ -8,11 +10,72 @@ import type {
 
 const isNonEmptyString = (value: unknown): boolean => typeof value === 'string' && value.length > 0
 
+type RemovedKey = {
+  globalOnly?: boolean
+  path: string
+  renamed?: string
+  use?: string
+}
+
+const REMOVED_KEYS: RemovedKey[] = [
+  { globalOnly: true, path: 'apiKey', renamed: 'accountApiKey' },
+  { globalOnly: true, path: 'i18n', use: "Payload's i18n.translations['@seshuk/payload-storage-bunny']" },
+  { globalOnly: true, path: 'telemetry.endpoint', renamed: 'telemetry.url' },
+  { path: 'adminThumbnail', renamed: 'thumbnail' },
+  { path: 'purge.apiKey', use: 'the top-level accountApiKey' },
+  { path: 'urlTransform.transformUrl', use: 'urlTransform: (args) => url' },
+  { path: 'thumbnail.appendTimestamp', renamed: 'thumbnail.urlTransform.appendTimestamp' },
+  { path: 'thumbnail.queryParams', renamed: 'thumbnail.urlTransform.queryParams' },
+  { path: 'thumbnail.transformUrl', use: 'thumbnail.urlTransform: (args) => url' },
+  { path: 'signedUrls.expiresAt', use: 'signedUrls.expiresIn as a function that returns a Date' },
+  { path: 'signedUrls.staticHandler.useRedirect', use: 'signedUrls.staticHandler.redirect' },
+  { path: 'signedUrls.staticHandler.redirectStatus', renamed: 'signedUrls.staticHandler.redirect.status' },
+  { path: 'signedUrls.staticHandler.expiresIn', renamed: 'signedUrls.staticHandler.redirect.expiresIn' },
+  { path: 'storage.s3.region', use: 'storage.region with storage.s3: true' },
+  { path: 'stream.tus.checkAccess', renamed: 'stream.tus.access' },
+  { path: 'stream.tus.mimeTypes', renamed: 'stream.mimeTypes' },
+  { path: 'stream.tus.uploadTimeout', renamed: 'stream.tus.expiresIn' },
+]
+
+const readPath = (source: unknown, path: string): unknown => {
+  let value = source
+  for (const segment of path.split('.')) {
+    if (typeof value !== 'object' || value === null) {
+      return undefined
+    }
+    value = (value as Record<string, unknown>)[segment]
+  }
+  return value
+}
+
+const findRemovedKeys = (source: unknown, prefix: string, global: boolean): string[] =>
+  REMOVED_KEYS.filter(({ globalOnly }) => global || !globalOnly).flatMap(({ path, renamed, use }) => {
+    if (readPath(source, path) === undefined) {
+      return []
+    }
+    const name = `${prefix}${path}`
+    return [
+      renamed ? `[${PLUGIN_KEY}] ${name} was renamed to ${renamed}` : `[${PLUGIN_KEY}] ${name} was removed, use ${use}`,
+    ]
+  })
+
+export const assertNoRemovedKeys = (config: BunnyStorageConfig): void => {
+  const messages = findRemovedKeys(config, '', true)
+
+  for (const [slug, collection] of Object.entries(config.collections ?? {})) {
+    messages.push(...findRemovedKeys(collection, `collections.${slug}.`, false))
+  }
+
+  if (messages.length > 0) {
+    throw new Error(messages.join('\n'))
+  }
+}
+
 const rawCollectionEnablesClientUploads = (original: BunnyStorageConfig, slug: string): boolean => {
   const globalEnabled = Boolean(original.storage?.clientUploads)
   const raw = original.collections[slug as keyof typeof original.collections]
 
-  if (raw === undefined || raw === true) {
+  if (typeof raw !== 'object') {
     return globalEnabled
   }
 
@@ -61,7 +124,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
   if (!config.accountApiKey && !config._original.purge) {
     const collectionsWithPurge: string[] = []
     for (const [slug, collectionConfig] of Object.entries(config._original.collections)) {
-      if (collectionConfig && collectionConfig !== true && collectionConfig.purge) {
+      if (typeof collectionConfig === 'object' && collectionConfig.purge) {
         collectionsWithPurge.push(slug)
       }
     }
@@ -70,6 +133,35 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
       errors.push(
         `collections [${collectionsWithPurge.join(', ')}] enable \`purge\` but global \`accountApiKey\` is not provided`,
       )
+    }
+  }
+
+  const signedUrlsSources: [string, unknown][] = [
+    ['signedUrls', config._original.signedUrls],
+    ...Object.entries(config._original.collections).map(([slug, raw]): [string, unknown] => [
+      `collections.${slug}.signedUrls`,
+      typeof raw === 'object' ? raw.signedUrls : undefined,
+    ]),
+  ]
+  for (const [path, signedUrls] of signedUrlsSources) {
+    if (typeof signedUrls !== 'object' || signedUrls === null) {
+      continue
+    }
+    const { expiresIn, staticHandler } = signedUrls as SignedUrlsConfig
+    const redirect = typeof staticHandler?.redirect === 'object' ? staticHandler.redirect : undefined
+    const expiries: [string, unknown][] = [
+      [`${path}.expiresIn`, expiresIn],
+      [`${path}.staticHandler.redirect.expiresIn`, redirect?.expiresIn],
+    ]
+    for (const [key, value] of expiries) {
+      if (typeof value === 'number' && !(Number.isFinite(value) && value > 0 && value <= MAX_EXPIRES_IN_SECONDS)) {
+        errors.push(
+          `\`${key}\` must be more than 0 and at most ${MAX_EXPIRES_IN_SECONDS} seconds (10 years), got ${value}`,
+        )
+      }
+    }
+    if (redirect?.status !== undefined && redirect.status !== 302 && redirect.status !== 307) {
+      errors.push(`\`${path}.staticHandler.redirect.status\` must be 302 or 307`)
     }
   }
 
@@ -100,7 +192,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
   }
 
   for (const [slug, raw] of Object.entries(config._original.collections)) {
-    if (!raw || raw === true) {
+    if (typeof raw !== 'object') {
       continue
     }
 
@@ -140,10 +232,6 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
         errors.push(`collection "${slug}" storage \`hostname\` cannot include "storage.bunnycdn.com"`)
       }
 
-      if (collection.storage.s3 && !collection.storage.s3.region) {
-        errors.push(`collection "${slug}" storage \`s3.region\` is required when S3 mode is enabled`)
-      }
-
       if (collection.signedUrls && !collection.storage.tokenSecurityKey) {
         storageSignedUrlIssues.push(slug)
       }
@@ -178,7 +266,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
 
     if (!collection.storage?.s3 && (!clientUploads.edge?.scriptUrl || !clientUploads.edge?.secret)) {
       errors.push(
-        `collection "${slug}" uses edge-transport client uploads (no \`storage.s3\`) but is missing \`storage.clientUploads.edge.scriptUrl\` or \`storage.clientUploads.edge.secret\``,
+        `collection "${slug}" uses edge-transport client uploads (\`storage.s3\` is not \`true\`) but is missing \`storage.clientUploads.edge.scriptUrl\` or \`storage.clientUploads.edge.secret\``,
       )
     }
   }
@@ -212,7 +300,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
 
     const effectiveMp4Fallback = collection.stream.mp4Fallback
 
-    const hasSignedUrlsWithRedirect = collection.signedUrls && collection.signedUrls.staticHandler?.useRedirect === true
+    const hasSignedUrlsWithRedirect = Boolean(collection.signedUrls?.redirect)
 
     if (!effectiveMp4Fallback && !hasSignedUrlsWithRedirect) {
       collectionsWithIssues.push(slug)
@@ -223,7 +311,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     errors.push(
       `collections [${collectionsWithIssues.join(', ')}] with \`disablePayloadAccessControl: false\` require: ` +
         '1) `mp4Fallback` to be enabled, or ' +
-        '2) signed URLs with `staticHandler.useRedirect` enabled (globally or per collection)',
+        '2) signed URLs with `staticHandler.redirect` enabled (globally or per collection)',
     )
   }
 

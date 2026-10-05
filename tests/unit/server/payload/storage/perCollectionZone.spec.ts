@@ -62,7 +62,7 @@ const config = createNormalizedConfig({
     },
     ownS3: {
       disablePayloadAccessControl: true,
-      storage: createOwnStorage('s3', { s3: { region: 'ny' } }),
+      storage: createOwnStorage('s3', { region: 'ny', s3: true }),
       stream: false,
     },
     sibling: { disablePayloadAccessControl: true },
@@ -99,7 +99,7 @@ describe('per-collection zone routing through the adapter', () => {
 
       await upload('ownS3')
       expect(uploadStorageFileS3Mock).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: 'own-storage-key-s3', s3: { region: 'ny' }, zoneName: 'own-zone-s3' }),
+        expect.objectContaining({ apiKey: 'own-storage-key-s3', region: 'ny', zoneName: 'own-zone-s3' }),
       )
 
       await upload('sibling')
@@ -148,7 +148,7 @@ describe('per-collection zone routing through the adapter', () => {
 
       await remove('ownS3')
       expect(deleteStorageFileS3Mock).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: 'own-storage-key-s3', s3: { region: 'ny' }, zoneName: 'own-zone-s3' }),
+        expect.objectContaining({ apiKey: 'own-storage-key-s3', region: 'ny', zoneName: 'own-zone-s3' }),
       )
 
       await remove('sibling')

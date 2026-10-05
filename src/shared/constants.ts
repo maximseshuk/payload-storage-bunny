@@ -8,7 +8,7 @@ export const BUNNY_API = {
 } as const
 
 export const getStorageUrl = (region?: string): string => {
-  if (!region) {
+  if (!region || region === 'de') {
     return `https://${BUNNY_API.STORAGE_HOSTNAME}`
   }
   return `https://${region}.${BUNNY_API.STORAGE_HOSTNAME}`
@@ -21,20 +21,20 @@ export const TIMEOUTS = {
 } as const
 
 export const TUS_MIME_TYPES = [
-  'video/mp4', // mp4, m4p (iTunes protected), m4v
-  'video/x-matroska', // mkv
-  'video/webm', // webm
-  'video/x-flv', // flv
-  'video/x-ms-vod', // vod (non-standard)
-  'video/x-msvideo', // avi
-  'video/quicktime', // mov
-  'video/x-ms-wmv', // wmv
-  'video/x-amv', // amv
-  'video/mpeg', // mpeg, mpg
-  'video/4mv', // 4mv (rare, non-standard)
-  'video/mp2t', // ts
-  'video/mxf', // mxf
-  'audio/mpeg', // mp3
-  'audio/ogg', // ogg
-  'audio/wav', // wav
+  'video/mp4',
+  'video/x-matroska',
+  'video/webm',
+  'video/x-flv',
+  'video/x-ms-vod',
+  'video/x-msvideo',
+  'video/quicktime',
+  'video/x-ms-wmv',
+  'video/x-amv',
+  'video/mpeg',
+  'video/4mv',
+  'video/mp2t',
+  'video/mxf',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/wav',
 ]

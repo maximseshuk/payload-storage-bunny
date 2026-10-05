@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const lv: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Atspējot TUS režīmu',
     tusUploadEnableMode: 'Iespējot TUS režīmu',
     tusUploadErrorFileType: 'Faila tips nav atļauts',
@@ -33,7 +32,6 @@ export const lv: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Jums nav atļaujas piekļūt šim resursam',
     errorDeleteFileFailed: 'Neizdevās dzēst failu: {{filename}}',
     errorMissingRequiredFields: 'Trūkst nepieciešamas informācijas',

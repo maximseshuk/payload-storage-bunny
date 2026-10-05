@@ -52,7 +52,7 @@ describe('upload.cacheTags wiring', () => {
   })
 
   it('disables cache tags when the thumbnail appends its own timestamp', () => {
-    const upload = buildMediaUpload(true, { thumbnail: { appendTimestamp: true } })
+    const upload = buildMediaUpload(true, { thumbnail: true })
 
     expect(upload.cacheTags).toBe(false)
   })
@@ -68,7 +68,7 @@ describe('client upload handler registration', () => {
 
     const result = bunnyStorage({
       collections: { media },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: { region: 'de' }, zoneName: 'zone' },
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: true, zoneName: 'zone' },
       stream,
     } as BunnyStorageConfig).init(incoming) as Config
 
@@ -101,7 +101,7 @@ describe('client upload handler registration', () => {
     } as unknown as Config
     const result = bunnyStorage({
       collections: { media: { disablePayloadAccessControl: true, storage: false } },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: { region: 'de' }, zoneName: 'zone' },
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: true, zoneName: 'zone' },
       stream,
     } as BunnyStorageConfig).init(incoming) as Config
     const media = result.collections?.find((entry) => entry.slug === 'media')
@@ -178,6 +178,112 @@ describe('schema when the plugin is disabled', () => {
     expect(result.collections?.[0]?.upload).toBe(true)
     expect(result.collections?.[0]?.hooks).toBeUndefined()
     expect(result.custom).toBeUndefined()
+  })
+})
+
+describe('collections set to false', () => {
+  const incoming = () =>
+    ({
+      collections: [
+        { slug: 'media', fields: [], upload: true },
+        { slug: 'docs', fields: [], upload: true },
+      ],
+    }) as unknown as Config
+
+  it.each([true, false])('leaves the collection untouched when the plugin enabled is %s', (enabled) => {
+    const plugin = bunnyStorage({
+      collections: { docs: false, media: true },
+      enabled,
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+    })
+    const result = plugin.init(incoming()) as Config
+    const docs = result.collections?.find((entry) => entry.slug === 'docs')
+
+    expect(plugin.collections).toEqual(['media'])
+    expect(docs?.upload).toBe(true)
+    expect(docs?.fields).toEqual([])
+  })
+})
+
+describe('removed options', () => {
+  const init = (options: Record<string, unknown>, enabled = true) =>
+    bunnyStorage({
+      collections: { media: true },
+      enabled,
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+      ...options,
+    } as BunnyStorageConfig).init({ collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config)
+
+  it.each([
+    [{ telemetry: { endpoint: 'https://x' } }, 'telemetry.endpoint was renamed to telemetry.url'],
+    [
+      { urlTransform: { transformUrl: () => '' } },
+      'urlTransform.transformUrl was removed, use urlTransform: (args) => url',
+    ],
+    [
+      { thumbnail: { appendTimestamp: true } },
+      'thumbnail.appendTimestamp was renamed to thumbnail.urlTransform.appendTimestamp',
+    ],
+    [
+      { signedUrls: { expiresAt: () => 1 } },
+      'signedUrls.expiresAt was removed, use signedUrls.expiresIn as a function that returns a Date',
+    ],
+    [
+      { signedUrls: { staticHandler: { useRedirect: true } } },
+      'signedUrls.staticHandler.useRedirect was removed, use signedUrls.staticHandler.redirect',
+    ],
+    [
+      { signedUrls: { staticHandler: { redirectStatus: 307 } } },
+      'signedUrls.staticHandler.redirectStatus was renamed to signedUrls.staticHandler.redirect.status',
+    ],
+    [
+      { storage: { apiKey: 'a', hostname: 'h', s3: { region: 'ny' }, zoneName: 'z' } },
+      'storage.s3.region was removed, use storage.region with storage.s3: true',
+    ],
+    [
+      { stream: { apiKey: 'a', hostname: 'h', libraryId: 1, tus: { checkAccess: () => true } } },
+      'stream.tus.checkAccess was renamed to stream.tus.access',
+    ],
+    [
+      { i18n: { translations: {} } },
+      "i18n was removed, use Payload's i18n.translations['@seshuk/payload-storage-bunny']",
+    ],
+    [{ apiKey: 'key' }, 'apiKey was renamed to accountApiKey'],
+    [{ purge: { apiKey: 'key' } }, 'purge.apiKey was removed, use the top-level accountApiKey'],
+  ])('throws a hint for %o', (options, message) => {
+    expect(() => init(options)).toThrow(`[@seshuk/payload-storage-bunny] ${message}`)
+    expect(() => init(options, false)).toThrow(`[@seshuk/payload-storage-bunny] ${message}`)
+  })
+
+  it('reports removed keys inside a collection with the collection path', () => {
+    expect(() =>
+      init({
+        collections: {
+          media: { signedUrls: { staticHandler: { expiresIn: 60 } }, stream: { tus: { checkAccess: () => true } } },
+        },
+      }),
+    ).toThrow(
+      '[@seshuk/payload-storage-bunny] collections.media.signedUrls.staticHandler.expiresIn was renamed to signedUrls.staticHandler.redirect.expiresIn\n[@seshuk/payload-storage-bunny] collections.media.stream.tus.checkAccess was renamed to stream.tus.access',
+    )
+  })
+
+  it('accepts the new shapes', () => {
+    expect(() =>
+      init({
+        accountApiKey: 'key',
+        purge: true,
+        signedUrls: { staticHandler: { redirect: { status: 307 } } },
+        storage: {
+          apiKey: 'zone-pw',
+          hostname: 'cdn.b-cdn.net',
+          region: 'ny',
+          s3: true,
+          tokenSecurityKey: 't',
+          zoneName: 'zone',
+        },
+        telemetry: false,
+      }),
+    ).not.toThrow()
   })
 })
 

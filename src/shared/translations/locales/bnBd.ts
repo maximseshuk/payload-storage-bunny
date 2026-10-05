@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const bnBd: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'TUS মোড নিষ্ক্রিয় করুন',
     tusUploadEnableMode: 'TUS মোড সক্রিয় করুন',
     tusUploadErrorFileType: 'ফাইলের ধরন অনুমোদিত নয়',
@@ -33,7 +32,6 @@ export const bnBd: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'মি',
     tusUploadTimeSeconds: 'সে',
 
-    // Error messages
     errorAccessDenied: 'এই রিসোর্সে অ্যাক্সেস করার অনুমতি আপনার নেই',
     errorDeleteFileFailed: 'ফাইল মুছে ফেলা যায়নি: {{filename}}',
     errorMissingRequiredFields: 'কিছু প্রয়োজনীয় তথ্য অনুপস্থিত',

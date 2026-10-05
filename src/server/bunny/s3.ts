@@ -1,21 +1,24 @@
 import { S3mini } from 's3mini'
 
 import { TIMEOUTS } from '@/shared/constants.js'
-import type { StorageS3Config } from '@/shared/types/config.js'
+import type { StorageRegion } from '@/shared/types/config.js'
 
 export type BunnyStorageS3Credentials = {
   apiKey: string
-  s3: StorageS3Config
+  region: StorageRegion
   zoneName: string
 }
 
 export const getS3Endpoint = (region: string): string => `https://${region}-s3.storage.bunnycdn.com`
 
-const createS3Client = ({ apiKey, s3, zoneName }: BunnyStorageS3Credentials, requestAbortTimeout?: number): S3mini =>
+const createS3Client = (
+  { apiKey, region, zoneName }: BunnyStorageS3Credentials,
+  requestAbortTimeout?: number,
+): S3mini =>
   new S3mini({
     accessKeyId: zoneName,
-    endpoint: `${getS3Endpoint(s3.region)}/${zoneName}`,
-    region: s3.region,
+    endpoint: `${getS3Endpoint(region)}/${zoneName}`,
+    region,
     requestAbortTimeout,
     secretAccessKey: apiKey,
   })
@@ -25,7 +28,7 @@ export const uploadStorageFileS3 = async ({
   buffer,
   mimeType,
   path,
-  s3,
+  region,
   timeout,
   zoneName,
 }: {
@@ -35,7 +38,7 @@ export const uploadStorageFileS3 = async ({
   timeout?: number
 } & BunnyStorageS3Credentials): Promise<void> => {
   try {
-    await createS3Client({ apiKey, s3, zoneName }, timeout ?? TIMEOUTS.UPLOAD).putAnyObject(path, buffer, mimeType)
+    await createS3Client({ apiKey, region, zoneName }, timeout ?? TIMEOUTS.UPLOAD).putAnyObject(path, buffer, mimeType)
   } catch (err) {
     throw new Error(`Unable to upload file: ${path}`, { cause: err })
   }
@@ -44,11 +47,11 @@ export const uploadStorageFileS3 = async ({
 export const deleteStorageFileS3 = async ({
   apiKey,
   path,
-  s3,
+  region,
   zoneName,
 }: { path: string } & BunnyStorageS3Credentials): Promise<void> => {
   try {
-    const deleted = await createS3Client({ apiKey, s3, zoneName }, TIMEOUTS.DEFAULT).deleteObject(path)
+    const deleted = await createS3Client({ apiKey, region, zoneName }, TIMEOUTS.DEFAULT).deleteObject(path)
     if (!deleted) {
       throw new Error('Bunny Storage (S3): Delete failed')
     }
@@ -60,10 +63,10 @@ export const deleteStorageFileS3 = async ({
 export const storageObjectExistsS3 = async ({
   apiKey,
   path,
-  s3,
+  region,
   zoneName,
 }: { path: string } & BunnyStorageS3Credentials): Promise<boolean> =>
-  (await createS3Client({ apiKey, s3, zoneName }, TIMEOUTS.DEFAULT).objectExists(path)) !== false
+  (await createS3Client({ apiKey, region, zoneName }, TIMEOUTS.DEFAULT).objectExists(path)) !== false
 
 export const presignStoragePutUrl = ({
   apiKey,
@@ -71,7 +74,7 @@ export const presignStoragePutUrl = ({
   contentType,
   expiresIn,
   path,
-  s3,
+  region,
   zoneName,
 }: {
   contentLength: number
@@ -79,7 +82,7 @@ export const presignStoragePutUrl = ({
   expiresIn?: number
   path: string
 } & BunnyStorageS3Credentials): Promise<string> =>
-  createS3Client({ apiKey, s3, zoneName }).getPresignedUrl(
+  createS3Client({ apiKey, region, zoneName }).getPresignedUrl(
     'PUT',
     path,
     expiresIn ?? 600,

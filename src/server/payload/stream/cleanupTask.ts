@@ -1,4 +1,4 @@
-import type { PayloadRequest, TaskConfig } from 'payload'
+import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import { BunnyStreamVideoStatus, deleteStreamVideo, getStreamVideo } from '@/server/bunny/stream.js'
 import { CONFIG_DEFAULTS } from '@/server/payload/config/defaults.js'
@@ -221,5 +221,23 @@ export const getStreamCleanupTask = (
       }
     },
     schedule: [schedule],
+  }
+}
+
+export const warnIfCleanupQueueNotRun = ({ payload, task }: { payload: Payload; task: TaskConfig }): void => {
+  const autoRun = payload.config.jobs?.autoRun
+
+  if (typeof autoRun === 'function') {
+    return
+  }
+
+  for (const queue of new Set((task.schedule ?? []).map((entry) => entry.queue ?? 'default'))) {
+    const covered = autoRun?.some((entry) => entry.allQueues || (entry.queue ?? 'default') === queue)
+
+    if (!covered) {
+      payload.logger.warn({
+        msg: `[bunny:stream] cleanup: no jobs.autoRun entry runs the "${queue}" queue, so the cleanup task only runs if a worker processes that queue`,
+      })
+    }
   }
 }

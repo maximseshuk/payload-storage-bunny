@@ -2,7 +2,7 @@ import type { OpenAPIV3_1 } from '@scalar/openapi-types'
 
 export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
   description:
-    'Creates the video in Bunny Stream (if needed) and returns a signed TUS authorization so the browser can upload directly to Bunny. Access is gated by `stream.tus.checkAccess` or the built-in rule. See [TUS uploads](/v4/configuration/stream/tus).',
+    'Creates the video in Bunny Stream (if needed) and returns a signed TUS authorization so the browser can upload directly to Bunny. Access is gated by `stream.tus.access` or the built-in rule. See [TUS uploads](/v4/configuration/stream/tus).',
   requestBody: {
     content: {
       'application/json': {

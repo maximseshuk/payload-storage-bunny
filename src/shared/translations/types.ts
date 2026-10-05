@@ -1,6 +1,5 @@
 export type PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // Error messages
     errorAccessDenied: string
     errorDeleteFileFailed: string
     errorMissingRequiredFields: string
@@ -9,7 +8,6 @@ export type PluginDefaultTranslationsObject = {
     errorTitleRequired: string
     errorUploadFileFailed: string
 
-    // TUS Upload
     tusUploadDisableMode: string
     tusUploadEnableMode: string
     tusUploadErrorFileType: string

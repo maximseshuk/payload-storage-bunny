@@ -2,7 +2,21 @@ import { createHash } from 'crypto'
 
 import type { CollectionConfig, PayloadRequest } from 'payload'
 
-import type { NormalizedSignedUrlsConfig, SignedUrlsCallbackArgs, SignedUrlsConfig } from '@/shared/types/index.js'
+import { PLUGIN_KEY } from '@/shared/constants.js'
+import type { ExpiresResolver, NormalizedSignedUrlsConfig, SignedUrlsCallbackArgs } from '@/shared/types/index.js'
+
+type SigningConfig = {
+  allowedCountries?: string[]
+  blockedCountries?: string[]
+}
+
+type SigningOptions = {
+  expiresAt: number
+  tokenPath?: string
+  userIp?: string
+}
+
+export const MAX_EXPIRES_IN_SECONDS = 10 * 365 * 24 * 60 * 60
 
 const IPV4_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
 
@@ -65,12 +79,8 @@ export const generateSignedToken = (
 export const generateSignedUrl = (
   baseUrl: string,
   securityKey: string,
-  config: Exclude<SignedUrlsConfig, boolean>,
-  options?: {
-    expiresAt?: number
-    tokenPath?: string
-    userIp?: string
-  },
+  config: SigningConfig,
+  options: SigningOptions,
 ): string => {
   if (!baseUrl || !securityKey || !config) {
     throw new Error('Base URL, security key, and configuration are required')
@@ -81,11 +91,7 @@ export const generateSignedUrl = (
   }
 
   const url = new URL(baseUrl)
-  const expiresIn = config.expiresIn || 7200
-  const expiration =
-    options?.expiresAt && options.expiresAt > 0
-      ? Math.floor(options.expiresAt)
-      : Math.floor(Date.now() / 1000) + expiresIn
+  const expiration = Math.floor(options.expiresAt)
 
   const signedQueryParams: Record<string, string> = {}
 
@@ -97,7 +103,7 @@ export const generateSignedUrl = (
     signedQueryParams.token_countries_blocked = config.blockedCountries.join(',')
   }
 
-  if (options?.tokenPath) {
+  if (options.tokenPath) {
     signedQueryParams.token_path = options.tokenPath
   }
 
@@ -114,11 +120,11 @@ export const generateSignedUrl = (
 
   const formattedQueryParams = Object.keys(allQueryParams).length > 0 ? formatQueryParams(allQueryParams) : ''
 
-  const signedUrlPath = options?.tokenPath || decodeURIComponent(url.pathname)
+  const signedUrlPath = options.tokenPath || decodeURIComponent(url.pathname)
 
-  const token = generateSignedToken(securityKey, signedUrlPath, expiration, formattedQueryParams, options?.userIp)
+  const token = generateSignedToken(securityKey, signedUrlPath, expiration, formattedQueryParams, options.userIp)
 
-  const usePathBased = !!options?.tokenPath
+  const usePathBased = !!options.tokenPath
 
   if (usePathBased) {
     const parts: string[] = [url.protocol, '//', url.host, '/', 'bcdn_token=', token]
@@ -182,36 +188,45 @@ const resolveUserIp = (signedUrls: NormalizedSignedUrlsConfig, args: SignedUrlsC
   return ip
 }
 
-const resolveExpiresAt = (signedUrls: NormalizedSignedUrlsConfig, args: SignedUrlsCallbackArgs): number | undefined => {
-  if (!signedUrls.expiresAt) {
-    return undefined
+const resolveExpiresAt = (expiresIn: ExpiresResolver, key: string, args: SignedUrlsCallbackArgs): number => {
+  const value = expiresIn(args)
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      throw new Error(`[${PLUGIN_KEY}] ${key} returned an invalid Date`)
+    }
+    return Math.floor(value.getTime() / 1000)
   }
 
-  const value = signedUrls.expiresAt(args)
-
-  if (!value) {
-    return undefined
+  if (!Number.isFinite(value) || value <= 0 || value > MAX_EXPIRES_IN_SECONDS) {
+    throw new Error(
+      `[${PLUGIN_KEY}] ${key} returned ${value} seconds. A number is seconds from now, more than 0 and at most 10 years; return a Date for an absolute time.`,
+    )
   }
 
-  const timestamp = value instanceof Date ? Math.floor(value.getTime() / 1000) : Math.floor(value)
-
-  return timestamp > 0 ? timestamp : undefined
+  return Math.floor(Date.now() / 1000 + value)
 }
 
 const resolveSigningOptions = (
   signedUrls: NormalizedSignedUrlsConfig,
+  expiresIn: { key: string; resolve: ExpiresResolver },
   args: SignedUrlsCallbackArgs,
-  options?: Parameters<typeof generateSignedUrl>[3],
-): Parameters<typeof generateSignedUrl>[3] => ({
+  options?: Partial<SigningOptions>,
+): SigningOptions => ({
   ...options,
-  expiresAt: options?.expiresAt ?? resolveExpiresAt(signedUrls, args),
+  expiresAt: options?.expiresAt ?? resolveExpiresAt(expiresIn.resolve, expiresIn.key, args),
   userIp: options?.userIp ?? resolveUserIp(signedUrls, args),
+})
+
+const signingConfig = ({ allowedCountries, blockedCountries }: NormalizedSignedUrlsConfig): SigningConfig => ({
+  allowedCountries,
+  blockedCountries,
 })
 
 export const maybeGenerateSignedUrl = (
   baseUrl: string,
   context: SignedUrlContext,
-  options?: Parameters<typeof generateSignedUrl>[3],
+  options?: Partial<SigningOptions>,
 ): string => {
   const { collection, filename, req, signedUrls, tokenSecurityKey } = context
 
@@ -230,15 +245,20 @@ export const maybeGenerateSignedUrl = (
   return generateSignedUrl(
     baseUrl,
     tokenSecurityKey,
-    signedUrls,
-    resolveSigningOptions(signedUrls, callbackArgs, options),
+    signingConfig(signedUrls),
+    resolveSigningOptions(
+      signedUrls,
+      { key: 'signedUrls.expiresIn', resolve: signedUrls.expiresIn },
+      callbackArgs,
+      options,
+    ),
   )
 }
 
 export const maybeCreateRedirect = (
   baseUrl: string,
   context: { usePayloadAccessControl: boolean } & SignedUrlContext,
-  options?: Parameters<typeof generateSignedUrl>[3],
+  options?: Partial<SigningOptions>,
 ): null | Response => {
   const { signedUrls, tokenSecurityKey, usePayloadAccessControl } = context
 
@@ -246,7 +266,7 @@ export const maybeCreateRedirect = (
     return null
   }
 
-  if (!signedUrls.staticHandler?.useRedirect) {
+  if (!signedUrls.redirect) {
     return null
   }
 
@@ -262,16 +282,18 @@ export const maybeCreateRedirect = (
     return null
   }
 
-  const redirectConfig = {
-    ...signedUrls,
-    expiresIn: signedUrls.staticHandler.expiresIn ?? signedUrls.expiresIn,
-  }
-
   const signedUrl = generateSignedUrl(
     baseUrl,
     tokenSecurityKey,
-    redirectConfig,
-    resolveSigningOptions(redirectConfig, callbackArgs, options),
+    signingConfig(signedUrls),
+    resolveSigningOptions(
+      signedUrls,
+      signedUrls.redirect.expiresIn
+        ? { key: 'signedUrls.staticHandler.redirect.expiresIn', resolve: signedUrls.redirect.expiresIn }
+        : { key: 'signedUrls.expiresIn', resolve: signedUrls.expiresIn },
+      callbackArgs,
+      options,
+    ),
   )
 
   return new Response(null, {
@@ -279,6 +301,6 @@ export const maybeCreateRedirect = (
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       Location: signedUrl,
     },
-    status: signedUrls.staticHandler.redirectStatus,
+    status: signedUrls.redirect.status,
   })
 }

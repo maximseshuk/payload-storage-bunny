@@ -20,6 +20,7 @@ export const createCollectionContext = (
   return {
     accountApiKey: config.accountApiKey,
     collection,
+    hasGenerateFileURL: collectionConfig.hasGenerateFileURL,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? collectionConfig.prefix,
     purgeConfig: collectionConfig.purge,
@@ -42,6 +43,7 @@ const createDefaultContext = (
   return {
     accountApiKey: config.accountApiKey,
     collection,
+    hasGenerateFileURL: false,
     isTusUploadSupported: !!streamConfig?.tus && !!collection.upload,
     prefix: prefixOverride ?? '',
     purgeConfig: config.purge,

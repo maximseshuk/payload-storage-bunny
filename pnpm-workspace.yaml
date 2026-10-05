@@ -36,3 +36,4 @@ minimumReleaseAgeExclude:
   - '@pnpm/exe.win32-arm64@12.8.2'
   - '@pnpm/exe.win32-x64@12.8.2'
   - pnpm@12.8.2
+  - '@seshuk/payload-plugin-tooling@0.1.0'

@@ -1,22 +1,9 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "Bash(rtk ls *)",
-      "Bash(rtk read *)",
-      "Bash(rtk curl *)",
-      "Bash(rtk grep *)",
-      "Bash(rtk find *)",
-      "Bash(rtk git status *)",
-      "Bash(rtk git status)",
-      "Bash(rtk git log *)",
-      "Bash(rtk git diff *)",
-      "Bash(rtk git diff)",
-      "Bash(rtk gh pr view *)",
-      "Bash(rtk gh pr list *)",
-      "Bash(rtk gh run list *)",
       "Bash(ls *)",
       "Bash(cat *)",
-      "Bash(curl *)",
       "Bash(grep *)",
       "Bash(find *)",
       "Bash(wc *)",
@@ -27,29 +14,62 @@
       "Bash(git log *)",
       "Bash(git diff *)",
       "Bash(git diff)",
-      "Bash(git remote *)",
-      "Bash(git branch *)",
       "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git remote *)",
+      "Bash(git describe *)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-parse *)",
+      "Bash(pnpm install)",
       "Bash(pnpm typecheck*)",
-      "Bash(pnpm run typecheck*)",
       "Bash(pnpm build*)",
-      "Bash(pnpm run build*)",
       "Bash(pnpm test*)",
-      "Bash(pnpm run test*)",
       "Bash(pnpm format*)",
-      "Bash(pnpm run format*)",
       "Bash(pnpm lint*)",
-      "Bash(pnpm run lint*)",
-      "Bash(gh api *)",
+      "Bash(pnpm list *)",
+      "Bash(pnpm why *)",
+      "Bash(pnpm outdated*)",
+      "Bash(pnpm view *)",
       "Bash(gh pr view *)",
       "Bash(gh pr list *)",
+      "Bash(gh pr checks *)",
       "Bash(gh run list *)",
-      "Bash(gh run view *)"
+      "Bash(gh run view *)",
+      "Bash(gh release view *)",
+      "Bash(gh issue view *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git tag *)",
+      "Bash(git reset --hard *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh release create *)",
+      "Bash(gh release edit *)",
+      "Bash(gh release delete *)",
+      "Bash(gh repo edit *)",
+      "Bash(gh repo delete *)",
+      "Bash(gh secret *)",
+      "Bash(gh api *)",
+      "Bash(npm publish *)",
+      "Bash(pnpm publish *)"
     ],
     "deny": ["Read(./.env)", "Read(./.env.local)", "Read(./.env.*.local)"]
   },
   "attribution": {
     "commit": "",
     "pr": ""
+  },
+  "extraKnownMarketplaces": {
+    "seshuk": {
+      "source": { "source": "github", "repo": "maximseshuk/payload-plugin-tooling" }
+    },
+    "payload-marketplace": {
+      "source": { "source": "github", "repo": "payloadcms/payload" }
+    }
+  },
+  "enabledPlugins": {
+    "payload-plugin@seshuk": true,
+    "payload@payload-marketplace": true
   }
 }

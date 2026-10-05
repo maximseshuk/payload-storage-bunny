@@ -19,16 +19,16 @@ bunnyStorage({
 
 ## Options
 
-| Option             | Type                | Required | Default        | Description                                                                                                                           |
-| ------------------ | ------------------- | -------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `apiKey`           | `string`            | Required | –              | Bunny Storage API key (the Storage Zone password).                                                                                    |
-| `hostname`         | `string`            | Required | –              | CDN domain from your Pull Zone, e.g. `example.b-cdn.net`.                                                                             |
-| `zoneName`         | `string`            | Required | –              | Your Storage Zone name.                                                                                                               |
-| `region`           | `string`            | Optional | primary region | Storage region code: `br`, `jh`, `la`, `ny`, `se`, `sg`, `syd`, `uk`, or a custom string.                                             |
-| `s3`               | `object`            | Optional | –              | S3-compatible access for the zone. See [S3 mode](#s3-mode).                                                                           |
-| `tokenSecurityKey` | `string`            | Optional | –              | Security key for signing storage URLs. Required if you enable [signed URLs](/v4/configuration/signed-urls) for storage.               |
-| `uploadTimeout`    | `number`            | Optional | `120000` (ms)  | Upload timeout, in milliseconds. Can be overridden per collection.                                                                    |
-| `clientUploads`    | `boolean \| object` | Optional | –              | Browser-direct uploads that bypass the Payload server for file bytes. See [Client uploads](/v4/configuration/storage/client-uploads). |
+| Option             | Type                | Required | Default       | Description                                                                                                                           |
+| ------------------ | ------------------- | -------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `apiKey`           | `string`            | Required | –             | Bunny Storage API key (the Storage Zone password).                                                                                    |
+| `hostname`         | `string`            | Required | –             | CDN domain from your Pull Zone, e.g. `example.b-cdn.net`.                                                                             |
+| `zoneName`         | `string`            | Required | –             | Your Storage Zone name.                                                                                                               |
+| `region`           | `string`            | Optional | `'de'`        | Region the zone was created in. See [Regions](#regions).                                                                              |
+| `s3`               | `boolean`           | Optional | `false`       | `true` uses the zone's S3-compatible endpoint. See [S3 mode](#s3-mode).                                                               |
+| `tokenSecurityKey` | `string`            | Optional | –             | Security key for signing storage URLs. Required if you enable [signed URLs](/v4/configuration/signed-urls) for storage.               |
+| `uploadTimeout`    | `number`            | Optional | `120000` (ms) | Upload timeout, in milliseconds. Can be overridden per collection.                                                                    |
+| `clientUploads`    | `boolean \| object` | Optional | –             | Browser-direct uploads that bypass the Payload server for file bytes. See [Client uploads](/v4/configuration/storage/client-uploads). |
 
 <Info>
 
@@ -60,15 +60,37 @@ Your **Pull Zone** hostname (not the Storage API endpoint). Bunny Storage needs 
 
 <Step title="region">
 
-Read from your Storage Zone's endpoint hostname. For example, `ny.storage.bunnycdn.com` means region `ny`. Leave it out to use the default region.
+Read from your Storage Zone's endpoint hostname. For example, `ny.storage.bunnycdn.com` means region `ny`, and `storage.bunnycdn.com` means `de`. Leave it out for `de`.
 
 </Step>
 
 </Steps>
 
+## Regions
+
+These codes autocomplete. Any other string is passed through, so a new Bunny region works without a plugin update. Codes with only the Edge (SSD) column are replication regions without a storage endpoint, so they cannot be the zone `region`.
+
+| Code  | Location                | Standard (HDD) | Edge (SSD) | S3  | Stream |
+| ----- | ----------------------- | -------------- | ---------- | --- | ------ |
+| `de`  | Frankfurt, DE (default) | Yes            | Yes        | Yes | Yes    |
+| `uk`  | London, UK              | Yes            | Yes        | Yes | Yes    |
+| `se`  | Stockholm, SE           | Yes            | Yes        | Yes | Yes    |
+| `ny`  | New York, US            | Yes            | Yes        | Yes | Yes    |
+| `la`  | Los Angeles, US         | Yes            | Yes        | Yes | Yes    |
+| `sg`  | Singapore, SG           | Yes            | Yes        | Yes | Yes    |
+| `syd` | Sydney, SYD             | Yes            | Yes        | Yes | Yes    |
+| `br`  | São Paulo, BR           | Yes            | Yes        | –   | Yes    |
+| `jh`  | Johannesburg, SA        | Yes            | Yes        | Yes | Yes    |
+| `cz`  | Prague, CZ              | –              | Yes        | –   | –      |
+| `es`  | Madrid, ES              | –              | Yes        | –   | –      |
+| `mi`  | Miami, US               | –              | Yes        | –   | –      |
+| `wa`  | Seattle, US             | –              | Yes        | –   | –      |
+| `hk`  | Hong Kong, HK           | –              | Yes        | –   | –      |
+| `jp`  | Tokyo, JP               | –              | Yes        | –   | –      |
+
 ## S3 mode
 
-Setting `storage.s3` makes the plugin upload and delete files through Bunny's S3-compatible endpoint (SigV4-signed requests) instead of the HTTP Storage API. It also switches [client uploads](/v4/configuration/storage/client-uploads) to presigned S3, where the browser sends a presigned PUT straight to that endpoint (no Edge Script needed).
+Setting `storage.s3: true` makes the plugin upload and delete files through Bunny's S3-compatible endpoint (SigV4-signed requests) instead of the HTTP Storage API. It also switches [client uploads](/v4/configuration/storage/client-uploads) to presigned S3, where the browser sends a presigned PUT straight to that endpoint (no Edge Script needed).
 
 <Warning>
 
@@ -83,19 +105,12 @@ storage: {
   apiKey: process.env.BUNNY_STORAGE_API_KEY,
   hostname: 'example.b-cdn.net',
   zoneName: 'my-zone',
-  s3: {
-    region: 'de', // the region the zone was created in
-  },
+  region: 'ny', // the region the zone was created in
+  s3: true,
 },
 ```
 
-`s3.region` is the region the zone was created in; the endpoint becomes `https://{region}-s3.storage.bunnycdn.com`. Valid codes are `de`, `jh`, `la`, `ny`, `se`, `sg`, `syd`, `uk`, or a custom string.
-
-<Info>
-
-This list isn't the same as `storage.region` above — the S3 region codes include `de` and omit `br`.
-
-</Info>
+The S3 endpoint is `https://{region}-s3.storage.bunnycdn.com`, with the same `region` as above.
 
 See [Client uploads](/v4/configuration/storage/client-uploads) for how S3 mode powers browser-direct uploads.
 
@@ -105,7 +120,6 @@ The plugin validates these on startup and throws a clear error if any fails:
 
 - `hostname` must be your Pull Zone host. The plugin rejects a `hostname` containing `storage.bunnycdn.com`.
 - If you turn on [signed URLs](/v4/configuration/signed-urls) anywhere `storage` is active, `tokenSecurityKey` becomes required.
-- `s3.region` is required when S3 mode is enabled.
 
 Set `serverURL` in your Payload config. Cropping, changing the focal point and duplicating a document make Payload download the stored file again. Without `serverURL`, Payload may call the wrong origin, or call it without the editor's session, and these operations fail when the collection uses Payload access control.
 

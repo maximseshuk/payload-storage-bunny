@@ -13,6 +13,7 @@ export const CONFIG_DEFAULTS = {
     expiresIn: 7200,
   },
   storage: {
+    region: 'de',
     uploadTimeout: TIMEOUTS.UPLOAD,
   },
   stream: {

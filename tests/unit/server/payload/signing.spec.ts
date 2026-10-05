@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'crypto'
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   generateStreamTusUploadSignature,
@@ -13,10 +13,6 @@ const rawToken = (hashable: string) =>
   createHash('sha256').update(hashable).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 
 describe('pinned token output of the Bunny standard scheme', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   it('pins the token for key, path and expires', () => {
     expect(generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000)).toBe(
       'SxFvxHGdfK9v7p53gmnSvd84VLGy2GlsIrPBoCPGqns',
@@ -36,13 +32,12 @@ describe('pinned token output of the Bunny standard scheme', () => {
   })
 
   it('pins the full query mode URL', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1699996400000))
-
-    const url = generateSignedUrl('https://cdn.example.com/file.jpg', 'test-security-key', {
-      allowedCountries: ['US', 'CA'],
-      expiresIn: 3600,
-    })
+    const url = generateSignedUrl(
+      'https://cdn.example.com/file.jpg',
+      'test-security-key',
+      { allowedCountries: ['US', 'CA'] },
+      { expiresAt: 1700000000 },
+    )
 
     expect(url).toBe(
       'https://cdn.example.com/file.jpg?token_countries=US%2CCA&token=CUyXC1WG2Rd2Dirr-Ftkm8iG79k5psJf7GVYm4hfayI&expires=1700000000',
@@ -50,16 +45,12 @@ describe('pinned token output of the Bunny standard scheme', () => {
   })
 
   it('pins the full path mode URL', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1699996400000))
-
     const url = generateSignedUrl(
       'https://stream.example.com/vid123/playlist.m3u8',
       'test-security-key',
+      {},
       {
-        expiresIn: 3600,
-      },
-      {
+        expiresAt: 1700000000,
         tokenPath: '/vid123/',
       },
     )
@@ -70,10 +61,12 @@ describe('pinned token output of the Bunny standard scheme', () => {
   })
 
   it('pins the plain URL without extra params', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1699996400000))
-
-    const url = generateSignedUrl('https://cdn.example.com/file.jpg', 'test-security-key', { expiresIn: 3600 })
+    const url = generateSignedUrl(
+      'https://cdn.example.com/file.jpg',
+      'test-security-key',
+      {},
+      { expiresAt: 1700000000 },
+    )
 
     expect(url).toBe(
       'https://cdn.example.com/file.jpg?token=-UDRI8YaL5AmYgvcAaAfm2dJqCOTm0bcqtXm3mCUjMA&expires=1700000000',
@@ -82,10 +75,6 @@ describe('pinned token output of the Bunny standard scheme', () => {
 })
 
 describe('IP-locked tokens', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   const securityKey = 'test-security-key'
   const signaturePath = '/path/to/file.jpg'
   const expires = '1700000000'
@@ -107,14 +96,11 @@ describe('IP-locked tokens', () => {
   })
 
   it('signs URLs with the IP in the hash but never in the URL itself', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1699996400000))
-
     const url = generateSignedUrl(
       'https://cdn.example.com/file.jpg',
       'test-security-key',
-      { expiresIn: 3600 },
-      { userIp: '192.168.1.1' },
+      {},
+      { expiresAt: 1700000000, userIp: '192.168.1.1' },
     )
 
     expect(url).toBe(
@@ -124,14 +110,11 @@ describe('IP-locked tokens', () => {
   })
 
   it('combines IP with country restrictions in the pinned order', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1699996400000))
-
     const url = generateSignedUrl(
       'https://cdn.example.com/file.jpg',
       'test-security-key',
-      { allowedCountries: ['US', 'CA'], expiresIn: 3600 },
-      { userIp: '192.168.1.1' },
+      { allowedCountries: ['US', 'CA'] },
+      { expiresAt: 1700000000, userIp: '192.168.1.1' },
     )
 
     expect(url).toBe(
@@ -140,14 +123,11 @@ describe('IP-locked tokens', () => {
   })
 
   it('combines IP with a path-based token', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1699996400000))
-
     const url = generateSignedUrl(
       'https://stream.example.com/vid123/playlist.m3u8',
       'test-security-key',
-      { expiresIn: 3600 },
-      { tokenPath: '/vid123/', userIp: '203.0.113.7' },
+      {},
+      { expiresAt: 1700000000, tokenPath: '/vid123/', userIp: '203.0.113.7' },
     )
 
     expect(url).toBe(
@@ -161,28 +141,13 @@ describe('absolute expiry (expiresAt option)', () => {
     const url = generateSignedUrl(
       'https://cdn.example.com/file.jpg',
       'test-security-key',
-      { expiresIn: 3600 },
+      {},
       { expiresAt: 1800000000 },
     )
 
     expect(url).toBe(
       'https://cdn.example.com/file.jpg?token=dnOPvXnJbXAT1DoKqqvYP2nr0GQai6nYSbLUKhiTfjw&expires=1800000000',
     )
-  })
-
-  it('ignores non-positive expiresAt and falls back to expiresIn', () => {
-    const before = Math.floor(Date.now() / 1000)
-    const url = generateSignedUrl(
-      'https://cdn.example.com/file.jpg',
-      'test-security-key',
-      { expiresIn: 3600 },
-      { expiresAt: 0 },
-    )
-    const after = Math.floor(Date.now() / 1000)
-
-    const expires = Number(new URL(url).searchParams.get('expires'))
-    expect(expires).toBeGreaterThanOrEqual(before + 3600)
-    expect(expires).toBeLessThanOrEqual(after + 3600 + 1)
   })
 })
 
@@ -206,9 +171,8 @@ describe('generateSignedToken', () => {
 
 describe('generateSignedUrl', () => {
   const securityKey = 'test-security-key'
-  const baseConfig = {
-    expiresIn: 3600,
-  }
+  const baseConfig = {}
+  const options = { expiresAt: 1700000000 }
 
   describe('storage URLs (query params)', () => {
     it('preserves existing query params', () => {
@@ -216,6 +180,7 @@ describe('generateSignedUrl', () => {
         'https://cdn.example.com/path/to/file.jpg?width=100&height=200',
         securityKey,
         baseConfig,
+        options,
       )
 
       expect(url).toContain('width=100')
@@ -227,11 +192,12 @@ describe('generateSignedUrl', () => {
 
   describe('country restrictions', () => {
     it('includes both country restrictions when provided', () => {
-      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {
-        ...baseConfig,
-        allowedCountries: ['US'],
-        blockedCountries: ['CN'],
-      })
+      const url = generateSignedUrl(
+        'https://cdn.example.com/file.jpg',
+        securityKey,
+        { allowedCountries: ['US'], blockedCountries: ['CN'] },
+        options,
+      )
 
       expect(url).toContain('token_countries=US')
       expect(url).toContain('token_countries_blocked=CN')
@@ -240,17 +206,17 @@ describe('generateSignedUrl', () => {
 
   describe('error handling', () => {
     it('throws on invalid URL format', () => {
-      expect(() => generateSignedUrl('not-a-valid-url', securityKey, baseConfig)).toThrow('Invalid URL format')
+      expect(() => generateSignedUrl('not-a-valid-url', securityKey, baseConfig, options)).toThrow('Invalid URL format')
     })
 
     it('throws without baseUrl', () => {
-      expect(() => generateSignedUrl('', securityKey, baseConfig)).toThrow(
+      expect(() => generateSignedUrl('', securityKey, baseConfig, options)).toThrow(
         'Base URL, security key, and configuration are required',
       )
     })
 
     it('throws without securityKey', () => {
-      expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', '', baseConfig)).toThrow(
+      expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', '', baseConfig, options)).toThrow(
         'Base URL, security key, and configuration are required',
       )
     })
@@ -258,32 +224,18 @@ describe('generateSignedUrl', () => {
 
   describe('URL construction', () => {
     it('handles URLs with port numbers', () => {
-      const url = generateSignedUrl('https://cdn.example.com:8443/file.jpg', securityKey, baseConfig)
+      const url = generateSignedUrl('https://cdn.example.com:8443/file.jpg', securityKey, baseConfig, options)
 
       expect(url).toContain('cdn.example.com:8443')
       expect(url).toContain('token=')
     })
 
     it('signs the decoded path and keeps the encoded one in the URL', () => {
-      vi.useFakeTimers({ now: 1699996400000 })
-      const url = generateSignedUrl('https://cdn.example.com/path/to/file%20name.jpg', securityKey, baseConfig)
-      vi.useRealTimers()
+      const url = generateSignedUrl('https://cdn.example.com/path/to/file%20name.jpg', securityKey, baseConfig, options)
 
       expect(url).toBe(
         `https://cdn.example.com/path/to/file%20name.jpg?token=${rawToken(`${securityKey}/path/to/file name.jpg1700000000`)}&expires=1700000000`,
       )
-    })
-
-    it('uses the default expiresIn (7200 s) when none is given', () => {
-      const url = generateSignedUrl('https://cdn.example.com/file.jpg', securityKey, {})
-
-      const expiresMatch = url.match(/expires=(\d+)/)
-      expect(expiresMatch).not.toBeNull()
-
-      const expires = parseInt(expiresMatch![1], 10)
-      const now = Math.floor(Date.now() / 1000)
-      expect(expires).toBeGreaterThan(now + 7000)
-      expect(expires).toBeLessThan(now + 7400)
     })
   })
 })

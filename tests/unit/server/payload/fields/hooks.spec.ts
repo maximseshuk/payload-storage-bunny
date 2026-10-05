@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   getAdminThumbnail,
@@ -73,7 +73,7 @@ describe('field hooks', () => {
       it('signs the URL when signedUrls and a tokenSecurityKey are present', () => {
         const fn = getAdminThumbnail(
           buildContext({
-            signedUrls: { expiresIn: 3600 } as NormalizedSignedUrlsConfig,
+            signedUrls: { expiresIn: () => 3600 } as NormalizedSignedUrlsConfig,
             storageConfig: { ...storageConfig, tokenSecurityKey: 'sec-key' },
           }),
         )!
@@ -85,7 +85,7 @@ describe('field hooks', () => {
 
       it('does not sign when signedUrls is set but no tokenSecurityKey exists', () => {
         const fn = getAdminThumbnail(
-          buildContext({ signedUrls: { expiresIn: 3600 } as NormalizedSignedUrlsConfig, storageConfig }),
+          buildContext({ signedUrls: { expiresIn: () => 3600 } as NormalizedSignedUrlsConfig, storageConfig }),
         )!
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('https://storage.b-cdn.net/up/pic.png')
       })
@@ -202,7 +202,7 @@ describe('field hooks', () => {
       const hook = getUrlAfterReadFieldHook({
         context: buildContext({
           signedUrls: {
-            expiresIn: 3600,
+            expiresIn: () => 3600,
             userIp: ({ req: cbReq }) => {
               const ip = cbReq.headers.get('x-forwarded-for') ?? undefined
               seen.push(ip)
@@ -221,10 +221,27 @@ describe('field hooks', () => {
       expect(url).not.toContain('203.0.113.7')
     })
 
+    it('keeps the generateFileURL result when userIp is configured', () => {
+      const userIp = vi.fn(() => '203.0.113.7')
+      const hook = getUrlAfterReadFieldHook({
+        context: buildContext({
+          hasGenerateFileURL: true,
+          signedUrls: { expiresIn: () => 3600, userIp } as NormalizedSignedUrlsConfig,
+          storageConfig: { ...storageConfig, tokenSecurityKey: 'sec-key' },
+          usePayloadAccessControl: false,
+        }),
+      })
+
+      expect(hook({ data: imageDoc, req: {}, value: 'https://custom.example/pic.png' } as never)).toBe(
+        'https://custom.example/pic.png',
+      )
+      expect(userIp).not.toHaveBeenCalled()
+    })
+
     it('does not re-sign when userIp is configured but access control is on', () => {
       const hook = getUrlAfterReadFieldHook({
         context: buildContext({
-          signedUrls: { expiresIn: 3600, userIp: () => '203.0.113.7' } as NormalizedSignedUrlsConfig,
+          signedUrls: { expiresIn: () => 3600, userIp: () => '203.0.113.7' } as NormalizedSignedUrlsConfig,
           storageConfig: { ...storageConfig, tokenSecurityKey: 'sec-key' },
           usePayloadAccessControl: true,
         }),

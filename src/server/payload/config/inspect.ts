@@ -40,14 +40,10 @@ export const collectStorageConfigs = (config: NormalizedBunnyStorageConfig): Nor
 
 export const hasAnyStorage = (config: NormalizedBunnyStorageConfig): boolean => collectStorageConfigs(config).length > 0
 
-export const hasAnyStreamTus = (config: NormalizedBunnyStorageConfig): boolean => {
-  for (const stream of collectStreamConfigs(config).values()) {
-    if (stream.tus) {
-      return true
-    }
-  }
-  return false
-}
+export const hasAnyStreamTus = (config: NormalizedBunnyStorageConfig): boolean =>
+  [config.stream, ...[...config.collections.values()].map((collection) => collection.stream)].some(
+    (stream) => stream?.tus,
+  )
 
 export const hasAnyStreamCleanup = (config: NormalizedBunnyStorageConfig): boolean => {
   for (const stream of collectStreamConfigs(config).values()) {

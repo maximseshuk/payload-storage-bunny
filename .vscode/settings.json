@@ -1,28 +1,35 @@
 {
-  "[javascript]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.next": true,
+    "**/.omc": true,
+    "**/.playwright-mcp": true,
+    "**/*.tsbuildinfo": true,
+    "**/*.db": true,
+    "**/.claude/**/*.local.json": true
   },
-  "[javascriptreact]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
-  },
-  "[jsonc]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
-  },
-  "[yaml]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
-  },
+  "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
   "editor.codeActionsOnSave": {
     "source.fixAll.oxc": "explicit"
-  }
+  },
+  "editor.tabSize": 2,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "[markdown]": {
+    "editor.wordWrap": "on"
+  },
+  "[mdx]": {
+    "editor.wordWrap": "on"
+  },
+  "oxc.lint.run": "onType",
+  "oxc.fixKind": "safe_fix",
+  "oxc.unusedDisableDirectives": "deny",
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "./node_modules/typescript"
 }

@@ -24,15 +24,14 @@ Signed URLs secure **downloads** (how files are served). For securing **uploads*
 
 ## Options
 
-| Option               | Type                                                           | Default     | Description                                                                    |
-| -------------------- | -------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------ |
-| `expiresIn`          | `number`                                                       | `7200`      | Link expiration time, in seconds.                                              |
-| `expiresAt`          | `(args) => Date \| number \| undefined`                        | –           | Absolute expiry instead of the sliding `expiresIn` window. See below.          |
-| `allowedCountries`   | `string[]`                                                     | –           | ISO 3166-1 alpha-2 codes. Only these countries can use the link.               |
-| `blockedCountries`   | `string[]`                                                     | –           | ISO 3166-1 alpha-2 codes. These countries are rejected.                        |
-| `shouldUseSignedUrl` | `(args: { collection, filename, req? }) => boolean`            | always sign | Return `false` to skip signing for specific files.                             |
-| `userIp`             | `(args: { collection, filename, req }) => string \| undefined` | –           | Lock links to the client's IPv4 address. See [IP locking](#ip-locking-userip). |
-| `staticHandler`      | `object`                                                       | –           | Controls how Payload serves files when its access control is on. See below.    |
+| Option               | Type                                                           | Default     | Description                                                                                        |
+| -------------------- | -------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
+| `expiresIn`          | `number \| (args) => Date \| number \| undefined`              | `7200`      | Seconds from now, or a function for a per-URL or absolute expiry. See [Expiry](#expiry-expiresin). |
+| `allowedCountries`   | `string[]`                                                     | –           | ISO 3166-1 alpha-2 codes. Only these countries can use the link.                                   |
+| `blockedCountries`   | `string[]`                                                     | –           | ISO 3166-1 alpha-2 codes. These countries are rejected.                                            |
+| `shouldUseSignedUrl` | `(args: { collection, filename, req? }) => boolean`            | always sign | Return `false` to skip signing for specific files.                                                 |
+| `userIp`             | `(args: { collection, filename, req }) => string \| undefined` | –           | Lock links to the client's IPv4 address. See [IP locking](#ip-locking-userip).                     |
+| `staticHandler`      | `{ redirect?: boolean \| { expiresIn?, status? } }`            | –           | Controls how Payload serves files when its access control is on. See below.                        |
 
 ## Getting your token security keys
 
@@ -70,19 +69,20 @@ A Bunny token covers the query string, so any parameter added after signing inva
 
 When a collection uses Payload's access control (the default), a file request goes through Payload first. `staticHandler` controls what happens next:
 
-| Option           | Type                       | Default                   | Description                                                                                      |
-| ---------------- | -------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------ |
-| `useRedirect`    | `boolean`                  | `false`                   | `true` sends a redirect to a signed Bunny URL. `false` proxies the file content through Payload. |
-| `redirectStatus` | `301 \| 302 \| 307 \| 308` | `302`                     | HTTP status code used for the redirect.                                                          |
-| `expiresIn`      | `number`                   | uses the main `expiresIn` | Shorter expiry just for redirect links.                                                          |
+| Option               | Type                                              | Default                   | Description                                                                                                                        |
+| -------------------- | ------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `redirect`           | `boolean \| object`                               | `false`                   | `true` or an object sends a redirect to a signed Bunny URL. `false` proxies the file through Payload.                              |
+| `redirect.status`    | `302 \| 307`                                      | `302`                     | HTTP status code for the redirect. Permanent codes are not allowed, because signed links expire.                                   |
+| `redirect.expiresIn` | `number \| (args) => Date \| number \| undefined` | uses the main `expiresIn` | Expiry for redirect links only. A function gets the inherited redirect expiry as `defaultValue`, else the main `expiresIn` result. |
 
 ```ts
 signedUrls: {
   expiresIn: 3600,
   staticHandler: {
-    useRedirect: true,
-    redirectStatus: 302,
-    expiresIn: 1800, // redirect links expire faster than direct signed URLs
+    redirect: {
+      status: 302,
+      expiresIn: 1800, // redirect links expire faster than direct signed URLs
+    },
   },
 }
 ```
@@ -112,6 +112,7 @@ signedUrls: {
 How it behaves:
 
 - The IP goes into the token hash only — it is never added to the URL.
+- When the collection sets `generateFileURL`, the plugin keeps that URL and does not re-sign it with the IP.
 - Return a falsy value when no IP can be determined; the link is then signed **without** an IP lock rather than failing the request.
 - The callback runs only for URLs the client itself will open — document `url` fields, admin thumbnails, and `staticHandler` redirects. URLs your server fetches on the client's behalf (proxied downloads) and URLs generated outside a request (cache purging) are never IP-locked, since Bunny would see your server's IP there, not the client's.
 
@@ -130,18 +131,23 @@ Clients behind carrier-grade NAT or switching networks (mobile) can legitimately
 
 </Info>
 
-## Absolute expiry (`expiresAt`)
+## Expiry (`expiresIn`)
 
-`expiresIn` is a sliding window from the moment each URL is signed. `expiresAt` sets a fixed cut-off instead — useful when links must all die at the same wall-clock moment, such as the end of a live event or a rental period:
+A number is a sliding window: the link expires that many seconds after it is signed. A function decides per URL. It gets `{ collection, filename, req?, defaultValue }` and returns:
+
+- a number: seconds from now,
+- a `Date`: a fixed time, for example the end of a live event or a rental period,
+- `undefined`: use `defaultValue`.
+
+`defaultValue` is the value the URL would get without your function: the global `expiresIn` result on a collection, or `7200` on the global config.
 
 ```ts
 signedUrls: {
-  expiresIn: 3600, // fallback
-  expiresAt: () => eventEndsAt, // Date or UNIX timestamp in seconds
+  expiresIn: ({ defaultValue, filename }) => (filename.startsWith('event/') ? eventEndsAt : defaultValue),
 }
 ```
 
-Return a `Date` or a UNIX timestamp in seconds. Return `undefined` to fall back to `expiresIn` for that URL. The callback receives the same `{ collection, filename, req? }` args as `shouldUseSignedUrl`.
+A number must be more than 0 and at most 10 years, because a UNIX timestamp passed as a number is almost always a mistake. The plugin checks a fixed number at startup and a returned number when it signs the URL. Return a `Date` for a fixed time.
 
 ## Example: sign only videos, restrict by country
 
@@ -151,7 +157,7 @@ signedUrls: {
   allowedCountries: ['US', 'CA', 'GB', 'AU'],
   shouldUseSignedUrl: ({ filename }) => /\.(mp4|webm|mov|avi)$/i.test(filename),
   staticHandler: {
-    useRedirect: true,
+    redirect: true,
   },
 }
 ```

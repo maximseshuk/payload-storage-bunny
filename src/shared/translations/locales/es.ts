@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const es: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Desactivar modo TUS',
     tusUploadEnableMode: 'Activar modo TUS',
     tusUploadErrorFileType: 'Tipo de archivo no permitido',
@@ -33,7 +32,6 @@ export const es: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'No tienes permiso para acceder a este recurso',
     errorDeleteFileFailed: 'No se pudo eliminar el archivo: {{filename}}',
     errorMissingRequiredFields: 'Falta información requerida',

@@ -76,8 +76,9 @@ jobs:
         id: changelog
         with:
           config: cliff.toml
-          args: ${{ steps.range.outputs.args }} --strip header --github-repo ${{ github.repository }}
+          args: ${{ steps.range.outputs.args }} --strip header
         env:
+          GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve npm dist-tag

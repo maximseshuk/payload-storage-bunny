@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const vi: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Tắt chế độ TUS',
     tusUploadEnableMode: 'Bật chế độ TUS',
     tusUploadErrorFileType: 'Loại tệp không được phép',
@@ -33,7 +32,6 @@ export const vi: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'p',
     tusUploadTimeSeconds: 'g',
 
-    // Error messages
     errorAccessDenied: 'Bạn không có quyền truy cập tài nguyên này',
     errorDeleteFileFailed: 'Không thể xóa tệp: {{filename}}',
     errorMissingRequiredFields: 'Thiếu một số thông tin cần thiết',

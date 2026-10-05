@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const ca: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Desactivar mode TUS',
     tusUploadEnableMode: 'Activar mode TUS',
     tusUploadErrorFileType: 'Tipus de fitxer no permès',
@@ -33,7 +32,6 @@ export const ca: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'No tens permís per accedir a aquest recurs',
     errorDeleteFileFailed: "No s'ha pogut eliminar el fitxer: {{filename}}",
     errorMissingRequiredFields: 'Falta alguna informació necessària',

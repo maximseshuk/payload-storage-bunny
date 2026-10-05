@@ -9,7 +9,7 @@ vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
   getStreamVideo: getStreamVideoMock,
 }))
 
-const { bunnyStorage } = await import('../../../../../src/index.js')
+const { bunnyStorage } = await import('@/index.js')
 const { buildConfigWithDefaults } = await import('../../../../helpers/shared/buildConfigWithDefaults.js')
 const { createMediaCollection } = await import('../../../../helpers/shared/createMediaCollection.js')
 

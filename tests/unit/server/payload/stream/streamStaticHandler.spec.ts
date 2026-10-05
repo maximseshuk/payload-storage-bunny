@@ -137,7 +137,7 @@ describe('streamStaticHandler', () => {
       collection,
       docId: 'doc1',
       req: makeReq(),
-      signedUrls: signed({ staticHandler: { redirectStatus: 302, useRedirect: true } }),
+      signedUrls: signed({ redirect: { status: 302 } }),
       streamConfig: streamConfig(),
       usePayloadAccessControl: true,
     })

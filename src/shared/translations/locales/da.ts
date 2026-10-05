@@ -1,8 +1,7 @@
-import type { PluginDefaultTranslationsObject } from '../types.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 
 export const da: PluginDefaultTranslationsObject = {
   '@seshuk/payload-storage-bunny': {
-    // TUS Upload
     tusUploadDisableMode: 'Deaktiver TUS tilstand',
     tusUploadEnableMode: 'Aktiver TUS tilstand',
     tusUploadErrorFileType: 'Filtype ikke tilladt',
@@ -33,7 +32,6 @@ export const da: PluginDefaultTranslationsObject = {
     tusUploadTimeMinutes: 'm',
     tusUploadTimeSeconds: 's',
 
-    // Error messages
     errorAccessDenied: 'Du har ikke tilladelse til at få adgang til denne ressource',
     errorDeleteFileFailed: 'Kunne ikke slette fil: {{filename}}',
     errorMissingRequiredFields: 'Nogle nødvendige oplysninger mangler',

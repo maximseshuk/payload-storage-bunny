@@ -16,10 +16,10 @@ import {
 import type { ClientCollectionConfig } from 'payload'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
+import { ToggleButton } from '@/client/TusUpload/ToggleButton/ToggleButton.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 
-import { FileManager } from './FileManager/FileManager.js'
-import { ToggleButton } from './ToggleButton/ToggleButton.js'
 import { clickFileFieldRemoveButton } from './TusUpload.utils.js'
 
 export const TusUpload: React.FC = () => {

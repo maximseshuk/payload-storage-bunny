@@ -69,9 +69,8 @@ describe('getHandleDelete', () => {
     it('deletes via the S3 backend when S3 config is present', async () => {
       deleteStorageFileS3Mock.mockResolvedValue(undefined)
 
-      const s3 = { region: 'de' }
       const handler = getHandleDelete(
-        buildContext({ storageConfig: { ...storageConfig, s3 } } as Partial<CollectionContext>),
+        buildContext({ storageConfig: { ...storageConfig, s3: true } } as Partial<CollectionContext>),
       )
 
       await handler({
@@ -85,14 +84,14 @@ describe('getHandleDelete', () => {
       expect(deleteStorageFileS3Mock).toHaveBeenCalledWith({
         apiKey: 'storage-key',
         path: 'uploads/photo.jpg',
-        s3,
+        region: 'de',
         zoneName: 'my-zone',
       })
       expect(deleteStorageFileMock).not.toHaveBeenCalled()
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
 
-    it('deletes via the HTTP backend and purges when purgeConfig, accountApiKey and a fileUrl are present', async () => {
+    it('deletes via the HTTP backend and purges the plain CDN URL when purgeConfig and accountApiKey are present', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockResolvedValue(undefined)
 
@@ -118,7 +117,7 @@ describe('getHandleDelete', () => {
       expect(purgeCacheMock).toHaveBeenCalledWith({
         apiKey: 'account-key',
         async: true,
-        url: 'https://storage.b-cdn.net/photo.jpg',
+        url: 'https://storage.b-cdn.net/photo.jpg*',
       })
       expect(req.payload.logger.debug).toHaveBeenCalledWith(
         expect.objectContaining({ msg: '[bunny:storage] delete: cache purged' }),
@@ -195,7 +194,33 @@ describe('getHandleDelete', () => {
 
       expect(deleteStorageFileMock).toHaveBeenCalledWith(expect.objectContaining({ path: 'media/photo.jpg' }))
       expect(purgeCacheMock).toHaveBeenCalledWith(
-        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg' }),
+        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg*' }),
+      )
+    })
+
+    it('purges the plain CDN URL, not the transformed or signed one', async () => {
+      deleteStorageFileMock.mockResolvedValue(undefined)
+      purgeCacheMock.mockResolvedValue(undefined)
+
+      const handler = getHandleDelete(
+        buildContext({
+          purgeConfig: { async: false },
+          signedUrls: { expiresIn: () => 3600 },
+          storageConfig,
+          urlTransform: { appendTimestamp: true, queryParams: { v: '2' } },
+        } as unknown as Partial<CollectionContext>),
+      )
+
+      await handler({
+        collection: { slug: 'media' },
+        doc: { ...storageDoc, prefix: 'docs' },
+        filename: 'photo.jpg',
+        req: createReq(),
+        storageFilePath: 'docs/photo.jpg',
+      } as never)
+
+      expect(purgeCacheMock).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://storage.b-cdn.net/docs/photo.jpg*' }),
       )
     })
 
