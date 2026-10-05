@@ -15,11 +15,11 @@ updates:
       - dependency-name: payload
         update-types: [version-update:semver-major]
       - dependency-name: payload
-        versions: ['>=4.0.0-internal <4.0.0-j']
+        versions: ['>=4.0.0-i <4.0.0-j']
       - dependency-name: '@payloadcms/*'
         update-types: [version-update:semver-major]
       - dependency-name: '@payloadcms/*'
-        versions: ['>=4.0.0-internal <4.0.0-j']
+        versions: ['>=4.0.0-i <4.0.0-j']
       - dependency-name: next
         update-types: [version-update:semver-major]
       - dependency-name: react
