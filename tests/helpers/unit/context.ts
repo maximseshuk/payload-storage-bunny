@@ -6,6 +6,8 @@ export const streamOptions = {
   libraryId: 12345,
   mimeTypes: ['video/*'],
   mp4Fallback: false,
+  preview: true,
+  status: true,
   thumbnailTime: 5000,
   tokenSecurityKey: 'stream-token',
   uploadTimeout: 300000,

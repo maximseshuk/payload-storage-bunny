@@ -1,8 +1,17 @@
-import type { CollectionAfterReadHook, Field, FieldAccess, GroupField, TypeWithID } from 'payload'
+import type {
+  CollectionAfterReadHook,
+  Field,
+  FieldAccess,
+  GroupField,
+  SelectFn,
+  SelectIncludeType,
+  TypeWithID,
+} from 'payload'
+import { getSelectMode } from 'payload/shared'
 
 import { bunnyDataFieldOpenApi } from '@/server/payload/openapi.js'
 import { verifyStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
-import type { BunnyDataInternal, CollectionContext } from '@/shared/types/index.js'
+import type { BunnyDataInternal, CollectionContext, StreamVideoState } from '@/shared/types/index.js'
 
 type StoredResolutions = {
   available?: string[]
@@ -11,6 +20,7 @@ type StoredResolutions = {
 
 type StoredStream = {
   resolutions?: StoredResolutions
+  status?: null | StreamVideoState
   videoId?: null | string
 }
 
@@ -18,7 +28,7 @@ type StoredBunnyData = {
   stream?: StoredStream
 }
 
-export const bunnyGroupField = (context: CollectionContext): GroupField => {
+export const bunnyGroupField = (context: CollectionContext, status: boolean): GroupField => {
   const canWriteVideoId: FieldAccess = ({ req, siblingData }) => {
     const videoId = siblingData?.videoId
     if (!videoId) {
@@ -65,6 +75,16 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
     },
   ]
 
+  if (status) {
+    streamFields.push({
+      name: 'status',
+      type: 'text',
+      access: { create: () => false, update: () => false },
+      admin: { disabled: { field: true }, readOnly: true },
+      index: true,
+    })
+  }
+
   if (context.streamOptions?.mp4Fallback) {
     streamFields.push({ name: 'resolutions', type: 'json', access: { create: () => false, update: () => false } })
   }
@@ -109,6 +129,9 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
                     },
                     type: 'object',
                   },
+                  ...(status && {
+                    status: { enum: ['failed', 'processing', 'ready', null], type: ['string', 'null'] },
+                  }),
                   videoId: { type: 'string' },
                 },
                 required: ['videoId', 'libraryId'],
@@ -152,14 +175,47 @@ export const getAfterReadHook = (): CollectionAfterReadHook => {
   }
 }
 
+export const getStreamSelect = (select?: SelectFn): SelectFn => {
+  return (args) => {
+    const resolved = select?.(args)
+    const current = resolved ?? args.select
+    if (!current || getSelectMode(current) === 'exclude' || !(current as SelectIncludeType).bunnyStream) {
+      return resolved
+    }
+    const bunnyData = (current as SelectIncludeType).bunnyData
+    if (bunnyData === true) {
+      return resolved
+    }
+    const stream = bunnyData?.stream
+    if (stream === true) {
+      return resolved
+    }
+    return {
+      ...current,
+      bunnyData: { ...bunnyData, stream: { ...stream, status: true, videoId: true } },
+    }
+  }
+}
+
 export const readStoredVideo = (doc: unknown): StoredStream | undefined => {
   return (doc as { bunnyData?: StoredBunnyData } | undefined)?.bunnyData?.stream
 }
 
-export const setStoredVideoId = (data: Record<string, unknown>, videoId: null | string): void => {
+export const setStoredVideoId = (
+  data: Record<string, unknown>,
+  videoId: null | string,
+  status: null | StreamVideoState | undefined,
+  resolutions?: null | StoredResolutions,
+): void => {
   const bunnyData = (data.bunnyData as Record<string, unknown> | undefined) ?? {}
   const stream = (bunnyData.stream as Record<string, unknown> | undefined) ?? {}
   stream.videoId = videoId
+  if (status !== undefined) {
+    stream.status = videoId ? status : null
+  }
+  if (resolutions !== undefined) {
+    stream.resolutions = resolutions
+  }
   bunnyData.stream = stream
   data.bunnyData = bunnyData
 }

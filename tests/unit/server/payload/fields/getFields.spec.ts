@@ -86,3 +86,56 @@ describe('getFields prefix injection', () => {
     expect(prefixFields).toHaveLength(1)
   })
 })
+
+describe('getFields Bunny Stream status field', () => {
+  const streamOptions = { libraryId: 703889, status: true }
+
+  it('adds a read-only virtual select field for the stored status when the collection uses Bunny Stream', () => {
+    const fields = getFields(collection, context({ streamOptions } as never), [])
+    const field = getField(fields, 'bunnyStream') as unknown as {
+      access: { create: () => boolean; update: () => boolean }
+      options: { label: Record<string, string>; value: string }[]
+    }
+
+    expect(field).toMatchObject({
+      type: 'select',
+      admin: {
+        components: {
+          Cell: '@seshuk/payload-storage-bunny/client#StreamStatusCell',
+          Field: '@seshuk/payload-storage-bunny/client#StreamStatusField',
+        },
+        disabled: { bulkEdit: true, groupBy: true },
+        position: 'sidebar',
+        readOnly: true,
+      },
+      label: expect.objectContaining({ de: 'Stream-Status', en: 'Stream Status' }),
+      virtual: 'bunnyData.stream.status',
+    })
+    expect(field.options.map((option) => [option.value, option.label.en])).toEqual([
+      ['processing', 'Processing'],
+      ['ready', 'Ready'],
+      ['failed', 'Failed'],
+    ])
+    expect(field.access.create()).toBe(false)
+    expect(field.access.update()).toBe(false)
+  })
+
+  it('does not add the field when the collection does not use Bunny Stream', () => {
+    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
+
+    expect(hasField(fields, 'bunnyStream')).toBe(false)
+  })
+
+  it('does not add the field when the collection has the status turned off', () => {
+    const fields = getFields(collection, context({ streamOptions: { libraryId: 703889, status: false } } as never), [])
+
+    expect(hasField(fields, 'bunnyStream')).toBe(false)
+  })
+
+  it('does not replace an existing bunnyStream field', () => {
+    const existing: Field[] = [{ name: 'bunnyStream', type: 'text' }]
+    const fields = getFields(collection, context({ streamOptions } as never), existing)
+
+    expect(fields.filter((f) => 'name' in f && f.name === 'bunnyStream')).toEqual(existing)
+  })
+})

@@ -6,6 +6,7 @@ import {
   collectWebhookSecrets,
   hasAnyStorage,
   hasAnyStreamCleanup,
+  hasAnyStreamStatusSync,
   hasAnyStreamTus,
 } from '@/server/payload/options/inspect.js'
 import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
@@ -125,6 +126,30 @@ describe('options inspect helpers', () => {
       expect(hasAnyStreamTus(normalized)).toBe(false)
       expect(hasAnyStreamCleanup(normalized)).toBe(false)
       expect(collectWebhookSecrets(normalized).size).toBe(0)
+    })
+  })
+
+  describe('hasAnyStreamStatusSync', () => {
+    it('is true only when a collection has stream.status.sync', () => {
+      const check = (options: Omit<BunnyStorageOptions, 'storage'>) =>
+        hasAnyStreamStatusSync(createNormalizedOptions({ storage: createBaseStorage(), ...options }))
+
+      expect(check({ collections: { media: true }, stream: { ...createBaseStream(), status: true } })).toBe(false)
+      expect(check({ collections: { media: true }, stream: { ...createBaseStream(), status: { sync: false } } })).toBe(
+        false,
+      )
+      expect(check({ collections: { media: true }, stream: { ...createBaseStream(), status: { sync: true } } })).toBe(
+        true,
+      )
+      expect(
+        check({ collections: { media: { stream: { status: { sync: true } } } }, stream: createBaseStream() }),
+      ).toBe(true)
+      expect(
+        check({
+          collections: { media: { stream: { status: { sync: false } } } },
+          stream: { ...createBaseStream(), status: { sync: true } },
+        }),
+      ).toBe(false)
     })
   })
 })

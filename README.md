@@ -23,7 +23,8 @@
 ## Features
 
 - **Bunny Storage** — upload files, images, and documents to Bunny's global CDN.
-- **Bunny Stream** — video with HLS/MP4 streaming, adaptive bitrates, thumbnails, and TUS resumable uploads for large files.
+- **Bunny Stream** — video with HLS/MP4 streaming, adaptive bitrates, thumbnails, a built-in player, and TUS resumable uploads for large files.
+- **Stream status** — see in the admin whether each video is still encoding, ready, or failed.
 - **Client-direct uploads** — file bytes go straight from the browser to Bunny (presigned S3 or a Bunny Edge Script), bypassing serverless body-size limits.
 - **Signed URLs** — time-limited links with country restrictions and per-client IPv4 locking, for both Storage and Stream.
 - **CDN cache purging** — auto-invalidate on upload and delete so visitors always see the latest file.

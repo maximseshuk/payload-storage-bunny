@@ -1,6 +1,6 @@
 # Bunny.net Storage for Payload
 
-Payload 4 storage adapter for Bunny.net. Wrap `@payloadcms/plugin-cloud-storage`. Features: Bunny Storage (HTTP API or S3), Bunny Stream (HLS/MP4, thumbnails, TUS uploads), client-direct uploads (presigned S3 or Edge Script), signed URLs (expiry, country, IPv4 lock), CDN purge on upload/delete, per-collection overrides (own zone/library too), CLI (`init` wizard, `bunny:deploy-edge-script`), subpath exports `./client`, `./media-preview`, `./rsc`.
+Payload 4 storage adapter for Bunny.net. Wrap `@payloadcms/plugin-cloud-storage`. Features: Bunny Storage (HTTP API or S3), Bunny Stream (HLS/MP4, thumbnails, TUS uploads), client-direct uploads (presigned S3 or Edge Script), signed URLs (expiry, country, IPv4 lock), CDN purge on upload/delete, per-collection overrides (own zone/library too), CLI (`init` wizard, `bunny:deploy-edge-script`, `bunny:task`), subpath exports `./client`, `./media-preview`, `./rsc`.
 
 ## Environment
 
@@ -41,14 +41,14 @@ Entrypoints: `index.ts` (server), `client/index.ts` (admin UI), `rsc/index.ts` (
 src/
 ├── index.ts     # plugin entry
 ├── shared/      # isomorphic leaf: types/ (options.ts = public JSDoc API), translations/, constants, mimeTypes, http, urlTransform, zoneSecret
-├── client/      # 'use client' entry; TusUpload/*, ClientUploadHandler
+├── client/      # 'use client' entry; TusUpload/*, ClientUploadHandler, StreamFilePreview/, StreamPreview/, StreamStatus/
 ├── rsc/         # admin server components: TusUploadServer (edit.Upload of TUS collections)
 ├── edge/        # uploader.edge.js (Bunny Edge Script)
-├── cli/         # bin (cac); commands/ (init/, deployEdgeScript.ts); lib/ (Logger, bunnyFetch, envFile: reuse)
+├── cli/         # bin (cac); commands/ (init/, deployEdgeScript.ts, task.ts); lib/ (Logger, bunnyFetch, envFile: reuse)
 └── server/
     ├── http/      # shared ky client, all outbound requests
     ├── bunny/     # Bunny API layer only: client, storage, s3, stream, cdn
-    ├── payload/   # options/ (normalizer, context, access, defaults, validator), fields/, storage/, stream/, openapi.ts, tokenAuth.ts, mediaPreview.ts
+    ├── payload/   # options/ (normalizer, context, access, defaults, validator), fields/, storage/, stream/, tasks/, openapi.ts, tokenAuth.ts, mediaPreview.ts, filePreview.ts
     ├── telemetry/ # opt-out usage telemetry, fired from index.ts onInit; imports only @/shared + node builtins
     ├── urls.ts
     └── files.ts

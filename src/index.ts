@@ -11,14 +11,16 @@ import type {
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { Config } from 'payload'
 
-import { getAfterReadHook } from '@/server/payload/fields/bunnyGroupField.js'
+import { getAfterReadHook, getStreamSelect } from '@/server/payload/fields/bunnyGroupField.js'
 import { getFields } from '@/server/payload/fields/getFields.js'
+import { getStreamFilePreviewAdmin, warnIfStreamPreviewTurnedOff } from '@/server/payload/filePreview.js'
 import {
   assertNoRemovedKeys,
   createCollectionContext,
   createNormalizedOptions,
   hasAnyStorage,
   hasAnyStreamCleanup,
+  hasAnyStreamStatusSync,
   validateNormalizedOptions,
 } from '@/server/payload/options/index.js'
 import {
@@ -27,11 +29,12 @@ import {
 } from '@/server/payload/storage/clientUploads/persistPrefixHook.js'
 import { getGenerateUploadInstructions } from '@/server/payload/storage/clientUploads/uploadInstructions.js'
 import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from '@/server/payload/storage/index.js'
-import { getStreamCleanupTask, warnIfCleanupQueueNotRun } from '@/server/payload/stream/cleanupTask.js'
 import { hasStreamClientUploads } from '@/server/payload/stream/clientUploads.js'
 import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
-import { getAfterChangeHook, getBeforeValidateHook } from '@/server/payload/stream/hooks.js'
+import { getAfterChangeHook, getBeforeValidateHook, getStreamBeforeChangeHook } from '@/server/payload/stream/hooks.js'
 import { getStreamUploadSessionsCollection } from '@/server/payload/stream/sessionsCollection.js'
+import { getTasksEndpoints } from '@/server/payload/tasks/endpoint.js'
+import { getStreamCleanupTask, getStreamStatusSyncTask, warnIfTaskQueuesNotRun } from '@/server/payload/tasks/jobs.js'
 import { reportTelemetry } from '@/server/telemetry/index.js'
 import { PLUGIN_KEY } from '@/shared/constants.js'
 import { translations } from '@/shared/translations/index.js'
@@ -50,6 +53,10 @@ export type {
   BunnyCollectionStorage,
   BunnyCollectionStream,
 } from '@/server/payload/options/access.js'
+export { runStreamCleanup } from '@/server/payload/tasks/runStreamCleanup.js'
+export type { StreamCleanupResult } from '@/server/payload/tasks/runStreamCleanup.js'
+export { syncStreamStatus } from '@/server/payload/tasks/syncStreamStatus.js'
+export type { StreamStatusSyncResult } from '@/server/payload/tasks/syncStreamStatus.js'
 export type { NormalizedBunnyStorageOptions, NormalizedCollectionOptions } from '@/shared/types/optionsNormalized.js'
 export type { BunnyStorageCollectionOptions, BunnyStorageOptions } from '@/shared/types/index.js'
 
@@ -93,10 +100,19 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
 
     const collectionsWithAdapter = getCloudStorageCollections(pluginOptions.collections, bunnyStorageInternal(options))
 
-    const streamEndpoints = getStreamEndpoints(options)
-    const cleanupTask = getStreamCleanupTask(options)
-
     const dirname = path.dirname(fileURLToPath(import.meta.url))
+    const streamEndpoints = getStreamEndpoints(options)
+    const tasks = [getStreamCleanupTask(options), getStreamStatusSyncTask(options)].filter((task) => task !== undefined)
+    const cliCommands = {
+      ...(hasAnyStorage(options)
+        ? {
+            'bunny:deploy-edge-script': `${path.resolve(dirname, 'cli/commands/deployEdgeScript.js')}#deployEdgeScriptCommand`,
+          }
+        : {}),
+      ...(hasAnyStreamCleanup(options) || hasAnyStreamStatusSync(options)
+        ? { 'bunny:task': `${path.resolve(dirname, 'cli/commands/task.js')}#taskCommand` }
+        : {}),
+    }
 
     const finalConfig: Config = {
       ...incomingConfig,
@@ -108,12 +124,12 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
         },
       },
       cli:
-        incomingConfig.cli === false || !hasAnyStorage(options)
+        incomingConfig.cli === false || Object.keys(cliCommands).length === 0
           ? incomingConfig.cli
           : {
               ...incomingConfig.cli,
               commands: {
-                'bunny:deploy-edge-script': `${path.resolve(dirname, 'cli/commands/deployEdgeScript.js')}#deployEdgeScriptCommand`,
+                ...cliCommands,
                 ...incomingConfig.cli?.commands,
               },
             },
@@ -171,6 +187,9 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
                         ...(collection.admin?.custom?.['@seshuk/payload-storage-bunny'] || {}),
                         stream: {
                           libraryId: collectionContext.streamOptions.libraryId,
+                          ...(collectionContext.streamOptions.status && collectionContext.streamOptions.status.link
+                            ? { link: true }
+                            : {}),
                           mimeTypes: collectionContext.streamOptions.mimeTypes,
                           ...(collectionContext.isTusUploadSupported
                             ? {
@@ -186,6 +205,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
                 : {}),
             },
             fields,
+            ...(collectionContext.streamOptions?.status ? { select: getStreamSelect(collection.select) } : {}),
             hooks: {
               ...(collection.hooks || {}),
               afterChange: [...(collection.hooks?.afterChange || []), getAfterChangeHook(collectionContext)],
@@ -196,6 +216,9 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
                 ...(usesClientUploadReceipt ? [getBeforeChangeHook(collectionContext)] : []),
+                ...(collectionContext.streamOptions?.status || collectionContext.streamOptions?.mp4Fallback
+                  ? [getStreamBeforeChangeHook(collectionContext)]
+                  : []),
               ],
               beforeOperation: [
                 ...(collection.hooks?.beforeOperation || []),
@@ -217,6 +240,9 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
             upload: {
               ...(typeof collection.upload === 'object' ? collection.upload : {}),
               adminThumbnail: undefined,
+              ...(collectionContext.streamOptions?.preview
+                ? { admin: getStreamFilePreviewAdmin(collection.upload, collectionContext.streamOptions) }
+                : {}),
               ...(collectionContext.thumbnail?.appendTimestamp ||
               (collectionContext.signedUrls && !collectionContext.usePayloadAccessControl)
                 ? {
@@ -234,7 +260,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
         }),
         ...(hasAnyStreamCleanup(options) ? [getStreamUploadSessionsCollection()] : []),
       ],
-      endpoints: [...(incomingConfig.endpoints || []), ...streamEndpoints],
+      endpoints: [...(incomingConfig.endpoints || []), ...streamEndpoints, ...getTasksEndpoints(options)],
       i18n: {
         ...incomingConfig.i18n,
         translations: {
@@ -262,24 +288,35 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
       },
       jobs: {
         ...(incomingConfig.jobs || {}),
-        ...(cleanupTask
+        ...(tasks.length > 0
           ? {
-              tasks: [...(incomingConfig.jobs?.tasks || []), cleanupTask],
+              tasks: [...(incomingConfig.jobs?.tasks || []), ...tasks],
             }
           : {}),
       },
       onInit: async (payload) => {
         await incomingConfig.onInit?.(payload)
-        if (cleanupTask) {
-          warnIfCleanupQueueNotRun({ payload, task: cleanupTask })
-        }
+        warnIfTaskQueuesNotRun({ payload, tasks })
+        warnIfStreamPreviewTurnedOff(payload)
         void reportTelemetry({ options, payload }).catch(() => {})
       },
     }
 
-    return cloudStoragePlugin({
+    const config = cloudStoragePlugin({
       collections: collectionsWithAdapter,
     })(finalConfig)
+
+    return {
+      ...config,
+      collections: config.collections?.map((collection) => {
+        const statusField = collection.fields.find(
+          (field) => 'virtual' in field && field.virtual === 'bunnyData.stream.status' && field.name === 'bunnyStream',
+        )
+        return statusField
+          ? { ...collection, fields: [...collection.fields.filter((field) => field !== statusField), statusField] }
+          : collection
+      }),
+    }
   },
 })
 

@@ -12,7 +12,7 @@ const streamContext = { streamOptions: { libraryId: 4242, mp4Fallback: true } } 
 
 const collection: CollectionConfig = {
   slug: SLUG,
-  fields: [bunnyGroupField(streamContext), { name: 'title', type: 'text' }],
+  fields: [bunnyGroupField(streamContext, true), { name: 'title', type: 'text' }],
   hooks: { afterRead: [getAfterReadHook()] },
 }
 

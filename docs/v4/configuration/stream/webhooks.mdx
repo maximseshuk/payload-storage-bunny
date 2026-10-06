@@ -1,6 +1,6 @@
 ---
 title: 'Webhooks'
-description: "Verify Bunny Stream encoding-status webhooks with your library's Read-Only API key and update MP4 fallback resolutions."
+description: "Verify Bunny Stream encoding-status webhooks with your library's Read-Only API key, store the encoding state and update MP4 fallback resolutions."
 ---
 
 Bunny Stream can notify your app when a video's encoding status changes. Bunny **signs** each webhook with your library's **Read-Only API key**, and the plugin verifies that signature — so set `webhook.secret` to that key:
@@ -28,8 +28,48 @@ Each request carries an `X-BunnyStream-Signature` header — a lowercase-hex HMA
 
 </Info>
 
+## What the webhook updates
+
+The plugin looks for the document by `bunnyData.stream.videoId` in the collections that use the webhook's library and updates the first match. Then it maps the Bunny `Status` code to the stored encoding state in `bunnyData.stream.status`:
+
+| Bunny `Status`                                                                                                             | Stored state |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `0` Queued, `1` Processing, `2` Encoding, `4` Resolution finished, `6` PresignedUploadStarted, `7` PresignedUploadFinished | `processing` |
+| `3` Finished                                                                                                               | `ready`      |
+| `5` Failed, `8` PresignedUploadFailed                                                                                      | `failed`     |
+| `9` CaptionsGenerated, `10` TitleOrDescriptionGenerated                                                                    | no change    |
+
+Code `4` (Resolution finished) keeps the state `processing`. Bunny sends it when the first resolution is encoded, but the HLS playlist is not served yet. The Bunny CDN caches the missing playlist for 30 seconds, so a player that loads it this early stays empty.
+
+For `3` Finished with `mp4Fallback` on, the webhook also fetches the MP4 `resolutions`. If Bunny has none yet, or the fetch fails, and the document has no stored `resolutions`, the webhook keeps the state `processing` and answers `500`, so Bunny sends it again. A status check or status sync run can also store `ready`. If Bunny answers the fetch with `429`, the webhook also answers `500`.
+
+The plugin writes only when the state or the `resolutions` change. A `processing` status never replaces a stored `ready` or `failed` state, so a late webhook cannot undo a finished video. The write goes straight to the database: it does not run your collection hooks and does not create a new version. See the [Bunny webhook docs](https://bunny.net/docs/stream/webhooks) for the status codes.
+
+The [media preview](/v4/guides/media-preview#processing-state) reads this state. It also asks the Bunny API while the stored state is `processing`, so the preview still works when a webhook is lost or not set up. To update the list and the filters without opening the preview, turn on [status sync](/v4/configuration/background-tasks#status-sync).
+
+<Note>
+
+If the `3` Finished webhook does not reach your server, the document stays `processing` until someone opens it in the admin. When webhooks can be lost, also turn on [`stream.status.sync`](/v4/configuration/background-tasks#status-sync).
+
+In a library with JIT encoding, the status check and status sync store `processing` until the Bunny API returns video status `8` (JIT playlists created). This is the status code of the Bunny API, not the webhook code `8`.
+
+</Note>
+
+With `stream.status: false`, the webhook stores no state. It only updates `resolutions` when `mp4Fallback` is on, with `payload.update` as in earlier versions, so your collection hooks run and `updatedAt` changes. When Bunny has no MP4 resolutions yet, fetching them fails or reading the document fails, the webhook answers `500`, so Bunny sends it again.
+
+## When the webhook arrives before the document
+
+A short video can finish encoding before your app saves the document. Bunny then sends the webhook while the document does not exist yet, or while it is not committed to the database. The webhook finds no document, so it cannot store the state. While `stream.status` is on, four things cover this case:
+
+1. **Check at save time.** When you save a document with a new video, the plugin asks Bunny for the current state and stores it. This happens for TUS and client uploads, for a `videoId` that you set yourself while TUS uploads are on, and for server uploads. When `mp4Fallback` is on, it also sets the MP4 `resolutions`: if Bunny has already finished encoding the video, it stores them. If the video is still encoding, or the plugin cannot fetch the resolutions, it clears the `resolutions` of the old video. A finished video without MP4 resolutions is stored as `processing`, so a later check stores `ready` together with the resolutions.
+2. **Webhook retry.** For `3` Finished and `5` Failed, the webhook looks for the document up to 3 more times, 1 second apart. It looks only in the collections that use the library and have `stream.status` on. It stops at the first match, so the request takes at most about 3 seconds longer. It does not retry other status codes. If it still finds no document, it answers `200`, so Bunny does not send the webhook again. If reading or writing the document fails, it answers `500`, so Bunny can send the webhook again. The write changes the document only while it still holds the same video and, when only the state changes, the state it read. So a repeated webhook is safe.
+3. **Preview status check.** While the stored state is `processing`, the [media preview](/v4/guides/media-preview#processing-state) asks the Bunny API and stores the new state.
+4. **Status sync.** If you turn on [status sync](/v4/configuration/background-tasks#status-sync), it stores the state of `processing` videos in the background, without opening the preview.
+
+When the status check or status sync stores `ready`, Bunny has finished encoding the video, `mp4Fallback` is on and the document has no `resolutions` yet, they fetch the MP4 `resolutions` and store them in the same write. If that fetch fails or Bunny returns no MP4 resolutions yet, they do not store `ready`: the document stays `processing`, so the next check or run tries again. A `429` answer during status sync also stops the run.
+
 <Tip>
 
-When a video finishes encoding and `mp4Fallback` is enabled, the webhook looks up the matching document by `bunnyData.stream.videoId` and updates `bunnyData.stream.resolutions` with the available MP4 renditions. Until this webhook fires, `resolutions` stays empty even if `mp4Fallback` is on — encoding happens asynchronously on Bunny's side.
+When a video finishes encoding and `mp4Fallback` is enabled, the webhook looks up the matching document by `bunnyData.stream.videoId` and updates `bunnyData.stream.resolutions` with the available MP4 renditions. Until then, `resolutions` stays empty even if `mp4Fallback` is on, because encoding happens asynchronously on Bunny's side. With `stream.status` on, the webhook does not store `ready` before Bunny has MP4 resolutions. With `stream.status` on, the save-time check, the status check and status sync can also fill `resolutions`, but only when Bunny has already finished encoding the video at the moment they store the state. Otherwise the webhook or the first MP4 fallback request fills them.
 
 </Tip>

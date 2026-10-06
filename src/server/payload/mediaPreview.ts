@@ -1,5 +1,7 @@
 import type { MediaPreviewAdapter, MediaPreviewAdapterResolveArgs } from '@seshuk/payload-plugin-media-preview'
 
+import { getBunnyOptions } from '@/server/payload/options/access.js'
+import { getBunnyEmbedUrl, STREAM_PLAYER_ALLOW } from '@/shared/streamEmbed.js'
 import type { BunnyData } from '@/shared/types/index.js'
 
 const getBunnyStreamData = (doc: Record<string, unknown>): BunnyData['stream'] | null => {
@@ -10,10 +12,7 @@ const getBunnyStreamData = (doc: Record<string, unknown>): BunnyData['stream'] |
   return null
 }
 
-const getBunnyEmbedUrl = (libraryId: number, videoId: string): string =>
-  `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=false&preload=true&muted=false`
-
-const resolve = ({ doc, mimeType }: MediaPreviewAdapterResolveArgs) => {
+const resolve = ({ collectionSlug, doc, mimeType, payload }: MediaPreviewAdapterResolveArgs) => {
   if (!mimeType?.startsWith('video/') && !mimeType?.startsWith('audio/')) {
     return null
   }
@@ -23,18 +22,32 @@ const resolve = ({ doc, mimeType }: MediaPreviewAdapterResolveArgs) => {
     return null
   }
 
+  const player = {
+    allow: STREAM_PLAYER_ALLOW,
+    allowFullScreen: true,
+    src: getBunnyEmbedUrl(stream.libraryId, stream.videoId),
+    title: doc.filename,
+  }
+
+  if (getBunnyOptions(payload)?.collections.get(collectionSlug)?.stream?.status === false) {
+    return { mode: 'inline' as const, props: player }
+  }
+
   return {
     mode: 'inline' as const,
     props: {
-      allow: 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;',
-      allowFullScreen: true,
-      src: getBunnyEmbedUrl(stream.libraryId, stream.videoId),
+      ...player,
+      id: doc.id,
+      collectionSlug,
+      status: stream.status,
+      videoId: stream.videoId,
     },
   }
 }
 
 export const bunnyStreamAdapter: MediaPreviewAdapter = {
   name: 'bunny-stream',
-  Component: '@seshuk/payload-plugin-media-preview/client#IframeViewer',
+  Component: '@seshuk/payload-storage-bunny/client#StreamPreview',
+  mimeTypes: ['video/*', 'audio/*'],
   resolve,
 }

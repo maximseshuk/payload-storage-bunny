@@ -6,7 +6,11 @@ import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDef
 import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
 
 export default buildConfigWithDefaults({
-  collections: [createMediaCollection({ slug: 'webhook-test' })],
+  collections: [
+    createMediaCollection({ slug: 'webhook-test' }),
+    createMediaCollection({ slug: 'webhook-drafts', versions: { drafts: true } }),
+    createMediaCollection({ slug: 'webhook-plain' }),
+  ],
   storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
@@ -21,6 +25,17 @@ export default buildConfigWithDefaults({
               autoMode: true,
             },
           },
+        },
+        'webhook-drafts': {
+          disablePayloadAccessControl: true,
+          prefix: 'webhook-drafts',
+          signedUrls: false,
+        },
+        'webhook-plain': {
+          disablePayloadAccessControl: true,
+          prefix: 'webhook-plain',
+          signedUrls: false,
+          stream: { status: false },
         },
       },
       enabled: true,

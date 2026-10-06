@@ -615,6 +615,142 @@ describe('options normalizer', () => {
       expect(mediaStream?.thumbnailTime).toBe(3000)
     })
 
+    it('stores the status by default and turns it off globally or per collection', () => {
+      const normalized = createNormalizedOptions({
+        accountApiKey: 'test-api-key',
+        collections: { clips: { stream: { status: false } }, media: true },
+        storage: createBaseStorage(),
+        stream: globalStream,
+      })
+      expect(normalized.stream?.status).toEqual({ link: true })
+      expect(normalized.collections.get('media')?.stream?.status).toEqual({ link: true })
+      expect(normalized.collections.get('clips')?.stream?.status).toBe(false)
+
+      const off = createNormalizedOptions({
+        accountApiKey: 'test-api-key',
+        collections: { clips: { stream: { status: true } }, media: true },
+        storage: createBaseStorage(),
+        stream: { ...globalStream, status: false },
+      })
+      expect(off.collections.get('media')?.stream?.status).toBe(false)
+      expect(off.collections.get('clips')?.stream?.status).toEqual({ link: true })
+    })
+
+    it('shows the edit view preview by default and lets a collection inherit or override it', () => {
+      const normalized = createNormalizedOptions({
+        collections: { clips: { stream: { preview: false } }, media: true },
+        stream: globalStream,
+      })
+      expect(normalized.stream?.preview).toBe(true)
+      expect(normalized.collections.get('media')?.stream?.preview).toBe(true)
+      expect(normalized.collections.get('clips')?.stream?.preview).toBe(false)
+
+      const off = createNormalizedOptions({
+        collections: { clips: { stream: { preview: true } }, media: { stream: { mp4Fallback: false } } },
+        stream: { ...globalStream, preview: false },
+      })
+      expect(off.collections.get('media')?.stream?.preview).toBe(false)
+      expect(off.collections.get('clips')?.stream?.preview).toBe(true)
+    })
+
+    it('leaves the status sync off by default and fills its defaults', () => {
+      const off = createNormalizedOptions({ collections: { media: true }, stream: { ...globalStream, status: {} } })
+      expect(off.stream?.status).toEqual({ link: true })
+
+      const defaults = createNormalizedOptions({
+        collections: { media: true },
+        stream: { ...globalStream, status: { sync: true } },
+      })
+      expect(defaults.stream?.status).toEqual({
+        link: true,
+        sync: { limit: 50, maxAge: 604800, schedule: { cron: '*/5 * * * *', queue: 'storage-bunny' } },
+      })
+
+      const on = createNormalizedOptions({
+        collections: { media: true },
+        stream: { ...globalStream, status: { sync: { limit: 10 } } },
+      })
+      expect(on.collections.get('media')?.stream?.status).toEqual({
+        link: true,
+        sync: { limit: 10, maxAge: 604800, schedule: { cron: '*/5 * * * *', queue: 'storage-bunny' } },
+      })
+    })
+
+    it('turns the status sync on, off or changes it per collection and keeps the global schedule', () => {
+      const schedule = { cron: '* * * * *', queue: 'q' }
+      const normalized = createNormalizedOptions({
+        collections: {
+          clips: { stream: { status: { sync: { maxAge: 60 } } } },
+          inherit: { stream: { status: true } },
+          media: true,
+          plain: { stream: { status: false } },
+          shorts: { stream: { status: { sync: false } } },
+        },
+        stream: { ...globalStream, status: { sync: { limit: 20, schedule } } },
+      })
+      const statusOf = (slug: string) => normalized.collections.get(slug)?.stream?.status
+      expect(statusOf('media')).toEqual({ link: true, sync: { limit: 20, maxAge: 604800, schedule } })
+      expect(statusOf('inherit')).toEqual({ link: true, sync: { limit: 20, maxAge: 604800, schedule } })
+      expect(statusOf('clips')).toEqual({ link: true, sync: { limit: 20, maxAge: 60, schedule } })
+      expect(statusOf('shorts')).toEqual({ link: true })
+      expect(statusOf('plain')).toBe(false)
+      expect(normalized.stream?.status).toEqual({ link: true, sync: { limit: 20, maxAge: 604800, schedule } })
+
+      const perCollection = createNormalizedOptions({
+        collections: { clips: { stream: { status: { sync: true } } }, media: true },
+        stream: { ...globalStream, status: false },
+      })
+      expect(perCollection.collections.get('clips')?.stream?.status).toEqual({
+        link: true,
+        sync: { limit: 50, maxAge: 604800, schedule: { cron: '*/5 * * * *', queue: 'storage-bunny' } },
+      })
+      expect(perCollection.collections.get('media')?.stream?.status).toBe(false)
+    })
+
+    it('turns the dashboard link off globally, inherits it in a partial override and defaults it to true with full options', () => {
+      const schedule = { cron: '* * * * *', queue: 'q' }
+      const normalized = createNormalizedOptions({
+        collections: {
+          clips: { stream: { status: { sync: { maxAge: 60 } } } },
+          inherit: { stream: { status: true } },
+          linked: { stream: { status: { link: true } } },
+          media: true,
+          own: { disablePayloadAccessControl: true, stream: { ...globalStream, libraryId: 2 } },
+          ownOff: {
+            disablePayloadAccessControl: true,
+            stream: { ...globalStream, libraryId: 3, status: { link: false } },
+          },
+          shorts: { stream: { status: { sync: false } } },
+        },
+        stream: { ...globalStream, status: { link: false, sync: { schedule } } },
+      })
+      const statusOf = (slug: string) => normalized.collections.get(slug)?.stream?.status
+      expect(normalized.stream?.status).toEqual({ link: false, sync: { limit: 50, maxAge: 604800, schedule } })
+      expect(statusOf('media')).toEqual({ link: false, sync: { limit: 50, maxAge: 604800, schedule } })
+      expect(statusOf('inherit')).toEqual({ link: false, sync: { limit: 50, maxAge: 604800, schedule } })
+      expect(statusOf('clips')).toEqual({ link: false, sync: { limit: 50, maxAge: 60, schedule } })
+      expect(statusOf('shorts')).toEqual({ link: false })
+      expect(statusOf('linked')).toEqual({ link: true, sync: { limit: 50, maxAge: 604800, schedule } })
+      expect(statusOf('own')).toEqual({ link: true })
+      expect(statusOf('ownOff')).toEqual({ link: false })
+
+      const globalOff = createNormalizedOptions({
+        collections: { clips: { stream: { status: { link: false } } }, media: { stream: { status: { sync: true } } } },
+        stream: { ...globalStream, status: false },
+      })
+      expect(globalOff.collections.get('clips')?.stream?.status).toEqual({ link: false })
+      expect(globalOff.collections.get('media')?.stream?.status).toMatchObject({ link: true })
+    })
+
+    it('keeps tasks', () => {
+      const normalized = createNormalizedOptions({
+        collections: { media: true },
+        stream: globalStream,
+        tasks: { secret: 'a-long-enough-secret' },
+      })
+      expect(normalized.tasks).toEqual({ secret: 'a-long-enough-secret' })
+    })
+
     it('disables with false', () => {
       const options: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',

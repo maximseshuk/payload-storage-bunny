@@ -55,6 +55,9 @@ export const hasAnyStreamCleanup = (options: NormalizedBunnyStorageOptions): boo
   return false
 }
 
+export const hasAnyStreamStatusSync = (options: NormalizedBunnyStorageOptions): boolean =>
+  [...options.collections.values()].some((collection) => collection.stream?.status && collection.stream.status.sync)
+
 export const collectWebhookSecrets = (options: NormalizedBunnyStorageOptions): Map<number, string> => {
   const secrets = new Map<number, string>()
 

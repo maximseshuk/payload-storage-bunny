@@ -5,7 +5,7 @@ import { APIError } from 'payload'
 import { purgeCache } from '@/server/bunny/cdn.js'
 import { uploadStorageFileS3 } from '@/server/bunny/s3.js'
 import { uploadStorageFile } from '@/server/bunny/storage.js'
-import { createStreamVideo, uploadStreamVideo } from '@/server/bunny/stream.js'
+import { createStreamVideo, getStreamSaveState, getStreamVideo, uploadStreamVideo } from '@/server/bunny/stream.js'
 import { setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { getAdminThumbnail } from '@/server/payload/fields/hooks.js'
 import { createStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
@@ -46,7 +46,22 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           videoId: video.guid,
         })
 
-        setStoredVideoId(data, video.guid)
+        const { apiKey, libraryId, mp4Fallback } = streamOptions
+        const saved = streamOptions.status
+          ? await getStreamVideo({ apiKey, libraryId, videoId: video.guid })
+              .then((uploaded) =>
+                getStreamSaveState({ apiKey, libraryId, logger: req.payload.logger, mp4Fallback, video: uploaded }),
+              )
+              .catch((err: unknown) => {
+                req.payload.logger.error({
+                  err,
+                  msg: '[bunny:stream] upload: failed to read the video state',
+                  videoId: video.guid,
+                })
+                return { resolutions: mp4Fallback ? null : undefined, status: 'processing' as const }
+              })
+          : undefined
+        setStoredVideoId(data, video.guid, saved?.status, saved?.resolutions)
 
         const adminThumbnail = getAdminThumbnail(context)
         if (adminThumbnail) {
@@ -75,7 +90,12 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           })
         }
 
-        setStoredVideoId(data, null)
+        setStoredVideoId(
+          data,
+          null,
+          streamOptions?.status ? null : undefined,
+          streamOptions?.status && streamOptions.mp4Fallback ? null : undefined,
+        )
 
         if (purgeOptions && accountApiKey) {
           const url = buildStoragePurgeUrl({

@@ -7,6 +7,8 @@ Show inline **Bunny Stream** video and audio previews in the Payload admin — t
 
 This plugin exports a ready-made adapter at **`@seshuk/payload-storage-bunny/media-preview`**. It resolves any document whose `bunnyData.stream` carries a `videoId` and `libraryId` to Bunny Stream's iframe embed player, so Stream videos preview inline with no extra wiring.
 
+Without the media-preview plugin, the edit view of a Stream video or audio file still shows the Bunny Stream player. See [Edit view player](/v4/configuration/stream/overview#edit-view-player).
+
 ## Install
 
 The media-preview plugin is an optional peer — install it alongside this plugin:
@@ -18,7 +20,7 @@ The media-preview plugin is an optional peer — install it alongside this plugi
 
 ## Wire it up
 
-Register `bunnyStorage` under `storage` and the media-preview plugin under `plugins`, passing the Bunny Stream adapter:
+Register `bunnyStorage` under `storage` and the media-preview plugin under `plugins`, passing the Bunny Stream adapter. Payload runs `plugins` before `storage`, so the media-preview plugin always sets the `filePreview` map first:
 
 ```ts payload.config.ts
 import { mediaPreview } from '@seshuk/payload-plugin-media-preview'
@@ -45,10 +47,54 @@ export default buildConfig({
 })
 ```
 
+<Warning>
+
+With the media-preview plugin installed, always pass `bunnyStreamAdapter` in `adapters`. Without it, the media-preview plugin sets `video/*` and `audio/*` to `false` in `filePreview`. This keeps Payload's own player and turns off the [edit view player](/v4/configuration/stream/overview#edit-view-player) of this plugin. With `disablePayloadAccessControl: true`, Payload's player gets the HLS playlist of a Stream file and cannot play it outside Safari. The plugin logs a warning at startup in this case.
+
+</Warning>
+
 ## How it resolves
 
 - Only **`video/*`** and **`audio/*`** documents are handled; anything else falls through to the media-preview plugin's other adapters and built-in viewers.
-- The document must have `bunnyData.stream.videoId` and `libraryId` — i.e. it was uploaded to Bunny Stream. Files still encoding, or non-Stream files, are skipped.
-- It renders an inline iframe using Bunny Stream's embed player (`iframe.mediadelivery.net`); nothing is proxied through your server.
+- In the edit view the adapter replaces Payload's built-in video and audio player, also when [TUS uploads](/v4/configuration/stream/tus) are on. Video and audio files that are not on Bunny Stream get the media-preview plugin's own player.
+- The document must have `bunnyData.stream.videoId` and `libraryId` — i.e. it was uploaded to Bunny Stream. Non-Stream files are skipped.
+- It renders an inline iframe using Bunny Stream's embed player (`iframe.mediadelivery.net`); the video is not proxied through your server.
+- The player fills the preview area when it has a fixed height: the list popup, the full-screen modal and the edit view. In a container without a fixed height, it fills the width at a 16:9 ratio. The processing and error messages use the same box, so the preview keeps its size when the player appears.
+
+<Info>
+  After you upgrade the plugin, run `payload generate:importmap`. The preview component and the [Bunny Stream status
+  field](/v4/guides/stored-data#bunny-stream-status-in-the-admin) components (`StreamStatusCell`, `StreamStatusField`)
+  are in the import map, and the admin cannot find them until you regenerate it.
+</Info>
+
+## Processing state
+
+Bunny needs some time to encode a video after the upload. The plugin stores the encoding state on the document in `bunnyData.stream.status`: `processing`, `ready` or `failed`.
+
+The state changes in these ways:
+
+- **Save.** When you save a document with a new video, the plugin asks Bunny for the current state and stores it. Right after an upload, this is usually `processing`.
+- **Webhook (fast path).** If you set up the [Stream webhook](/v4/configuration/stream/webhooks), Bunny tells your server when the state changes, and the plugin saves the new state right away.
+- **Status check (safety net).** While the stored state is `processing`, the preview asks your server at `GET /api/storage-bunny/stream/status/:collection/:id`. The server asks the Bunny API and saves the new state when it changes. When the new state is `ready`, Bunny has finished encoding the video and `mp4Fallback` is on, it also saves the MP4 `resolutions` if the document has none. Until Bunny returns them, the state stays `processing`. This works with or without a webhook, so a lost webhook does not leave a video stuck.
+- **Status sync (optional).** A [background task](/v4/configuration/background-tasks#status-sync) asks Bunny about all videos stored as `processing` and stores the new state.
+
+How the preview behaves:
+
+- A stored `ready` state shows the player right away. A stored `failed` state shows an error right away. Neither sends a request.
+- A stored `processing` state shows **Processing video…**. With no stored state, the preview shows only a spinner until the first answer. In both cases it checks again after 5, 10, 20 and then every 30 seconds.
+- It pauses while the browser tab is hidden and checks again when you come back.
+- After about 30 minutes it stops and shows **The video is still processing. Check the status again later**.
+- A check that gets no answer within 15 seconds counts as failed. If the check fails three times in a row, the preview shows **Could not check the video status** and keeps checking on the same schedule. A `4xx` answer other than `408` or `429`, for example when you have no access or the document is gone, shows **Could not check the video status** right away and stops the checks. **Check status now** in the sidebar card starts them again. It shows the player only when the state is `ready`.
+- In the edit view, the preview and the sidebar **Bunny Stream** card share one check. They send one request at a time and switch to the new state together, without a reload. When the video becomes ready, the card shows **Ready** together with the player, or after about 60 seconds if the player does not load. While the video is processing, the **Check status now** button in the card checks right away and starts the schedule again from 5 seconds.
+
+The server keeps each answer from the Bunny API for 10 seconds, or 60 seconds when the library has a webhook. The cache is per server process: users on the same process who watch the same video share one Bunny API call, and each serverless instance has its own cache. If Bunny no longer has the video and the library still answers, the state becomes `failed`. See [Reset a stored status](/v4/guides/stored-data#reset-a-stored-status).
+
+The preview checks only the video you open. To update the stored state of all videos, for example for the list and the filters, turn on [status sync](/v4/configuration/background-tasks#status-sync).
+
+With `status: false` the preview renders the same player iframe as before, right away. Nothing shows that a video is still encoding.
+
+The endpoint reads the document with Payload access control, so a user sees the state only for documents they can read.
+
+The stored state is the last known state. The status endpoint is authoritative. In a collection with drafts, the admin can load the latest version, which still holds the state from when it was saved, because state writes do not create versions. So the first time you open the preview it can send one status request even for a `ready` video.
 
 See the [`@seshuk/payload-plugin-media-preview`](https://github.com/maximseshuk/payload-plugin-media-preview) docs for previewing other file types (images, documents), per-collection adapters, and field placement.

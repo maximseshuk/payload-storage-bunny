@@ -43,6 +43,95 @@ describe('options validator', () => {
     })
   })
 
+  describe('background tasks validation', () => {
+    it('throws when tasks.secret is shorter than 16 characters', () => {
+      expect(() =>
+        normalizeAndValidate({
+          collections: { media: true },
+          storage: createBaseStorage(),
+          tasks: { secret: 'short' },
+        }),
+      ).toThrow('`tasks.secret` must be a string of at least 16 characters')
+    })
+
+    it.each([
+      { key: 'limit', value: 0 },
+      { key: 'limit', value: 2.5 },
+      { key: 'maxAge', value: -1 },
+      { key: 'maxAge', value: '60' },
+    ])('throws when the global status sync sets $key to $value', ({ key, value }) => {
+      expect(() =>
+        normalizeAndValidate({
+          collections: { media: { disablePayloadAccessControl: true } },
+          stream: { ...createBaseStream(), status: { sync: { [key]: value } } },
+        }),
+      ).toThrow(`\`stream.status.sync.${key}\` must be a positive integer`)
+    })
+
+    it.each([
+      { path: 'stream.status', status: 'on' },
+      { path: 'stream.status', status: null },
+      { path: 'stream.status.sync', status: { sync: 1 } },
+      { path: 'stream.status.sync', status: { sync: null } },
+    ])('throws when the global $path is $status', ({ path, status }) => {
+      expect(() =>
+        normalizeAndValidate({
+          collections: { media: { disablePayloadAccessControl: true } },
+          stream: { ...createBaseStream(), status: status as never },
+        }),
+      ).toThrow(`\`${path}\` must be a boolean or an object`)
+    })
+
+    it.each([
+      { path: 'stream.status', status: 1 },
+      { path: 'stream.status.sync', status: { sync: 'yes' } },
+      { path: 'stream.status.sync', status: { sync: null } },
+    ])('throws when a collection $path is $status', ({ path, status }) => {
+      expect(() =>
+        normalizeAndValidate({
+          collections: { media: { disablePayloadAccessControl: true, stream: { status: status as never } } },
+          stream: createBaseStream(),
+        }),
+      ).toThrow(`collection "media" sets \`${path}\`, which must be a boolean or an object`)
+    })
+
+    it.each<[string, unknown, string]>([
+      [
+        'a collection status sync limit is 0',
+        { collections: { media: { disablePayloadAccessControl: true, stream: { status: { sync: { limit: 0 } } } } } },
+        'collection "media" sets `stream.status.sync.limit`, which must be a positive integer',
+      ],
+      [
+        'the global status link is not a boolean',
+        { stream: { ...createBaseStream(), status: { link: 'no' } } },
+        '`stream.status.link` must be a boolean',
+      ],
+      [
+        'a collection status link is not a boolean',
+        { collections: { media: { disablePayloadAccessControl: true, stream: { status: { link: 0 } } } } },
+        'collection "media" sets `stream.status.link`, which must be a boolean',
+      ],
+      [
+        'the global preview is not a boolean',
+        { stream: { ...createBaseStream(), preview: 'no' } },
+        '`stream.preview` must be a boolean',
+      ],
+      [
+        'a collection preview is not a boolean',
+        { collections: { media: { disablePayloadAccessControl: true, stream: { preview: 1 } } } },
+        'collection "media" sets `stream.preview`, which must be a boolean',
+      ],
+    ])('throws when %s', (_, options, message) => {
+      expect(() =>
+        normalizeAndValidate({
+          collections: { media: { disablePayloadAccessControl: true } },
+          stream: createBaseStream(),
+          ...(options as object),
+        } as BunnyStorageOptions),
+      ).toThrow(message)
+    })
+  })
+
   describe('client uploads validation', () => {
     it('throws when edge transport is missing scriptUrl or secret', () => {
       const options = {

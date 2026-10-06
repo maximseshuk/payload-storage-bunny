@@ -40,12 +40,23 @@ export type NormalizedStreamOptions = {
   }
   mimeTypes: string[]
   mp4Fallback: boolean
+  preview: boolean
+  status:
+    | {
+        link: boolean
+        sync?: {
+          limit: number
+          maxAge: number
+          schedule: Exclude<TaskConfig['schedule'], undefined>[0]
+        }
+      }
+    | false
   tus?: {
     autoMode: boolean
     expiresIn: number
   } & StreamTusOptions
   uploadTimeout: number
-} & Omit<StreamOptions, 'cleanup' | 'mimeTypes' | 'mp4Fallback' | 'tus' | 'uploadTimeout'>
+} & Omit<StreamOptions, 'cleanup' | 'mimeTypes' | 'mp4Fallback' | 'status' | 'tus' | 'uploadTimeout'>
 
 export type ExpiresResolver = (args: SignedUrlsCallbackArgs) => Date | number
 
@@ -92,6 +103,7 @@ export interface NormalizedBunnyStorageOptions {
   signedUrls?: NormalizedSignedUrlsOptions
   storage?: NormalizedStorageOptions
   stream?: NormalizedStreamOptions
+  tasks?: BunnyStorageOptions['tasks']
   thumbnail?: NormalizedThumbnailOptions
   urlTransform?: NormalizedUrlTransformOptions
 }

@@ -1,0 +1,42 @@
+.storage-bunny-stream-preview,
+.storage-bunny-stream-preview__frame,
+.storage-bunny-stream-preview__player {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: var(--radius-small);
+}
+
+.storage-bunny-stream-preview__player {
+  display: block;
+}
+
+.storage-bunny-stream-preview__frame {
+  position: relative;
+}
+
+.storage-bunny-stream-preview__frame > .storage-bunny-stream-preview {
+  position: absolute;
+  inset: 0;
+}
+
+.storage-bunny-stream-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacer-3);
+  padding: var(--spacer-4);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-family: var(--text-body-medium-font-family);
+  font-size: var(--text-body-medium-font-size);
+  line-height: var(--text-body-medium-line-height);
+  text-align: center;
+}
+
+.storage-bunny-stream-preview--danger {
+  color: var(--color-text-danger);
+}

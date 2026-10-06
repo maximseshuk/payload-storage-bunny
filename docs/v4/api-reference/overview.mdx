@@ -1,26 +1,30 @@
 ---
 title: 'API reference'
 sidebarTitle: 'Overview'
-description: 'HTTP endpoints for client uploads, TUS authorization, and the Stream webhook.'
+description: 'HTTP endpoints for client uploads, TUS authorization, the Stream webhook, the Stream video state and the background tasks.'
 ---
 
-The plugin registers two HTTP endpoints on your Payload app, under the `/api/storage-bunny` prefix. Client uploads use Payload's own `POST /api/upload-instructions` endpoint. **The admin UI calls them for you.** You only need this reference if you build a custom upload flow, for example a headless front end that uploads directly to Bunny, or if you set up the Stream webhook.
+The plugin registers four HTTP endpoints on your Payload app, under the `/api/storage-bunny` prefix. Client uploads use Payload's own `POST /api/upload-instructions` endpoint. **The admin UI calls them for you.** You only need this reference if you build a custom upload flow, for example a headless front end that uploads directly to Bunny, if you set up the Stream webhook, or if you call the tasks endpoint from a cron service.
 
 ## Endpoints
 
-| Method & path                             | Purpose                                                                                                                 |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/upload-instructions`           | Payload's endpoint. Returns a signed URL for browser-direct [client uploads](/v4/configuration/storage/client-uploads). |
-| `POST /api/storage-bunny/stream/tus-auth` | Authorize a [TUS resumable upload](/v4/configuration/stream/tus) to Bunny Stream.                                       |
-| `POST /api/storage-bunny/stream/webhook`  | Receive Bunny Stream [encoding-status callbacks](/v4/configuration/stream/webhooks).                                    |
+| Method & path                                          | Purpose                                                                                                                 |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/upload-instructions`                        | Payload's endpoint. Returns a signed URL for browser-direct [client uploads](/v4/configuration/storage/client-uploads). |
+| `POST /api/storage-bunny/stream/tus-auth`              | Authorize a [TUS resumable upload](/v4/configuration/stream/tus) to Bunny Stream.                                       |
+| `POST /api/storage-bunny/stream/webhook`               | Receive Bunny Stream [encoding-status callbacks](/v4/configuration/stream/webhooks).                                    |
+| `GET /api/storage-bunny/stream/status/:collection/:id` | Get the encoding state of a document's Stream video. The [media preview](/v4/guides/media-preview) uses it.             |
+| `GET\|POST /api/storage-bunny/tasks/:task`             | Run the `cleanup` or `status-sync` [background task](/v4/configuration/background-tasks) from a cron service.           |
 
-`upload-instructions` returns Bunny upload URLs only when `storage.clientUploads` is on. `stream/tus-auth` needs `stream.tus`, and `stream/webhook` needs `stream.webhook`. See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-upload-clients) for a full example.
+`upload-instructions` returns Bunny upload URLs only when `storage.clientUploads` is on. `stream/tus-auth` needs `stream.tus`, `stream/webhook` needs `stream.webhook`, `stream/status` needs `stream.status` (on by default), and `tasks` needs `tasks.secret`. See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-upload-clients) for a full example.
 
-Errors use Payload's standard format, `{ "errors": [{ "message": "..." }] }`.
+Errors use Payload's standard format, `{ "errors": [{ "message": "..." }] }`. `tasks` returns `{ "error": "..." }` instead.
 
 ## Authentication
 
 - **`upload-instructions` and `stream/tus-auth`** run through Payload's access control. Send them with an authenticated session, for example the `payload-token` cookie. `clientUploads.access` can only narrow Payload's check. `stream.tus.access` replaces the default check.
+- **`stream/status`** needs a signed-in user of your admin user collection who passes its `access.admin`, and reads the document with Payload access control. It returns `{ "state": "processing" | "ready" | "failed", "resolutions"?: { "available", "highest" } }`. `resolutions` is the same value as `bunnyData.stream.resolutions`. It is left out when none are stored. A stored `ready` or `failed` state comes from the document. Otherwise the server asks the Bunny API, at most once per video every 10 seconds (60 seconds when the library has a webhook), and stores a changed state.
+- **`tasks`** needs `Authorization: Bearer <tasks.secret>`. `POST` also accepts a signed-in user of your admin user collection who passes its `access.admin`. `GET` never accepts a session, so a link or an image tag cannot start a task. The plugin compares the secret in constant time.
 - **`stream/webhook`** is not a Payload-authenticated route. Bunny signs each call, and the plugin verifies an HMAC-SHA256 `X-BunnyStream-Signature` header against the library's Read-Only API key (`stream.webhook.secret`).
 
 <Info>

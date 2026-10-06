@@ -5,10 +5,11 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   ...vitestBase,
+  esbuild: { jsx: 'automatic' },
   test: {
     coverage: {
       exclude: ['src/**/*.d.ts', 'src/shared/translations/locales/**', 'src/shared/types/**'],
-      include: ['src/**/*.ts'],
+      include: ['src/**/*.{ts,tsx}'],
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       reportOnFailure: true,

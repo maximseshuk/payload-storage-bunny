@@ -7,13 +7,48 @@ This guide covers upgrading between versions of the Bunny Storage plugin.
 
 ## v4.0.0-beta.1 to v4.0.0-beta.2
 
-### Regenerate the import map
+### 1. Add the `status` column (SQL databases)
 
-Collections with TUS uploads now load their upload area from `@seshuk/payload-storage-bunny/rsc`, so the edit view shows the collection's `filePreview`, for example the media preview, and its custom upload controls (`upload.admin.components.controls`). Regenerate the import map, or the admin cannot find the component:
+Stream collections now store the encoding state of each video in `bunnyData.stream.status`. On Postgres, SQLite and D1, this is a new indexed column (`bunny_data_stream_status`) on each Stream collection's table. Create and run a migration:
+
+```bash
+npx payload migrate:create
+npx payload migrate
+```
+
+In development, Payload pushes the schema for you. MongoDB needs no migration: Payload creates the index on startup. A collection with versions also gets `version_bunny_data_stream_status` in its `_<slug>_v` table. See [Database columns](/v4/guides/stored-data#database-columns) for the full list.
+
+If you use generated types, regenerate them. `bunnyData.stream.status` and the `bunnyStream` admin field are new in the types:
+
+```bash
+npx payload generate:types
+```
+
+Existing videos have no `status` at first. In the list, they show **Unknown** and do not match the **Stream Status** filter. [Status sync](/v4/configuration/background-tasks#status-sync) skips them, because it checks only videos stored as `processing`. Saving such a document keeps the empty status. To store the state, open the document in the admin. The [media preview](/v4/guides/media-preview#processing-state) and the **Bunny Stream** card ask Bunny for the state and store it.
+
+To keep the old behavior, set `stream.status: false` and `stream.preview: false`. Then the plugin adds no column, and the edit view keeps Payload's own video and audio player. You still need to [regenerate the import map](#3-regenerate-the-import-map) for TUS uploads and for the media preview adapter.
+
+### 2. Webhook writes skip collection hooks
+
+This applies only while `stream.status` is on, which is the default. With `stream.status: false`, the webhook updates `resolutions` with `payload.update` as before.
+
+The [webhook](/v4/configuration/stream/webhooks) now writes `bunnyData.stream` straight to the database. It no longer runs your collection hooks (`beforeChange`, `afterChange` and others), does not create a new version and does not change `updatedAt`. If a hook of yours reacted to the webhook's `resolutions` update, for example to revalidate a page, run that logic another way, for example in a job that reads `bunnyData.stream`.
+
+### 3. Regenerate the import map
+
+Stream collections now have a [Bunny Stream status field](/v4/guides/stored-data#bunny-stream-status-in-the-admin) with its own list cell and sidebar components. If you use the [media preview](/v4/guides/media-preview), the Bunny Stream adapter also uses its own preview component. Regenerate the import map, or the admin cannot find the components:
 
 ```bash
 npx payload generate:importmap
 ```
+
+Collections with TUS uploads need it too. Their upload area now loads from `@seshuk/payload-storage-bunny/rsc`, so the edit view shows the collection's `filePreview`, for example the media preview, and its custom upload controls (`upload.admin.components.controls`).
+
+The edit view of Stream video and audio files now shows the Bunny Stream player from `@seshuk/payload-storage-bunny/client#StreamFilePreview`, also without the media preview plugin. It needs the import map too. Set `stream.preview: false` to keep Payload's built-in video and audio player.
+
+### 4. Optional: background tasks
+
+You can now run the Stream tasks without Payload jobs, and keep the stored status up to date with the new `stream.status.sync` task. See [Background tasks](/v4/configuration/background-tasks).
 
 ## v3 to v4
 
@@ -114,7 +149,9 @@ npx payload migrate
 
 In development, Payload pushes the schema for you. MongoDB needs no migration. The column defaults to the collection's static `prefix`, or an empty string, so existing rows keep resolving to the same files.
 
-Payload 4 has more schema changes of its own, such as versions and job fields. One `migrate:create` run covers them all.
+Stream collections also get an indexed `bunny_data_stream_status` column for the stored [encoding state](/v4/guides/stored-data). Payload 4 has more schema changes of its own, such as versions and job fields. One `migrate:create` run covers them all.
+
+If you use Bunny Stream, run `npx payload generate:importmap` after the upgrade. Stream collections get a [Bunny Stream status field](/v4/guides/stored-data#bunny-stream-status-in-the-admin) with its own components, and the media preview adapter uses its own preview component.
 
 ### 5. Redeploy the Edge Script
 

@@ -61,6 +61,18 @@ describe('buildFeatures', () => {
     })
   })
 
+  it('sets streamStatusSync and tasksEndpoint', () => {
+    const off = features({ collections: { videos: true }, stream: createBaseStream() })
+    expect(off).toMatchObject({ streamStatusSync: false, tasksEndpoint: false })
+
+    const on = features({
+      collections: { videos: true },
+      stream: { ...createBaseStream(), status: { sync: true } },
+      tasks: { secret: 'a-long-enough-secret' },
+    })
+    expect(on).toMatchObject({ streamStatusSync: true, tasksEndpoint: true })
+  })
+
   it('keeps streamTus on and streamTusAutoMode off for tus.autoMode: false', () => {
     const result = features({
       collections: { videos: true },

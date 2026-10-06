@@ -58,12 +58,20 @@ type StreamTusAuthUploaded = {
 
 export type StreamTusAuthResponse = StreamTusAuthUpload | StreamTusAuthUploaded
 
+export type StreamVideoState = 'failed' | 'processing' | 'ready'
+
+export type StreamStatusResponse = {
+  resolutions?: BunnyStreamData['resolutions']
+  state: StreamVideoState
+}
+
 export type BunnyStreamData = {
   libraryId: number
   resolutions?: {
     available?: string[]
     highest?: string
   }
+  status?: null | StreamVideoState
   videoId: string
 }
 

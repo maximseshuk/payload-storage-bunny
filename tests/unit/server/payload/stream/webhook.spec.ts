@@ -1,16 +1,17 @@
 import { createHmac } from 'node:crypto'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getResolutionsMock, parseMock } = vi.hoisted(() => ({
-  getResolutionsMock: vi.fn(),
-  parseMock: vi.fn(),
+const { requestMock } = vi.hoisted(() => ({ requestMock: vi.fn() }))
+
+vi.mock('@/server/bunny/client.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/bunny/client.js')>()),
+  bunnyRequest: requestMock,
 }))
 
-vi.mock('@/server/bunny/stream.js', () => ({
-  getStreamVideoResolutions: getResolutionsMock,
-  parseMp4Resolutions: parseMock,
-}))
+const mp4Resolutions = (...resolutions: string[]) => ({
+  json: async () => ({ data: { mp4Resolutions: resolutions.map((resolution) => ({ resolution })) }, success: true }),
+})
 
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
@@ -19,7 +20,20 @@ const collection = { slug: 'media', upload: { mimeTypes: ['video/mp4'] } }
 
 const sign = (rawBody: string, secret: string) => createHmac('sha256', secret).update(rawBody).digest('hex')
 
-const buildOptions = (mp4Fallback = true) =>
+const storedDoc = (stream: Record<string, unknown> = {}) => ({
+  id: 'doc-1',
+  bunnyData: { stream: { videoId: 'v1', ...stream } },
+})
+
+const statusWhere = (id: string, status: Record<string, unknown>) => ({
+  and: [
+    { id: { equals: id } },
+    { 'bunnyData.stream.videoId': { equals: 'v1' } },
+    { 'bunnyData.stream.status': status },
+  ],
+})
+
+const buildOptions = (mp4Fallback = true, status = true) =>
   createNormalizedOptions({
     collections: { media: { disablePayloadAccessControl: true } },
     stream: {
@@ -27,6 +41,7 @@ const buildOptions = (mp4Fallback = true) =>
       hostname: 'stream.b-cdn.net',
       libraryId: 12345,
       mp4Fallback,
+      status,
       webhook: { secret: 'hook-secret' },
     },
   } as never)
@@ -36,16 +51,20 @@ const buildReq = (
   {
     algorithm = 'hmac-sha256',
     find = vi.fn(),
+    findOne = vi.fn(),
     secret = 'hook-secret',
     signature,
     update = vi.fn(),
+    updateOne = vi.fn(),
     version = 'v1',
   }: {
     algorithm?: null | string
     find?: unknown
+    findOne?: unknown
     secret?: null | string
     signature?: string
     update?: unknown
+    updateOne?: unknown
     version?: null | string
   } = {},
 ) => {
@@ -66,6 +85,7 @@ const buildReq = (
     headers,
     payload: {
       collections: { media: { config: collection } },
+      db: { findOne, updateOne },
       find,
       logger: { debug: vi.fn(), error: vi.fn() },
       update,
@@ -129,69 +149,377 @@ describe('Stream webhook endpoint', () => {
     expect(res.status).toBe(403)
   })
 
-  it('updates resolutions on a finished (Status 3) webhook', async () => {
-    const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-1' }] })
-    const update = vi.fn().mockResolvedValue({})
-    getResolutionsMock.mockResolvedValue({ data: { mp4Resolutions: [{ resolution: '720p' }] }, success: true })
-    parseMock.mockReturnValue({ available: ['720p', '480p'], sorted: ['720p', '480p'] })
+  it('stores the resolutions and the ready state on a finished (Status 3) webhook', async () => {
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
+    const updateOne = vi.fn().mockResolvedValue(null)
+    requestMock.mockResolvedValue(mp4Resolutions('720p', '480p'))
 
     const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
-    const json = await res.json()
+    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
 
-    expect(json.success).toBe(true)
-    expect(update).toHaveBeenCalledWith(
+    expect((await res.json()).success).toBe(true)
+    expect(findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'media', where: { 'bunnyData.stream.videoId': { equals: 'v1' } } }),
+    )
+    expect(updateOne).toHaveBeenCalledTimes(1)
+    expect(updateOne).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { bunnyData: { stream: { resolutions: { available: ['720p', '480p'], highest: '720p' } } } },
-        id: 'doc-1',
+        collection: 'media',
+        data: {
+          bunnyData: {
+            stream: { resolutions: { available: ['720p', '480p'], highest: '720p' }, status: 'ready', videoId: 'v1' },
+          },
+          updatedAt: null,
+        },
+        select: { id: true },
+        where: { and: [{ id: { equals: 'doc-1' } }, { 'bunnyData.stream.videoId': { equals: 'v1' } }] },
       }),
     )
   })
 
-  it('acknowledges non-finished statuses without touching resolutions', async () => {
-    const find = vi.fn()
-    const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 2, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find }))
-    const json = await res.json()
+  it.each([
+    [2, undefined, 'processing', { exists: false }],
+    [3, 'processing', 'ready', { equals: 'processing' }],
+    [5, 'processing', 'failed', { equals: 'processing' }],
+    [8, 'ready', 'failed', { equals: 'ready' }],
+  ])('stores the state of a Status %s webhook over a stored %s state', async (Status, stored, expected, where) => {
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: stored }))
+    const updateOne = vi.fn().mockResolvedValue(null)
 
-    expect(json.success).toBe(true)
-    expect(find).not.toHaveBeenCalled()
-  })
-
-  it('skips the resolution update when mp4Fallback is disabled', async () => {
-    const find = vi.fn()
     const handler = getWebhookHandler(buildOptions(false))
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find }))
-    const json = await res.json()
+    await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
 
-    expect(json.success).toBe(true)
-    expect(find).not.toHaveBeenCalled()
+    expect(requestMock).not.toHaveBeenCalled()
+    expect(updateOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { bunnyData: { stream: { status: expected, videoId: 'v1' } }, updatedAt: null },
+        where: statusWhere('doc-1', where),
+      }),
+    )
   })
 
-  it('acknowledges success even when the resolution lookup throws', async () => {
-    const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-1' }] })
-    const update = vi.fn()
-    getResolutionsMock.mockRejectedValue(new Error('bunny down'))
+  it('keeps a stored processing state on a Status 4 webhook, because the first resolution cannot play yet', async () => {
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
+    const updateOne = vi.fn().mockResolvedValue(null)
 
     const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
-    const json = await res.json()
+    await handler(buildReq({ Status: 4, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
 
-    expect(json.success).toBe(true)
-    expect(update).not.toHaveBeenCalled()
+    expect(updateOne).not.toHaveBeenCalled()
   })
 
-  it('acknowledges success when no matching doc is found', async () => {
-    const find = vi.fn().mockResolvedValue({ docs: [] })
-    const update = vi.fn()
+  it('a Status 3 webhook without mp4Fallback resends the stored resolutions when it writes the ready state', async () => {
+    const resolutions = { available: ['720p'], highest: '720p' }
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions, status: 'processing' }))
+    const updateOne = vi.fn().mockResolvedValue(null)
+
+    const handler = getWebhookHandler(buildOptions(false))
+    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+
+    expect(requestMock).not.toHaveBeenCalled()
+    expect(updateOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v1' } }, updatedAt: null },
+      }),
+    )
+  })
+
+  it.each([
+    [2, 'processing'],
+    [4, 'ready'],
+    [5, 'failed'],
+    [1, 'ready'],
+    [7, 'failed'],
+  ])('writes nothing for a Status %s webhook over a stored %s state', async (Status, stored) => {
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: stored }))
+    const updateOne = vi.fn()
 
     const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
-    const json = await res.json()
+    const res = await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
 
-    expect(json.success).toBe(true)
-    expect(getResolutionsMock).not.toHaveBeenCalled()
-    expect(update).not.toHaveBeenCalled()
+    expect((await res.json()).success).toBe(true)
+    expect(findOne).toHaveBeenCalled()
+    expect(updateOne).not.toHaveBeenCalled()
+  })
+
+  it('writes nothing for a finished webhook when the state and resolutions are already stored', async () => {
+    const resolutions = { available: ['720p'], highest: '720p' }
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions, status: 'ready' }))
+    const updateOne = vi.fn()
+    requestMock.mockResolvedValue(mp4Resolutions('720p'))
+
+    const handler = getWebhookHandler(buildOptions())
+    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+
+    expect(updateOne).not.toHaveBeenCalled()
+  })
+
+  it.each([9, 10])('ignores a Status %s webhook that does not change the encoding state', async (Status) => {
+    const findOne = vi.fn()
+    const handler = getWebhookHandler(buildOptions())
+    const res = await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
+
+    expect((await res.json()).success).toBe(true)
+    expect(findOne).not.toHaveBeenCalled()
+  })
+
+  it('stores the ready state without resolutions when mp4Fallback is disabled', async () => {
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
+    const updateOne = vi.fn().mockResolvedValue(null)
+    const handler = getWebhookHandler(buildOptions(false))
+    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+
+    expect((await res.json()).success).toBe(true)
+    expect(requestMock).not.toHaveBeenCalled()
+    expect(updateOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { bunnyData: { stream: { status: 'ready', videoId: 'v1' } }, updatedAt: null },
+        where: statusWhere('doc-1', { equals: 'processing' }),
+      }),
+    )
+  })
+
+  it('keeps the stored resolutions and still stores the state when the resolution lookup throws', async () => {
+    const resolutions = { available: ['720p'], highest: '720p' }
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions, status: 'processing' }))
+    const updateOne = vi.fn().mockResolvedValue(null)
+    requestMock.mockRejectedValue(new Error('bunny down'))
+
+    const handler = getWebhookHandler(buildOptions())
+    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
+    const res = await handler(req)
+
+    expect((await res.json()).success).toBe(true)
+    expect((req as { payload: { logger: { error: unknown } } }).payload.logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ msg: '[bunny:stream] failed to fetch resolutions' }),
+    )
+    expect(updateOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v1' } }, updatedAt: null },
+        where: statusWhere('doc-1', { equals: 'processing' }),
+      }),
+    )
+  })
+
+  it.each([
+    ['Bunny lists no MP4 resolutions yet', () => requestMock.mockResolvedValue(mp4Resolutions())],
+    ['the resolution lookup throws', () => requestMock.mockRejectedValue(new Error('bunny down'))],
+  ])(
+    'keeps the processing state and answers 500 on a finished webhook when %s, so Bunny sends it again',
+    async (_, arrange) => {
+      arrange()
+      const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions: null, status: 'processing' }))
+      const updateOne = vi.fn()
+
+      const handler = getWebhookHandler(buildOptions())
+      const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+
+      expect(res.status).toBe(500)
+      expect(updateOne).not.toHaveBeenCalled()
+    },
+  )
+
+  it('writes only while the document still points at the video of the webhook', async () => {
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
+    const updateOne = vi.fn().mockResolvedValue(null)
+
+    const handler = getWebhookHandler(buildOptions(false))
+    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+
+    const where = updateOne.mock.calls[0][0].where.and
+    expect(where).toContainEqual({ 'bunnyData.stream.videoId': { equals: 'v1' } })
+  })
+
+  describe('with the status turned off', () => {
+    it('stores the resolutions with payload.update on a finished webhook, as before the status', async () => {
+      const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-1' }] })
+      const update = vi.fn().mockResolvedValue({})
+      const findOne = vi.fn()
+      const updateOne = vi.fn()
+      requestMock.mockResolvedValue(mp4Resolutions('720p'))
+
+      const handler = getWebhookHandler(buildOptions(true, false))
+      await handler(
+        buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, update, updateOne }),
+      )
+
+      expect(find).toHaveBeenCalledWith({
+        collection: 'media',
+        limit: 1,
+        overrideAccess: true,
+        where: { 'bunnyData.stream.videoId': { equals: 'v1' } },
+      })
+      expect(update).toHaveBeenCalledWith({
+        id: 'doc-1',
+        collection: 'media',
+        data: { bunnyData: { stream: { resolutions: { available: ['720p'], highest: '720p' } } } },
+        overrideAccess: true,
+      })
+      expect(findOne).not.toHaveBeenCalled()
+      expect(updateOne).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['Bunny lists no MP4 resolutions yet', () => requestMock.mockResolvedValue(mp4Resolutions())],
+      ['the resolution lookup throws', () => requestMock.mockRejectedValue(new Error('bunny down'))],
+    ])('answers 500 without writing when %s, so Bunny sends the webhook again', async (_, arrange) => {
+      arrange()
+      const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-1' }] })
+      const update = vi.fn()
+
+      const handler = getWebhookHandler(buildOptions(true, false))
+      const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
+
+      expect(res.status).toBe(500)
+      expect(update).not.toHaveBeenCalled()
+    })
+
+    it('answers 500 when the document lookup fails', async () => {
+      const find = vi.fn().mockRejectedValue(new Error('db down'))
+
+      const handler = getWebhookHandler(buildOptions(true, false))
+      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find })
+      const res = await handler(req)
+
+      expect(res.status).toBe(500)
+      expect((req as { payload: { logger: { error: unknown } } }).payload.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: '[bunny:stream] webhook: error processing video' }),
+      )
+    })
+
+    it.each([
+      [4, true],
+      [5, true],
+      [3, false],
+    ])('reads and writes nothing for a Status %s webhook (mp4Fallback %s)', async (Status, mp4Fallback) => {
+      const find = vi.fn()
+      const findOne = vi.fn()
+      const updateOne = vi.fn()
+
+      const handler = getWebhookHandler(buildOptions(mp4Fallback, false))
+      const res = await handler(
+        buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, updateOne }),
+      )
+
+      expect((await res.json()).success).toBe(true)
+      expect(find).not.toHaveBeenCalled()
+      expect(findOne).not.toHaveBeenCalled()
+      expect(updateOne).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when the document does not exist yet', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('looks again one second later and stores the state once the document exists', async () => {
+      vi.useFakeTimers()
+      const findOne = vi
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(storedDoc({ status: 'processing' }))
+      const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
+
+      const handler = getWebhookHandler(buildOptions(false))
+      const pending = handler(buildReq({ Status: 5, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+      await vi.advanceTimersByTimeAsync(999)
+      expect(findOne).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      const res = await pending
+
+      expect((await res.json()).success).toBe(true)
+      expect(findOne).toHaveBeenCalledTimes(3)
+      expect(updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { bunnyData: { stream: { status: 'failed', videoId: 'v1' } }, updatedAt: null },
+          where: statusWhere('doc-1', { equals: 'processing' }),
+        }),
+      )
+    })
+
+    it.each([3, 5])('gives up after three more lookups for a Status %s webhook', async (Status) => {
+      vi.useFakeTimers()
+      const findOne = vi.fn().mockResolvedValue(null)
+      const updateOne = vi.fn()
+
+      const handler = getWebhookHandler(buildOptions())
+      const pending = handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+      await vi.advanceTimersByTimeAsync(3000)
+      const res = await pending
+
+      expect((await res.json()).success).toBe(true)
+      expect(findOne).toHaveBeenCalledTimes(4)
+      expect(requestMock).not.toHaveBeenCalled()
+      expect(updateOne).not.toHaveBeenCalled()
+    })
+
+    it.each([0, 1, 2, 4, 6, 7, 8])('does not look again for a Status %s webhook', async (Status) => {
+      vi.useFakeTimers()
+      const findOne = vi.fn().mockResolvedValue(null)
+
+      const handler = getWebhookHandler(buildOptions())
+      const res = await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
+
+      expect((await res.json()).success).toBe(true)
+      expect(findOne).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+    })
+
+    it('answers 500 without looking again after a database error, so Bunny sends the webhook again', async () => {
+      vi.useFakeTimers()
+      const findOne = vi.fn().mockRejectedValue(new Error('connection refused'))
+      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne })
+
+      const res = await getWebhookHandler(buildOptions())(req)
+
+      expect(res.status).toBe(500)
+      expect(await res.json()).toEqual({ error: 'Internal server error' })
+      expect(findOne).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+      expect((req as any).payload.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: '[bunny:stream] webhook: error processing video' }),
+      )
+    })
+
+    it('stops looking, logs and answers 500 when a later lookup fails', async () => {
+      vi.useFakeTimers()
+      const findOne = vi.fn().mockResolvedValueOnce(null).mockRejectedValue(new Error('connection refused'))
+      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne })
+
+      const pending = getWebhookHandler(buildOptions())(req)
+      await vi.advanceTimersByTimeAsync(3000)
+      const res = await pending
+
+      expect(res.status).toBe(500)
+      expect(findOne).toHaveBeenCalledTimes(2)
+      expect((req as any).payload.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: '[bunny:stream] webhook: error processing video', videoId: 'v1' }),
+      )
+    })
+
+    it('does not look again for a collection with the status turned off', async () => {
+      vi.useFakeTimers()
+      const find = vi.fn().mockResolvedValue({ docs: [] })
+
+      const handler = getWebhookHandler(buildOptions(true, false))
+      const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find }))
+
+      expect((await res.json()).success).toBe(true)
+      expect(find).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+    })
+  })
+
+  it('answers 500 when storing the state fails', async () => {
+    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
+    const updateOne = vi.fn().mockRejectedValue(new Error('write conflict'))
+    const req = buildReq({ Status: 5, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
+
+    const res = await getWebhookHandler(buildOptions())(req)
+
+    expect(res.status).toBe(500)
+    expect(updateOne).toHaveBeenCalledOnce()
   })
 
   it('returns 500 when reading the raw body throws', async () => {
@@ -254,11 +582,11 @@ describe('Stream webhook endpoint', () => {
     const buildMultiReq = (
       body: Record<string, unknown>,
       {
-        find = vi.fn(),
+        findOne = vi.fn(),
         secret = 'global-hook',
         signature,
-        update = vi.fn(),
-      }: { find?: unknown; secret?: null | string; signature?: string; update?: unknown } = {},
+        updateOne = vi.fn(),
+      }: { findOne?: unknown; secret?: null | string; signature?: string; updateOne?: unknown } = {},
     ) => {
       const rawBody = JSON.stringify(body)
       const headers = new Headers()
@@ -273,9 +601,8 @@ describe('Stream webhook endpoint', () => {
         headers,
         payload: {
           collections: { alpha: { config: alpha }, beta: { config: beta }, gamma: { config: gamma } },
-          find,
+          db: { findOne, updateOne },
           logger: { debug: vi.fn(), error: vi.fn() },
-          update,
         },
         text: async () => rawBody,
         url: 'http://localhost/api/storage-bunny/stream/webhook',
@@ -316,32 +643,51 @@ describe('Stream webhook endpoint', () => {
     })
 
     it('searches only collections of the incoming library', async () => {
-      const find = vi.fn().mockResolvedValue({ docs: [] })
+      const findOne = vi.fn().mockResolvedValue(null)
       const handler = getWebhookHandler(buildMultiOptions())
-      await handler(buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 }, { find, secret: 'alpha-hook' }))
+      await handler(
+        buildMultiReq({ Status: 2, VideoGuid: 'v1', VideoLibraryId: 111 }, { findOne, secret: 'alpha-hook' }),
+      )
 
-      expect(find).toHaveBeenCalledTimes(1)
-      expect(find).toHaveBeenCalledWith(expect.objectContaining({ collection: 'alpha' }))
+      expect(findOne).toHaveBeenCalledTimes(1)
+      expect(findOne).toHaveBeenCalledWith(expect.objectContaining({ collection: 'alpha' }))
     })
 
     it('respects per-collection mp4Fallback and uses the collection credentials', async () => {
-      const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-a' }] })
-      const update = vi.fn().mockResolvedValue({})
-      getResolutionsMock.mockResolvedValue({ data: { mp4Resolutions: [{ resolution: '720p' }] }, success: true })
-      parseMock.mockReturnValue({ available: ['720p'], sorted: ['720p'] })
+      const findOne = vi.fn().mockResolvedValue(storedDoc())
+      const updateOne = vi.fn().mockResolvedValue(null)
+      requestMock.mockResolvedValue(mp4Resolutions('720p'))
 
       const handler = getWebhookHandler(buildMultiOptions())
       await handler(
-        buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 }, { find, secret: 'alpha-hook', update }),
+        buildMultiReq(
+          { Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 },
+          { findOne, secret: 'alpha-hook', updateOne },
+        ),
       )
-      expect(getResolutionsMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
+      expect(requestMock).toHaveBeenCalledWith(
+        expect.objectContaining({ apiKey: 'alpha-key', url: expect.stringContaining('/library/111/') }),
+      )
+      expect(updateOne).toHaveBeenCalledWith(expect.objectContaining({ collection: 'alpha' }))
 
-      const findBeta = vi.fn()
+      requestMock.mockClear()
+      const findBeta = vi.fn().mockResolvedValue(storedDoc())
+      const updateBeta = vi.fn().mockResolvedValue(null)
       const res = await handler(
-        buildMultiReq({ Status: 3, VideoGuid: 'v2', VideoLibraryId: 222 }, { find: findBeta, secret: 'beta-hook' }),
+        buildMultiReq(
+          { Status: 3, VideoGuid: 'v1', VideoLibraryId: 222 },
+          { findOne: findBeta, secret: 'beta-hook', updateOne: updateBeta },
+        ),
       )
       expect((await res.json()).success).toBe(true)
-      expect(findBeta).not.toHaveBeenCalled()
+      expect(findBeta).toHaveBeenCalledWith(expect.objectContaining({ collection: 'beta' }))
+      expect(requestMock).not.toHaveBeenCalled()
+      expect(updateBeta).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: 'beta',
+          data: { bunnyData: { stream: { status: 'ready', videoId: 'v1' } }, updatedAt: null },
+        }),
+      )
     })
 
     it('registers the webhook endpoint when only a collection has a webhook', () => {

@@ -1,0 +1,282 @@
+---
+title: 'Background tasks'
+description: 'Run the Stream cleanup and status sync tasks with Payload jobs, a cron service, the CLI or your own code.'
+---
+
+The plugin has two background tasks. Both are off by default.
+
+| Task          | Option               | Payload task slug              | Default schedule | What it does                                                                                                                                 |
+| ------------- | -------------------- | ------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cleanup`     | `stream.cleanup`     | `StorageBunnyStreamCleanup`    | `0 2 * * *`      | Deletes videos from uploads that never finished or whose document was never saved. See [Cleanup](/v4/configuration/stream/overview#cleanup). |
+| `status-sync` | `stream.status.sync` | `StorageBunnyStreamStatusSync` | `*/5 * * * *`    | Asks Bunny for the state of videos stored as `processing` and stores the new state. See [Status sync](#status-sync).                         |
+
+By default, both schedules use the `storage-bunny` queue. You can change the schedule of each task in the global `stream` options only.
+
+## Pick a trigger
+
+A task does nothing until something runs it. Pick one of these:
+
+| Trigger                                                 | Use it when                                                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [Payload jobs runner](#payload-jobs-runner)             | You already run Payload jobs, on a long-running server or with a cron call to Payload.      |
+| [Plugin endpoint](#plugin-endpoint)                     | You do not use Payload jobs and want a cron service (Vercel Cron, crontab, GitHub Actions). |
+| [CLI](#cli)                                             | You run tasks by hand, or from a server cron with shell access.                             |
+| [Your own code](#call-the-functions-from-your-own-code) | You want to run a task from your own route, script or worker.                               |
+
+You can use more than one trigger. Status sync is safe to run at the same time from two triggers: a status write changes a document only while its stored status is still `processing`. Inside one server process, the jobs runner, the endpoint and the CLI do not start a task while the same task is still running. They skip the run and log a `[bunny:tasks]` warning. The endpoint and the CLI then return `{ "hasMore": false, "skipped": true }`. The [exported functions](#call-the-functions-from-your-own-code) do not skip.
+
+When a task is on and no `jobs.autoRun` entry runs its queue, the plugin logs a warning at startup. Set [`tasks.secret`](#plugin-endpoint) to turn the warning off.
+
+## Payload jobs runner
+
+The plugin registers each task as a Payload job task with a `schedule`. Payload queues a job when the schedule is due and runs it when something processes the `storage-bunny` queue.
+
+**Long-running server.** Add an `autoRun` entry for the queue:
+
+```ts payload.config.ts
+export default buildConfig({
+  jobs: {
+    autoRun: [{ cron: '* * * * *', queue: 'storage-bunny' }],
+  },
+})
+```
+
+**Command line.** Run the queue and handle the schedules:
+
+```bash
+npx payload jobs:run --queue storage-bunny --handle-schedules
+```
+
+**Vercel and other serverless hosts.** `autoRun` does not work there, because no process stays alive. Call Payload's own endpoint `/api/payload-jobs/run?queue=storage-bunny` from a cron. It queues the due jobs and runs them. Let the cron call it with a secret:
+
+```ts payload.config.ts
+export default buildConfig({
+  jobs: {
+    access: {
+      run: ({ req }) => {
+        if (req.user) {
+          return true
+        }
+        const secret = process.env.CRON_SECRET
+        return Boolean(secret) && req.headers.get('authorization') === `Bearer ${secret}`
+      },
+    },
+  },
+})
+```
+
+```json vercel.json
+{
+  "crons": [{ "path": "/api/payload-jobs/run?queue=storage-bunny", "schedule": "*/5 * * * *" }]
+}
+```
+
+Vercel sends `Authorization: Bearer <CRON_SECRET>` when the `CRON_SECRET` environment variable is set.
+
+## Plugin endpoint
+
+Set `tasks.secret` to add `GET` and `POST /api/storage-bunny/tasks/:task`. It runs one task right away, without Payload jobs, and returns its counts. Without `tasks.secret`, the endpoint does not exist.
+
+```ts payload.config.ts
+bunnyStorage({
+  // ...
+  stream: {
+    // ...
+    cleanup: true,
+    status: { sync: true },
+  },
+  tasks: {
+    secret: process.env.BUNNY_TASKS_SECRET, // at least 16 characters
+  },
+})
+```
+
+| Part           | Value                                                                                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Path           | `/api/storage-bunny/tasks/cleanup` or `/api/storage-bunny/tasks/status-sync`                                                                                                                     |
+| Authentication | `GET`: `Authorization: Bearer <tasks.secret>`. `POST`: the same header, or a signed-in user of your admin user collection who passes its `access.admin`. Otherwise 401.                          |
+| `?limit=`      | `status-sync` only. Documents loaded per database query. A value above `500` becomes `500`. `cleanup` ignores it, but an invalid value still returns 400.                                        |
+| Response       | `{ "task": "status-sync", "checked": 3, "failed": 0, "hasMore": false, "updated": 2 }`                                                                                                           |
+| Errors         | 401 comes first, also for an unknown task. 400 when `limit` is not a positive integer. 404 for an unknown task or a task that is off. 500 when the task fails, with a `[bunny:tasks]` log entry. |
+
+`cleanup` returns `deletedCount`, `errorCount` and `hasMore`.
+
+**Vercel Cron.** Use the same value for `CRON_SECRET` and `tasks.secret`, because Vercel sends `CRON_SECRET` as the bearer token:
+
+```ts payload.config.ts
+tasks: { secret: process.env.CRON_SECRET },
+```
+
+```json vercel.json
+{
+  "crons": [
+    { "path": "/api/storage-bunny/tasks/status-sync", "schedule": "*/5 * * * *" },
+    { "path": "/api/storage-bunny/tasks/cleanup", "schedule": "0 2 * * *" }
+  ]
+}
+```
+
+**crontab or any other cron service:**
+
+```bash
+*/5 * * * * curl -fsS -X POST -H "Authorization: Bearer $BUNNY_TASKS_SECRET" https://your-site.com/api/storage-bunny/tasks/status-sync
+0 2 * * *   curl -fsS -X POST -H "Authorization: Bearer $BUNNY_TASKS_SECRET" https://your-site.com/api/storage-bunny/tasks/cleanup
+```
+
+### When `hasMore` is true
+
+`hasMore: true` means there is more work left, for example because the run reached its time budget or more items were waiting than one run takes.
+
+`status-sync` loads the documents in pages of `limit` and keeps going until it has checked them all. It stops early and returns `"hasMore": true` when:
+
+- the run reached its time budget of 25 seconds;
+- Bunny answered `429 Too Many Requests`.
+
+`cleanup` loads stale upload sessions 100 at a time per library. When sessions of a page fail, it skips them and loads the next page in the same run. Otherwise it stops after one page. It also loads at most 100 sessions of libraries that are no longer configured. It returns `"hasMore": true` when the run reached its time budget of 25 seconds, or when more sessions were waiting than it loaded, but only if the run removed at least one session in any library. A run that removed no session returns `false`, for example when every session failed or Bunny did not answer in time. So a loop that calls it until `hasMore` is `false` always ends.
+
+Neither task starts a document or an upload session with less than 2 seconds left. A Bunny call that the run deadline cuts off does not count in `failed` or `errorCount`.
+
+The next scheduled run continues. To finish now, call the endpoint again until `hasMore` is `false`. Wait between calls, so a `429` has time to clear. This loop also stops on an error response and after 20 calls:
+
+```bash
+for i in $(seq 1 20); do
+  curl -fsS -X POST -H "Authorization: Bearer $BUNNY_TASKS_SECRET" \
+    https://your-site.com/api/storage-bunny/tasks/status-sync | grep -q '"hasMore":true' || break
+  sleep 5
+done
+```
+
+## CLI
+
+The plugin adds the `bunny:task` command to Payload's CLI when a task is on:
+
+```bash
+npx payload bunny:task cleanup
+npx payload bunny:task status-sync --limit 200
+```
+
+It runs the task once, prints the counts and exits with code `1` when any video or session failed. See [`bunny:task`](/v4/cli/task).
+
+## Call the functions from your own code
+
+The package exports the functions behind the tasks:
+
+```ts
+import { runStreamCleanup, syncStreamStatus } from '@seshuk/payload-storage-bunny'
+
+const cleanup = await runStreamCleanup({ payload, maxDurationMs: 10_000 })
+const sync = await syncStreamStatus({ payload, limit: 100, maxDurationMs: 10_000 })
+
+console.log(cleanup.deletedCount, cleanup.errorCount, cleanup.hasMore)
+console.log(sync.checked, sync.updated, sync.failed, sync.hasMore)
+```
+
+| Function           | Arguments                                   | Returns                                 |
+| ------------------ | ------------------------------------------- | --------------------------------------- |
+| `runStreamCleanup` | `{ payload, req?, maxDurationMs? }`         | `{ deletedCount, errorCount, hasMore }` |
+| `syncStreamStatus` | `{ payload, req?, limit?, maxDurationMs? }` | `{ checked, updated, failed, hasMore }` |
+
+`req` defaults to a new local request. `limit` defaults to `stream.status.sync.limit`, and `maxDurationMs` defaults to `25000`. Both functions throw when the plugin is not in the config or the task is off.
+
+**A Next.js route** with your own authentication:
+
+```ts app/api/cron/bunny/route.ts
+import config from '@payload-config'
+import { syncStreamStatus } from '@seshuk/payload-storage-bunny'
+import { getPayload } from 'payload'
+
+export const GET = async (request: Request) => {
+  const secret = process.env.CRON_SECRET
+  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+  const payload = await getPayload({ config })
+  return Response.json(await syncStreamStatus({ payload }))
+}
+```
+
+**A script**, for example with `payload run`:
+
+```ts scripts/sync-stream-status.ts
+import config from '@payload-config'
+import { syncStreamStatus } from '@seshuk/payload-storage-bunny'
+import { getPayload } from 'payload'
+
+const payload = await getPayload({ config })
+let result = await syncStreamStatus({ payload })
+while (result.hasMore) {
+  await new Promise((resolve) => setTimeout(resolve, 5000))
+  result = await syncStreamStatus({ payload })
+}
+process.exit(0)
+```
+
+```bash
+npx payload run scripts/sync-stream-status.ts
+```
+
+## Status sync
+
+The plugin stores the encoding state of each video in `bunnyData.stream.status`. The [webhook](/v4/configuration/stream/webhooks) and the [media preview](/v4/guides/media-preview#processing-state) update it. Status sync is a third way. Turn it on when the library has no webhook, or when a missed webhook must not leave a video as `processing` in the list and the filters.
+
+```ts payload.config.ts
+stream: {
+  // ...
+  status: { sync: true },
+}
+```
+
+Or change the defaults:
+
+```ts payload.config.ts
+stream: {
+  // ...
+  status: {
+    sync: {
+      limit: 50,
+      maxAge: 604800,
+      schedule: { cron: '*/5 * * * *', queue: 'storage-bunny' },
+    },
+  },
+}
+```
+
+| Option     | Type     | Default                                           | Description                                                                |
+| ---------- | -------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+| `limit`    | `number` | `50`                                              | Documents loaded per database query, per collection. A positive integer.   |
+| `maxAge`   | `number` | `604800` (7 days)                                 | Seconds. Documents last saved earlier are not checked. A positive integer. |
+| `schedule` | object   | `{ cron: '*/5 * * * *', queue: 'storage-bunny' }` | Schedule of the Payload task. Global only.                                 |
+
+A collection can set `status: { sync: true }`, `{ sync: false }` or `{ sync: { limit, maxAge } }`. In a partial stream override, it inherits the other values from the global `stream.status.sync`. With full stream options for its own library, it inherits nothing, and status sync is off unless you set it. `status: true` keeps the global sync, and `status: false` turns the status and its sync off for that collection.
+
+How a run works:
+
+1. For each collection with status sync, it finds documents whose stored status is `processing` and that were saved in the last `maxAge` seconds, last saved first, `limit` at a time, until none are left or the run stops.
+2. It asks the Bunny API for each video, four at a time.
+3. When the state is no longer `processing`, it stores the new state. The write happens only if the stored status is still `processing` and the document still points at the same video, so it never overwrites a newer state from the webhook or the state of a replaced video. It keeps the stored MP4 `resolutions`. When the video becomes `ready`, Bunny has finished encoding it, `mp4Fallback` is on and the document has no `resolutions` yet, it fetches them and stores them in the same write. If that fetch fails or Bunny returns no MP4 resolutions yet, it does not store `ready`, so the document stays `processing` and the next run tries again. If Bunny answers that fetch with `429`, the run stops as described below and the document stays `processing` for the next run. `updated` counts only the writes that changed a document.
+4. A video that Bunny no longer has becomes `failed`, but only when the library itself still answers. Other errors count in `failed`, and the document stays `processing` for the next run. A call that the run deadline cuts off does not count in `failed`.
+
+Status sync skips a collection with a `[bunny:tasks]` warning when Payload does not have it or when it has `timestamps: false`, because the sync needs `updatedAt`.
+
+Like webhook writes, these writes go straight to the database. They do not run your collection hooks, do not create versions and do not change `updatedAt`. So `maxAge` counts from the last time someone saved the document, for example when they replaced the video, not from a status write.
+
+<Warning>
+
+Bunny does not publish rate limits for the Stream API, so the plugin cannot stay under them for sure. Each run makes one API call per `processing` document, plus one for the MP4 resolutions of a video that became `ready` while `mp4Fallback` is on, four at a time, for up to 25 seconds. When Bunny answers `429`, the run stops and returns `hasMore: true`. If you see `429` often, lower `maxAge`, pass a shorter `maxDurationMs` or run the task less often.
+
+</Warning>
+
+## Turn the status off
+
+With `stream.status: false`, the plugin does not store the status, so there is nothing to sync. It also removes the `bunnyStream` admin field and the status endpoint. The preview shows the player right away. Nothing shows that a video is still encoding.
+
+## Troubleshooting
+
+| Problem                                                                 | Fix                                                                                                                                                                                |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Startup warning: `no jobs.autoRun entry runs the "storage-bunny" queue` | Add an `autoRun` entry, or set `tasks.secret` and use the plugin endpoint. When a cron calls `/api/payload-jobs/run?queue=storage-bunny`, the warning stays and you can ignore it. |
+| The endpoint answers 404                                                | `tasks.secret` is not set, the task name is wrong, or the task is off (`stream.cleanup`, `stream.status.sync`).                                                                    |
+| The endpoint answers 401                                                | Send `Authorization: Bearer <tasks.secret>` exactly. On Vercel, `tasks.secret` must equal `CRON_SECRET`. A signed-in admin session works only with `POST`.                         |
+| Videos stay `processing`                                                | Check the server log for `[bunny:tasks] status-sync`. A document not saved in the last `maxAge` seconds is not checked. The media preview still checks it when you open it.        |
+| A video shows `failed` but plays in Bunny                               | See [Reset a stored status](/v4/guides/stored-data#reset-a-stored-status).                                                                                                         |
+| `bunny:task` is not a known command                                     | Turn on `stream.cleanup` or `stream.status.sync`, and do not set `cli: false` in your Payload config.                                                                              |

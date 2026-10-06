@@ -8,6 +8,27 @@ import type {
   NormalizedStreamOptions,
 } from '@/shared/types/optionsNormalized.js'
 
+const getSync = (status: unknown): unknown =>
+  typeof status === 'object' && status !== null ? (status as { sync?: unknown }).sync : undefined
+
+const invalidSyncKeys = (status: unknown): string[] => {
+  const sync = getSync(status)
+  return typeof sync === 'object' && sync !== null
+    ? (['limit', 'maxAge'] as const).filter((key) => {
+        const value = (sync as Record<string, unknown>)[key]
+        return value !== undefined && !(Number.isInteger(value) && (value as number) > 0)
+      })
+    : []
+}
+
+const isNotBoolean = (value: unknown): boolean => value !== undefined && typeof value !== 'boolean'
+
+const isNotBooleanOrObject = (value: unknown): boolean =>
+  isNotBoolean(value) && (typeof value !== 'object' || value === null)
+
+const hasInvalidLink = (status: unknown): boolean =>
+  isNotBoolean(typeof status === 'object' && status !== null ? (status as { link?: unknown }).link : undefined)
+
 const isNonEmptyString = (value: unknown): boolean => typeof value === 'string' && value.length > 0
 
 type RemovedKey = {
@@ -165,6 +186,27 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
     }
   }
 
+  const tasksSecret = options._original.tasks?.secret
+  if (tasksSecret !== undefined && (typeof tasksSecret !== 'string' || tasksSecret.length < 16)) {
+    errors.push('`tasks.secret` must be a string of at least 16 characters')
+  }
+
+  if (isNotBooleanOrObject(options._original.stream?.status)) {
+    errors.push('`stream.status` must be a boolean or an object')
+  }
+  if (isNotBooleanOrObject(getSync(options._original.stream?.status))) {
+    errors.push('`stream.status.sync` must be a boolean or an object')
+  }
+  for (const key of invalidSyncKeys(options._original.stream?.status)) {
+    errors.push(`\`stream.status.sync.${key}\` must be a positive integer`)
+  }
+  if (hasInvalidLink(options._original.stream?.status)) {
+    errors.push('`stream.status.link` must be a boolean')
+  }
+  if (isNotBoolean(options._original.stream?.preview)) {
+    errors.push('`stream.preview` must be a boolean')
+  }
+
   if (options._original.storage) {
     const storage = options._original.storage
     if (!isNonEmptyString(storage.apiKey)) {
@@ -210,6 +252,21 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
     }
 
     const rawStream = raw.stream
+    if (isNotBooleanOrObject(rawStream && rawStream.status)) {
+      errors.push(`collection "${slug}" sets \`stream.status\`, which must be a boolean or an object`)
+    }
+    if (isNotBooleanOrObject(getSync(rawStream && rawStream.status))) {
+      errors.push(`collection "${slug}" sets \`stream.status.sync\`, which must be a boolean or an object`)
+    }
+    for (const key of invalidSyncKeys(rawStream && rawStream.status)) {
+      errors.push(`collection "${slug}" sets \`stream.status.sync.${key}\`, which must be a positive integer`)
+    }
+    if (hasInvalidLink(rawStream && rawStream.status)) {
+      errors.push(`collection "${slug}" sets \`stream.status.link\`, which must be a boolean`)
+    }
+    if (isNotBoolean(rawStream && rawStream.preview)) {
+      errors.push(`collection "${slug}" sets \`stream.preview\`, which must be a boolean`)
+    }
     if (rawStream && 'apiKey' in rawStream) {
       if (!isNonEmptyString(rawStream.apiKey)) {
         errors.push(`collection "${slug}" provides its own stream options but is missing \`apiKey\``)

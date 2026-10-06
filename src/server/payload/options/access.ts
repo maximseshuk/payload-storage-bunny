@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { PLUGIN_KEY } from '@/shared/constants.js'
 import type { StorageRegion } from '@/shared/types/options.js'
@@ -31,6 +31,15 @@ const readStash = (payload: Payload): NormalizedBunnyStorageOptions | undefined 
 }
 
 export const getBunnyOptions = (payload: Payload): NormalizedBunnyStorageOptions | undefined => readStash(payload)
+
+export const isAdminUser = async (req: PayloadRequest): Promise<boolean> => {
+  const adminCollection = req.payload.config.admin.user
+  if (req.user?.collection !== adminCollection) {
+    return false
+  }
+  const access = req.payload.collections[adminCollection]?.config.access?.admin
+  return !access || Boolean(await access({ req, slug: adminCollection }))
+}
 
 export const getBunnyCollectionOptions = (
   payload: Payload,

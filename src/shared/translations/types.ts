@@ -8,6 +8,27 @@ export type PluginDefaultTranslationsObject = {
     errorTitleRequired: string
     errorUploadFileFailed: string
 
+    streamPreviewFailed: string
+    streamPreviewLoading: string
+    streamPreviewProcessing: string
+    streamPreviewStatusError: string
+    streamPreviewStillProcessing: string
+    streamPreviewTitle: string
+
+    streamCheckStatus: string
+    streamCopyVideoId: string
+    streamDashboardLink: string
+    streamDashboardNewTab: string
+    streamDashboardTooltip: string
+    streamMp4: string
+    streamStatusColumnLabel: string
+    streamStatusFailed: string
+    streamStatusLabel: string
+    streamStatusProcessing: string
+    streamStatusReady: string
+    streamStatusUnknown: string
+    streamVideoId: string
+
     tusUploadDisableMode: string
     tusUploadEnableMode: string
     tusUploadErrorFileType: string

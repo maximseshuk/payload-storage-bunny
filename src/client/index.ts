@@ -1,2 +1,5 @@
 export { BunnyClientUploadHandler } from '@/client/ClientUploadHandler.js'
+export { StreamFilePreview } from '@/client/StreamFilePreview/StreamFilePreview.js'
+export { StreamPreview } from '@/client/StreamPreview/StreamPreview.js'
+export { StreamStatusCell, StreamStatusField } from '@/client/StreamStatus/StreamStatus.js'
 export { TusUpload } from '@/client/TusUpload/TusUpload.js'

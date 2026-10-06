@@ -1,4 +1,9 @@
-import { deleteStreamVideo, getStreamVideo, listStreamVideos } from '@/server/bunny/stream.js'
+import {
+  deleteStreamVideo,
+  getStreamVideo,
+  getStreamVideoResolutions,
+  listStreamVideos,
+} from '@/server/bunny/stream.js'
 import { type BunnyStreamCredentials, BunnyStreamVideoStatus } from '@/server/bunny/stream.js'
 
 import { log } from '../shared/log.js'
@@ -17,9 +22,15 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 export const waitForVideoProcessed = async (
   videoId: string,
-  options: { envPrefix?: string; interval?: number; timeout?: number; until?: 'processed' | 'uploaded' } = {},
+  options: {
+    envPrefix?: string
+    interval?: number
+    resolutions?: boolean
+    timeout?: number
+    until?: 'processed' | 'uploaded'
+  } = {},
 ): Promise<boolean> => {
-  const { envPrefix, interval = 2000, timeout = 120000, until = 'processed' } = options
+  const { envPrefix, interval = 2000, resolutions = false, timeout = 120000, until = 'processed' } = options
   const credentials = getCredentials(envPrefix)
 
   if (!credentials) {
@@ -34,8 +45,16 @@ export const waitForVideoProcessed = async (
       const video = await getStreamVideo({ ...credentials, videoId })
 
       if (video.status === BunnyStreamVideoStatus.Finished) {
-        log.success(`Video ${videoId} finished processing`)
-        return true
+        if (
+          !resolutions ||
+          (await getStreamVideoResolutions({ ...credentials, videoId })).data.mp4Resolutions?.length
+        ) {
+          log.success(`Video ${videoId} finished processing`)
+          return true
+        }
+        log.info(`Waiting for the MP4 resolutions of video ${videoId}...`)
+        await sleep(interval)
+        continue
       }
 
       if (video.status === BunnyStreamVideoStatus.Error || video.status === BunnyStreamVideoStatus.UploadFailed) {

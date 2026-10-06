@@ -26,6 +26,18 @@ export const OPTIONS_DEFAULTS = {
     },
     mimeTypes: TUS_MIME_TYPES,
     mp4Fallback: false,
+    preview: true,
+    status: {
+      link: true,
+      sync: {
+        limit: 50,
+        maxAge: 604800,
+        schedule: {
+          cron: '*/5 * * * *',
+          queue: 'storage-bunny',
+        },
+      },
+    },
     tus: {
       autoMode: true,
       expiresIn: 3600,

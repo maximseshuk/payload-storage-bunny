@@ -35,6 +35,12 @@ export default defineConfig({
       },
     },
     {
+      files: ['src/client/StreamPreview/**'],
+      rules: {
+        'react/iframe-missing-sandbox': 'off',
+      },
+    },
+    {
       files: ['src/shared/**'],
       rules: {
         'no-restricted-imports': [

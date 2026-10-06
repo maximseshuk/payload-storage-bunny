@@ -1,15 +1,47 @@
-import type { CollectionConfig, Field, GroupField, TextField } from 'payload'
+import type { CollectionConfig, Field, GroupField, SelectField, TextField } from 'payload'
 
 import { bunnyGroupField } from '@/server/payload/fields/bunnyGroupField.js'
 import { getThumbnailURLAfterReadFieldHook, getUrlAfterReadFieldHook } from '@/server/payload/fields/hooks.js'
+import { PLUGIN_KEY } from '@/shared/constants.js'
+import { translations } from '@/shared/translations/index.js'
+import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
-const getBunnyFields = (collectionContext: CollectionContext): Field[] => {
+type TranslationKey = keyof PluginDefaultTranslationsObject[typeof PLUGIN_KEY]
+
+const translated = (key: TranslationKey): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(translations).map(([language, translation]) => [language, translation[PLUGIN_KEY][key]]),
+  )
+
+const getStreamStatusField = (): SelectField => ({
+  name: 'bunnyStream',
+  type: 'select',
+  access: { create: () => false, update: () => false },
+  admin: {
+    components: {
+      Cell: '@seshuk/payload-storage-bunny/client#StreamStatusCell',
+      Field: '@seshuk/payload-storage-bunny/client#StreamStatusField',
+    },
+    disabled: { bulkEdit: true, groupBy: true },
+    position: 'sidebar',
+    readOnly: true,
+  },
+  label: translated('streamStatusColumnLabel'),
+  options: [
+    { label: translated('streamStatusProcessing'), value: 'processing' },
+    { label: translated('streamStatusReady'), value: 'ready' },
+    { label: translated('streamStatusFailed'), value: 'failed' },
+  ],
+  virtual: 'bunnyData.stream.status',
+})
+
+const getBunnyFields = (collectionContext: CollectionContext, status: boolean): Field[] => {
   if (!collectionContext.streamOptions) {
     return []
   }
 
-  return [bunnyGroupField(collectionContext)]
+  return [bunnyGroupField(collectionContext, status)]
 }
 
 export const getFields = (
@@ -29,7 +61,7 @@ export const getFields = (
 
   let fields = [...existingFields]
 
-  const bunnyFields = getBunnyFields(collectionContext)
+  const bunnyFields = getBunnyFields(collectionContext, !!collectionContext.streamOptions?.status)
   if (bunnyFields.length > 0) {
     fields.unshift(...bunnyFields)
   }
@@ -93,6 +125,13 @@ export const getFields = (
     fields.push(prefixField)
   }
 
+  if (
+    collectionContext.streamOptions?.status &&
+    !fields.some((field) => 'name' in field && field.name === 'bunnyStream')
+  ) {
+    fields.push(getStreamStatusField())
+  }
+
   if (typeof collection.upload === 'object' && collection.upload.imageSizes) {
     let existingSizesFieldIndex = -1
 
@@ -130,7 +169,7 @@ export const getFields = (
           name: size.name,
           type: 'group',
           fields: [
-            ...getBunnyFields(collectionContext),
+            ...getBunnyFields(collectionContext, false),
             {
               ...existingSizeURLField,
               ...baseURLField,

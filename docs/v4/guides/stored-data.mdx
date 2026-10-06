@@ -15,6 +15,7 @@ For a video, the API returns:
   "stream": {
     "videoId": "e7f2c1a0-…",
     "libraryId": 12345,
+    "status": "ready",
     "resolutions": { "available": ["720p", "480p"], "highest": "720p" }
   }
 }
@@ -23,13 +24,52 @@ For a video, the API returns:
 For non-video documents in the same collection, `bunnyData` is omitted from the response.
 
 - `videoId` **Stored** — stored and indexed.
+- `status` **Stored** — stored and indexed. The encoding state of the video: `processing`, `ready` or `failed`. When you save a document with a new video, after an upload or when you replace the video, the plugin asks Bunny for the current state and stores it. Right after an upload, this is usually `processing`. The [webhook](/v4/configuration/stream/webhooks), the [media preview](/v4/guides/media-preview#processing-state) status check and [status sync](/v4/configuration/background-tasks#status-sync) update it. With `stream.status: false` the field does not exist. It is read-only: create and update requests cannot set it. Documents uploaded before this field existed have no `status` until the preview checks them. The stored value is the last known state, not a live one: the [status endpoint](/v4/guides/media-preview#processing-state) is authoritative.
 - `type` and `libraryId` **Computed** — computed on read from your plugin options, not stored in the database.
 - `resolutions` **Stored** — `available` lists the MP4 renditions Bunny reports (unordered); `highest` is the highest of those whose MP4 file has been verified to exist. Because Bunny encodes renditions asynchronously, `highest` can be lower than the top of `available` until the higher rendition finishes.
+
+When the plugin writes the state, it writes `bunnyData.stream` as a whole object (`videoId`, `status` and `resolutions`), because MongoDB replaces the whole nested object on update. These writes go straight to the database. They do not run your collection hooks, do not create versions and do not change the document's `updatedAt`. While `stream.status` or `mp4Fallback` is on, when you save a document in a collection with drafts, the plugin copies the stored `status` and `resolutions` from the main document, so an older version does not bring back an old state. The state writes change only the main document, not its versions. So a read with `draft: true`, the version history and the `_<slug>_v` table can show an older state than the main document until the next save. A video that only a draft has, for example after a draft save over a published document, gets no state from the webhook or status sync until you publish it. Until then, the list view can show it as processing. The status check of the edit view reads the main document, so the edit view can show the state of the published video instead, and can show the player before Bunny has encoded the draft video.
+
+A save in the admin can race a webhook or status sync write to the same document. The save then can store `processing` again over a `ready` state that was written a moment earlier. The next preview status check or status sync run stores the right state again.
+
+A webhook can also arrive before the document exists in the database. See [When the webhook arrives before the document](/v4/configuration/stream/webhooks#when-the-webhook-arrives-before-the-document) for what covers this case.
+
+### Database columns
+
+On Postgres, SQLite and D1, `bunnyData.stream` is stored in these columns of each Stream collection's table:
+
+| Column                          | Notes                                    |
+| ------------------------------- | ---------------------------------------- |
+| `bunny_data_stream_video_id`    | Indexed.                                 |
+| `bunny_data_stream_status`      | Indexed. Not there with `status: false`. |
+| `bunny_data_stream_resolutions` | Only with `mp4Fallback`.                 |
+
+A collection with versions also has `version_bunny_data_stream_video_id`, `version_bunny_data_stream_status` and `version_bunny_data_stream_resolutions` in its `_<slug>_v` table. Check your migration for this table: in our tests Payload 4 also created it for upload collections without `versions`. Image sizes do not store a status. Payload shortens long index names, so the index names in your migration can differ from the column names.
+
+### Reset a stored status
+
+A video that Bunny no longer has is stored as `failed`. The plugin does this only when the same library still answers, so an expired API key or a Bunny outage does not mark your videos as failed. If a video shows `failed` by mistake, for example after you restored it in Bunny, set the status back to `processing`. The next status check, preview or status sync run then asks Bunny again:
+
+```ts
+const doc = await payload.db.findOne<{ id: number | string; bunnyData?: { stream?: Record<string, unknown> } }>({
+  collection: 'media',
+  where: { id: { equals: id } },
+})
+if (!doc?.bunnyData?.stream) return
+
+await payload.db.updateOne({
+  collection: 'media',
+  data: { bunnyData: { stream: { ...doc.bunnyData.stream, status: 'processing' } } },
+  where: { id: { equals: id } },
+})
+```
+
+Write the whole `bunnyData.stream` object, because MongoDB replaces it as a whole. The Local API (`payload.update`) cannot change the status: when you save a document that keeps its video, the plugin puts the stored status back.
 
 <Tip>
 **Encoding is asynchronous**
 
-`resolutions` only appears on the field when [`stream.mp4Fallback`](/v4/configuration/stream/overview#options) is enabled. It stays empty until Bunny finishes encoding the video and calls your [webhook](/v4/configuration/stream/webhooks) — encoding happens asynchronously, so it won't be present right after upload.
+`resolutions` only appears on the field when [`stream.mp4Fallback`](/v4/configuration/stream/overview#options) is enabled. It stays empty until Bunny finishes encoding the video and calls your [webhook](/v4/configuration/stream/webhooks) — encoding happens asynchronously, so it won't be present right after upload. With `stream.status` on, the plugin also stores `resolutions` at save time, and when the preview status check or status sync stores `ready`, but only if Bunny has already finished encoding the video at that moment. Otherwise the webhook or the first MP4 fallback request fills them.
 
 </Tip>
 
@@ -45,6 +85,25 @@ await payload.find({
   },
 })
 ```
+
+## Bunny Stream status in the admin
+
+Stream collections get a read-only field named `bunnyStream`. It is a virtual `select` field that points at `bunnyData.stream.status` (`processing`, `ready` or `failed`), so it adds no database column.
+
+- **List view.** Add the **Stream Status** column with the column picker. It shows the state as a colored badge: **Processing**, **Ready** or **Failed**. A video with no stored state shows a gray **Unknown** badge. Documents without a Stream video show nothing. The cell never asks Bunny for the state: it shows the stored value.
+- **Dashboard link.** Each badge in the list has a small new-tab icon, and the whole badge is a link to the video in the Bunny Stream dashboard. It opens in a new tab. When you point at the badge or move to it with the keyboard, a tooltip says **Open in Bunny Stream dashboard**. Clicking the badge does not open the document. Set `stream.status.link: false` to show a plain badge without the icon, the link and the tooltip. This does not hide the library ID: the admin still gets it in the collection config (`admin.custom`), in the virtual `bunnyData.stream.libraryId` field of each document and in the player's embed URL.
+- **Filter and sort.** You can filter the list by **Stream Status**, for example to find all videos that failed, and sort by it. Payload turns `where[bunnyStream][equals]=failed` into a query on `bunnyData.stream.status`, which is indexed.
+- **Edit view.** The sidebar shows a **Bunny Stream** card with the stored video data:
+  - **Status**: the same badge as in the list, without the link. While the video is processing or has no stored state, the card checks the state on the same schedule as the [media preview](/v4/guides/media-preview#processing-state). The badge and the **MP4** row change when the state changes, so you do not need to reload the page. Screen readers announce the new state.
+  - **Check status now**: the round button next to the badge checks the state right away. It spins while the check runs. If the check fails, the card shows **Could not check the video status**. If the check finds the video still processing, screen readers hear **The video is still processing. Check the status again later**. The button shows only on a saved document while the video is processing or has no stored state. When the state changes to **Ready** or **Failed**, the button goes away. After you upload a new video, the card shows **Processing** and does not check until you save. The server may answer from its short cache: it asks Bunny at most once per video every 10 seconds, or 60 seconds when the library has a webhook.
+  - **Video ID**: the Bunny Stream video ID. A long ID is cut short, and you can see the full ID when you point at it. The copy button next to it copies the ID, and screen readers announce **Copied**. If the browser blocks the clipboard, the button says **Unable to copy.**
+  - **MP4**: the MP4 renditions Bunny made, for example `720p, 1080p`. This row shows only when the plugin stored renditions, which needs `mp4Fallback`.
+  - **Open in Bunny dashboard**: a link to the video in the Bunny Stream dashboard. It opens in a new tab. It shows only when `stream.status.link` is on.
+- **API.** Read responses include `bunnyStream` with the same value as `bunnyData.stream.status`. Create and update requests cannot set it.
+
+Only Bunny Stream videos get a dashboard link. Files in Bunny Storage do not: the plugin knows the storage zone name, but a dashboard link needs the numeric zone ID.
+
+Payload loads only the active list columns. So the plugin adds a collection [`select`](https://payloadcms.com/docs/queries/select) function that also loads `bunnyData.stream.status` and `bunnyData.stream.videoId` when a query selects specific fields and one of them is `bunnyStream`. Your own collection `select` function still runs first, and the plugin adds the two fields to its result. A query that excludes fields, or that does not select `bunnyStream`, stays as it is. So a REST or Local API query with `select: { bunnyStream: true }` returns these two fields too.
 
 ## Upgrading from v2
 

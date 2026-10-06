@@ -1,5 +1,5 @@
 import type { Config } from 'payload'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { bunnyStorage } from '@/index.js'
 import type { BunnyStorageOptions } from '@/shared/types/index.js'
@@ -321,6 +321,139 @@ describe('translations', () => {
   })
 })
 
+describe('Stream status field', () => {
+  const fieldNames = (stream: Record<string, unknown>): string[] => {
+    const incoming = {
+      collections: [{ slug: 'media', fields: [{ name: 'alt', type: 'text' }], upload: true }],
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { media: { disablePayloadAccessControl: true } },
+      stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, ...stream },
+    } as BunnyStorageOptions).init(incoming) as Config
+
+    return (result.collections?.find((entry) => entry.slug === 'media')?.fields ?? []).flatMap((field) =>
+      'name' in field ? [field.name] : [],
+    )
+  }
+
+  it('comes after the storage fields so it is not one of the default list columns', () => {
+    expect(fieldNames({})).toEqual(['bunnyData', 'alt', 'thumbnailURL', 'url', 'prefix', '_objectKey', 'bunnyStream'])
+  })
+
+  it('is not added when the status is turned off', () => {
+    expect(fieldNames({ status: false })).not.toContain('bunnyStream')
+  })
+
+  const mediaCollection = (stream: Record<string, unknown>) => {
+    const incoming = {
+      collections: [{ slug: 'media', fields: [{ name: 'alt', type: 'text' }], upload: true }],
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { media: { disablePayloadAccessControl: true } },
+      stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, ...stream },
+    } as BunnyStorageOptions).init(incoming) as Config
+
+    return result.collections!.find((entry) => entry.slug === 'media')!
+  }
+
+  it('adds the status select only when the status is on', () => {
+    expect(mediaCollection({ mp4Fallback: true }).select).toBeTypeOf('function')
+    expect(mediaCollection({ mp4Fallback: true, status: false }).select).toBeUndefined()
+  })
+
+  it('adds the beforeChange hook that keeps the stored values when the status or mp4Fallback is on', () => {
+    const hookCount = (stream: Record<string, unknown>) => mediaCollection(stream).hooks!.beforeChange!.length
+    const neither = hookCount({ mp4Fallback: false, status: false })
+    expect(hookCount({ mp4Fallback: false })).toBe(neither + 1)
+    expect(hookCount({ mp4Fallback: true, status: false })).toBe(neither + 1)
+    expect(hookCount({ mp4Fallback: true })).toBe(neither + 1)
+  })
+
+  it('always sends the library ID to the admin and turns the dashboard link on only when it is on', () => {
+    const clientStream = (stream: Record<string, unknown>) =>
+      mediaCollection({ mp4Fallback: true, ...stream }).admin?.custom?.['@seshuk/payload-storage-bunny']?.stream
+    expect(clientStream({})).toMatchObject({ libraryId: 1, link: true })
+    expect(clientStream({ status: { link: false } })).toMatchObject({ libraryId: 1 })
+    expect(clientStream({ status: { link: false } })).not.toHaveProperty('link')
+    expect(clientStream({ status: false })).toMatchObject({ libraryId: 1 })
+    expect(clientStream({ status: false })).not.toHaveProperty('link')
+  })
+
+  it('gives each collection its own status field', () => {
+    const incoming = {
+      collections: [
+        { slug: 'media', fields: [], upload: true },
+        { slug: 'clips', fields: [], upload: true },
+      ],
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { clips: { disablePayloadAccessControl: true }, media: { disablePayloadAccessControl: true } },
+      stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1 },
+    } as BunnyStorageOptions).init(incoming) as Config
+
+    const [media, clips] = ['media', 'clips'].map((slug) =>
+      result
+        .collections!.find((entry) => entry.slug === slug)!
+        .fields.find((field) => 'name' in field && field.name === 'bunnyStream'),
+    )
+    expect(media).toMatchObject({ virtual: 'bunnyData.stream.status' })
+    expect(clips).toMatchObject({ virtual: 'bunnyData.stream.status' })
+    expect(clips).not.toBe(media)
+  })
+})
+
+describe('background tasks wiring', () => {
+  const init = (options: Partial<BunnyStorageOptions>, incoming: Partial<Config> = {}): Config =>
+    bunnyStorage({
+      collections: { media: { disablePayloadAccessControl: true } },
+      ...options,
+    } as BunnyStorageOptions).init({
+      collections: [{ slug: 'media', fields: [], upload: true }],
+      ...incoming,
+    } as unknown as Config) as Config
+
+  const stream = { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1 }
+  const storage = { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' }
+
+  it('registers bunny:task for a stream-only setup with a task', () => {
+    const commands = init({ stream: { ...stream, status: { sync: true } } }).cli
+    expect(Object.keys((commands as { commands: object }).commands)).toEqual(['bunny:task'])
+    expect((commands as { commands: Record<string, string> }).commands['bunny:task']).toMatch(
+      /cli\/commands\/task\.js#taskCommand$/,
+    )
+  })
+
+  it('registers only bunny:deploy-edge-script for storage without tasks', () => {
+    const { cli } = init({ storage })
+    expect(Object.keys((cli as { commands: object }).commands)).toEqual(['bunny:deploy-edge-script'])
+  })
+
+  it('adds no CLI commands for a stream-only setup without tasks, and none when cli is false', () => {
+    expect(init({ stream }).cli).toBeUndefined()
+    expect(init({ stream: { ...stream, cleanup: true } }, { cli: false } as never).cli).toBe(false)
+  })
+
+  it('registers the Payload tasks and the tasks endpoint', () => {
+    const config = init({
+      stream: { ...stream, cleanup: true, status: { sync: true } },
+      tasks: { secret: 'a-long-enough-secret' },
+    })
+    expect(config.jobs?.tasks?.map((task) => task.slug)).toEqual([
+      'StorageBunnyStreamCleanup',
+      'StorageBunnyStreamStatusSync',
+    ])
+    expect(config.endpoints?.filter((endpoint) => endpoint.path === '/storage-bunny/tasks/:task')).toHaveLength(2)
+  })
+
+  it('adds no tasks endpoint without tasks.secret', () => {
+    const config = init({ stream: { ...stream, status: { sync: true } } })
+    expect(config.endpoints?.some((endpoint) => endpoint.path.startsWith('/storage-bunny/tasks'))).toBe(false)
+  })
+})
+
 describe('TUS upload component', () => {
   const getUpload = (tus: boolean): unknown => {
     const incoming = {
@@ -344,5 +477,68 @@ describe('TUS upload component', () => {
 
   it('keeps the default upload when TUS is off', () => {
     expect(getUpload(false)).toBeUndefined()
+  })
+})
+
+describe('Stream file preview', () => {
+  const getFilePreview = (media: MediaOptions, preview?: boolean): unknown => {
+    const incoming = {
+      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { media },
+      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+      stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, preview },
+    } as BunnyStorageOptions).init(incoming) as Config
+
+    const upload = result.collections?.[0]?.upload as { admin?: { components?: { filePreview?: unknown } } }
+    return upload.admin?.components?.filePreview
+  }
+
+  it('registers the Stream player for video and audio of Stream collections', () => {
+    const player = {
+      clientProps: { status: true },
+      path: '@seshuk/payload-storage-bunny/client#StreamFilePreview',
+    }
+
+    expect(getFilePreview({ disablePayloadAccessControl: true, storage: false })).toEqual({
+      'audio/*': player,
+      'video/*': player,
+    })
+  })
+
+  it('registers nothing with preview false, globally or per collection', () => {
+    expect(getFilePreview({ disablePayloadAccessControl: true, storage: false }, false)).toBeUndefined()
+    expect(
+      getFilePreview({ disablePayloadAccessControl: true, storage: false, stream: { preview: false } }),
+    ).toBeUndefined()
+  })
+
+  it('registers nothing for collections without Stream', () => {
+    expect(getFilePreview({ disablePayloadAccessControl: true, stream: false })).toBeUndefined()
+  })
+
+  it('warns on init when the final filePreview turns off the Stream player', async () => {
+    const config = bunnyStorage({
+      collections: { media: { disablePayloadAccessControl: true, storage: false } },
+      stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1 },
+      telemetry: false,
+    } as BunnyStorageOptions).init({
+      collections: [
+        { slug: 'media', fields: [], upload: { admin: { components: { filePreview: { 'video/*': false } } } } },
+      ],
+    } as unknown as Config) as Config
+    const payload = {
+      collections: { media: { config: config.collections?.[0] } },
+      config,
+      logger: { warn: vi.fn() },
+    }
+
+    await config.onInit?.(payload as never)
+
+    expect(payload.logger.warn).toHaveBeenCalledWith({
+      msg: expect.stringContaining('[bunny:stream] preview: collection "media" sets filePreview "video/*" to false'),
+    })
   })
 })

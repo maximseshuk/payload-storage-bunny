@@ -1,0 +1,59 @@
+---
+title: 'Run a background task'
+sidebarTitle: 'Run a task'
+description: 'Run the Stream cleanup or status sync task once from the Payload CLI.'
+---
+
+`bunny:task` runs one [background task](/v4/configuration/background-tasks) now, without Payload jobs:
+
+```bash
+npx payload bunny:task cleanup
+npx payload bunny:task status-sync
+npx payload bunny:task status-sync --limit 200
+```
+
+The plugin registers this command in Payload's `cli.commands`. It is there when `stream.cleanup` or `stream.status.sync` is on and your config does not set `cli: false`. A `cli.commands['bunny:task']` entry of your own takes precedence.
+
+## Arguments and options
+
+| Name      | Description                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------ |
+| `task`    | Required. `cleanup` or `status-sync`.                                                            |
+| `--limit` | `status-sync` only. Documents loaded per database query. Defaults to `stream.status.sync.limit`. |
+| `--json`  | Payload's global option. Prints the result as JSON on stdout. Logs go to stderr.                 |
+
+## Output and exit code
+
+The command logs the counts with the `[bunny:tasks]` prefix:
+
+- `cleanup`: `deletedCount`, `errorCount` and `hasMore`;
+- `status-sync`: `checked`, `updated`, `failed` and `hasMore`.
+
+It exits with `1` when `errorCount` or `failed` is above `0`, or when the task cannot run, for example because it is off. Otherwise it exits with `0`. `hasMore: true` means there is more work left, for example because the run reached its time budget or more items were waiting than one run takes. It does not change the exit code: run the command again to continue.
+
+```bash
+npx payload bunny:task status-sync --json
+```
+
+This run could not check one video, so it exits with `1`:
+
+```json
+{
+  "command": "bunny:task",
+  "exitCode": 1,
+  "result": { "task": "status-sync", "hasMore": false, "checked": 3, "updated": 2, "failed": 1 },
+  "success": false
+}
+```
+
+A run without errors prints `"success": true` and has no `exitCode` key.
+
+## Run it from a server cron
+
+The command loads your Payload config, so run it where the config and its environment variables are available:
+
+```bash
+*/5 * * * * cd /srv/app && npx payload bunny:task status-sync >> /var/log/bunny-tasks.log 2>&1
+```
+
+On serverless hosts, use the [plugin endpoint](/v4/configuration/background-tasks#plugin-endpoint) or the [Payload jobs runner](/v4/configuration/background-tasks#payload-jobs-runner) instead.

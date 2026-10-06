@@ -1,8 +1,10 @@
 import { posix } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 
 import type { TypeWithPrefix } from '@payloadcms/plugin-cloud-storage/types'
 import type {
   CollectionAfterChangeHook,
+  CollectionBeforeChangeHook,
   CollectionBeforeValidateHook,
   FileData,
   JsonObject,
@@ -12,7 +14,7 @@ import type {
 } from 'payload'
 import { MissingFile, ValidationError } from 'payload'
 
-import { getStreamVideo, isVideoProcessed } from '@/server/bunny/stream.js'
+import { getStreamSaveState, getStreamVideo, isVideoProcessed } from '@/server/bunny/stream.js'
 import { getSafeFileName } from '@/server/files.js'
 import { readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { readClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
@@ -84,16 +86,22 @@ export const getBeforeValidateHook = ({
         uploadReference: file.uploadReference,
       })?.videoId
     if (clientVideoId && data && context.streamOptions) {
-      await getStreamVideo({
-        apiKey: context.streamOptions.apiKey,
-        libraryId: context.streamOptions.libraryId,
-        videoId: clientVideoId,
-      })
-      setStoredVideoId(data, clientVideoId)
+      const { apiKey, libraryId, mp4Fallback, status } = context.streamOptions
+      const video = await getStreamVideo({ apiKey, libraryId, videoId: clientVideoId })
+      const saved = status
+        ? await getStreamSaveState({ apiKey, libraryId, logger: req.payload.logger, mp4Fallback, video })
+        : undefined
+      setStoredVideoId(data, clientVideoId, saved?.status, saved?.resolutions)
     }
 
     if (data && !readStoredVideo(data)?.videoId) {
-      setStoredVideoId(data, null)
+      const status = context.streamOptions?.status
+      setStoredVideoId(
+        data,
+        null,
+        status ? null : undefined,
+        status && context.streamOptions?.mp4Fallback ? null : undefined,
+      )
     }
 
     const storedVideoId = readStoredVideo(data)?.videoId
@@ -112,6 +120,20 @@ export const getBeforeValidateHook = ({
         videoId,
       })
 
+      if (context.streamOptions.status) {
+        const { apiKey, libraryId, mp4Fallback } = context.streamOptions
+        const saved = await getStreamSaveState({
+          apiKey,
+          libraryId,
+          logger: req.payload.logger,
+          mp4Fallback,
+          video: videoData,
+        })
+        setStoredVideoId(targetData, videoData.guid, saved.status, saved.resolutions)
+      } else if (isVideoProcessed(videoData.status)) {
+        setStoredVideoId(targetData, videoData.guid, undefined)
+      }
+
       if (isVideoProcessed(videoData.status)) {
         const safeFilename = await getSafeFileName({
           collectionSlug: context.collection.slug,
@@ -125,7 +147,6 @@ export const getBeforeValidateHook = ({
         targetData.height = null
         targetData.focalX = null
         targetData.focalY = null
-        setStoredVideoId(targetData, videoData.guid)
 
         if (!targetData.mimeType) {
           targetData.mimeType = 'video/mp4'
@@ -154,6 +175,42 @@ export const getBeforeValidateHook = ({
       if (incomingVideoId) {
         await processVideoData(incomingVideoId, data)
       }
+    }
+
+    return data
+  }
+}
+
+export const getStreamBeforeChangeHook = (
+  context: CollectionContext,
+): CollectionBeforeChangeHook<BeforeValidateData> => {
+  return async ({ data, operation, originalDoc, req }) => {
+    const incoming = readStoredVideo(data)
+    if (operation !== 'update' || !originalDoc || !incoming?.videoId) {
+      return data
+    }
+
+    const stored = readStoredVideo(
+      await req.payload.db.findOne({
+        collection: context.collection.slug,
+        req,
+        where: { id: { equals: originalDoc.id } },
+      }),
+    )
+    if (stored?.videoId !== incoming.videoId) {
+      return data
+    }
+
+    if (context.streamOptions?.status) {
+      incoming.status = stored.status ?? null
+    }
+    if (
+      context.streamOptions?.mp4Fallback &&
+      stored.resolutions?.available?.length &&
+      (!incoming.resolutions?.available?.length ||
+        isDeepStrictEqual(incoming.resolutions, readStoredVideo(originalDoc)?.resolutions))
+    ) {
+      incoming.resolutions = stored.resolutions
     }
 
     return data

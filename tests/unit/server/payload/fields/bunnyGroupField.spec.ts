@@ -5,6 +5,7 @@ import {
   bunnyGroupField,
   getBunnyData,
   getAfterReadHook,
+  getStreamSelect,
   readStoredVideo,
   setStoredVideoId,
 } from '@/server/payload/fields/bunnyGroupField.js'
@@ -66,18 +67,30 @@ describe('bunnyGroupField', () => {
   describe('setStoredVideoId / readStoredVideo', () => {
     it('round-trips a videoId through an empty object', () => {
       const data: Record<string, unknown> = {}
-      setStoredVideoId(data, 'v42')
-      expect(readStoredVideo(data)?.videoId).toBe('v42')
+      setStoredVideoId(data, 'v42', 'processing')
+      expect(readStoredVideo(data)).toEqual({ status: 'processing', videoId: 'v42' })
+    })
+
+    it('clears the status when the videoId is cleared', () => {
+      const data: Record<string, unknown> = { bunnyData: { stream: { status: 'ready', videoId: 'v1' } } }
+      setStoredVideoId(data, null, 'ready')
+      expect(readStoredVideo(data)).toEqual({ status: null, videoId: null })
     })
 
     it('preserves existing stream fields when setting videoId', () => {
       const data: Record<string, unknown> = {
         bunnyData: { stream: { resolutions: { highest: '1080p' } } },
       }
-      setStoredVideoId(data, 'v7')
+      setStoredVideoId(data, 'v7', 'ready')
       const stored = readStoredVideo(data)
       expect(stored?.videoId).toBe('v7')
       expect(stored?.resolutions).toEqual({ highest: '1080p' })
+    })
+
+    it('leaves the status untouched when no status is passed', () => {
+      const data: Record<string, unknown> = {}
+      setStoredVideoId(data, 'v42', undefined)
+      expect(readStoredVideo(data)).toEqual({ videoId: 'v42' })
     })
 
     it('returns undefined for an undefined doc', () => {
@@ -87,7 +100,7 @@ describe('bunnyGroupField', () => {
 
   describe('field afterRead hooks', () => {
     it("resolves the virtual type field to 'stream' or null", () => {
-      const field = bunnyGroupField(context({ libraryId: 12345 } as never)) as any
+      const field = bunnyGroupField(context({ libraryId: 12345 } as never), true) as any
       const hook = findField(field, 'type').hooks.afterRead[0]
 
       expect(hook({ siblingData: { stream: { videoId: 'v1' } } })).toBe('stream')
@@ -96,7 +109,7 @@ describe('bunnyGroupField', () => {
     })
 
     it('resolves the virtual libraryId field to the configured library when a videoId exists', () => {
-      const field = bunnyGroupField(context({ libraryId: 999 } as never)) as any
+      const field = bunnyGroupField(context({ libraryId: 999 } as never), true) as any
       const streamGroup = findField(field, 'stream')
       const hook = findField(streamGroup, 'libraryId').hooks.afterRead[0]
 
@@ -105,7 +118,7 @@ describe('bunnyGroupField', () => {
     })
 
     it('resolves the virtual libraryId field to null without a streamOptions', () => {
-      const field = bunnyGroupField(context(undefined)) as any
+      const field = bunnyGroupField(context(undefined), true) as any
       const streamGroup = findField(field, 'stream')
       const hook = findField(streamGroup, 'libraryId').hooks.afterRead[0]
 
@@ -115,11 +128,33 @@ describe('bunnyGroupField', () => {
 
   describe('resolutions field toggling', () => {
     it('adds the resolutions field only when mp4Fallback is enabled', () => {
-      const withFallback = bunnyGroupField(context({ libraryId: 1, mp4Fallback: true } as never)) as any
-      const withoutFallback = bunnyGroupField(context({ libraryId: 1, mp4Fallback: false } as never)) as any
+      const withFallback = bunnyGroupField(context({ libraryId: 1, mp4Fallback: true } as never), true) as any
+      const withoutFallback = bunnyGroupField(context({ libraryId: 1, mp4Fallback: false } as never), true) as any
 
       expect(findField(findField(withFallback, 'stream'), 'resolutions')).toBeDefined()
       expect(findField(findField(withoutFallback, 'stream'), 'resolutions')).toBeUndefined()
+    })
+  })
+
+  describe('status field toggling', () => {
+    const schemaStream = (field: any) => field.jsonSchema[0]().oneOf[0].properties.stream.properties
+
+    it('adds an indexed status field that allows null in the JSON schema', () => {
+      const field = bunnyGroupField(context({ libraryId: 1 } as never), true) as any
+
+      expect(findField(findField(field, 'stream'), 'status')).toMatchObject({ type: 'text', index: true })
+      expect(schemaStream(field).status).toEqual({
+        enum: ['failed', 'processing', 'ready', null],
+        type: ['string', 'null'],
+      })
+    })
+
+    it('leaves the status field and its schema out when status is off', () => {
+      const field = bunnyGroupField(context({ libraryId: 1 } as never), false) as any
+
+      expect(findField(findField(field, 'stream'), 'status')).toBeUndefined()
+      expect(findField(findField(field, 'stream'), 'videoId')).toMatchObject({ index: true })
+      expect(schemaStream(field).status).toBeUndefined()
     })
   })
 
@@ -129,7 +164,7 @@ describe('bunnyGroupField', () => {
       streamOptions: { libraryId: 12345, mp4Fallback: true },
     } as unknown as CollectionContext
     const req = { payload: { secret: 'payload-secret' }, user: editor }
-    const streamGroup = findField(bunnyGroupField(streamContext), 'stream')
+    const streamGroup = findField(bunnyGroupField(streamContext, true), 'stream')
     const videoId = findField(streamGroup, 'videoId')
 
     it('adds a hidden virtual videoToken field', () => {
@@ -174,16 +209,16 @@ describe('bunnyGroupField', () => {
     })
 
     it('rejects a videoId when the collection has no stream options', () => {
-      const field = bunnyGroupField({ collection: { slug: 'media' } } as unknown as CollectionContext)
+      const field = bunnyGroupField({ collection: { slug: 'media' } } as unknown as CollectionContext, true)
       const noStreamVideoId = findField(findField(field, 'stream'), 'videoId')
       const siblingData = { videoId: 'v1', videoToken: tokenFor('v1') }
       expect(noStreamVideoId.access.create({ req, siblingData })).toBe(false)
     })
 
-    it('does not accept resolutions from create or update input', () => {
-      const resolutions = findField(streamGroup, 'resolutions')
-      expect(resolutions.access.create()).toBe(false)
-      expect(resolutions.access.update()).toBe(false)
+    it.each(['resolutions', 'status'])('does not accept %s from create or update input', (name) => {
+      const field = findField(streamGroup, name)
+      expect(field.access.create()).toBe(false)
+      expect(field.access.update()).toBe(false)
     })
   })
 
@@ -208,6 +243,59 @@ describe('bunnyGroupField', () => {
     it('leaves docs without bunnyData untouched', () => {
       expect(run({ title: 'x' })).toEqual({ title: 'x' })
       expect(run(null)).toBeNull()
+    })
+  })
+
+  describe('getStreamSelect', () => {
+    const args = (select?: any) => ({ operation: 'read' as const, req: {} as any, select })
+
+    it('adds bunnyData.stream status and videoId when bunnyStream is selected', () => {
+      expect(getStreamSelect()(args({ bunnyStream: true, filename: true }))).toEqual({
+        bunnyData: { stream: { status: true, videoId: true } },
+        bunnyStream: true,
+        filename: true,
+      })
+    })
+
+    it('merges into a partial bunnyData select', () => {
+      expect(getStreamSelect()(args({ bunnyData: { stream: { resolutions: true } }, bunnyStream: true }))).toEqual({
+        bunnyData: { stream: { resolutions: true, status: true, videoId: true } },
+        bunnyStream: true,
+      })
+    })
+
+    it('leaves a select that already includes the stream unchanged', () => {
+      expect(getStreamSelect()(args({ bunnyData: true, bunnyStream: true }))).toBeUndefined()
+      expect(getStreamSelect()(args({ bunnyData: { stream: true }, bunnyStream: true }))).toBeUndefined()
+    })
+
+    it('leaves a select without bunnyStream unchanged', () => {
+      expect(getStreamSelect()(args({ filename: true }))).toBeUndefined()
+      expect(getStreamSelect()(args({ bunnyData: { stream: { resolutions: true } } }))).toBeUndefined()
+    })
+
+    it('leaves an undefined, empty or exclude select unchanged', () => {
+      expect(getStreamSelect()(args())).toBeUndefined()
+      expect(getStreamSelect()(args({}))).toBeUndefined()
+      expect(getStreamSelect()(args({ alt: false }))).toBeUndefined()
+      expect(getStreamSelect()(args({ bunnyData: false }))).toBeUndefined()
+    })
+
+    it('chains the collection select function', () => {
+      const select = vi.fn().mockReturnValue({ bunnyStream: true, title: true })
+      const input = args({ filename: true })
+      expect(getStreamSelect(select)(input)).toEqual({
+        bunnyData: { stream: { status: true, videoId: true } },
+        bunnyStream: true,
+        title: true,
+      })
+      expect(select).toHaveBeenCalledWith(input)
+    })
+
+    it('keeps the result of the collection select function when nothing needs adding', () => {
+      const excluded = { bunnyData: false as const }
+      expect(getStreamSelect(() => excluded)(args({ filename: true }))).toBe(excluded)
+      expect(getStreamSelect(() => undefined)(args())).toBeUndefined()
     })
   })
 })

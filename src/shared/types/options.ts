@@ -191,6 +191,60 @@ export type StreamTusOptions = {
   expiresIn?: number
 }
 
+export type StreamStatusSyncOptions = {
+  /**
+   * Documents loaded per database query. A run loads pages until it has checked every matching document,
+   * its time budget ends or Bunny answers 429.
+   * @default 50
+   */
+  limit?: number
+  /**
+   * Time in seconds. Documents last saved earlier are not checked. Status writes do not count as saves.
+   * @default 604800
+   */
+  maxAge?: number
+}
+
+export type StreamStatusOptions = {
+  /**
+   * Links to the video in the Bunny Stream dashboard: the status badge in the list
+   * and a link at the bottom of the sidebar card. The link opens in a new tab.
+   * `false` shows a plain badge and no link.
+   * @default true
+   */
+  link?: boolean
+  /**
+   * A background task that asks Bunny for the state of videos stored as `processing`
+   * and stores the new state. Use it when the library has no webhook or a webhook can be missed.
+   * @default false
+   */
+  sync?:
+    | ({
+        /**
+         * Cron schedule options for the status sync task
+         * @default every 5 minutes on the `storage-bunny` queue
+         */
+        schedule?: Exclude<TaskConfig['schedule'], undefined>[0]
+      } & StreamStatusSyncOptions)
+    | boolean
+}
+
+export type CollectionStreamStatusOptions = {
+  /**
+   * Links to the video in the Bunny Stream dashboard: the status badge in the list
+   * and a link at the bottom of the sidebar card. `false` shows a plain badge and no link.
+   * @default the global `stream.status.link` in a partial override, `true` with full stream options
+   */
+  link?: boolean
+  /**
+   * `true` or an object turns the status sync on for this collection. `false` turns it off.
+   * The schedule is global only. In a partial override, object fields inherit the global `stream.status.sync`.
+   * With full stream options, nothing is inherited and unset fields use the defaults.
+   * @default the global `stream.status.sync` in a partial override, `false` with full stream options
+   */
+  sync?: boolean | StreamStatusSyncOptions
+}
+
 export type StreamOptions = {
   /** Bunny Stream API key */
   apiKey: string
@@ -226,12 +280,27 @@ export type StreamOptions = {
    */
   mp4Fallback?: boolean
   /**
+   * Show the Bunny Stream player in the edit view of Stream video and audio files, also without the media preview plugin.
+   * A `filePreview` the collection already has for `*`, `video/*` or `audio/*` stays.
+   * @default true
+   */
+  preview?: boolean
+  /**
    * Referer header sent on server-side requests to Bunny when serving the MP4
    * fallback through Payload access control. Set this only if your Stream library
    * blocks requests without a referrer (BlockNoneReferrer); the value must satisfy
    * the library's allowed referrers. Leave unset for default libraries.
    */
   referer?: string
+  /**
+   * Store the encoding status in `bunnyData.stream.status` and show it in the media preview,
+   * the list, the filters and the sidebar.
+   * `false` removes the stored field, the `bunnyStream` field and the status endpoint,
+   * and the preview shows the player right away.
+   * An object turns the status on and sets the dashboard link and the status sync.
+   * @default true
+   */
+  status?: boolean | StreamStatusOptions
   /**
    * Default thumbnail time in milliseconds for Bunny Stream videos.
    * Specifies which moment in videos to capture as thumbnail.
@@ -352,6 +421,17 @@ export type CollectionStreamOverride = {
   /** Replaces the global `stream.mimeTypes`. */
   mimeTypes?: string[]
   mp4Fallback?: boolean
+  /**
+   * Show the Bunny Stream player in the edit view.
+   * @default the global `stream.preview`
+   */
+  preview?: boolean
+  /**
+   * Store and show the encoding status. `true` inherits the global dashboard link and status sync.
+   * An object merges `link` and `sync` onto the global ones. `false` turns the status and its sync off.
+   * @default the global `stream.status`
+   */
+  status?: boolean | CollectionStreamStatusOptions
   /** Thumbnail time in milliseconds. Use with `thumbnail: true`. */
   thumbnailTime?: number
   /**
@@ -377,8 +457,7 @@ export type CollectionStreamOverride = {
 /**
  * Complete stream library options for one collection. Replaces the global
  * library entirely — nothing is inherited from the global `stream` options.
- * `cleanup.schedule` is plugin-level and can only be set in the global options;
- * per-collection cleanup controls only `maxAge`.
+ * `cleanup.schedule` and `status.sync.schedule` are plugin-level and can only be set in the global options.
  */
 export type CollectionStreamOptions = {
   /**
@@ -386,7 +465,13 @@ export type CollectionStreamOptions = {
    * for this collection's library. The cleanup task schedule is global-only.
    */
   cleanup?: boolean | { maxAge?: number }
-} & Omit<StreamOptions, 'cleanup'>
+  /**
+   * Store and show the encoding status. An object sets the dashboard link and the status sync.
+   * Nothing is inherited from the global `stream.status`, and the sync schedule is global only.
+   * @default true
+   */
+  status?: boolean | CollectionStreamStatusOptions
+} & Omit<StreamOptions, 'cleanup' | 'status'>
 
 export type BunnyStorageCollectionOptions = {
   /**
@@ -410,8 +495,8 @@ export type BunnyStorageCollectionOptions = {
   /**
    * - Full options (`apiKey`, `hostname`, `libraryId`) use their own library.
    *   An object with `apiKey` replaces the global options.
-   * - A partial override (`mimeTypes`, `mp4Fallback`, `thumbnailTime`, `tus`, `uploadTimeout`) changes the
-   *   global library for this collection.
+   * - A partial override (`mimeTypes`, `mp4Fallback`, `preview`, `status`, `thumbnailTime`, `tus`, `uploadTimeout`)
+   *   changes the global library for this collection.
    * - `false` turns Bunny Stream off for this collection.
    */
   stream?: CollectionStreamOptions | CollectionStreamOverride | false
@@ -475,6 +560,16 @@ type BunnyStorageBaseOptions = {
          */
         url?: string
       }
+  /**
+   * Run the background tasks (`cleanup`, `status-sync`) outside Payload jobs.
+   */
+  tasks?: {
+    /**
+     * Turns on `GET|POST /api/storage-bunny/tasks/:task`. Send it as `Authorization: Bearer <secret>`.
+     * `POST` also accepts a signed-in admin user. At least 16 characters. Without it, the endpoint does not exist.
+     */
+    secret?: string
+  }
   /**
    * Add query parameters to file URLs, or build them yourself.
    * @default false

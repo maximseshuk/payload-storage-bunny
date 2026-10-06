@@ -12,8 +12,12 @@ const {
   canUploadToVideo,
   createStreamVideo,
   deleteStreamVideo,
+  getReadyResolutions,
+  getStreamSaveState,
   getStreamVideo,
+  getStreamVideoState,
   getStreamVideoResolutions,
+  getWebhookVideoState,
   isVideoInErrorState,
   isVideoProcessed,
   listStreamVideos,
@@ -289,6 +293,118 @@ describe('getStreamVideoResolutions', () => {
   })
 })
 
+describe('getReadyResolutions', () => {
+  const logger = { error: vi.fn() }
+  const mp4 = (resolutions: string[]) =>
+    jsonResponse({ data: { mp4Resolutions: resolutions.map((resolution) => ({ resolution })) }, success: true })
+  const args = (overrides: Record<string, unknown> = {}) =>
+    ({ ...creds, encoded: true, logger, mp4Fallback: true, videoId: 'vid-1', ...overrides }) as never
+
+  beforeEach(() => {
+    logger.error.mockReset()
+  })
+
+  it('fetches the MP4 resolutions of an encoded video', async () => {
+    getMock.mockResolvedValue(mp4(['360p', '720p']))
+    expect(await getReadyResolutions(args())).toEqual({ available: ['360p', '720p'], highest: '720p' })
+  })
+
+  it.each([
+    ['the video is not fully encoded', { encoded: false }],
+    ['mp4Fallback is off', { mp4Fallback: false }],
+    ['resolutions are already stored', { resolutions: { available: ['480p'], highest: '480p' } }],
+  ])('keeps the given resolutions without a request when %s', async (_label, overrides) => {
+    expect(await getReadyResolutions(args(overrides))).toEqual((overrides as { resolutions?: unknown }).resolutions)
+    expect(getMock).not.toHaveBeenCalled()
+  })
+
+  it('logs and keeps the given resolutions when the request fails', async () => {
+    getMock.mockRejectedValue(httpError(500))
+    expect(await getReadyResolutions(args({ resolutions: { available: [] } }))).toEqual({ available: [] })
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ msg: '[bunny:stream] failed to fetch resolutions', videoId: 'vid-1' }),
+    )
+  })
+
+  it('rethrows a rate limit error after logging it', async () => {
+    getMock.mockRejectedValue(httpError(429))
+    await expect(getReadyResolutions(args())).rejects.toThrow('Unable to get video resolutions: vid-1')
+    expect(logger.error).toHaveBeenCalledOnce()
+  })
+
+  it('returns the state with the resolutions of a ready video', async () => {
+    getMock.mockResolvedValue(mp4(['1080p']))
+    expect(
+      await getStreamSaveState({
+        ...creds,
+        logger: logger as never,
+        mp4Fallback: true,
+        video: { availableResolutions: null, guid: 'vid-1', status: BunnyStreamVideoStatus.Finished },
+      }),
+    ).toEqual({ resolutions: { available: ['1080p'], highest: '1080p' }, status: 'ready' })
+  })
+
+  it('returns the state alone for a video that is still encoding', async () => {
+    expect(
+      await getStreamSaveState({
+        ...creds,
+        logger: logger as never,
+        mp4Fallback: true,
+        video: { availableResolutions: null, guid: 'vid-1', status: BunnyStreamVideoStatus.Processing },
+      }),
+    ).toEqual({ resolutions: null, status: 'processing' })
+    expect(getMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps a video that has its first resolution but is still transcoding processing', async () => {
+    expect(
+      await getStreamSaveState({
+        ...creds,
+        logger: logger as never,
+        mp4Fallback: true,
+        video: { availableResolutions: '360p', guid: 'vid-1', status: BunnyStreamVideoStatus.Transcoding },
+      }),
+    ).toEqual({ resolutions: null, status: 'processing' })
+    expect(getMock).not.toHaveBeenCalled()
+  })
+
+  it('leaves the resolutions out when mp4Fallback is off', async () => {
+    expect(
+      await getStreamSaveState({
+        ...creds,
+        logger: logger as never,
+        mp4Fallback: false,
+        video: { availableResolutions: null, guid: 'vid-1', status: BunnyStreamVideoStatus.Finished },
+      }),
+    ).toEqual({ resolutions: undefined, status: 'ready' })
+    expect(getMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps an encoded video processing when Bunny rate limits the resolutions request', async () => {
+    getMock.mockRejectedValue(httpError(429))
+    expect(
+      await getStreamSaveState({
+        ...creds,
+        logger: logger as never,
+        mp4Fallback: true,
+        video: { availableResolutions: null, guid: 'vid-1', status: BunnyStreamVideoStatus.JitPlaylistsCreated },
+      }),
+    ).toEqual({ resolutions: null, status: 'processing' })
+  })
+
+  it('keeps an encoded video processing while Bunny has no MP4 resolutions yet', async () => {
+    getMock.mockResolvedValue(mp4([]))
+    expect(
+      await getStreamSaveState({
+        ...creds,
+        logger: logger as never,
+        mp4Fallback: true,
+        video: { availableResolutions: '720p', guid: 'vid-1', status: BunnyStreamVideoStatus.Finished },
+      }),
+    ).toEqual({ resolutions: null, status: 'processing' })
+  })
+})
+
 describe('parseMp4Resolutions', () => {
   const base = {
     availableResolutions: null,
@@ -344,5 +460,40 @@ describe('status predicates', () => {
       error: isVideoInErrorState(status),
       processed: isVideoProcessed(status),
     }).toEqual(expected)
+  })
+})
+
+describe('getStreamVideoState', () => {
+  it.each([
+    [BunnyStreamVideoStatus.Created, 'processing'],
+    [BunnyStreamVideoStatus.Uploaded, 'processing'],
+    [BunnyStreamVideoStatus.Processing, 'processing'],
+    [BunnyStreamVideoStatus.Transcoding, 'processing'],
+    [BunnyStreamVideoStatus.Finished, 'ready'],
+    [BunnyStreamVideoStatus.JitSegmenting, 'processing'],
+    [BunnyStreamVideoStatus.JitPlaylistsCreated, 'ready'],
+    [BunnyStreamVideoStatus.Error, 'failed'],
+    [BunnyStreamVideoStatus.UploadFailed, 'failed'],
+  ])('maps status %s to %s', (status, expected) => {
+    expect(getStreamVideoState({ status })).toBe(expected)
+  })
+})
+
+describe('getWebhookVideoState', () => {
+  it.each([
+    [0, 'Queued', 'processing'],
+    [1, 'Processing', 'processing'],
+    [2, 'Encoding', 'processing'],
+    [3, 'Finished', 'ready'],
+    [4, 'Resolution finished', 'processing'],
+    [5, 'Failed', 'failed'],
+    [6, 'PresignedUploadStarted', 'processing'],
+    [7, 'PresignedUploadFinished', 'processing'],
+    [8, 'PresignedUploadFailed', 'failed'],
+    [9, 'CaptionsGenerated', undefined],
+    [10, 'TitleOrDescriptionGenerated', undefined],
+    [42, 'an unknown code', undefined],
+  ])('maps webhook status %s (%s) to %s', (status, _event, expected) => {
+    expect(getWebhookVideoState(status)).toBe(expected)
   })
 })

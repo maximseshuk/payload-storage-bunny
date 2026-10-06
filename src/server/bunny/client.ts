@@ -1,5 +1,8 @@
 import { HTTPError, httpFetch, type HttpOptions, type KyResponse } from '@/server/http/index.js'
 
+export const isRateLimited = (err: unknown): boolean =>
+  err instanceof Error && err.cause instanceof HTTPError && err.cause.response.status === 429
+
 type BunnyRequestArgs = {
   accept?: boolean
   apiKey: string

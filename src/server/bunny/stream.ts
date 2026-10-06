@@ -1,5 +1,6 @@
-import { bunnyRequest } from '@/server/bunny/client.js'
+import { bunnyRequest, isRateLimited } from '@/server/bunny/client.js'
 import { BUNNY_API, TIMEOUTS } from '@/shared/constants.js'
+import type { BunnyStreamData, StreamVideoState } from '@/shared/types/index.js'
 
 export enum BunnyStreamVideoStatus {
   Created = 0,
@@ -161,8 +162,9 @@ export interface BunnyStreamListVideosResponse {
 export const getStreamVideo = async ({
   apiKey,
   libraryId,
+  timeout = TIMEOUTS.DEFAULT,
   videoId,
-}: { videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideo> => {
+}: { timeout?: number; videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideo> => {
   const res = await bunnyRequest({
     apiKey,
     genericError: `Unable to get video: ${videoId}`,
@@ -172,7 +174,7 @@ export const getStreamVideo = async ({
       404: `Bunny Stream: Video not found: ${videoId}`,
       500: 'Bunny Stream: Server error',
     },
-    timeout: TIMEOUTS.DEFAULT,
+    timeout,
     url: `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
   })
 
@@ -224,8 +226,9 @@ export const createStreamVideo = async ({
 export const deleteStreamVideo = async ({
   apiKey,
   libraryId,
+  timeout = TIMEOUTS.DEFAULT,
   videoId,
-}: { videoId: string } & BunnyStreamCredentials): Promise<void> => {
+}: { timeout?: number; videoId: string } & BunnyStreamCredentials): Promise<void> => {
   await bunnyRequest({
     apiKey,
     genericError: `Unable to delete video: ${videoId}`,
@@ -235,7 +238,7 @@ export const deleteStreamVideo = async ({
       500: 'Bunny Stream: Server error',
     },
     throwHttpErrors: (status) => status !== 404,
-    timeout: TIMEOUTS.DEFAULT,
+    timeout,
     url: `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
   })
 }
@@ -272,9 +275,11 @@ export const listStreamVideos = async ({
   itemsPerPage = 100,
   libraryId,
   page = 1,
+  timeout = TIMEOUTS.DEFAULT,
 }: {
   itemsPerPage?: number
   page?: number
+  timeout?: number
 } & BunnyStreamCredentials): Promise<BunnyStreamListVideosResponse> => {
   const url = new URL(`${BUNNY_API.STREAM_URL}/library/${libraryId}/videos`)
   url.searchParams.set('page', String(page))
@@ -288,7 +293,7 @@ export const listStreamVideos = async ({
       401: 'Bunny Stream: Invalid API key',
       500: 'Bunny Stream: Server error',
     },
-    timeout: TIMEOUTS.DEFAULT,
+    timeout,
     url: url.toString(),
   })
 
@@ -298,8 +303,9 @@ export const listStreamVideos = async ({
 export const getStreamVideoResolutions = async ({
   apiKey,
   libraryId,
+  timeout = TIMEOUTS.DEFAULT,
   videoId,
-}: { videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideoResolutionsResponse> => {
+}: { timeout?: number; videoId: string } & BunnyStreamCredentials): Promise<BunnyStreamVideoResolutionsResponse> => {
   const res = await bunnyRequest({
     apiKey,
     genericError: `Unable to get video resolutions: ${videoId}`,
@@ -309,7 +315,7 @@ export const getStreamVideoResolutions = async ({
       404: `Bunny Stream: Video with ID ${videoId} not found`,
       500: 'Bunny Stream: Server error',
     },
-    timeout: TIMEOUTS.DEFAULT,
+    timeout,
     url: `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}/resolutions`,
   })
 
@@ -325,6 +331,55 @@ export const parseMp4Resolutions = (data: BunnyStreamVideoResolutions): { availa
   return { available, sorted }
 }
 
+type StreamLogger = { error: (obj: object) => void }
+
+export const isMissingResolutions = ({
+  encoded,
+  mp4Fallback,
+  resolutions,
+}: {
+  encoded: boolean
+  mp4Fallback?: boolean
+  resolutions?: BunnyStreamData['resolutions'] | null
+}): boolean => encoded && Boolean(mp4Fallback) && !resolutions?.available?.length
+
+export const getReadyResolutions = async ({
+  apiKey,
+  encoded,
+  libraryId,
+  logger,
+  mp4Fallback,
+  resolutions,
+  timeout,
+  videoId,
+}: {
+  encoded: boolean
+  logger: StreamLogger
+  mp4Fallback?: boolean
+  resolutions?: BunnyStreamData['resolutions']
+  timeout?: number
+  videoId: string
+} & BunnyStreamCredentials): Promise<BunnyStreamData['resolutions']> => {
+  if (!isMissingResolutions({ encoded, mp4Fallback, resolutions })) {
+    return resolutions
+  }
+  try {
+    const res = await getStreamVideoResolutions({ apiKey, libraryId, timeout, videoId })
+    if (res.success && res.data.mp4Resolutions) {
+      const { available, sorted } = parseMp4Resolutions(res.data)
+      if (available.length > 0) {
+        return { available, highest: sorted[0] }
+      }
+    }
+  } catch (err) {
+    logger.error({ err, msg: '[bunny:stream] failed to fetch resolutions', videoId })
+    if (isRateLimited(err)) {
+      throw err
+    }
+  }
+  return resolutions
+}
+
 export const canUploadToVideo = (status: BunnyStreamVideoStatus): boolean => {
   return status === BunnyStreamVideoStatus.Created
 }
@@ -332,6 +387,9 @@ export const canUploadToVideo = (status: BunnyStreamVideoStatus): boolean => {
 export const isVideoInErrorState = (status: BunnyStreamVideoStatus): boolean => {
   return status === BunnyStreamVideoStatus.Error || status === BunnyStreamVideoStatus.UploadFailed
 }
+
+export const isVideoEncoded = (status: BunnyStreamVideoStatus): boolean =>
+  status === BunnyStreamVideoStatus.Finished || status === BunnyStreamVideoStatus.JitPlaylistsCreated
 
 export const isVideoProcessed = (status: BunnyStreamVideoStatus): boolean => {
   const processedStatuses = [
@@ -345,3 +403,48 @@ export const isVideoProcessed = (status: BunnyStreamVideoStatus): boolean => {
 
   return processedStatuses.includes(status)
 }
+
+export const getStreamVideoState = ({ status }: Pick<BunnyStreamVideo, 'status'>): StreamVideoState => {
+  if (isVideoInErrorState(status)) {
+    return 'failed'
+  }
+  if (isVideoEncoded(status)) {
+    return 'ready'
+  }
+  return 'processing'
+}
+
+export const getStreamSaveState = async ({
+  video,
+  ...args
+}: {
+  logger: StreamLogger
+  mp4Fallback?: boolean
+  video: Pick<BunnyStreamVideo, 'availableResolutions' | 'guid' | 'status'>
+} & BunnyStreamCredentials): Promise<{
+  resolutions?: BunnyStreamData['resolutions'] | null
+  status: StreamVideoState
+}> => {
+  const encoded = isVideoEncoded(video.status)
+  const resolutions = await getReadyResolutions({ ...args, encoded, videoId: video.guid }).catch(() => undefined)
+  return {
+    resolutions: args.mp4Fallback ? (resolutions ?? null) : undefined,
+    status: isMissingResolutions({ encoded, mp4Fallback: args.mp4Fallback, resolutions })
+      ? 'processing'
+      : getStreamVideoState(video),
+  }
+}
+
+const WEBHOOK_VIDEO_STATES: Partial<Record<number, StreamVideoState>> = {
+  0: 'processing',
+  1: 'processing',
+  2: 'processing',
+  3: 'ready',
+  4: 'processing',
+  5: 'failed',
+  6: 'processing',
+  7: 'processing',
+  8: 'failed',
+}
+
+export const getWebhookVideoState = (status: number): StreamVideoState | undefined => WEBHOOK_VIDEO_STATES[status]

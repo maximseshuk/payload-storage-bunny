@@ -21,9 +21,11 @@ const {
   uploadStreamVideoMock: vi.fn(),
 }))
 
-vi.mock('@/server/bunny/stream.js', () => ({
+vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
   createStreamVideo: createStreamVideoMock,
   deleteStreamVideo: deleteStreamVideoMock,
+  getStreamSaveState: (await importOriginal<typeof import('@/server/bunny/stream.js')>()).getStreamSaveState,
+  getStreamVideo: vi.fn(async () => ({ guid: 'video-guid', status: 1 })),
   uploadStreamVideo: uploadStreamVideoMock,
 }))
 

@@ -1,3 +1,4 @@
+import { hasAnyStreamStatusSync } from '@/server/payload/options/inspect.js'
 import type {
   NormalizedBunnyStorageOptions,
   NormalizedCollectionOptions,
@@ -19,9 +20,11 @@ export type TelemetryFeatures = {
   storageS3: boolean
   stream: boolean
   streamCleanup: boolean
+  streamStatusSync: boolean
   streamTus: boolean
   streamTusAutoMode: boolean
   streamWebhook: boolean
+  tasksEndpoint: boolean
   thumbnail: boolean
   urlTransform: boolean
 }
@@ -101,9 +104,11 @@ export const buildFeatures = (options: NormalizedBunnyStorageOptions): Telemetry
     storageS3: storages.some((s) => s.s3),
     stream: streams.length > 0,
     streamCleanup: streams.some((s) => Boolean(s.cleanup)),
+    streamStatusSync: hasAnyStreamStatusSync(options),
     streamTus: streams.some((s) => Boolean(s.tus)),
     streamTusAutoMode: streams.some((s) => s.tus?.autoMode === true),
     streamWebhook: streams.some((s) => Boolean(s.webhook)),
+    tasksEndpoint: Boolean(options.tasks?.secret),
     thumbnail: Boolean(options.thumbnail) || collections(options).some((c) => Boolean(c.thumbnail)),
     urlTransform: Boolean(options.urlTransform) || collections(options).some((c) => Boolean(c.urlTransform)),
   }

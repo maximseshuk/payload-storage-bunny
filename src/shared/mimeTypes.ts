@@ -4,6 +4,13 @@ export const matchesMimeTypePattern = (mimeType: string, pattern: string): boole
   return pattern.endsWith('*') ? mimeType.startsWith(pattern.slice(0, -1)) : mimeType === pattern
 }
 
+export const isStreamFileMimeType = (mimeType: unknown, patterns: readonly string[] = []): boolean =>
+  typeof mimeType !== 'string' ||
+  mimeType === '' ||
+  mimeType.startsWith('video/') ||
+  mimeType.startsWith('audio/') ||
+  patterns.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
+
 export const intersectMimeTypes = (arr1?: string[], arr2?: string[]): string[] | undefined => {
   if (!arr1) {
     return arr2

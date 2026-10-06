@@ -42,6 +42,7 @@ export const createNormalizedOptions = (options: BunnyStorageOptions): Normalize
     signedUrls: normalizeSignedUrlsOptions({ value: options.signedUrls }),
     storage: options.storage ? normalizeStorageOptions(options.storage) : undefined,
     stream: options.stream ? normalizeStreamOptions(options.stream) : undefined,
+    tasks: options.tasks,
     thumbnail: normalizeThumbnailOptions({ value: options.thumbnail }),
     urlTransform: normalizeUrlTransformOptions({ value: options.urlTransform }),
   }
@@ -89,6 +90,32 @@ const normalizeStorageOptions = (storage: StorageOptions): NormalizedStorageOpti
   zoneName: storage.zoneName,
 })
 
+const normalizeStatusOptions = (status: StreamOptions['status']): NormalizedStreamOptions['status'] => {
+  if (status === false) {
+    return false
+  }
+
+  const { link = OPTIONS_DEFAULTS.stream.status.link, sync } =
+    typeof status === 'object' && status !== null ? status : {}
+  if (!sync) {
+    return { link }
+  }
+
+  const defaults = OPTIONS_DEFAULTS.stream.status.sync
+  if (sync === true) {
+    return { link, sync: { ...defaults } }
+  }
+
+  return {
+    link,
+    sync: {
+      limit: sync.limit ?? defaults.limit,
+      maxAge: sync.maxAge ?? defaults.maxAge,
+      schedule: sync.schedule ?? defaults.schedule,
+    },
+  }
+}
+
 const normalizeStreamOptions = (stream: StreamOptions): NormalizedStreamOptions => {
   const normalized: NormalizedStreamOptions = {
     apiKey: stream.apiKey,
@@ -96,7 +123,9 @@ const normalizeStreamOptions = (stream: StreamOptions): NormalizedStreamOptions 
     libraryId: stream.libraryId,
     mimeTypes: stream.mimeTypes ?? [...OPTIONS_DEFAULTS.stream.mimeTypes],
     mp4Fallback: stream.mp4Fallback ?? OPTIONS_DEFAULTS.stream.mp4Fallback,
+    preview: stream.preview ?? OPTIONS_DEFAULTS.stream.preview,
     referer: stream.referer,
+    status: normalizeStatusOptions(stream.status),
     thumbnailTime: stream.thumbnailTime,
     tokenSecurityKey: stream.tokenSecurityKey,
     uploadTimeout: stream.uploadTimeout ?? OPTIONS_DEFAULTS.stream.uploadTimeout,
@@ -445,9 +474,29 @@ const resolveCollectionStreamOptions = ({
   const streamOptions = mergeDefined(globalValue, {
     mimeTypes: collectionOverride.mimeTypes,
     mp4Fallback: collectionOverride.mp4Fallback,
+    preview: collectionOverride.preview,
     thumbnailTime: collectionOverride.thumbnailTime,
     uploadTimeout: collectionOverride.uploadTimeout,
   })
+
+  const status = collectionOverride.status
+  if (status === false) {
+    streamOptions.status = false
+  } else if (status) {
+    const base = globalValue.status || { link: OPTIONS_DEFAULTS.stream.status.link }
+    const { link = base.link, sync } = status === true ? {} : status
+    if (sync === undefined || sync === null) {
+      streamOptions.status = { ...base, link }
+    } else if (sync === false) {
+      streamOptions.status = { link }
+    } else {
+      const syncBase = base.sync ?? { ...OPTIONS_DEFAULTS.stream.status.sync }
+      streamOptions.status = {
+        link,
+        sync: sync === true ? syncBase : mergeDefined(syncBase, { limit: sync.limit, maxAge: sync.maxAge }),
+      }
+    }
+  }
 
   const tus = collectionOverride.tus
   if (tus === false) {

@@ -5,6 +5,7 @@ import type { CollectionContext } from '@/shared/types/index.js'
 const {
   createStreamVideoMock,
   createStreamVideoSessionMock,
+  getStreamVideoMock,
   purgeCacheMock,
   uploadStorageFileMock,
   uploadStorageFileS3Mock,
@@ -12,14 +13,17 @@ const {
 } = vi.hoisted(() => ({
   createStreamVideoMock: vi.fn(),
   createStreamVideoSessionMock: vi.fn(),
+  getStreamVideoMock: vi.fn(),
   purgeCacheMock: vi.fn(),
   uploadStorageFileMock: vi.fn(),
   uploadStorageFileS3Mock: vi.fn(),
   uploadStreamVideoMock: vi.fn(),
 }))
 
-vi.mock('@/server/bunny/stream.js', () => ({
+vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
   createStreamVideo: createStreamVideoMock,
+  getStreamSaveState: (await importOriginal<typeof import('@/server/bunny/stream.js')>()).getStreamSaveState,
+  getStreamVideo: getStreamVideoMock,
   uploadStreamVideo: uploadStreamVideoMock,
 }))
 
@@ -55,6 +59,7 @@ const createFile = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
+  getStreamVideoMock.mockResolvedValue({ guid: 'video-guid', status: 1 })
 })
 
 describe('getHandleUpload', () => {
@@ -88,8 +93,91 @@ describe('getHandleUpload', () => {
         videoId: 'video-guid',
       })
       expect(createStreamVideoSessionMock).not.toHaveBeenCalled()
-      expect((data.bunnyData as { stream: { videoId: unknown } }).stream.videoId).toBe('video-guid')
+      expect(getStreamVideoMock).toHaveBeenCalledWith({ apiKey: 'stream-key', libraryId: 12345, videoId: 'video-guid' })
+      expect((data.bunnyData as { stream: unknown }).stream).toEqual({ status: 'processing', videoId: 'video-guid' })
       expect(result).toBe(data)
+    })
+
+    it('stores the state Bunny reports after the upload', async () => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+      getStreamVideoMock.mockResolvedValue({ guid: 'video-guid', status: 5 })
+      const data: Record<string, unknown> = {}
+
+      await getHandleUpload(buildContext({ streamOptions } as unknown as Partial<CollectionContext>))({
+        collection: { slug: 'media' },
+        data,
+        file: createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' }),
+        req: createReq(),
+      } as never)
+
+      expect((data.bunnyData as { stream: unknown }).stream).toEqual({ status: 'failed', videoId: 'video-guid' })
+    })
+
+    it('stores processing and logs when Bunny cannot report the state after the upload', async () => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+      getStreamVideoMock.mockRejectedValue(new Error('timeout'))
+      const data: Record<string, unknown> = {}
+      const req = createReq()
+
+      await getHandleUpload(buildContext({ streamOptions } as unknown as Partial<CollectionContext>))({
+        collection: { slug: 'media' },
+        data,
+        file: createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' }),
+        req,
+      } as never)
+
+      expect((data.bunnyData as { stream: unknown }).stream).toEqual({ status: 'processing', videoId: 'video-guid' })
+      expect(req.payload.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: '[bunny:stream] upload: failed to read the video state' }),
+      )
+    })
+
+    it.each([
+      [
+        'Bunny reports a video that is still encoding',
+        () => getStreamVideoMock.mockResolvedValue({ guid: 'video-guid', status: 2 }),
+      ],
+      ['Bunny cannot report the state', () => getStreamVideoMock.mockRejectedValue(new Error('timeout'))],
+    ])('replaces the old resolutions with null when %s and mp4Fallback is on', async (_label, arrange) => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+      arrange()
+      const data: Record<string, unknown> = {
+        bunnyData: { stream: { resolutions: { available: ['720p'], highest: '720p' }, videoId: 'old-guid' } },
+      }
+
+      await getHandleUpload(
+        buildContext({
+          streamOptions: { ...streamOptions, mp4Fallback: true },
+        } as unknown as Partial<CollectionContext>),
+      )({
+        collection: { slug: 'media' },
+        data,
+        file: createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' }),
+        req: createReq(),
+      } as never)
+
+      expect((data.bunnyData as { stream: unknown }).stream).toEqual({
+        resolutions: null,
+        status: 'processing',
+        videoId: 'video-guid',
+      })
+    })
+
+    it('does not ask Bunny for the state when the status is turned off', async () => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+      const data: Record<string, unknown> = {}
+
+      await getHandleUpload(
+        buildContext({ streamOptions: { ...streamOptions, status: false } } as unknown as Partial<CollectionContext>),
+      )({
+        collection: { slug: 'media' },
+        data,
+        file: createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' }),
+        req: createReq(),
+      } as never)
+
+      expect(getStreamVideoMock).not.toHaveBeenCalled()
+      expect((data.bunnyData as { stream: unknown }).stream).toEqual({ videoId: 'video-guid' })
     })
 
     it('creates a tracking session when cleanup is enabled', async () => {
@@ -146,6 +234,36 @@ describe('getHandleUpload', () => {
       expect((data.bunnyData as { stream: { videoId: unknown } }).stream.videoId).toBeNull()
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
+
+    it.each([
+      [true, true, { resolutions: null, status: null, videoId: null }],
+      [true, false, { resolutions: { available: ['720p'] }, status: null, videoId: null }],
+      [false, true, { resolutions: { available: ['720p'] }, status: 'ready', videoId: null }],
+    ])(
+      'clears the old video of a document when an image replaces it (status %s, mp4Fallback %s)',
+      async (status, mp4Fallback, expected) => {
+        uploadStorageFileMock.mockResolvedValue(undefined)
+        const data: Record<string, unknown> = {
+          bunnyData: { stream: { resolutions: { available: ['720p'] }, status: 'ready', videoId: 'old-guid' } },
+        }
+
+        await getHandleUpload(
+          buildContext({
+            storageOptions,
+            streamOptions: { ...streamOptions, mp4Fallback, status },
+          } as unknown as Partial<CollectionContext>),
+        )({
+          collection: { slug: 'media' },
+          data,
+          file: createFile(),
+          req: createReq(),
+        } as never)
+
+        expect(uploadStorageFileMock).toHaveBeenCalled()
+        expect(createStreamVideoMock).not.toHaveBeenCalled()
+        expect((data.bunnyData as { stream: unknown }).stream).toEqual(expected)
+      },
+    )
 
     it('uploads via the S3 backend when S3 options are present', async () => {
       uploadStorageFileS3Mock.mockResolvedValue(undefined)
