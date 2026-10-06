@@ -80,7 +80,7 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
     '403': { description: 'Access denied.' },
     '404': { description: 'The collection does not exist.' },
     '413': { description: 'The file exceeds `upload.limits.fileSize`.' },
-    '415': { description: 'The file type is restricted or not accepted by the collection or the Stream config.' },
+    '415': { description: 'The file type is restricted or not accepted by the collection or the Stream options.' },
     '500': {
       description: 'Unexpected failure, such as a Bunny Stream API error. Details are hidden from the response.',
     },

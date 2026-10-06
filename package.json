@@ -114,7 +114,7 @@
     "@playwright/test": "^1.62.1",
     "@scalar/openapi-types": "^0.9.4",
     "@seshuk/payload-plugin-media-preview": "^1.1.1",
-    "@seshuk/payload-plugin-tooling": "0.1.0",
+    "@seshuk/payload-plugin-tooling": "0.2.2",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

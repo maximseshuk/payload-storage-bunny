@@ -12,15 +12,15 @@ afterEach(() => {
 })
 
 describe('applyUrlTransform', () => {
-  it('returns the original URL when config is false', () => {
-    expect(applyUrlTransform({ ...baseParams, config: false })).toBe(baseParams.url)
+  it('returns the original URL when options are false', () => {
+    expect(applyUrlTransform({ ...baseParams, options: false })).toBe(baseParams.url)
   })
 
   it('delegates to transformUrl with every input', () => {
     const transformUrl = vi.fn().mockReturnValue('https://transformed.example.com/file.jpg')
     const data = { customField: 'value' }
 
-    const result = applyUrlTransform({ ...baseParams, config: { ...noop, transformUrl }, data, prefix: 'media' })
+    const result = applyUrlTransform({ ...baseParams, options: { ...noop, transformUrl }, data, prefix: 'media' })
 
     expect(transformUrl).toHaveBeenCalledWith({
       baseUrl: baseParams.url,
@@ -38,7 +38,7 @@ describe('applyUrlTransform', () => {
 
     const result = applyUrlTransform({
       ...baseParams,
-      config: { appendTimestamp: true, queryParams: { format: 'webp', quality: '80' } },
+      options: { appendTimestamp: true, queryParams: { format: 'webp', quality: '80' } },
     })
 
     expect(result).toBe('https://cdn.example.com/media/test-file.jpg?t=1705320000000&format=webp&quality=80')
@@ -47,7 +47,7 @@ describe('applyUrlTransform', () => {
   it('keeps existing t and query params instead of overriding them', () => {
     const result = applyUrlTransform({
       ...baseParams,
-      config: { appendTimestamp: true, queryParams: { newParam: 'value', width: '100' } },
+      options: { appendTimestamp: true, queryParams: { newParam: 'value', width: '100' } },
       url: 'https://cdn.example.com/file.jpg?t=existing&width=200',
     })
 
@@ -60,6 +60,6 @@ describe('applyUrlTransform', () => {
     ['/media/test-file.jpg', {}, '/media/test-file.jpg'],
     ['/media/test-file.jpg', { param: 'value' }, '/media/test-file.jpg?param=value'],
   ])('turns %s with queryParams %o into %s', (url, queryParams, expected) => {
-    expect(applyUrlTransform({ ...baseParams, config: { ...noop, queryParams }, url })).toBe(expected)
+    expect(applyUrlTransform({ ...baseParams, options: { ...noop, queryParams }, url })).toBe(expected)
   })
 })

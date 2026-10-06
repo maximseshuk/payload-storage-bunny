@@ -36,7 +36,7 @@ export const zh: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: '无法删除文件：{{filename}}',
     errorMissingRequiredFields: '缺少一些必需的信息',
     errorNoServiceConfigured: '未配置任何服务',
-    errorStreamConfigMissing: 'Bunny Stream 配置不正确',
+    errorStreamOptionsMissing: 'Bunny Stream 配置不正确',
     errorTitleRequired: '请为您的视频输入标题',
     errorUploadFileFailed: '无法上传文件：{{filename}}',
   },

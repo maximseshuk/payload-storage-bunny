@@ -10,7 +10,7 @@ import {
   loadZonesFileGroup,
   storageHostFor,
 } from '@/cli/lib/deployEdgeScript.js'
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
 
 import { type FetchCall, jsonResponse, spyFetch } from '../../../helpers/unit/fetchMock.js'
 import { useTmpDir } from '../../../helpers/unit/tmpDir.js'
@@ -31,8 +31,8 @@ describe('storageHostFor', () => {
 })
 
 describe('buildEdgeDeployPlan', () => {
-  it('builds a single group for a single global non-S3 zone with edge config', () => {
-    const config = createNormalizedConfig({
+  it('builds a single group for a single global non-S3 zone with edge options', () => {
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'media-key',
@@ -42,7 +42,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
 
     expect(plan.errors).toEqual([])
     expect(plan.groups).toHaveLength(1)
@@ -54,7 +54,7 @@ describe('buildEdgeDeployPlan', () => {
   })
 
   it('lists a per-collection non-S3 zone even when the global zone is S3', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: {
         archives: {
           storage: {
@@ -74,7 +74,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
 
     expect(plan.errors).toEqual([])
     expect(plan.groups).toHaveLength(1)
@@ -85,7 +85,7 @@ describe('buildEdgeDeployPlan', () => {
   })
 
   it('merges two non-S3 zones that share a scriptUrl and secret into one group', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: {
         archives: {
           storage: {
@@ -104,7 +104,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
 
     expect(plan.errors).toEqual([])
     expect(plan.groups).toHaveLength(1)
@@ -115,7 +115,7 @@ describe('buildEdgeDeployPlan', () => {
   })
 
   it('splits zones into separate groups by distinct scriptUrl', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: {
         archives: {
           storage: {
@@ -142,7 +142,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
 
     expect(plan.errors).toEqual([])
     expect(plan.groups).toHaveLength(2)
@@ -156,7 +156,7 @@ describe('buildEdgeDeployPlan', () => {
   })
 
   it('reports a per-group error when two zones in a group configure different secrets', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: {
         archives: {
           storage: {
@@ -175,7 +175,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
 
     expect(plan.errors.length).toBeGreaterThan(0)
     expect(plan.errors[0]).toContain('different `clientUploads.edge.secret` values')
@@ -186,7 +186,7 @@ describe('buildEdgeDeployPlan', () => {
   })
 
   it('derives each zone host from its own region', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: {
         archives: {
           storage: {
@@ -206,7 +206,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
     const [group] = plan.groups
 
     expect(group.zones.archives.host).toBe('ny.storage.bunnycdn.com')
@@ -214,7 +214,7 @@ describe('buildEdgeDeployPlan', () => {
   })
 
   it('builds a single unassigned bootstrap group when no zone enables clientUploads', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'media-key',
@@ -223,7 +223,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
 
     expect(plan.errors).toEqual([])
     expect(plan.groups).toHaveLength(1)
@@ -234,7 +234,7 @@ describe('buildEdgeDeployPlan', () => {
   })
 
   it('reports an error when there are no non-S3 zones', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'media-key',
@@ -245,7 +245,7 @@ describe('buildEdgeDeployPlan', () => {
       },
     } as never)
 
-    const plan = buildEdgeDeployPlan(config)
+    const plan = buildEdgeDeployPlan(options)
 
     expect(plan.errors.length).toBe(1)
     expect(plan.errors[0]).toContain('no non-s3 storage zones are configured')
@@ -361,7 +361,7 @@ describe('deployEdgeScript secrets', () => {
     })
   })
 
-  it('removes ZONE_* secrets that are no longer in the config and keeps shared and user secrets', async () => {
+  it('removes ZONE_* secrets that are no longer in the options and keeps shared and user secrets', async () => {
     const calls = mockSecrets([
       { Id: 10, Name: 'ZONE_MEDIA' },
       { Id: 11, Name: 'ZONE_OLD' },

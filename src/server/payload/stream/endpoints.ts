@@ -14,9 +14,9 @@ import {
   parseMp4Resolutions,
 } from '@/server/bunny/stream.js'
 import { getSafeFileName } from '@/server/files.js'
-import { createCollectionContext } from '@/server/payload/config/context.js'
-import { collectStreamConfigs, collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/config/inspect.js'
 import { streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
+import { createCollectionContext } from '@/server/payload/options/context.js'
+import { collectStreamOptions, collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/options/inspect.js'
 import { signClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import {
   assertClientUploadFile,
@@ -31,18 +31,18 @@ import {
 import { jsonResponse } from '@/shared/http.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTFunction } from '@/shared/translations/index.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import type { StreamTusAuthRequest, StreamTusAuthResponse } from '@/shared/types/index.js'
+import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
 const MAX_HEAD_LENGTH = 8192
 
-export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoint[] => {
-  const webhookSecrets = collectWebhookSecrets(config)
-  const streamConfigs = collectStreamConfigs(config)
+export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endpoint[] => {
+  const webhookSecrets = collectWebhookSecrets(options)
+  const streamOptionsByLibrary = collectStreamOptions(options)
 
   const endpoints: Endpoint[] = []
 
-  if (hasAnyStreamTus(config)) {
+  if (hasAnyStreamTus(options)) {
     endpoints.push({
       handler: async (req): Promise<Response> => {
         const reqT = req.t as unknown as PluginStorageBunnyTFunction
@@ -63,11 +63,11 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 404, undefined, true)
           }
 
-          const collectionContext = createCollectionContext(config, collection)
-          const collectionStreamConfig = collectionContext.streamConfig
+          const collectionContext = createCollectionContext(options, collection)
+          const collectionStreamOptions = collectionContext.streamOptions
 
-          if (!collectionStreamConfig || !collectionStreamConfig.tus) {
-            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorStreamConfigMissing'), 400, undefined, true)
+          if (!collectionStreamOptions || !collectionStreamOptions.tus) {
+            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorStreamOptionsMissing'), 400, undefined, true)
           }
 
           const defaultAccess = async (): Promise<boolean> => {
@@ -77,8 +77,8 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             )
           }
 
-          const accessResult = collectionStreamConfig.tus.access
-            ? await collectionStreamConfig.tus.access({ data: body, defaultAccess, req })
+          const accessResult = collectionStreamOptions.tus.access
+            ? await collectionStreamOptions.tus.access({ data: body, defaultAccess, req })
             : await defaultAccess()
 
           if (!accessResult) {
@@ -92,13 +92,13 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             mimeType: body.filetype,
             req,
           })
-          if (!collectionStreamConfig.mimeTypes.some((pattern) => matchesMimeTypePattern(body.filetype, pattern))) {
+          if (!collectionStreamOptions.mimeTypes.some((pattern) => matchesMimeTypePattern(body.filetype, pattern))) {
             throw new APIError(`File type "${body.filetype}" is not allowed`, 415)
           }
 
           const tokenInput = {
             collection: body.collection,
-            libraryId: collectionStreamConfig.libraryId,
+            libraryId: collectionStreamOptions.libraryId,
             secret: req.payload.secret,
             user: req.user,
           }
@@ -137,8 +137,8 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
           if (videoId) {
             try {
               videoData = await getStreamVideo({
-                apiKey: collectionStreamConfig.apiKey,
-                libraryId: collectionStreamConfig.libraryId,
+                apiKey: collectionStreamOptions.apiKey,
+                libraryId: collectionStreamOptions.libraryId,
                 videoId,
               })
               const videoStatus = videoData.status
@@ -149,8 +149,8 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
               } else if (isVideoProcessed(videoStatus)) {
                 return jsonResponse({
                   type: 'uploaded',
-                  libraryId: collectionStreamConfig.libraryId,
-                  thumbnailTime: collectionStreamConfig.thumbnailTime,
+                  libraryId: collectionStreamOptions.libraryId,
+                  thumbnailTime: collectionStreamOptions.thumbnailTime,
                   title: videoData.title || body.filename,
                   ...(await withVideoToken(videoId)),
                 } as StreamTusAuthResponse)
@@ -171,13 +171,13 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             }
 
             const newVideo = await createStreamVideo({
-              apiKey: collectionStreamConfig.apiKey,
-              libraryId: collectionStreamConfig.libraryId,
-              thumbnailTime: collectionStreamConfig.thumbnailTime,
+              apiKey: collectionStreamOptions.apiKey,
+              libraryId: collectionStreamOptions.libraryId,
+              thumbnailTime: collectionStreamOptions.thumbnailTime,
               title,
             })
 
-            if (collectionStreamConfig.cleanup) {
+            if (collectionStreamOptions.cleanup) {
               await createStreamVideoSession({
                 libraryId: newVideo.videoLibraryId,
                 payload: req.payload,
@@ -188,12 +188,12 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             videoId = newVideo.guid
           }
 
-          const tusExpiresIn = collectionStreamConfig.tus.expiresIn
+          const tusExpiresIn = collectionStreamOptions.tus.expiresIn
           const expirationTime = Math.floor(Date.now() / 1000) + tusExpiresIn
           const signature = generateStreamTusUploadSignature({
-            apiKey: collectionStreamConfig.apiKey,
+            apiKey: collectionStreamOptions.apiKey,
             expirationTime,
-            libraryId: collectionStreamConfig.libraryId,
+            libraryId: collectionStreamOptions.libraryId,
             videoId,
           })
 
@@ -201,8 +201,8 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             type: 'upload',
             authorizationExpire: expirationTime,
             authorizationSignature: signature,
-            libraryId: collectionStreamConfig.libraryId,
-            thumbnailTime: collectionStreamConfig.thumbnailTime,
+            libraryId: collectionStreamOptions.libraryId,
+            thumbnailTime: collectionStreamOptions.thumbnailTime,
             ...(await withVideoToken(videoId)),
           } as StreamTusAuthResponse)
         } catch (err) {
@@ -239,7 +239,7 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
             return jsonResponse({ error: 'Invalid webhook payload' }, 400)
           }
 
-          if (!streamConfigs.has(VideoLibraryId)) {
+          if (!streamOptionsByLibrary.has(VideoLibraryId)) {
             return jsonResponse({ error: 'Library ID mismatch' }, 403)
           }
 
@@ -261,17 +261,17 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
           }
 
           if (Status === 3) {
-            for (const collectionSlug of config.collections.keys()) {
+            for (const collectionSlug of options.collections.keys()) {
               const collection = req.payload.collections[collectionSlug]?.config
               if (!collection) {
                 continue
               }
 
-              const collectionContext = createCollectionContext(config, collection)
+              const collectionContext = createCollectionContext(options, collection)
               if (
-                !collectionContext.streamConfig ||
-                collectionContext.streamConfig.libraryId !== VideoLibraryId ||
-                !collectionContext.streamConfig.mp4Fallback
+                !collectionContext.streamOptions ||
+                collectionContext.streamOptions.libraryId !== VideoLibraryId ||
+                !collectionContext.streamOptions.mp4Fallback
               ) {
                 continue
               }
@@ -292,8 +292,8 @@ export const getStreamEndpoints = (config: NormalizedBunnyStorageConfig): Endpoi
                   const doc = docs.docs[0]
 
                   const resolutionsData = await getStreamVideoResolutions({
-                    apiKey: collectionContext.streamConfig.apiKey,
-                    libraryId: collectionContext.streamConfig.libraryId,
+                    apiKey: collectionContext.streamOptions.apiKey,
+                    libraryId: collectionContext.streamOptions.libraryId,
                     videoId: VideoGuid,
                   })
 

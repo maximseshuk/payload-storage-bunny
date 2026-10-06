@@ -2,7 +2,7 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { BunnyDataInternal } from '@/shared/types/core.js'
-import type { NormalizedStreamConfig } from '@/shared/types/index.js'
+import type { NormalizedStreamOptions } from '@/shared/types/index.js'
 
 import { signed } from '../../../../helpers/unit/signedUrls.js'
 
@@ -22,7 +22,7 @@ const { streamStaticHandler } = await import('@/server/payload/stream/serveStrea
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
-const streamConfig = (over: Partial<NormalizedStreamConfig> = {}): NormalizedStreamConfig =>
+const streamOptions = (over: Partial<NormalizedStreamOptions> = {}): NormalizedStreamOptions =>
   ({
     apiKey: 'stream-key',
     hostname: 'stream.b-cdn.net',
@@ -32,7 +32,7 @@ const streamConfig = (over: Partial<NormalizedStreamConfig> = {}): NormalizedStr
     tokenSecurityKey: 'stream-sec',
     uploadTimeout: 300000,
     ...over,
-  }) as NormalizedStreamConfig
+  }) as NormalizedStreamOptions
 
 const makeReq = (): PayloadRequest =>
   ({
@@ -77,7 +77,7 @@ describe('streamStaticHandler', () => {
       docId: 'doc1',
       req: makeReq(),
       signedUrls: false,
-      streamConfig: streamConfig({ mp4Fallback: false }),
+      streamOptions: streamOptions({ mp4Fallback: false }),
       usePayloadAccessControl: false,
     })
 
@@ -96,7 +96,7 @@ describe('streamStaticHandler', () => {
       docId: 'doc1',
       req,
       signedUrls: false,
-      streamConfig: streamConfig(),
+      streamOptions: streamOptions(),
       usePayloadAccessControl: false,
     })
 
@@ -119,7 +119,7 @@ describe('streamStaticHandler', () => {
       docId: 'doc1',
       req: makeReq(),
       signedUrls: false,
-      streamConfig: streamConfig({ referer: 'https://my.site' }),
+      streamOptions: streamOptions({ referer: 'https://my.site' }),
       usePayloadAccessControl: false,
     })
 
@@ -138,7 +138,7 @@ describe('streamStaticHandler', () => {
       docId: 'doc1',
       req: makeReq(),
       signedUrls: signed({ redirect: { status: 302 } }),
-      streamConfig: streamConfig(),
+      streamOptions: streamOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -167,7 +167,7 @@ describe('streamStaticHandler', () => {
       docId: 'doc1',
       req,
       signedUrls: false,
-      streamConfig: streamConfig(),
+      streamOptions: streamOptions(),
       usePayloadAccessControl: false,
     })
 
@@ -195,7 +195,7 @@ describe('streamStaticHandler', () => {
       docId: 'doc1',
       req: makeReq(),
       signedUrls: false,
-      streamConfig: streamConfig(),
+      streamOptions: streamOptions(),
       usePayloadAccessControl: false,
     })
 
@@ -215,7 +215,7 @@ describe('streamStaticHandler', () => {
       docId: 'doc1',
       req,
       signedUrls: false,
-      streamConfig: streamConfig(),
+      streamOptions: streamOptions(),
       usePayloadAccessControl: false,
     })
 

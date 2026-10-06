@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildConfigObject, buildEnvEntries, buildInitOutput, buildInstallLines } from '@/cli/commands/init/output.js'
+import { buildOptionsObject, buildEnvEntries, buildInitOutput, buildInstallLines } from '@/cli/commands/init/output.js'
 import type { InitAnswers } from '@/cli/lib/plan.js'
 import type { ProvisionResult } from '@/cli/lib/provision.js'
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
-import { validateNormalizedConfig } from '@/server/payload/config/validator.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
+import { validateNormalizedOptions } from '@/server/payload/options/validator.js'
 
 import { initAnswers } from '../../../../helpers/unit/initAnswers.js'
 
@@ -58,26 +58,26 @@ describe('buildEnvEntries', () => {
   })
 })
 
-describe('buildInitOutput config block', () => {
+describe('buildInitOutput options block', () => {
   it('renders an S3 block with signed URLs, client uploads and disablePayloadAccessControl', () => {
-    const { configBlock } = buildInitOutput(
+    const { optionsBlock } = buildInitOutput(
       initAnswers({ clientUploads: true, purge: true, signedUrls: true, storageAccess: 's3' }),
       result(),
     )
-    expect(configBlock).toContain('collections: { media: { disablePayloadAccessControl: true } }')
-    expect(configBlock).toContain('accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY')
-    expect(configBlock).toContain('purge: true')
-    expect(configBlock).toContain('signedUrls: true')
-    expect(configBlock).toContain('s3: true')
-    expect(configBlock).toContain('clientUploads: true')
-    expect(configBlock).toContain('libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID)')
-    expect(configBlock).not.toContain('mp4Fallback')
+    expect(optionsBlock).toContain('collections: { media: { disablePayloadAccessControl: true } }')
+    expect(optionsBlock).toContain('accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY')
+    expect(optionsBlock).toContain('purge: true')
+    expect(optionsBlock).toContain('signedUrls: true')
+    expect(optionsBlock).toContain('s3: true')
+    expect(optionsBlock).toContain('clientUploads: true')
+    expect(optionsBlock).toContain('libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID)')
+    expect(optionsBlock).not.toContain('mp4Fallback')
   })
 
   it('omits clientUploads for an S3 zone when client uploads are not chosen', () => {
-    const { configBlock } = buildInitOutput(initAnswers({ storageAccess: 's3' }), result())
-    expect(configBlock).toContain('s3: true')
-    expect(configBlock).not.toContain('clientUploads')
+    const { optionsBlock } = buildInitOutput(initAnswers({ storageAccess: 's3' }), result())
+    expect(optionsBlock).toContain('s3: true')
+    expect(optionsBlock).not.toContain('clientUploads')
   })
 
   it('renders an Edge clientUploads block and BUNNY_EDGE_SECRET for an HTTP zone with a deployed script', () => {
@@ -85,7 +85,7 @@ describe('buildInitOutput config block', () => {
       initAnswers({ clientUploads: true, deployEdge: true, storageAccess: 'http' }),
       result(),
     )
-    expect(output.configBlock).toContain(
+    expect(output.optionsBlock).toContain(
       "clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_SECRET } }",
     )
     const secret = output.env.find((entry) => entry.name === 'BUNNY_EDGE_SECRET')
@@ -93,34 +93,34 @@ describe('buildInitOutput config block', () => {
   })
 
   it('omits the storage region for HTTP in Frankfurt and includes it otherwise', () => {
-    expect(buildInitOutput(initAnswers({ region: 'de', storageAccess: 'http' }), result()).configBlock).not.toContain(
+    expect(buildInitOutput(initAnswers({ region: 'de', storageAccess: 'http' }), result()).optionsBlock).not.toContain(
       'region:',
     )
-    const ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 'http' }), result()).configBlock
+    const ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 'http' }), result()).optionsBlock
     expect(ny).toContain("region: 'ny'")
     expect(ny).not.toContain('s3:')
-    const s3ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 's3' }), result()).configBlock
+    const s3ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 's3' }), result()).optionsBlock
     expect(s3ny).toContain("region: 'ny'")
     expect(s3ny).toContain('s3: true')
   })
 
   it('adds the thumbnail width hint only when the optimizer is enabled', () => {
-    expect(buildInitOutput(initAnswers({ optimizer: true }), result()).configBlock).toContain(
+    expect(buildInitOutput(initAnswers({ optimizer: true }), result()).optionsBlock).toContain(
       "thumbnail: { urlTransform: { queryParams: { width: '300' } } }",
     )
-    expect(buildInitOutput(initAnswers(), result()).configBlock).not.toContain('thumbnail')
+    expect(buildInitOutput(initAnswers(), result()).optionsBlock).not.toContain('thumbnail')
   })
 
   it('forces the effective region to DE for an Edge/SSD zone regardless of the answer', () => {
     const http = buildInitOutput(initAnswers({ region: 'uk', storageAccess: 'http', storageTier: 'edge' }), result())
-    expect(http.configBlock).not.toContain('region:')
+    expect(http.optionsBlock).not.toContain('region:')
     const s3 = buildInitOutput(initAnswers({ region: 'uk', storageAccess: 's3', storageTier: 'edge' }), result())
-    expect(s3.configBlock).toContain('s3: true')
-    expect(s3.configBlock).not.toContain("region: 'uk'")
+    expect(s3.optionsBlock).toContain('s3: true')
+    expect(s3.optionsBlock).not.toContain("region: 'uk'")
   })
 })
 
-describe('generated config validation', () => {
+describe('generated options validation', () => {
   const cases: Array<Partial<InitAnswers>> = [
     { service: 'storage' },
     { service: 'stream' },
@@ -129,8 +129,8 @@ describe('generated config validation', () => {
   ]
 
   it.each(cases)('passes the plugin validator for answers %o', (overrides) => {
-    const config = buildConfigObject(initAnswers(overrides), result())
-    expect(() => validateNormalizedConfig(createNormalizedConfig(config))).not.toThrow()
+    const options = buildOptionsObject(initAnswers(overrides), result())
+    expect(() => validateNormalizedOptions(createNormalizedOptions(options))).not.toThrow()
   })
 })
 

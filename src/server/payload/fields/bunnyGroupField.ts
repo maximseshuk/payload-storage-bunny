@@ -25,11 +25,11 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
       return true
     }
     return (
-      !!context.streamConfig &&
+      !!context.streamOptions &&
       typeof videoId === 'string' &&
       verifyStreamVideoToken({
         collection: context.collection.slug,
-        libraryId: context.streamConfig.libraryId,
+        libraryId: context.streamOptions.libraryId,
         secret: req.payload.secret,
         token: siblingData?.videoToken,
         user: req.user,
@@ -54,10 +54,10 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
         afterRead: [
           ({ siblingData }) => {
             const videoId = (siblingData as StoredStream | undefined)?.videoId
-            if (!videoId || !context.streamConfig) {
+            if (!videoId || !context.streamOptions) {
               return null
             }
-            return context.streamConfig.libraryId
+            return context.streamOptions.libraryId
           },
         ],
       },
@@ -65,7 +65,7 @@ export const bunnyGroupField = (context: CollectionContext): GroupField => {
     },
   ]
 
-  if (context.streamConfig?.mp4Fallback) {
+  if (context.streamOptions?.mp4Fallback) {
     streamFields.push({ name: 'resolutions', type: 'json', access: { create: () => false, update: () => false } })
   }
 

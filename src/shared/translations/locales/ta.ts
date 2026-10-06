@@ -36,7 +36,7 @@ export const ta: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'கோப்பை நீக்க முடியவில்லை: {{filename}}',
     errorMissingRequiredFields: 'சில தேவையான தகவல்கள் விடுபட்டுள்ளன',
     errorNoServiceConfigured: 'எந்த சேவையும் கட்டமைக்கப்படவில்லை',
-    errorStreamConfigMissing: 'Bunny Stream சரியாக கட்டமைக்கப்படவில்லை',
+    errorStreamOptionsMissing: 'Bunny Stream சரியாக கட்டமைக்கப்படவில்லை',
     errorTitleRequired: 'உங்கள் வீடியோவுக்கு ஒரு தலைப்பை உள்ளிடவும்',
     errorUploadFileFailed: 'கோப்பைப் பதிவேற்ற முடியவில்லை: {{filename}}',
   },

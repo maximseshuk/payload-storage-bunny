@@ -6,33 +6,33 @@ import {
   getThumbnailURLAfterReadFieldHook,
   getUrlAfterReadFieldHook,
 } from '@/server/payload/fields/hooks.js'
-import type {
-  NormalizedSignedUrlsConfig,
-  NormalizedStorageConfig,
-  NormalizedStreamConfig,
-  NormalizedThumbnailConfig,
-  NormalizedUrlTransformConfig,
-} from '@/shared/types/configNormalized.js'
 import type { CollectionContext } from '@/shared/types/index.js'
+import type {
+  NormalizedSignedUrlsOptions,
+  NormalizedStorageOptions,
+  NormalizedStreamOptions,
+  NormalizedThumbnailOptions,
+  NormalizedUrlTransformOptions,
+} from '@/shared/types/optionsNormalized.js'
 
-const storageConfig = {
+const storageOptions = {
   apiKey: 'storage-key',
   hostname: 'storage.b-cdn.net',
   region: 'de',
   uploadTimeout: 30000,
   zoneName: 'my-zone',
-} as NormalizedStorageConfig
+} as NormalizedStorageOptions
 
-const streamConfig = {
+const streamOptions = {
   apiKey: 'stream-key',
   hostname: 'stream.b-cdn.net',
   libraryId: 12345,
   mimeTypes: ['video/mp4'],
   mp4Fallback: false,
   uploadTimeout: 30000,
-} as unknown as NormalizedStreamConfig
+} as unknown as NormalizedStreamOptions
 
-const thumbnail = (overrides: Partial<NormalizedThumbnailConfig> = {}): NormalizedThumbnailConfig => ({
+const thumbnail = (overrides: Partial<NormalizedThumbnailOptions> = {}): NormalizedThumbnailOptions => ({
   appendTimestamp: false,
   queryParams: {},
   streamAnimated: false,
@@ -59,13 +59,13 @@ describe('field hooks', () => {
 
     describe('image branch', () => {
       it('builds the storage CDN URL when access control is off', () => {
-        const fn = getAdminThumbnail(buildContext({ storageConfig }))!
+        const fn = getAdminThumbnail(buildContext({ storageOptions }))!
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('https://storage.b-cdn.net/up/pic.png')
       })
 
       it('applies the thumbnail urlTransform query params', () => {
         const fn = getAdminThumbnail(
-          buildContext({ storageConfig, thumbnail: thumbnail({ queryParams: { v: '2' } }) }),
+          buildContext({ storageOptions, thumbnail: thumbnail({ queryParams: { v: '2' } }) }),
         )!
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('https://storage.b-cdn.net/up/pic.png?v=2')
       })
@@ -73,8 +73,8 @@ describe('field hooks', () => {
       it('signs the URL when signedUrls and a tokenSecurityKey are present', () => {
         const fn = getAdminThumbnail(
           buildContext({
-            signedUrls: { expiresIn: () => 3600 } as NormalizedSignedUrlsConfig,
-            storageConfig: { ...storageConfig, tokenSecurityKey: 'sec-key' },
+            signedUrls: { expiresIn: () => 3600 } as NormalizedSignedUrlsOptions,
+            storageOptions: { ...storageOptions, tokenSecurityKey: 'sec-key' },
           }),
         )!
         const url = fn({ doc: imageDoc, req: {} as never })!
@@ -85,17 +85,17 @@ describe('field hooks', () => {
 
       it('does not sign when signedUrls is set but no tokenSecurityKey exists', () => {
         const fn = getAdminThumbnail(
-          buildContext({ signedUrls: { expiresIn: () => 3600 } as NormalizedSignedUrlsConfig, storageConfig }),
+          buildContext({ signedUrls: { expiresIn: () => 3600 } as NormalizedSignedUrlsOptions, storageOptions }),
         )!
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('https://storage.b-cdn.net/up/pic.png')
       })
 
       it('returns the internal API URL when access control is on', () => {
-        const fn = getAdminThumbnail(buildContext({ storageConfig, usePayloadAccessControl: true }))!
+        const fn = getAdminThumbnail(buildContext({ storageOptions, usePayloadAccessControl: true }))!
         expect(fn({ doc: imageDoc, req: {} as never })).toBe('/api/media/file/pic.png')
       })
 
-      it('returns null when there is no storage config and access control is off', () => {
+      it('returns null when there are no storage options and access control is off', () => {
         const fn = getAdminThumbnail(buildContext({}))!
         expect(fn({ doc: imageDoc, req: {} as never })).toBeNull()
       })
@@ -103,7 +103,7 @@ describe('field hooks', () => {
 
     describe('sizeName branch', () => {
       it('builds the storage CDN URL for the requested size filename', () => {
-        const fn = getAdminThumbnail(buildContext({ storageConfig, thumbnail: thumbnail({ sizeName: 'card' }) }))!
+        const fn = getAdminThumbnail(buildContext({ storageOptions, thumbnail: thumbnail({ sizeName: 'card' }) }))!
         const doc = {
           filename: 'orig.png',
           mimeType: 'image/png',
@@ -116,46 +116,48 @@ describe('field hooks', () => {
 
     describe('stream branch', () => {
       it('builds the Stream thumbnail URL when access control is off', () => {
-        const fn = getAdminThumbnail(buildContext({ streamConfig }))!
+        const fn = getAdminThumbnail(buildContext({ streamOptions }))!
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('https://stream.b-cdn.net/v-9/thumbnail.jpg')
       })
 
       it('uses the animated preview asset when streamAnimated is set', () => {
-        const fn = getAdminThumbnail(buildContext({ streamConfig, thumbnail: thumbnail({ streamAnimated: true }) }))!
+        const fn = getAdminThumbnail(buildContext({ streamOptions, thumbnail: thumbnail({ streamAnimated: true }) }))!
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('https://stream.b-cdn.net/v-9/preview.webp')
       })
 
       it('returns the internal API URL when access control is on', () => {
-        const fn = getAdminThumbnail(buildContext({ streamConfig, usePayloadAccessControl: true }))!
+        const fn = getAdminThumbnail(buildContext({ streamOptions, usePayloadAccessControl: true }))!
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('/api/media/file/bunny%3Astream%3Av-9%3Athumbnail.jpg')
       })
     })
 
     it('returns null for a non-image, non-stream document', () => {
-      const fn = getAdminThumbnail(buildContext({ storageConfig }))!
+      const fn = getAdminThumbnail(buildContext({ storageOptions }))!
       expect(fn({ doc: { filename: 'doc.pdf', mimeType: 'application/pdf' }, req: {} as never })).toBeNull()
     })
   })
 
   describe('getThumbnailURLAfterReadFieldHook', () => {
     it('returns null when there is no originalDoc', () => {
-      const hook = getThumbnailURLAfterReadFieldHook({ context: buildContext({ storageConfig }) })
+      const hook = getThumbnailURLAfterReadFieldHook({ context: buildContext({ storageOptions }) })
       expect(hook({ originalDoc: undefined, req: {} } as never)).toBeNull()
     })
 
     it('returns null when no thumbnail is configured', () => {
-      const hook = getThumbnailURLAfterReadFieldHook({ context: buildContext({ storageConfig, thumbnail: undefined }) })
+      const hook = getThumbnailURLAfterReadFieldHook({
+        context: buildContext({ storageOptions, thumbnail: undefined }),
+      })
       expect(hook({ originalDoc: imageDoc, req: {} } as never)).toBeNull()
     })
 
     it('delegates to the admin thumbnail for a real doc', () => {
-      const hook = getThumbnailURLAfterReadFieldHook({ context: buildContext({ storageConfig }) })
+      const hook = getThumbnailURLAfterReadFieldHook({ context: buildContext({ storageOptions }) })
       expect(hook({ originalDoc: imageDoc, req: {} } as never)).toBe('https://storage.b-cdn.net/up/pic.png')
     })
   })
 
   describe('getUrlAfterReadFieldHook', () => {
-    const urlTransform: NormalizedUrlTransformConfig = { appendTimestamp: false, queryParams: { v: '2' } }
+    const urlTransform: NormalizedUrlTransformOptions = { appendTimestamp: false, queryParams: { v: '2' } }
 
     it('returns the value untouched when access control is off', () => {
       const hook = getUrlAfterReadFieldHook({ context: buildContext({ urlTransform }) })
@@ -176,7 +178,7 @@ describe('field hooks', () => {
 
     it('resolves the size filename for the transform callback', () => {
       const seen: string[] = []
-      const transform: NormalizedUrlTransformConfig = {
+      const transform: NormalizedUrlTransformOptions = {
         appendTimestamp: false,
         queryParams: {},
         transformUrl: ({ baseUrl, filename }) => {
@@ -208,8 +210,8 @@ describe('field hooks', () => {
               seen.push(ip)
               return ip
             },
-          } as NormalizedSignedUrlsConfig,
-          storageConfig: { ...storageConfig, tokenSecurityKey: 'sec-key' },
+          } as NormalizedSignedUrlsOptions,
+          storageOptions: { ...storageOptions, tokenSecurityKey: 'sec-key' },
         }),
       })
 
@@ -226,8 +228,8 @@ describe('field hooks', () => {
       const hook = getUrlAfterReadFieldHook({
         context: buildContext({
           hasGenerateFileURL: true,
-          signedUrls: { expiresIn: () => 3600, userIp } as NormalizedSignedUrlsConfig,
-          storageConfig: { ...storageConfig, tokenSecurityKey: 'sec-key' },
+          signedUrls: { expiresIn: () => 3600, userIp } as NormalizedSignedUrlsOptions,
+          storageOptions: { ...storageOptions, tokenSecurityKey: 'sec-key' },
           usePayloadAccessControl: false,
         }),
       })
@@ -241,8 +243,8 @@ describe('field hooks', () => {
     it('does not re-sign when userIp is configured but access control is on', () => {
       const hook = getUrlAfterReadFieldHook({
         context: buildContext({
-          signedUrls: { expiresIn: () => 3600, userIp: () => '203.0.113.7' } as NormalizedSignedUrlsConfig,
-          storageConfig: { ...storageConfig, tokenSecurityKey: 'sec-key' },
+          signedUrls: { expiresIn: () => 3600, userIp: () => '203.0.113.7' } as NormalizedSignedUrlsOptions,
+          storageOptions: { ...storageOptions, tokenSecurityKey: 'sec-key' },
           usePayloadAccessControl: true,
         }),
       })

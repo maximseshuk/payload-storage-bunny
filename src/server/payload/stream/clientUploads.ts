@@ -1,7 +1,7 @@
 import type { CollectionContext } from '@/shared/types/index.js'
 
 export const hasStreamClientUploads = (context: CollectionContext): boolean =>
-  context.isTusUploadSupported && (!context.storageConfig || !!context.storageConfig.clientUploads)
+  context.isTusUploadSupported && (!context.storageOptions || !!context.storageOptions.clientUploads)
 
 const ISO_BOX_HEADER_SIZE = 8
 const MIN_ISO_FILE_SIZE = 24

@@ -140,7 +140,7 @@ const readProjectPayloadVersion = (): string | undefined => {
   }
 }
 
-const renderOutput = (installLines: string[], envBlock: string, configBlock: string): string =>
+const renderOutput = (installLines: string[], envBlock: string, optionsBlock: string): string =>
   [
     'Install the plugin and its peer dependency:',
     '',
@@ -152,7 +152,7 @@ const renderOutput = (installLines: string[], envBlock: string, configBlock: str
     '',
     'Storage adapter config (add to the `storage` array in payload.config.ts):',
     '',
-    configBlock,
+    optionsBlock,
   ].join('\n')
 
 export const runInit = async (options: { apiKey?: string; dryRun?: boolean; version: string }): Promise<void> => {
@@ -245,7 +245,7 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
     }
     const envBlock = output.env.map((entry) => `${entry.name}=${entry.value}`).join('\n')
     const installLines = buildInstallLines(options.version, readProjectPayloadVersion())
-    note(renderOutput(installLines, envBlock, output.configBlock), 'Your configuration')
+    note(renderOutput(installLines, envBlock, output.optionsBlock), 'Your options')
 
     const doAppend = await confirm({ initialValue: false, message: 'Append these lines to ./.env?' })
     if (!isCancel(doAppend) && doAppend) {

@@ -1,23 +1,41 @@
 import type {
-  NormalizedBunnyStorageConfig,
-  NormalizedCollectionConfig,
-  NormalizedSignedUrlsConfig,
-  NormalizedStorageConfig,
-  NormalizedStreamConfig,
-} from '@/shared/types/configNormalized.js'
+  NormalizedBunnyStorageOptions,
+  NormalizedCollectionOptions,
+  NormalizedSignedUrlsOptions,
+  NormalizedStorageOptions,
+  NormalizedStreamOptions,
+} from '@/shared/types/optionsNormalized.js'
 
-import type { TelemetryFeatures } from './types.js'
+export type TelemetryFeatures = {
+  accountApiKey: boolean
+  cdnPurge: boolean
+  collectionOverrides: boolean
+  collectionZones: boolean
+  signedUrls: boolean
+  signedUrlsCountryLock: boolean
+  storage: boolean
+  storageClientUploads: boolean
+  storageClientUploadsEdge: boolean
+  storageS3: boolean
+  stream: boolean
+  streamCleanup: boolean
+  streamTus: boolean
+  streamTusAutoMode: boolean
+  streamWebhook: boolean
+  thumbnail: boolean
+  urlTransform: boolean
+}
 
-const collections = (config: NormalizedBunnyStorageConfig): NormalizedCollectionConfig[] => [
-  ...config.collections.values(),
+const collections = (options: NormalizedBunnyStorageOptions): NormalizedCollectionOptions[] => [
+  ...options.collections.values(),
 ]
 
-const allStorages = (config: NormalizedBunnyStorageConfig): NormalizedStorageConfig[] => {
-  const list: NormalizedStorageConfig[] = []
-  if (config.storage) {
-    list.push(config.storage)
+const allStorages = (options: NormalizedBunnyStorageOptions): NormalizedStorageOptions[] => {
+  const list: NormalizedStorageOptions[] = []
+  if (options.storage) {
+    list.push(options.storage)
   }
-  for (const collection of config.collections.values()) {
+  for (const collection of options.collections.values()) {
     if (collection.storage) {
       list.push(collection.storage)
     }
@@ -25,12 +43,12 @@ const allStorages = (config: NormalizedBunnyStorageConfig): NormalizedStorageCon
   return list
 }
 
-const allStreams = (config: NormalizedBunnyStorageConfig): NormalizedStreamConfig[] => {
-  const list: NormalizedStreamConfig[] = []
-  if (config.stream) {
-    list.push(config.stream)
+const allStreams = (options: NormalizedBunnyStorageOptions): NormalizedStreamOptions[] => {
+  const list: NormalizedStreamOptions[] = []
+  if (options.stream) {
+    list.push(options.stream)
   }
-  for (const collection of config.collections.values()) {
+  for (const collection of options.collections.values()) {
     if (collection.stream) {
       list.push(collection.stream)
     }
@@ -38,12 +56,12 @@ const allStreams = (config: NormalizedBunnyStorageConfig): NormalizedStreamConfi
   return list
 }
 
-const allSignedUrls = (config: NormalizedBunnyStorageConfig): NormalizedSignedUrlsConfig[] => {
-  const list: NormalizedSignedUrlsConfig[] = []
-  if (config.signedUrls) {
-    list.push(config.signedUrls)
+const allSignedUrls = (options: NormalizedBunnyStorageOptions): NormalizedSignedUrlsOptions[] => {
+  const list: NormalizedSignedUrlsOptions[] = []
+  if (options.signedUrls) {
+    list.push(options.signedUrls)
   }
-  for (const collection of config.collections.values()) {
+  for (const collection of options.collections.values()) {
     if (collection.signedUrls) {
       list.push(collection.signedUrls)
     }
@@ -51,8 +69,8 @@ const allSignedUrls = (config: NormalizedBunnyStorageConfig): NormalizedSignedUr
   return list
 }
 
-const originalCollections = (config: NormalizedBunnyStorageConfig): Record<string, unknown> =>
-  config._original.collections as Record<string, unknown>
+const originalCollections = (options: NormalizedBunnyStorageOptions): Record<string, unknown> =>
+  options._original.collections as Record<string, unknown>
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
 
@@ -62,15 +80,15 @@ const definesOwnZone = (collection: Record<string, unknown>): boolean => {
   return ownStorage || ownStream
 }
 
-export const buildFeatures = (config: NormalizedBunnyStorageConfig): TelemetryFeatures => {
-  const storages = allStorages(config)
-  const streams = allStreams(config)
-  const signedUrls = allSignedUrls(config)
-  const originals = Object.values(originalCollections(config))
+export const buildFeatures = (options: NormalizedBunnyStorageOptions): TelemetryFeatures => {
+  const storages = allStorages(options)
+  const streams = allStreams(options)
+  const signedUrls = allSignedUrls(options)
+  const originals = Object.values(originalCollections(options))
 
   return {
-    accountApiKey: Boolean(config.accountApiKey),
-    cdnPurge: Boolean(config.purge) || collections(config).some((c) => Boolean(c.purge)),
+    accountApiKey: Boolean(options.accountApiKey),
+    cdnPurge: Boolean(options.purge) || collections(options).some((c) => Boolean(c.purge)),
     collectionOverrides: originals.some((value) => isObject(value)),
     collectionZones: originals.some((value) => isObject(value) && definesOwnZone(value)),
     signedUrls: signedUrls.length > 0,
@@ -86,7 +104,7 @@ export const buildFeatures = (config: NormalizedBunnyStorageConfig): TelemetryFe
     streamTus: streams.some((s) => Boolean(s.tus)),
     streamTusAutoMode: streams.some((s) => s.tus?.autoMode === true),
     streamWebhook: streams.some((s) => Boolean(s.webhook)),
-    thumbnail: Boolean(config.thumbnail) || collections(config).some((c) => Boolean(c.thumbnail)),
-    urlTransform: Boolean(config.urlTransform) || collections(config).some((c) => Boolean(c.urlTransform)),
+    thumbnail: Boolean(options.thumbnail) || collections(options).some((c) => Boolean(c.thumbnail)),
+    urlTransform: Boolean(options.urlTransform) || collections(options).some((c) => Boolean(c.urlTransform)),
   }
 }

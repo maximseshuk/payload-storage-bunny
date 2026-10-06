@@ -2,30 +2,30 @@ import type { Payload } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import {
-  getBunnyCollectionConfig,
-  getBunnyConfig,
+  getBunnyCollectionOptions,
+  getBunnyOptions,
   getBunnyStorageForCollection,
   getBunnyStreamForCollection,
-} from '@/server/payload/config/access.js'
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+} from '@/server/payload/options/access.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
+import type { BunnyStorageOptions } from '@/shared/types/options.js'
 
 import {
   createBaseStorage as sharedCreateBaseStorage,
   createBaseStream,
   createOwnStorage,
   createOwnStream,
-} from '../../../../helpers/unit/configBuilders.js'
+} from '../../../../helpers/unit/optionsBuilders.js'
 
 const createBaseStorage = (overrides: Record<string, unknown> = {}) =>
   sharedCreateBaseStorage({ uploadTimeout: 60000, ...overrides })
 
 const fakePayload = (custom?: Record<string, unknown>): Payload => ({ config: { custom } }) as unknown as Payload
 
-const payloadFor = (userConfig: BunnyStorageConfig): Payload =>
-  fakePayload({ '@seshuk/payload-storage-bunny': { config: createNormalizedConfig(userConfig) } })
+const payloadFor = (userOptions: BunnyStorageOptions): Payload =>
+  fakePayload({ '@seshuk/payload-storage-bunny': { config: createNormalizedOptions(userOptions) } })
 
-describe('config accessors', () => {
+describe('options accessors', () => {
   it('returns exactly the curated global storage and stream view for a `true` shorthand collection', () => {
     const payload = payloadFor({
       collections: { media: true },
@@ -33,7 +33,7 @@ describe('config accessors', () => {
       stream: createBaseStream(),
     })
 
-    expect(getBunnyCollectionConfig(payload, 'media')).toEqual({
+    expect(getBunnyCollectionOptions(payload, 'media')).toEqual({
       storage: {
         apiKey: 'storage-key',
         hostname: 'storage.bunny.net',
@@ -80,7 +80,7 @@ describe('config accessors', () => {
       stream: createBaseStream(),
     })
 
-    const collection = getBunnyCollectionConfig(payload, 'media')
+    const collection = getBunnyCollectionOptions(payload, 'media')
     expect(collection?.storage).toBeDefined()
     expect(collection?.stream).toBeUndefined()
     expect(getBunnyStreamForCollection(payload, 'media')).toBeUndefined()
@@ -93,7 +93,7 @@ describe('config accessors', () => {
       stream: createBaseStream(),
     })
 
-    const collection = getBunnyCollectionConfig(payload, 'media')
+    const collection = getBunnyCollectionOptions(payload, 'media')
     expect(collection?.stream).toBeDefined()
     expect(collection?.storage).toBeUndefined()
     expect(getBunnyStorageForCollection(payload, 'media')).toBeUndefined()
@@ -127,7 +127,7 @@ describe('config accessors', () => {
     const storage = getBunnyStorageForCollection(payload, 'media')!
     storage.zoneName = 'mutated'
 
-    expect(getBunnyConfig(payload)!.collections.get('media')!.storage!.zoneName).toBe('test-zone')
+    expect(getBunnyOptions(payload)!.collections.get('media')!.storage!.zoneName).toBe('test-zone')
     expect(getBunnyStorageForCollection(payload, 'media')?.zoneName).toBe('test-zone')
   })
 
@@ -137,18 +137,18 @@ describe('config accessors', () => {
       storage: createBaseStorage(),
     })
 
-    expect(getBunnyCollectionConfig(payload, 'nope')).toBeUndefined()
+    expect(getBunnyCollectionOptions(payload, 'nope')).toBeUndefined()
     expect(getBunnyStorageForCollection(payload, 'nope')).toBeUndefined()
     expect(getBunnyStreamForCollection(payload, 'nope')).toBeUndefined()
   })
 
   it('returns undefined when the plugin stash is absent, without throwing', () => {
-    expect(getBunnyConfig(fakePayload())).toBeUndefined()
-    expect(getBunnyConfig(fakePayload({}))).toBeUndefined()
-    expect(getBunnyConfig(fakePayload({ '@seshuk/payload-storage-bunny': {} }))).toBeUndefined()
+    expect(getBunnyOptions(fakePayload())).toBeUndefined()
+    expect(getBunnyOptions(fakePayload({}))).toBeUndefined()
+    expect(getBunnyOptions(fakePayload({ '@seshuk/payload-storage-bunny': {} }))).toBeUndefined()
 
     const empty = fakePayload()
-    expect(getBunnyCollectionConfig(empty, 'media')).toBeUndefined()
+    expect(getBunnyCollectionOptions(empty, 'media')).toBeUndefined()
     expect(getBunnyStorageForCollection(empty, 'media')).toBeUndefined()
     expect(getBunnyStreamForCollection(empty, 'media')).toBeUndefined()
   })

@@ -5,7 +5,7 @@ import { getThumbnailURLAfterReadFieldHook, getUrlAfterReadFieldHook } from '@/s
 import type { CollectionContext } from '@/shared/types/index.js'
 
 const getBunnyFields = (collectionContext: CollectionContext): Field[] => {
-  if (!collectionContext.streamConfig) {
+  if (!collectionContext.streamOptions) {
     return []
   }
 
@@ -75,7 +75,7 @@ export const getFields = (
 
   fields.push(urlField, thumbnailURLField)
 
-  const hasDynamicClientUploadPrefix = typeof collectionContext.storageConfig?.clientUploads?.prefix === 'function'
+  const hasDynamicClientUploadPrefix = typeof collectionContext.storageOptions?.clientUploads?.prefix === 'function'
   const existingPrefixField = fields.some((field) => 'name' in field && field.name === 'prefix')
 
   if (hasDynamicClientUploadPrefix && !existingPrefixField) {

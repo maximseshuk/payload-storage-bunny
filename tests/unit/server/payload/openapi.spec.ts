@@ -3,7 +3,6 @@ import { resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
 import { bunnyGroupField } from '@/server/payload/fields/bunnyGroupField.js'
 import {
   bunnyDataFieldOpenApi,
@@ -11,12 +10,13 @@ import {
   streamWebhookOperation,
   tusAuthOperation,
 } from '@/server/payload/openapi.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
 import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
 describe('openapi metadata', () => {
   it('attaches custom.openapi to the stream endpoints', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: { disablePayloadAccessControl: true } },
       stream: {
         apiKey: 'stream-key',
@@ -27,7 +27,7 @@ describe('openapi metadata', () => {
       },
     })
 
-    const endpoints = getStreamEndpoints(config)
+    const endpoints = getStreamEndpoints(options)
     const tusAuth = endpoints.find((endpoint) => endpoint.path === '/storage-bunny/stream/tus-auth')
     const webhook = endpoints.find((endpoint) => endpoint.path === '/storage-bunny/stream/webhook')
 

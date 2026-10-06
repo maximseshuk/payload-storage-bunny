@@ -36,7 +36,7 @@ export const my: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'ဖိုင်ကို ဖျက်၍ မရပါ: {{filename}}',
     errorMissingRequiredFields: 'လိုအပ်သော အချက်အလက်အချို့ ပျောက်နေပါသည်',
     errorNoServiceConfigured: 'ဝန်ဆောင်မှုတစ်ခုမှ ဖွဲ့စည်းတည်ဆောက်မထားပါ',
-    errorStreamConfigMissing: 'Bunny Stream ကို မှန်ကန်စွာ ပြင်ဆင်မထားပါ',
+    errorStreamOptionsMissing: 'Bunny Stream ကို မှန်ကန်စွာ ပြင်ဆင်မထားပါ',
     errorTitleRequired: 'သင့်ဗီဒီယိုအတွက် ခေါင်းစဉ်ကို ထည့်ပါ',
     errorUploadFileFailed: 'ဖိုင်ကို တင်ပြ၍ မရပါ: {{filename}}',
   },

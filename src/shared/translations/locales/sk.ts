@@ -36,7 +36,7 @@ export const sk: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Nepodarilo sa zmazať súbor: {{filename}}',
     errorMissingRequiredFields: 'Chýbajú niektoré potrebné informácie',
     errorNoServiceConfigured: 'Žiadna služba nie je nakonfigurovaná',
-    errorStreamConfigMissing: 'Bunny Stream nie je správne nakonfigurovaný',
+    errorStreamOptionsMissing: 'Bunny Stream nie je správne nakonfigurovaný',
     errorTitleRequired: 'Prosím zadajte názov vášho videa',
     errorUploadFileFailed: 'Nepodarilo sa nahrať súbor: {{filename}}',
   },

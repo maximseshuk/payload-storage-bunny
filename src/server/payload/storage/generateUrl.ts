@@ -10,18 +10,18 @@ import { applyUrlTransform } from '@/shared/urlTransform.js'
 type GenerateUrlArgs = { req?: PayloadRequest } & Parameters<GenerateURL>[0]
 
 export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlArgs) => string) => {
-  const { collection, prefix: collectionPrefix, signedUrls, storageConfig, streamConfig, urlTransform } = context
+  const { collection, prefix: collectionPrefix, signedUrls, storageOptions, streamOptions, urlTransform } = context
 
   return ({ data, filename, prefix = '', req }) => {
     const videoId = readStoredVideo(data)?.videoId
 
-    if (streamConfig && videoId) {
-      let streamUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, 'playlist.m3u8')
+    if (streamOptions && videoId) {
+      let streamUrl = buildStreamCdnUrl(streamOptions.hostname, videoId, 'playlist.m3u8')
 
       if (urlTransform) {
         streamUrl = applyUrlTransform({
           collection,
-          config: urlTransform,
+          options: urlTransform,
           data,
           filename,
           prefix,
@@ -31,12 +31,12 @@ export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlA
 
       return maybeGenerateSignedUrl(
         streamUrl,
-        { collection, filename, req, signedUrls, tokenSecurityKey: streamConfig.tokenSecurityKey },
+        { collection, filename, req, signedUrls, tokenSecurityKey: streamOptions.tokenSecurityKey },
         { tokenPath: `/${videoId}/` },
       )
     }
 
-    if (!storageConfig) {
+    if (!storageOptions) {
       return ''
     }
 
@@ -44,14 +44,14 @@ export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlA
       collectionPrefix,
       encode: true,
       filename,
-      hostname: storageConfig.hostname,
+      hostname: storageOptions.hostname,
       prefix,
     })
 
     if (urlTransform) {
       baseUrl = applyUrlTransform({
         collection,
-        config: urlTransform,
+        options: urlTransform,
         data,
         filename,
         prefix,
@@ -64,7 +64,7 @@ export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlA
       filename,
       req,
       signedUrls,
-      tokenSecurityKey: storageConfig.tokenSecurityKey,
+      tokenSecurityKey: storageOptions.tokenSecurityKey,
     })
   }
 }

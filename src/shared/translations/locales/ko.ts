@@ -36,7 +36,7 @@ export const ko: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: '파일을 삭제할 수 없습니다: {{filename}}',
     errorMissingRequiredFields: '필수 정보가 누락되었습니다',
     errorNoServiceConfigured: '구성된 서비스가 없습니다',
-    errorStreamConfigMissing: 'Bunny Stream이 올바르게 구성되지 않았습니다',
+    errorStreamOptionsMissing: 'Bunny Stream이 올바르게 구성되지 않았습니다',
     errorTitleRequired: '동영상 제목을 입력해주세요',
     errorUploadFileFailed: '파일을 업로드할 수 없습니다: {{filename}}',
   },

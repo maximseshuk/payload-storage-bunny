@@ -15,23 +15,23 @@ import type { PluginStorageBunnyTranslationsKeys } from '@/shared/translations/i
 import type { CollectionContext } from '@/shared/types/index.js'
 
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
-  const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
+  const { accountApiKey, purgeOptions, storageOptions, streamOptions } = context
 
   return async ({ data, file, req, storageFilePath: path }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     try {
       const fileName = file.filename
-      const isVideoFile = !!streamConfig?.mimeTypes?.some((pattern) => matchesMimeTypePattern(file.mimeType, pattern))
+      const isVideoFile = !!streamOptions?.mimeTypes?.some((pattern) => matchesMimeTypePattern(file.mimeType, pattern))
 
-      if (streamConfig?.apiKey && isVideoFile) {
+      if (streamOptions?.apiKey && isVideoFile) {
         const video = await createStreamVideo({
-          apiKey: streamConfig.apiKey,
-          libraryId: streamConfig.libraryId,
-          thumbnailTime: streamConfig.thumbnailTime,
+          apiKey: streamOptions.apiKey,
+          libraryId: streamOptions.libraryId,
+          thumbnailTime: streamOptions.thumbnailTime,
           title: fileName,
         })
-        if (streamConfig.cleanup) {
+        if (streamOptions.cleanup) {
           await createStreamVideoSession({
             libraryId: video.videoLibraryId,
             payload: req.payload,
@@ -39,10 +39,10 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           })
         }
         await uploadStreamVideo({
-          apiKey: streamConfig.apiKey,
+          apiKey: streamOptions.apiKey,
           buffer: file.buffer,
-          libraryId: streamConfig.libraryId,
-          timeout: streamConfig.uploadTimeout,
+          libraryId: streamOptions.libraryId,
+          timeout: streamOptions.uploadTimeout,
           videoId: video.guid,
         })
 
@@ -52,40 +52,40 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
         if (adminThumbnail) {
           data.thumbnailURL = adminThumbnail({ doc: data as Record<string, unknown>, req })
         }
-      } else if (storageConfig) {
-        if (storageConfig.s3) {
+      } else if (storageOptions) {
+        if (storageOptions.s3) {
           await uploadStorageFileS3({
-            apiKey: storageConfig.apiKey,
+            apiKey: storageOptions.apiKey,
             buffer: file.buffer,
             mimeType: file.mimeType,
             path,
-            region: storageConfig.region,
-            timeout: storageConfig.uploadTimeout,
-            zoneName: storageConfig.zoneName,
+            region: storageOptions.region,
+            timeout: storageOptions.uploadTimeout,
+            zoneName: storageOptions.zoneName,
           })
         } else {
           await uploadStorageFile({
-            apiKey: storageConfig.apiKey,
+            apiKey: storageOptions.apiKey,
             buffer: file.buffer,
             mimeType: file.mimeType,
             path,
-            region: storageConfig.region,
-            timeout: storageConfig.uploadTimeout,
-            zoneName: storageConfig.zoneName,
+            region: storageOptions.region,
+            timeout: storageOptions.uploadTimeout,
+            zoneName: storageOptions.zoneName,
           })
         }
 
         setStoredVideoId(data, null)
 
-        if (purgeConfig && accountApiKey) {
+        if (purgeOptions && accountApiKey) {
           const url = buildStoragePurgeUrl({
             collectionPrefix: context.prefix,
             filename: fileName,
-            hostname: storageConfig.hostname,
+            hostname: storageOptions.hostname,
             prefix: data.prefix,
           })
           try {
-            await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url })
+            await purgeCache({ apiKey: accountApiKey, async: purgeOptions.async, url })
             req.payload.logger.debug({
               msg: '[bunny:storage] upload: cache purged',
               url,
@@ -112,7 +112,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           size: file.filesize,
         },
         msg: '[bunny:storage] upload: failed',
-        ...(storageConfig && { storage: storageConfig.zoneName }),
+        ...(storageOptions && { storage: storageOptions.zoneName }),
       })
 
       throw new APIError(

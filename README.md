@@ -29,7 +29,7 @@
 - **CDN cache purging** — auto-invalidate on upload and delete so visitors always see the latest file.
 - **Thumbnails** — admin-panel and API previews, with on-the-fly resizing via Bunny Optimizer.
 - **Per-collection overrides** — tune any setting per collection, or point a collection at its own zone / library for multi-tenant setups.
-- **Setup wizard & CLI** — one command provisions your Bunny resources and prints a ready-to-paste config; a second deploys the client-uploads Edge Script.
+- **Setup wizard & CLI** — one command provisions your Bunny resources and prints ready-to-paste options; a second deploys the client-uploads Edge Script.
 
 ## Quick start
 

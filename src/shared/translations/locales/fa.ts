@@ -36,7 +36,7 @@ export const fa: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'حذف فایل امکان‌پذیر نبود: {{filename}}',
     errorMissingRequiredFields: 'برخی اطلاعات ضروری موجود نیست',
     errorNoServiceConfigured: 'هیچ سرویسی پیکربندی نشده است',
-    errorStreamConfigMissing: 'Bunny Stream به درستی پیکربندی نشده است',
+    errorStreamOptionsMissing: 'Bunny Stream به درستی پیکربندی نشده است',
     errorTitleRequired: 'لطفاً عنوانی برای ویدیوی خود وارد کنید',
     errorUploadFileFailed: 'آپلود فایل امکان‌پذیر نبود: {{filename}}',
   },

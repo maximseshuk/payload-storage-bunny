@@ -25,7 +25,7 @@ vi.mock('@/server/bunny/cdn.js', () => ({
   purgeCache: purgeCacheMock,
 }))
 
-import { buildContext, storageConfig, streamConfig } from '../../../../helpers/unit/context.js'
+import { buildContext, storageOptions, streamOptions } from '../../../../helpers/unit/context.js'
 import { createReq } from '../../../../helpers/unit/req.js'
 
 const { buildStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
@@ -44,7 +44,7 @@ describe('getHandleDelete', () => {
       deleteStreamVideoMock.mockResolvedValue(undefined)
 
       const handler = getHandleDelete(
-        buildContext({ purgeConfig: { async: false }, streamConfig } as Partial<CollectionContext>),
+        buildContext({ purgeOptions: { async: false }, streamOptions } as Partial<CollectionContext>),
       )
 
       await handler({
@@ -66,11 +66,11 @@ describe('getHandleDelete', () => {
   })
 
   describe('storage documents', () => {
-    it('deletes via the S3 backend when S3 config is present', async () => {
+    it('deletes via the S3 backend when S3 options are present', async () => {
       deleteStorageFileS3Mock.mockResolvedValue(undefined)
 
       const handler = getHandleDelete(
-        buildContext({ storageConfig: { ...storageConfig, s3: true } } as Partial<CollectionContext>),
+        buildContext({ storageOptions: { ...storageOptions, s3: true } } as Partial<CollectionContext>),
       )
 
       await handler({
@@ -91,13 +91,13 @@ describe('getHandleDelete', () => {
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
 
-    it('deletes via the HTTP backend and purges the plain CDN URL when purgeConfig and accountApiKey are present', async () => {
+    it('deletes via the HTTP backend and purges the plain CDN URL when purgeOptions and accountApiKey are present', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockResolvedValue(undefined)
 
       const req = createReq()
       const handler = getHandleDelete(
-        buildContext({ purgeConfig: { async: true }, storageConfig } as Partial<CollectionContext>),
+        buildContext({ purgeOptions: { async: true }, storageOptions } as Partial<CollectionContext>),
       )
 
       await handler({
@@ -130,7 +130,7 @@ describe('getHandleDelete', () => {
 
       const req = createReq()
       const handler = getHandleDelete(
-        buildContext({ purgeConfig: { async: false }, storageConfig } as Partial<CollectionContext>),
+        buildContext({ purgeOptions: { async: false }, storageOptions } as Partial<CollectionContext>),
       )
 
       await expect(
@@ -153,7 +153,7 @@ describe('getHandleDelete', () => {
     it('deletes from a dynamic per-document prefix path', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
 
-      const handler = getHandleDelete(buildContext({ storageConfig } as Partial<CollectionContext>))
+      const handler = getHandleDelete(buildContext({ storageOptions } as Partial<CollectionContext>))
 
       await handler({
         collection: { slug: 'media' },
@@ -176,7 +176,7 @@ describe('getHandleDelete', () => {
       purgeCacheMock.mockResolvedValue(undefined)
 
       const handler = getHandleDelete(
-        buildContext({ prefix: 'media', purgeConfig: { async: false }, storageConfig } as Partial<CollectionContext>),
+        buildContext({ prefix: 'media', purgeOptions: { async: false }, storageOptions } as Partial<CollectionContext>),
       )
       const doc = { ...storageDoc, prefix: '' }
 
@@ -204,9 +204,9 @@ describe('getHandleDelete', () => {
 
       const handler = getHandleDelete(
         buildContext({
-          purgeConfig: { async: false },
+          purgeOptions: { async: false },
           signedUrls: { expiresIn: () => 3600 },
-          storageConfig,
+          storageOptions,
           urlTransform: { appendTimestamp: true, queryParams: { v: '2' } },
         } as unknown as Partial<CollectionContext>),
       )
@@ -224,10 +224,10 @@ describe('getHandleDelete', () => {
       )
     })
 
-    it('does not purge when purgeConfig is absent', async () => {
+    it('does not purge when purgeOptions is absent', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
 
-      const handler = getHandleDelete(buildContext({ storageConfig } as Partial<CollectionContext>))
+      const handler = getHandleDelete(buildContext({ storageOptions } as Partial<CollectionContext>))
 
       await handler({
         collection: { slug: 'media' },
@@ -242,7 +242,7 @@ describe('getHandleDelete', () => {
     })
   })
 
-  describe('no configuration', () => {
+  describe('no options', () => {
     it('logs a debug message and does nothing when neither storage nor stream is configured', async () => {
       const req = createReq()
       const handler = getHandleDelete(buildContext())
@@ -260,7 +260,7 @@ describe('getHandleDelete', () => {
       expect(deleteStreamVideoMock).not.toHaveBeenCalled()
       expect(purgeCacheMock).not.toHaveBeenCalled()
       expect(req.payload.logger.debug).toHaveBeenCalledWith(
-        expect.objectContaining({ msg: '[bunny:storage] delete: skipping, no storage or stream config' }),
+        expect.objectContaining({ msg: '[bunny:storage] delete: skipping, no storage or stream options' }),
       )
     })
   })
@@ -270,7 +270,7 @@ describe('getHandleDelete', () => {
       deleteStorageFileMock.mockRejectedValue(new Error('network down'))
 
       const req = createReq()
-      const handler = getHandleDelete(buildContext({ storageConfig } as Partial<CollectionContext>))
+      const handler = getHandleDelete(buildContext({ storageOptions } as Partial<CollectionContext>))
 
       await expect(
         handler({

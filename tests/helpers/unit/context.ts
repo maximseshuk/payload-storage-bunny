@@ -1,6 +1,6 @@
 import type { CollectionContext } from '@/shared/types/index.js'
 
-export const streamConfig = {
+export const streamOptions = {
   apiKey: 'stream-key',
   hostname: 'stream.b-cdn.net',
   libraryId: 12345,
@@ -11,7 +11,7 @@ export const streamConfig = {
   uploadTimeout: 300000,
 }
 
-export const storageConfig = {
+export const storageOptions = {
   apiKey: 'storage-key',
   hostname: 'storage.b-cdn.net',
   region: 'de',

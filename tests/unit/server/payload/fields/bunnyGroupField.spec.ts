@@ -11,8 +11,8 @@ import {
 import { signStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
-const context = (streamConfig?: Partial<CollectionContext['streamConfig']>): CollectionContext =>
-  ({ streamConfig: streamConfig as CollectionContext['streamConfig'] }) as CollectionContext
+const context = (streamOptions?: Partial<CollectionContext['streamOptions']>): CollectionContext =>
+  ({ streamOptions: streamOptions as CollectionContext['streamOptions'] }) as CollectionContext
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const findField = (field: any, name: string) => field.fields.find((f: any) => f.name === name)
@@ -104,7 +104,7 @@ describe('bunnyGroupField', () => {
       expect(hook({ siblingData: {} })).toBeNull()
     })
 
-    it('resolves the virtual libraryId field to null without a streamConfig', () => {
+    it('resolves the virtual libraryId field to null without a streamOptions', () => {
       const field = bunnyGroupField(context(undefined)) as any
       const streamGroup = findField(field, 'stream')
       const hook = findField(streamGroup, 'libraryId').hooks.afterRead[0]
@@ -126,7 +126,7 @@ describe('bunnyGroupField', () => {
   describe('stream field access', () => {
     const streamContext = {
       collection: { slug: 'media' },
-      streamConfig: { libraryId: 12345, mp4Fallback: true },
+      streamOptions: { libraryId: 12345, mp4Fallback: true },
     } as unknown as CollectionContext
     const req = { payload: { secret: 'payload-secret' }, user: editor }
     const streamGroup = findField(bunnyGroupField(streamContext), 'stream')
@@ -173,7 +173,7 @@ describe('bunnyGroupField', () => {
       vi.useRealTimers()
     })
 
-    it('rejects a videoId when the collection has no stream config', () => {
+    it('rejects a videoId when the collection has no stream options', () => {
       const field = bunnyGroupField({ collection: { slug: 'media' } } as unknown as CollectionContext)
       const noStreamVideoId = findField(findField(field, 'stream'), 'videoId')
       const siblingData = { videoId: 'v1', videoToken: tokenFor('v1') }

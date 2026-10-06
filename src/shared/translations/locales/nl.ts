@@ -36,7 +36,7 @@ export const nl: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Bestand kon niet worden verwijderd: {{filename}}',
     errorMissingRequiredFields: 'Enkele vereiste gegevens ontbreken',
     errorNoServiceConfigured: 'Geen service geconfigureerd',
-    errorStreamConfigMissing: 'Bunny Stream is niet correct geconfigureerd',
+    errorStreamOptionsMissing: 'Bunny Stream is niet correct geconfigureerd',
     errorTitleRequired: 'Voer alstublieft een titel in voor uw video',
     errorUploadFileFailed: 'Bestand kon niet worden geüpload: {{filename}}',
   },

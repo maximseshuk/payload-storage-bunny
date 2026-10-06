@@ -4,7 +4,7 @@ export type PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: string
     errorMissingRequiredFields: string
     errorNoServiceConfigured: string
-    errorStreamConfigMissing: string
+    errorStreamOptionsMissing: string
     errorTitleRequired: string
     errorUploadFileFailed: string
 

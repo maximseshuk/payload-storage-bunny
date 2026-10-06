@@ -18,27 +18,27 @@ import { readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunny
 import { readClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import { getHandleDelete } from '@/server/payload/storage/handleDelete.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import type { CollectionContext } from '@/shared/types/index.js'
+import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
 type BeforeValidateArgs = {
-  config: NormalizedBunnyStorageConfig
+  options: NormalizedBunnyStorageOptions
   context: CollectionContext
   filesRequiredOnCreate: boolean
 }
 
 type AssertVideoUnclaimedArgs = {
-  config: NormalizedBunnyStorageConfig
+  options: NormalizedBunnyStorageOptions
   context: CollectionContext
   id?: number | string
   req: PayloadRequest
   videoId: string
 }
 
-const assertVideoUnclaimed = async ({ config, context, id, req, videoId }: AssertVideoUnclaimedArgs) => {
+const assertVideoUnclaimed = async ({ options, context, id, req, videoId }: AssertVideoUnclaimedArgs) => {
   const slugs = new Set([context.collection.slug])
-  for (const [slug, collectionConfig] of config.collections) {
-    if (collectionConfig.stream && collectionConfig.stream.libraryId === context.streamConfig?.libraryId) {
+  for (const [slug, collectionOptions] of options.collections) {
+    if (collectionOptions.stream && collectionOptions.stream.libraryId === context.streamOptions?.libraryId) {
       slugs.add(slug)
     }
   }
@@ -64,7 +64,7 @@ const assertVideoUnclaimed = async ({ config, context, id, req, videoId }: Asser
 type BeforeValidateData = JsonObject & TypeWithID
 
 export const getBeforeValidateHook = ({
-  config,
+  options,
   context,
   filesRequiredOnCreate,
 }: BeforeValidateArgs): CollectionBeforeValidateHook<BeforeValidateData> => {
@@ -83,10 +83,10 @@ export const getBeforeValidateHook = ({
         req,
         uploadReference: file.uploadReference,
       })?.videoId
-    if (clientVideoId && data && context.streamConfig) {
+    if (clientVideoId && data && context.streamOptions) {
       await getStreamVideo({
-        apiKey: context.streamConfig.apiKey,
-        libraryId: context.streamConfig.libraryId,
+        apiKey: context.streamOptions.apiKey,
+        libraryId: context.streamOptions.libraryId,
         videoId: clientVideoId,
       })
       setStoredVideoId(data, clientVideoId)
@@ -97,18 +97,18 @@ export const getBeforeValidateHook = ({
     }
 
     const storedVideoId = readStoredVideo(data)?.videoId
-    if (storedVideoId && context.streamConfig && storedVideoId !== readStoredVideo(originalDoc)?.videoId) {
-      await assertVideoUnclaimed({ config, context, id: originalDoc?.id, req, videoId: storedVideoId })
+    if (storedVideoId && context.streamOptions && storedVideoId !== readStoredVideo(originalDoc)?.videoId) {
+      await assertVideoUnclaimed({ options, context, id: originalDoc?.id, req, videoId: storedVideoId })
     }
 
     const processVideoData = async (videoId: string, targetData: typeof data) => {
-      if (!context.streamConfig || !targetData) {
+      if (!context.streamOptions || !targetData) {
         return
       }
 
       const videoData = await getStreamVideo({
-        apiKey: context.streamConfig.apiKey,
-        libraryId: context.streamConfig.libraryId,
+        apiKey: context.streamOptions.apiKey,
+        libraryId: context.streamOptions.libraryId,
         videoId,
       })
 
@@ -165,9 +165,9 @@ type AfterChangeData = FileData & JsonObject & TypeWithID
 export const getAfterChangeHook = (context: CollectionContext): CollectionAfterChangeHook<AfterChangeData> => {
   return async ({ data, req }) => {
     const videoId = readStoredVideo(data)?.videoId
-    if (context.streamConfig?.cleanup && videoId) {
+    if (context.streamOptions?.cleanup && videoId) {
       await deleteStreamVideoSession({
-        libraryId: context.streamConfig.libraryId,
+        libraryId: context.streamOptions.libraryId,
         req,
         videoId,
       })

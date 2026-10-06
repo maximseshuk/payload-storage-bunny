@@ -36,7 +36,7 @@ export const sl: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Ni bilo mogoče izbrisati datoteke: {{filename}}',
     errorMissingRequiredFields: 'Manjkajo nekatere potrebne informacije',
     errorNoServiceConfigured: 'Ni konfigurirana nobena storitev',
-    errorStreamConfigMissing: 'Bunny Stream ni pravilno konfiguriran',
+    errorStreamOptionsMissing: 'Bunny Stream ni pravilno konfiguriran',
     errorTitleRequired: 'Prosimo vnesite naslov vašega videa',
     errorUploadFileFailed: 'Ni bilo mogoče naložiti datoteke: {{filename}}',
   },

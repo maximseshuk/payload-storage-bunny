@@ -40,14 +40,14 @@ Entrypoints: `index.ts` (server), `client/index.ts` (admin UI), `cli/index.ts` (
 ```
 src/
 ├── index.ts     # plugin entry
-├── shared/      # isomorphic leaf: types/ (config.ts = public JSDoc API), translations/, constants, mimeTypes, http, urlTransform, zoneSecret
+├── shared/      # isomorphic leaf: types/ (options.ts = public JSDoc API), translations/, constants, mimeTypes, http, urlTransform, zoneSecret
 ├── client/      # 'use client' entry; TusUpload/*, ClientUploadHandler
 ├── edge/        # uploader.edge.js (Bunny Edge Script)
 ├── cli/         # bin (cac); commands/ (init/, deployEdgeScript.ts); lib/ (Logger, bunnyFetch, envFile: reuse)
 └── server/
     ├── http/      # shared ky client, all outbound requests
     ├── bunny/     # Bunny API layer only: client, storage, s3, stream, cdn
-    ├── payload/   # config/ (normalizer, context, access, defaults, validator), fields/, storage/, stream/, openapi.ts, tokenAuth.ts, mediaPreview.ts
+    ├── payload/   # options/ (normalizer, context, access, defaults, validator), fields/, storage/, stream/, openapi.ts, tokenAuth.ts, mediaPreview.ts
     ├── telemetry/ # opt-out usage telemetry, fired from index.ts onInit; imports only @/shared + node builtins
     ├── urls.ts
     └── files.ts
@@ -59,26 +59,26 @@ tests/
 └── helpers/, suites/, fixtures/, manual/
 ```
 
-- `telemetry` option (`boolean | { url?: string }`) read from `config._original.telemetry`; no normalizer entry. Feature flags in `server/telemetry/features.ts` booleans only, never names or values.
+- `telemetry` option (`boolean | { url?: string }`) read from `options._original.telemetry`; no normalizer entry. Feature flags in `server/telemetry/features.ts` booleans only, never names or values.
 - `server/payload/openapi.ts` only OpenAPI source. `mediaPreview.ts` back `./media-preview` (optional peer `@seshuk/payload-plugin-media-preview` 2.x).
 
 ## Architecture
 
-`User config → Normalizer → Collection context → Adapter → Bunny API`
+`User options → Normalizer → Collection context → Adapter → Bunny API`
 
-- Normalizer (`server/payload/config/normalizer.ts`): fill defaults, validate, merge global + per-collection overrides (`resolveCollection*Config`). Overrides applied here only.
-- Context (`server/payload/config/context.ts`): wrap resolved config. No merging.
+- Normalizer (`server/payload/options/normalizer.ts`): fill defaults, validate, merge global + per-collection overrides (`resolveCollection*Options`). Overrides applied here only.
+- Context (`server/payload/options/context.ts`): wrap resolved options. No merging.
 - Adapters (`server/payload/storage/*`, `server/payload/stream/*`): read context only.
 
 ```typescript
-const timeout = config.storage.uploadTimeout // WRONG: global config
-const timeout = context.storageConfig.uploadTimeout // CORRECT
+const timeout = options.storage.uploadTimeout // WRONG: global options
+const timeout = context.storageOptions.uploadTimeout // CORRECT
 ```
 
 ## Coding rules
 
-- No code comments. Only JSDoc on plugin options types (`src/shared/types/config.ts`).
-- `false` handled explicitly for `purge`, `signedUrls`, `thumbnail`, `urlTransform` (`false | Config`): `collectionConfig.purge === false ? undefined : collectionConfig.purge`, never `collectionConfig.purge || undefined`. `collections.<slug>: false` = collection not managed (skipped in normalizer and `getCloudStorageCollections`).
+- No code comments. Only JSDoc on plugin options types (`src/shared/types/options.ts`).
+- `false` handled explicitly for `purge`, `signedUrls`, `thumbnail`, `urlTransform` (`false | Options`): `collectionOptions.purge === false ? undefined : collectionOptions.purge`, never `collectionOptions.purge || undefined`. `collections.<slug>: false` = collection not managed (skipped in normalizer and `getCloudStorageCollections`).
 - Removed/renamed v2/v3 keys: add to `REMOVED_KEYS` in `validator.ts`. `assertNoRemovedKeys` throws `[@seshuk/payload-storage-bunny] <old> was removed, use <new>` / `... was renamed to ...`, also with `enabled: false`. No aliases.
 - `accountApiKey` = top-level only. Never nest under `purge` or a collection. Purge URL = plain CDN URL + `*`, never transformed/signed URL.
 - Regions: `src/shared/regions.ts` (`REGIONS`) = only region list. Feeds `StorageRegion` and CLI `init` (`plan.ts`). Docs table `docs/v4/configuration/storage/overview.mdx#regions` must match (unit test). Runtime never validates region.
@@ -89,14 +89,14 @@ const timeout = context.storageConfig.uploadTimeout // CORRECT
 
 New per-collection override (e.g. `stream.quality`):
 
-1. `src/shared/types/config.ts`: add `quality?: number` with JSDoc.
-2. `normalizer.ts`: add to `mergeDefined(...)` in `resolveCollectionStreamConfig`. `false | Config` option: use `resolveCollectionConfigSetting`.
+1. `src/shared/types/options.ts`: add `quality?: number` with JSDoc.
+2. `normalizer.ts`: add to `mergeDefined(...)` in `resolveCollectionStreamOptions`. `false | Options` option: use `resolveCollectionOption`.
 3. Update `README.md` and `docs/v4/`.
 
 ## Testing
 
 - `tests/unit/` mirror `src/`. Behavior change: add or update test.
-- `describe` = function or feature (`purgeCache`, `config validator`); `it` = present-tense verb, plain English (`throws when …`), never `should …`.
+- `describe` = function or feature (`purgeCache`, `options validator`); `it` = present-tense verb, plain English (`throws when …`), never `should …`.
 - E2E (`tests/e2e/*`, `pnpm test:e2e`) hit real Bunny. Keep out of default gate.
 
 ## Docs

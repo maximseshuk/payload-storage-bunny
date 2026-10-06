@@ -2,10 +2,10 @@ import type { EnvEntry } from '@/cli/lib/envFile.js'
 import type { InitAnswers } from '@/cli/lib/plan.js'
 import { DEFAULT_REGION, wantsStorage, wantsStream } from '@/cli/lib/plan.js'
 import type { ProvisionResult } from '@/cli/lib/provision.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/options.js'
 
 export type InitOutput = {
-  configBlock: string
+  optionsBlock: string
   env: EnvEntry[]
   warnings: string[]
 }
@@ -61,7 +61,7 @@ export const buildEnvEntries = (answers: InitAnswers, result: ProvisionResult, a
   return entries
 }
 
-export const buildConfigBlock = (answers: InitAnswers, result: ProvisionResult): string => {
+export const buildOptionsBlock = (answers: InitAnswers, result: ProvisionResult): string => {
   const lines: string[] = ['bunnyStorage({']
   lines.push(`  collections: { ${answers.collectionSlug}: { disablePayloadAccessControl: true } },`)
 
@@ -122,7 +122,7 @@ export const buildConfigBlock = (answers: InitAnswers, result: ProvisionResult):
 export const buildInitOutput = (answers: InitAnswers, result: ProvisionResult, accountApiKey = ''): InitOutput => {
   const edge = edgeClientUploads(answers, result)
   return {
-    configBlock: buildConfigBlock(answers, result),
+    optionsBlock: buildOptionsBlock(answers, result),
     env: buildEnvEntries(answers, result, accountApiKey),
     warnings: edge?.secretKnown === false ? [UNKNOWN_EDGE_SECRET_WARNING] : [],
   }
@@ -136,28 +136,28 @@ export const buildInstallLines = (pluginVersion: string, payloadVersion: string 
         'Pin @payloadcms/plugin-cloud-storage to the same version as your `payload` package.',
       ]
 
-export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult): BunnyStorageConfig => {
-  const config: BunnyStorageConfig = {
+export const buildOptionsObject = (answers: InitAnswers, result: ProvisionResult): BunnyStorageOptions => {
+  const options: BunnyStorageOptions = {
     collections: { [answers.collectionSlug]: { disablePayloadAccessControl: true } },
   }
 
   if (answers.purge) {
-    config.accountApiKey = 'account-key'
-    config.purge = true
+    options.accountApiKey = 'account-key'
+    options.purge = true
   }
 
   if (answers.signedUrls) {
-    config.signedUrls = true
+    options.signedUrls = true
   }
 
   if (answers.optimizer) {
-    config.thumbnail = { urlTransform: { queryParams: { width: '300' } } }
+    options.thumbnail = { urlTransform: { queryParams: { width: '300' } } }
   }
 
   if (wantsStorage(answers.service) && result.storage) {
     const region = effectiveRegion(answers)
     if (answers.storageAccess === 's3') {
-      config.storage = {
+      options.storage = {
         apiKey: result.storage.apiKey,
         clientUploads: usesS3ClientUploads(answers) ? true : undefined,
         hostname: result.storage.hostname,
@@ -168,7 +168,7 @@ export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult)
       }
     } else {
       const edge = edgeClientUploads(answers, result)
-      config.storage = {
+      options.storage = {
         apiKey: result.storage.apiKey,
         clientUploads: edge ? { edge: { scriptUrl: edge.scriptUrl, secret: edge.secret } } : undefined,
         hostname: result.storage.hostname,
@@ -180,7 +180,7 @@ export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult)
   }
 
   if (wantsStream(answers.service) && result.stream) {
-    config.stream = {
+    options.stream = {
       apiKey: result.stream.apiKey,
       hostname: result.stream.hostname,
       libraryId: result.stream.libraryId,
@@ -188,5 +188,5 @@ export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult)
     }
   }
 
-  return config
+  return options
 }

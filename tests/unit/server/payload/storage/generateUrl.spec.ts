@@ -15,7 +15,7 @@ vi.mock('@/shared/urlTransform.js', () => ({
   applyUrlTransform: applyUrlTransformMock,
 }))
 
-import { buildContext, storageConfig, streamConfig } from '../../../../helpers/unit/context.js'
+import { buildContext, storageOptions, streamOptions } from '../../../../helpers/unit/context.js'
 
 const { getGenerateUrl: rawGetGenerateUrl } = await import('@/server/payload/storage/generateUrl.js')
 
@@ -35,7 +35,7 @@ describe('getGenerateUrl', () => {
   describe('stream branch', () => {
     it('builds the playlist URL and signs it with a videoId token path', () => {
       const signedUrls = { expiresIn: () => 3600 }
-      const generate = getGenerateUrl(buildContext({ signedUrls, streamConfig } as Partial<CollectionContext>))
+      const generate = getGenerateUrl(buildContext({ signedUrls, streamOptions } as Partial<CollectionContext>))
 
       const result = generate({ data: streamData, filename: 'clip.mp4' })
 
@@ -55,13 +55,13 @@ describe('getGenerateUrl', () => {
 
     it('applies urlTransform to the playlist URL before signing', () => {
       const urlTransform = { appendTimestamp: false, queryParams: {} }
-      const generate = getGenerateUrl(buildContext({ streamConfig, urlTransform } as Partial<CollectionContext>))
+      const generate = getGenerateUrl(buildContext({ streamOptions, urlTransform } as Partial<CollectionContext>))
 
       const result = generate({ data: streamData, filename: 'clip.mp4', prefix: 'vids' })
 
       expect(applyUrlTransformMock).toHaveBeenCalledWith({
         collection: { slug: 'media' },
-        config: urlTransform,
+        options: urlTransform,
         data: streamData,
         filename: 'clip.mp4',
         prefix: 'vids',
@@ -76,7 +76,7 @@ describe('getGenerateUrl', () => {
 
   describe('storage branch', () => {
     it('builds an encoded storage URL and signs it without a token path', () => {
-      const generate = getGenerateUrl(buildContext({ storageConfig } as Partial<CollectionContext>))
+      const generate = getGenerateUrl(buildContext({ storageOptions } as Partial<CollectionContext>))
 
       const result = generate({ data: {}, filename: 'my photo.jpg', prefix: 'a b' })
 
@@ -92,13 +92,13 @@ describe('getGenerateUrl', () => {
 
     it('applies urlTransform to the storage URL before signing', () => {
       const urlTransform = { appendTimestamp: false, queryParams: {} }
-      const generate = getGenerateUrl(buildContext({ storageConfig, urlTransform } as Partial<CollectionContext>))
+      const generate = getGenerateUrl(buildContext({ storageOptions, urlTransform } as Partial<CollectionContext>))
 
       const result = generate({ data: {}, filename: 'photo.jpg' })
 
       expect(applyUrlTransformMock).toHaveBeenCalledWith({
         collection: { slug: 'media' },
-        config: urlTransform,
+        options: urlTransform,
         data: {},
         filename: 'photo.jpg',
         prefix: '',
@@ -108,7 +108,7 @@ describe('getGenerateUrl', () => {
     })
 
     it('resolves an empty document prefix under the collection prefix', () => {
-      const generate = getGenerateUrl(buildContext({ prefix: 'media', storageConfig } as Partial<CollectionContext>))
+      const generate = getGenerateUrl(buildContext({ prefix: 'media', storageOptions } as Partial<CollectionContext>))
 
       expect(generate({ data: {}, filename: 'photo.jpg', prefix: '' })).toBe(
         'signed:https://storage.b-cdn.net/media/photo.jpg',
@@ -117,15 +117,15 @@ describe('getGenerateUrl', () => {
     })
 
     it('keeps a stored prefix that differs from the collection prefix', () => {
-      const generate = getGenerateUrl(buildContext({ prefix: 'media', storageConfig } as Partial<CollectionContext>))
+      const generate = getGenerateUrl(buildContext({ prefix: 'media', storageOptions } as Partial<CollectionContext>))
 
       expect(generate({ data: {}, filename: 'photo.jpg', prefix: 'legacy/folder' })).toBe(
         'signed:https://storage.b-cdn.net/legacy/folder/photo.jpg',
       )
     })
 
-    it('falls back to the storage branch when a videoId exists but no streamConfig is set', () => {
-      const generate = getGenerateUrl(buildContext({ storageConfig } as Partial<CollectionContext>))
+    it('falls back to the storage branch when a videoId exists but no streamOptions is set', () => {
+      const generate = getGenerateUrl(buildContext({ storageOptions } as Partial<CollectionContext>))
 
       const result = generate({ data: streamData, filename: 'clip.mp4' })
 
@@ -134,8 +134,8 @@ describe('getGenerateUrl', () => {
     })
   })
 
-  describe('no configuration', () => {
-    it('returns an empty string when there is no Stream video and no storage config', () => {
+  describe('no options', () => {
+    it('returns an empty string when there is no Stream video and no storage options', () => {
       const generate = getGenerateUrl(buildContext())
 
       const result = generate({ data: {}, filename: 'photo.jpg' })
@@ -145,7 +145,7 @@ describe('getGenerateUrl', () => {
     })
 
     it('returns an empty string when a stream is configured but the doc has no videoId', () => {
-      const generate = getGenerateUrl(buildContext({ streamConfig } as Partial<CollectionContext>))
+      const generate = getGenerateUrl(buildContext({ streamOptions } as Partial<CollectionContext>))
 
       const result = generate({ data: {}, filename: 'clip.mp4' })
 

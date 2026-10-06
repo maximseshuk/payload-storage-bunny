@@ -1,13 +1,13 @@
 ---
 title: 'Examples'
-description: 'Copy-ready bunnyStorage configurations for storage, streaming, signed URLs, thumbnails, client uploads, and multi-collection setups.'
+description: 'Copy-ready bunnyStorage options for storage, streaming, signed URLs, thumbnails, client uploads, and multi-collection setups.'
 ---
 
-Copy-ready configurations for common setups. Each one is a complete `bunnyStorage(...)` call — combine pieces as needed for your project. For option-by-option reference, see [Configuration](/v4/configuration/overview).
+Copy-ready options for common setups. Each one is a complete `bunnyStorage(...)` call — combine pieces as needed for your project. For option-by-option reference, see [Configuration](/v4/configuration/overview).
 
 <Tip>
   Starting from scratch? The [setup wizard](/v4/cli/init) provisions your Bunny resources and prints a ready-to-paste
-  config plus `.env` lines. Run it first, then use these examples to tune the result.
+  options plus `.env` lines. Run it first, then use these examples to tune the result.
 </Tip>
 
 ## Basic setup
@@ -415,7 +415,7 @@ See [Client uploads](/v4/configuration/storage/client-uploads).
 
 ### Multiple zones behind one Edge Script
 
-One deployed Edge Script serves every non-s3 zone. Paste the **same** `edge: { scriptUrl, secret }` (printed by `npx payload bunny:deploy-edge-script`) into each non-s3 zone that enables client uploads; s3 zones presign directly and need no edge config.
+One deployed Edge Script serves every non-s3 zone. Paste the **same** `edge: { scriptUrl, secret }` (printed by `npx payload bunny:deploy-edge-script`) into each non-s3 zone that enables client uploads; s3 zones presign directly and need no edge options.
 
 ```ts
 bunnyStorage({
@@ -450,7 +450,7 @@ Re-run `npx payload bunny:deploy-edge-script` whenever you add or remove a non-s
 
 ### Per-collection zones and libraries
 
-Point individual collections at their own Bunny storage zone and stream library. A collection whose `storage`/`stream` includes `apiKey` uses that config as its own zone/library, ignoring the global one. All of `apiKey`/`hostname`/`zoneName` (storage) or `apiKey`/`hostname`/`libraryId` (stream) are then required, and nothing — including `tokenSecurityKey`, `mimeTypes`, or `tus` — is inherited from the global config.
+Point individual collections at their own Bunny storage zone and stream library. A collection whose `storage`/`stream` includes `apiKey` uses those options as its own zone/library, ignoring the global one. All of `apiKey`/`hostname`/`zoneName` (storage) or `apiKey`/`hostname`/`libraryId` (stream) are then required, and nothing — including `tokenSecurityKey`, `mimeTypes`, or `tus` — is inherited from the global options.
 
 ```ts
 bunnyStorage({

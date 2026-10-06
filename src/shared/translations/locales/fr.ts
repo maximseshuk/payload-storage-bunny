@@ -36,7 +36,7 @@ export const fr: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Impossible de supprimer le fichier : {{filename}}',
     errorMissingRequiredFields: 'Certaines informations requises sont manquantes',
     errorNoServiceConfigured: 'Aucun service configuré',
-    errorStreamConfigMissing: "Bunny Stream n'est pas configuré correctement",
+    errorStreamOptionsMissing: "Bunny Stream n'est pas configuré correctement",
     errorTitleRequired: 'Veuillez saisir un titre pour votre vidéo',
     errorUploadFileFailed: 'Impossible de télécharger le fichier : {{filename}}',
   },

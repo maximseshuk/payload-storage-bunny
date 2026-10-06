@@ -4,9 +4,9 @@ import nodePath from 'node:path'
 import { bunnyFetch } from '@/cli/lib/bunnyApi.js'
 import type { Logger } from '@/cli/lib/logger.js'
 import { httpFetch } from '@/server/http/index.js'
-import { collectStorageConfigs } from '@/server/payload/config/inspect.js'
+import { collectStorageOptions } from '@/server/payload/options/inspect.js'
 import { trimTrailingSlashes } from '@/shared/http.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
+import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 import { ZONE_SECRET_PATTERN, zoneSecretName } from '@/shared/zoneSecret.js'
 
 export type DeployEdgeScriptOptions = {
@@ -42,9 +42,9 @@ export type EdgeDeployPlan = {
   groups: EdgeDeployGroup[]
 }
 
-export const buildEdgeDeployPlan = (config: NormalizedBunnyStorageConfig): EdgeDeployPlan => {
+export const buildEdgeDeployPlan = (options: NormalizedBunnyStorageOptions): EdgeDeployPlan => {
   const errors: string[] = []
-  const all = collectStorageConfigs(config).filter((s) => !s.s3)
+  const all = collectStorageOptions(options).filter((s) => !s.s3)
 
   if (all.length === 0) {
     return {
@@ -221,7 +221,7 @@ const pruneSecrets = async (accountApiKey: string, scriptId: number, options: Pr
     try {
       await bunnyFetch(accountApiKey, `/compute/script/${scriptId}/secrets/${id}`, { method: 'DELETE' })
       if (ZONE_SECRET_PATTERN.test(name)) {
-        logger?.info(`Removed zone secret ${name} (no longer in config).`)
+        logger?.info(`Removed zone secret ${name} (no longer in the options).`)
       }
     } catch (err) {
       logger?.warn(`Could not remove stale secret "${name}": ${(err as Error).message}`)

@@ -5,13 +5,13 @@ const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }))
 vi.mock('@/server/http/index.js', () => ({ httpFetch: fetchMock }))
 
 import { storageStaticHandler } from '@/server/payload/storage/serveFile.js'
-import type { NormalizedStorageConfig } from '@/shared/types/index.js'
+import type { NormalizedStorageOptions } from '@/shared/types/index.js'
 
 import { signed } from '../../../../helpers/unit/signedUrls.js'
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
-const storageConfig = (over: Partial<NormalizedStorageConfig> = {}): NormalizedStorageConfig =>
+const storageOptions = (over: Partial<NormalizedStorageOptions> = {}): NormalizedStorageOptions =>
   ({
     apiKey: 'zone-pw',
     hostname: 'cdn.b-cdn.net',
@@ -19,7 +19,7 @@ const storageConfig = (over: Partial<NormalizedStorageConfig> = {}): NormalizedS
     uploadTimeout: 60000,
     zoneName: 'zone',
     ...over,
-  }) as NormalizedStorageConfig
+  }) as NormalizedStorageOptions
 
 const makeReq = (headers: Record<string, string> = {}, url = '/api/media/file/photo.jpg'): PayloadRequest =>
   ({
@@ -51,7 +51,7 @@ describe('storageStaticHandler', () => {
       filename: 'photo.jpg',
       req: makeReq(),
       signedUrls: false,
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -73,7 +73,7 @@ describe('storageStaticHandler', () => {
       prefix: 'tenants/acme',
       req: makeReq({}, '/api/media/file/photo.jpg?width=100'),
       signedUrls: false,
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -90,7 +90,7 @@ describe('storageStaticHandler', () => {
       prefix: '',
       req: makeReq(),
       signedUrls: false,
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -106,7 +106,7 @@ describe('storageStaticHandler', () => {
       prefix: 'tenants/acme',
       req: makeReq({}, '/api/media/file/photo.jpg?prefix=tenants/acme&ts=1'),
       signedUrls: false,
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -123,7 +123,7 @@ describe('storageStaticHandler', () => {
       prefix: 'tenants/acme',
       req: makeReq({}, '/api/media/file/photo.jpg?prefix=tenants/acme'),
       signedUrls: signed({ redirect: { status: 302 } }),
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -143,7 +143,7 @@ describe('storageStaticHandler', () => {
       filename: 'photo.jpg',
       req: makeReq(),
       signedUrls: signed(),
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -158,7 +158,7 @@ describe('storageStaticHandler', () => {
       filename: 'photo.jpg',
       req: makeReq({ range: 'bytes=0-99' }),
       signedUrls: false,
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -174,7 +174,7 @@ describe('storageStaticHandler', () => {
       filename: 'missing.jpg',
       req: makeReq(),
       signedUrls: false,
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
@@ -190,7 +190,7 @@ describe('storageStaticHandler', () => {
       filename: 'photo.jpg',
       req: makeReq({ 'if-none-match': '"abc"' }),
       signedUrls: false,
-      storageConfig: storageConfig(),
+      storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 

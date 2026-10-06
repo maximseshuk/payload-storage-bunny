@@ -36,7 +36,7 @@ export const tr: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Dosya silinemedi: {{filename}}',
     errorMissingRequiredFields: 'Bazı gerekli bilgiler eksik',
     errorNoServiceConfigured: 'Hiçbir hizmet yapılandırılmamış',
-    errorStreamConfigMissing: 'Bunny Stream düzgün yapılandırılmamış',
+    errorStreamOptionsMissing: 'Bunny Stream düzgün yapılandırılmamış',
     errorTitleRequired: 'Lütfen videonuz için bir başlık girin',
     errorUploadFileFailed: 'Dosya yüklenemedi: {{filename}}',
   },

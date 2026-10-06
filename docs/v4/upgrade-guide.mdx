@@ -1,6 +1,6 @@
 ---
 title: 'Upgrade guide'
-description: 'Upgrade between major versions of the Bunny Storage plugin — config changes and the stored-data migration.'
+description: 'Upgrade between major versions of the Bunny Storage plugin — option changes and the stored-data migration.'
 ---
 
 This guide covers upgrading between versions of the Bunny Storage plugin.
@@ -71,6 +71,16 @@ Check these details too:
 - **`redirect.status`.** It accepts `302` or `307` only.
 - **`tus.access`.** It still replaces the default check. Call `defaultAccess()` to keep it, for example `access: async ({ data, defaultAccess }) => data.filesize < 5e9 && (await defaultAccess())`. See [TUS uploads](/v4/configuration/stream/tus).
 - **`getBunnyStorageForCollection()`.** It returns `s3: true` or `false` and the region in `region`. Read `region`, not `s3.region`.
+
+Some exports are renamed. TypeScript shows an error for each old name:
+
+| v3                             | v4                              |
+| ------------------------------ | ------------------------------- |
+| `getBunnyConfig()`             | `getBunnyOptions()`             |
+| `getBunnyCollectionConfig()`   | `getBunnyCollectionOptions()`   |
+| `BunnyCollectionConfig`        | `BunnyCollectionOptions`        |
+| `NormalizedBunnyStorageConfig` | `NormalizedBunnyStorageOptions` |
+| `NormalizedCollectionConfig`   | `NormalizedCollectionOptions`   |
 
 These changes do not throw an error. Check them if they apply to your app:
 
@@ -207,7 +217,7 @@ Your values win over the plugin defaults. The TUS upload now sits inside Payload
 
 ## v3.1.1 to v3.1.2
 
-v3.1.2 contains security fixes for Stream TUS uploads. It needs no config changes.
+v3.1.2 contains security fixes for Stream TUS uploads. It needs no option changes.
 
 - `tus-auth` checks the file like a storage client upload. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type and a file over `upload.limits.fileSize`, even when `checkAccess` allows the request. The saved document gets the signed file size and MIME type.
 - A `videoToken` is bound to the signed-in user and expires after 24 hours. Tokens from v3.1.1 stop working, so an upload that was paused before the update starts again. The same happens to an upload that stays paused for more than 24 hours.
@@ -217,7 +227,7 @@ If you call `tus-auth` from your own client, request a new `videoToken` for each
 
 ## v3.1.0 to v3.1.1
 
-v3.1.1 needs no config changes. Most apps are not affected.
+v3.1.1 needs no option changes. Most apps are not affected.
 
 It only changes documents that have an empty or missing `prefix` in a collection that sets a `prefix`. v3.1.0 stored the files of such documents at the root of the storage zone. v3.1.1 reads, deletes and stores them under the collection prefix. Documents with a non-empty `prefix` keep the same file paths.
 
@@ -237,7 +247,7 @@ If the query returns documents, move each file and its image sizes from `<file>`
 
 ## v3.0.x to v3.1.0
 
-v3.1.0 needs no config changes, but it has new install and upload requirements. Most apps only need steps 1 and 2.
+v3.1.0 needs no option changes, but it has new install and upload requirements. Most apps only need steps 1 and 2.
 
 v3.1.0 requires Payload 3.90.2 or later. If you are on v3.0.1 with an older Payload version, upgrade Payload first. Staying on v3.0.1 is not recommended, because it lacks the security fixes in v3.1.0.
 
@@ -330,8 +340,8 @@ Per-service keys are unchanged: `storage.apiKey` and `stream.apiKey` stay as the
 
 **New in v3** (optional, nothing to migrate — adopt when you need them):
 
-- [Client uploads](/v4/configuration/storage/client-uploads) — browser-direct uploads, configured under `storage.clientUploads` (`storage.clientUploads: true` shorthand, or the full config). There is no `mode` option — the transport is chosen automatically (presigned S3 when the zone sets `storage.s3`, otherwise a deployed Edge Script).
-- [Per-collection zones and libraries](/v4/configuration/collection-overrides#own-zone-or-library-per-collection) — point a collection at its own storage zone / stream library with a full config; the top-level `storage`/`stream` become optional.
+- [Client uploads](/v4/configuration/storage/client-uploads) — browser-direct uploads, configured under `storage.clientUploads` (`storage.clientUploads: true` shorthand, or the full options). There is no `mode` option — the transport is chosen automatically (presigned S3 when the zone sets `storage.s3`, otherwise a deployed Edge Script).
+- [Per-collection zones and libraries](/v4/configuration/collection-overrides#own-zone-or-library-per-collection) — point a collection at its own storage zone / stream library with full options; the top-level `storage`/`stream` become optional.
 - [`storage.s3`](/v4/configuration/storage/overview#s3-mode) — S3-compatible zone access.
 - [`stream.referer`](/v4/configuration/stream/overview#options) — Referer header for MP4-fallback requests behind BlockNoneReferrer libraries.
 - Per-collection [`stream.tus: false`](/v4/configuration/collection-overrides) — disable TUS for one collection.
@@ -477,6 +487,6 @@ Run `migrateBunnyData` **before** the schema change that removes them (place it 
 
 ## Need help?
 
-Check the [Examples](/v4/guides/examples) page for working configurations, or [open an issue](https://github.com/maximseshuk/payload-storage-bunny/issues) if you run into problems.
+Check the [Examples](/v4/guides/examples) page for working examples, or [open an issue](https://github.com/maximseshuk/payload-storage-bunny/issues) if you run into problems.
 
 For Payload upgrade help, see their [official docs](https://payloadcms.com/docs).

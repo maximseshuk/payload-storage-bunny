@@ -36,7 +36,7 @@ export const et: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Faili kustutamine ebaõnnestus: {{filename}}',
     errorMissingRequiredFields: 'Mõned nõutavad andmed puuduvad',
     errorNoServiceConfigured: 'Ühtegi teenust pole konfigureeritud',
-    errorStreamConfigMissing: 'Bunny Stream pole õigesti seadistatud',
+    errorStreamOptionsMissing: 'Bunny Stream pole õigesti seadistatud',
     errorTitleRequired: 'Palun sisestage oma video pealkiri',
     errorUploadFileFailed: 'Faili üleslaadimine ebaõnnestus: {{filename}}',
   },

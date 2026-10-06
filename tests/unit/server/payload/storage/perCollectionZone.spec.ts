@@ -46,14 +46,14 @@ vi.mock('@/server/payload/tokenAuth.js', () => ({
 }))
 
 const { getGenerateUrl, getHandleDelete, getHandleUpload } = await import('@/server/payload/storage/index.js')
-const { createCollectionContext } = await import('@/server/payload/config/context.js')
-const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
+const { createCollectionContext } = await import('@/server/payload/options/context.js')
+const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 
 const { createBaseStorage, createBaseStream, createOwnStorage, createOwnStream } =
-  await import('../../../../helpers/unit/configBuilders.js')
+  await import('../../../../helpers/unit/optionsBuilders.js')
 const { createReq } = await import('../../../../helpers/unit/req.js')
 
-const config = createNormalizedConfig({
+const options = createNormalizedOptions({
   collections: {
     own: {
       disablePayloadAccessControl: true,
@@ -71,7 +71,7 @@ const config = createNormalizedConfig({
   stream: createBaseStream(),
 } as never)
 
-const contextFor = (slug: string) => createCollectionContext(config, { fields: [], slug } as CollectionConfig)
+const contextFor = (slug: string) => createCollectionContext(options, { fields: [], slug } as CollectionConfig)
 
 beforeEach(() => {
   vi.clearAllMocks()

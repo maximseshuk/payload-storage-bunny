@@ -8,7 +8,7 @@ import type { CollectionContext } from '@/shared/types/index.js'
 import { buildConfigWithDefaults } from '../../../../helpers/shared/buildConfigWithDefaults.js'
 
 const SLUG = 'bunny-afterread-regression'
-const streamContext = { streamConfig: { libraryId: 4242, mp4Fallback: true } } as unknown as CollectionContext
+const streamContext = { streamOptions: { libraryId: 4242, mp4Fallback: true } } as unknown as CollectionContext
 
 const collection: CollectionConfig = {
   slug: SLUG,

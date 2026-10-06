@@ -1,28 +1,28 @@
 import type { CollectionConfig } from 'payload'
 
-import type { NormalizedUrlTransformConfig } from '@/shared/types/index.js'
+import type { NormalizedUrlTransformOptions } from '@/shared/types/index.js'
 
 export const applyUrlTransform = ({
   collection,
-  config,
+  options,
   data,
   filename,
   prefix,
   url,
 }: {
   collection: CollectionConfig
-  config: false | NormalizedUrlTransformConfig
+  options: false | NormalizedUrlTransformOptions
   data?: Record<string, unknown>
   filename: string
   prefix?: string
   url: string
 }): string => {
-  if (!config) {
+  if (!options) {
     return url
   }
 
-  if (config.transformUrl) {
-    return config.transformUrl({
+  if (options.transformUrl) {
+    return options.transformUrl({
       baseUrl: url,
       collection,
       data,
@@ -43,14 +43,14 @@ export const applyUrlTransform = ({
 
   const params = new URLSearchParams(urlObject.search)
 
-  if (config.appendTimestamp) {
+  if (options.appendTimestamp) {
     const timestamp = Date.now().toString()
     if (!params.has('t')) {
       params.set('t', timestamp)
     }
   }
 
-  for (const [key, value] of Object.entries(config.queryParams)) {
+  for (const [key, value] of Object.entries(options.queryParams)) {
     if (!params.has(key)) {
       params.set(key, value)
     }

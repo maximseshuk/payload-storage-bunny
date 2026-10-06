@@ -10,7 +10,7 @@ The idea: put each tenant's files under their own path prefix (`tenants/<id>/...
 ## Two shapes of multi-tenancy
 
 - **Shared zone, prefix per tenant** (this page's main recipe) — every tenant's files live in one Bunny zone/library, separated by path prefix and isolated by signed URLs (plus, for Stream, Payload access control). Best when tenants map to documents inside shared collections.
-- **A zone or library per tenant** — when tenants map to _separate collections_, each collection can point at its OWN Bunny storage zone and stream library via a [full per-collection config](/v4/configuration/collection-overrides#own-zone-or-library-per-collection). The config includes `apiKey`, which flags it as a full replacement: all of `apiKey`/`hostname`/`zoneName` (storage) or `apiKey`/`hostname`/`libraryId` (stream) are required, and nothing is inherited from any global config. Each tenant then needs its own `tokenSecurityKey` for signed URLs and its own `webhook.secret`:
+- **A zone or library per tenant** — when tenants map to _separate collections_, each collection can point at its OWN Bunny storage zone and stream library via [full per-collection options](/v4/configuration/collection-overrides#own-zone-or-library-per-collection). The options include `apiKey`, which flags them as a full replacement: all of `apiKey`/`hostname`/`zoneName` (storage) or `apiKey`/`hostname`/`libraryId` (stream) are required, and nothing is inherited from any global options. Each tenant then needs its own `tokenSecurityKey` for signed URLs and its own `webhook.secret`:
 
 ```ts
 bunnyStorage({
@@ -61,7 +61,7 @@ export default buildConfig({
 
 Files uploaded through Payload (admin panel, Local API, REST) get their path from the document's `prefix`. A short `beforeChange` hook on your upload collection writes it from the tenant field.
 
-Every upload collection has a hidden per-document `prefix` field, so your hook can always write it. A static `prefix` in the plugin config is optional. It sets the field's default and keeps every document prefix inside it.
+Every upload collection has a hidden per-document `prefix` field, so your hook can always write it. A static `prefix` in the plugin options is optional. It sets the field's default and keeps every document prefix inside it.
 
 ```ts
 bunnyStorage({

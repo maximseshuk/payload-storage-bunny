@@ -28,7 +28,7 @@ export const resolveClientUploadPrefix = async (
   context: CollectionContext,
   { collectionSlug, filename, req }: ResolveClientUploadPrefixArgs,
 ): Promise<string> => {
-  const clientUploads = context.storageConfig?.clientUploads
+  const clientUploads = context.storageOptions?.clientUploads
   const docPrefix =
     clientUploads && clientUploads.prefix ? await clientUploads.prefix({ collectionSlug, req }) : context.prefix
   return buildUploadStoragePathData({ collectionPrefix: context.prefix, docPrefix, filename }).sanitizedDocPrefix
@@ -82,11 +82,11 @@ export const getGenerateUploadInstructions =
       throw new APIError(`Unknown collection "${collectionSlug}"`, 404)
     }
 
-    const storage = context.storageConfig
+    const storage = context.storageOptions
     const clientUploads = storage?.clientUploads
     const isStreamUpload =
       hasStreamClientUploads(context) &&
-      !!context.streamConfig?.mimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
+      !!context.streamOptions?.mimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
     if (!isStreamUpload && !clientUploads) {
       throw new APIError(`Client uploads are not enabled for "${collectionSlug}"`, 403)
     }

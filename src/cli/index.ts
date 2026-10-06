@@ -10,7 +10,7 @@ const pkg = createRequire(import.meta.url)('../../package.json') as { version: s
 const cli = cac('npx @seshuk/payload-storage-bunny')
 
 cli
-  .command('init', 'Interactive wizard that provisions Bunny resources and prints your plugin config + .env lines.')
+  .command('init', 'Interactive wizard that provisions Bunny resources and prints your plugin options + .env lines.')
   .option('--api-key <key>', 'Bunny account API key (else BUNNY_ACCOUNT_API_KEY env, else prompt).')
   .option('--dry-run', 'Show the plan without creating anything.')
   .action(async (options: { apiKey?: string; dryRun?: boolean }) => {

@@ -2,16 +2,16 @@ import type { Config } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { bunnyStorage } from '@/index.js'
-import type { BunnyStorageConfig } from '@/shared/types/index.js'
+import type { BunnyStorageOptions } from '@/shared/types/index.js'
 
-type MediaOptions = BunnyStorageConfig['collections'][string]
+type MediaOptions = BunnyStorageOptions['collections'][string]
 
 type UploadInstructions = {
   generate: (args: Record<string, unknown>) => Promise<unknown>
   useInAdmin: boolean
 }
 
-const buildMediaUpload = (media: MediaOptions, options: Partial<BunnyStorageConfig> = {}): Record<string, unknown> => {
+const buildMediaUpload = (media: MediaOptions, options: Partial<BunnyStorageOptions> = {}): Record<string, unknown> => {
   const incoming = {
     collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
   } as unknown as Config
@@ -25,7 +25,7 @@ const buildMediaUpload = (media: MediaOptions, options: Partial<BunnyStorageConf
       zoneName: 'zone',
     },
     ...options,
-  } as BunnyStorageConfig).init(incoming) as Config
+  } as BunnyStorageOptions).init(incoming) as Config
 
   const collection = result.collections?.find((entry) => entry.slug === 'media')
 
@@ -70,7 +70,7 @@ describe('client upload handler registration', () => {
       collections: { media },
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: true, zoneName: 'zone' },
       stream,
-    } as BunnyStorageConfig).init(incoming) as Config
+    } as BunnyStorageOptions).init(incoming) as Config
 
     return (result.admin?.components?.providers ?? []).filter(
       (provider) =>
@@ -103,7 +103,7 @@ describe('client upload handler registration', () => {
       collections: { media: { disablePayloadAccessControl: true, storage: false } },
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: true, zoneName: 'zone' },
       stream,
-    } as BunnyStorageConfig).init(incoming) as Config
+    } as BunnyStorageOptions).init(incoming) as Config
     const media = result.collections?.find((entry) => entry.slug === 'media')
     const { generate, useInAdmin } = (media!.upload as { uploadInstructions: UploadInstructions }).uploadInstructions
     const req = {
@@ -132,7 +132,7 @@ describe('schema when the plugin is disabled', () => {
       collections: { media: { prefix: 'media' } },
       enabled,
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageConfig).init(incoming) as Config
+    } as BunnyStorageOptions).init(incoming) as Config
 
     expect(result.collections?.find((entry) => entry.slug === 'posts')?.fields).toEqual([])
 
@@ -161,19 +161,19 @@ describe('schema when the plugin is disabled', () => {
       collections: { media: { prefix: 'media' } },
       enabled: false,
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageConfig).init(incoming) as Config
+    } as BunnyStorageOptions).init(incoming) as Config
     const prefix = result.collections?.[0]?.fields.find((field) => 'name' in field && field.name === 'prefix')
 
     expect(prefix).toMatchObject({ type: 'text', defaultValue: 'media' })
   })
 
-  it('does not wire the adapter, hooks or plugin config', () => {
+  it('does not wire the adapter, hooks or plugin options', () => {
     const incoming = { collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config
     const result = bunnyStorage({
       collections: { media: true },
       enabled: false,
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageConfig).init(incoming) as Config
+    } as BunnyStorageOptions).init(incoming) as Config
 
     expect(result.collections?.[0]?.upload).toBe(true)
     expect(result.collections?.[0]?.hooks).toBeUndefined()
@@ -212,7 +212,7 @@ describe('removed options', () => {
       enabled,
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
       ...options,
-    } as BunnyStorageConfig).init({ collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config)
+    } as BunnyStorageOptions).init({ collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config)
 
   it.each([
     [{ telemetry: { endpoint: 'https://x' } }, 'telemetry.endpoint was renamed to telemetry.url'],
@@ -297,7 +297,7 @@ describe('translations', () => {
     const result = bunnyStorage({
       collections: { media: true },
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageConfig).init(incoming) as Config
+    } as BunnyStorageOptions).init(incoming) as Config
 
     return result.i18n?.translations as Record<string, Record<string, Record<string, string>>>
   }

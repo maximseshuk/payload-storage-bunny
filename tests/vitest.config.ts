@@ -1,11 +1,10 @@
 import { fileURLToPath } from 'node:url'
 
+import { vitestBase } from '@seshuk/payload-plugin-tooling/vitest'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  resolve: {
-    alias: [{ find: /^@\//, replacement: fileURLToPath(new URL('../src/', import.meta.url)) }],
-  },
+  ...vitestBase,
   test: {
     coverage: {
       exclude: ['src/**/*.d.ts', 'src/shared/translations/locales/**', 'src/shared/types/**'],

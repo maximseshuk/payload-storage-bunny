@@ -1,8 +1,8 @@
 import type { Payload } from 'payload'
 
 import { PLUGIN_KEY } from '@/shared/constants.js'
-import type { StorageRegion } from '@/shared/types/config.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
+import type { StorageRegion } from '@/shared/types/options.js'
+import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
 export type BunnyCollectionStorage = {
   apiKey: string
@@ -20,29 +20,29 @@ export type BunnyCollectionStream = {
   tokenSecurityKey?: string
 }
 
-export type BunnyCollectionConfig = {
+export type BunnyCollectionOptions = {
   storage?: BunnyCollectionStorage
   stream?: BunnyCollectionStream
 }
 
-const readStash = (payload: Payload): NormalizedBunnyStorageConfig | undefined => {
-  const stash = payload.config.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageConfig } | undefined
+const readStash = (payload: Payload): NormalizedBunnyStorageOptions | undefined => {
+  const stash = payload.config.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageOptions } | undefined
   return stash?.config
 }
 
-export const getBunnyConfig = (payload: Payload): NormalizedBunnyStorageConfig | undefined => readStash(payload)
+export const getBunnyOptions = (payload: Payload): NormalizedBunnyStorageOptions | undefined => readStash(payload)
 
-export const getBunnyCollectionConfig = (
+export const getBunnyCollectionOptions = (
   payload: Payload,
   collectionSlug: string,
-): BunnyCollectionConfig | undefined => {
+): BunnyCollectionOptions | undefined => {
   const collection = readStash(payload)?.collections.get(collectionSlug)
 
   if (!collection) {
     return undefined
   }
 
-  const result: BunnyCollectionConfig = {}
+  const result: BunnyCollectionOptions = {}
 
   if (collection.storage) {
     const { apiKey, hostname, region, s3, tokenSecurityKey, zoneName } = collection.storage
@@ -72,9 +72,9 @@ export const getBunnyCollectionConfig = (
 export const getBunnyStorageForCollection = (
   payload: Payload,
   collectionSlug: string,
-): BunnyCollectionStorage | undefined => getBunnyCollectionConfig(payload, collectionSlug)?.storage
+): BunnyCollectionStorage | undefined => getBunnyCollectionOptions(payload, collectionSlug)?.storage
 
 export const getBunnyStreamForCollection = (
   payload: Payload,
   collectionSlug: string,
-): BunnyCollectionStream | undefined => getBunnyCollectionConfig(payload, collectionSlug)?.stream
+): BunnyCollectionStream | undefined => getBunnyCollectionOptions(payload, collectionSlug)?.stream
