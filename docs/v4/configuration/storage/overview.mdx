@@ -98,7 +98,7 @@ The zone must have been **created** with S3 compatibility enabled — it can't b
 
 </Warning>
 
-No extra secrets are needed: the S3 access key is your `zoneName` and the secret is your `apiKey` (the Storage Zone password) from the config above.
+No extra secrets are needed: the S3 access key is your `zoneName` and the secret is your `apiKey` (the Storage Zone password) from the options above.
 
 ```ts payload.config.ts
 storage: {
@@ -158,4 +158,4 @@ collections: {
 
 The plugin distinguishes full options from a partial override by whether it includes `apiKey`. Full options **inherit nothing** from the global zone: omitted optional keys (`region`, `s3`, `tokenSecurityKey`, `clientUploads`, `uploadTimeout`) fall back to plugin defaults, never to the global zone's values. Provide that zone's own `tokenSecurityKey` if you enable [signed URLs](/v4/configuration/signed-urls) for it.
 
-See [Collection overrides](/v4/configuration/collection-overrides) for the full-config vs partial-override rules and the complete list of options.
+See [Collection overrides](/v4/configuration/collection-overrides) for the full-options vs partial-override rules and the complete list of options.

@@ -245,7 +245,7 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
     }
     const envBlock = output.env.map((entry) => `${entry.name}=${entry.value}`).join('\n')
     const installLines = buildInstallLines(options.version, readProjectPayloadVersion())
-    note(renderOutput(installLines, envBlock, output.optionsBlock), 'Your configuration')
+    note(renderOutput(installLines, envBlock, output.optionsBlock), 'Your options')
 
     const doAppend = await confirm({ initialValue: false, message: 'Append these lines to ./.env?' })
     if (!isCancel(doAppend) && doAppend) {

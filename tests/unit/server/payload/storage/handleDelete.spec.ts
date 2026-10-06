@@ -242,7 +242,7 @@ describe('getHandleDelete', () => {
     })
   })
 
-  describe('no configuration', () => {
+  describe('no options', () => {
     it('logs a debug message and does nothing when neither storage nor stream is configured', async () => {
       const req = createReq()
       const handler = getHandleDelete(buildContext())
@@ -260,7 +260,7 @@ describe('getHandleDelete', () => {
       expect(deleteStreamVideoMock).not.toHaveBeenCalled()
       expect(purgeCacheMock).not.toHaveBeenCalled()
       expect(req.payload.logger.debug).toHaveBeenCalledWith(
-        expect.objectContaining({ msg: '[bunny:storage] delete: skipping, no storage or stream config' }),
+        expect.objectContaining({ msg: '[bunny:storage] delete: skipping, no storage or stream options' }),
       )
     })
   })

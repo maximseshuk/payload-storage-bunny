@@ -213,13 +213,13 @@ describe('generateSignedUrl', () => {
 
     it('throws without baseUrl', () => {
       expect(() => generateSignedUrl('', securityKey, baseCountryOptions, options)).toThrow(
-        'Base URL, security key, and configuration are required',
+        'Base URL, security key, and country options are required',
       )
     })
 
     it('throws without securityKey', () => {
       expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', '', baseCountryOptions, options)).toThrow(
-        'Base URL, security key, and configuration are required',
+        'Base URL, security key, and country options are required',
       )
     })
   })

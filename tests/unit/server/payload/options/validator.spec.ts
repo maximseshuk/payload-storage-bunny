@@ -296,7 +296,7 @@ describe('options validator', () => {
       } as unknown as BunnyStorageOptions
 
       expect(() => normalizeAndValidate(options)).toThrow(
-        'collection "media" provides its own storage config but is missing `zoneName`',
+        'collection "media" provides its own storage options but is missing `zoneName`',
       )
     })
 
@@ -306,10 +306,10 @@ describe('options validator', () => {
       } as unknown as BunnyStorageOptions
 
       expect(() => normalizeAndValidate(options)).toThrow(
-        'collection "media" provides its own stream config but is missing `hostname`',
+        'collection "media" provides its own stream options but is missing `hostname`',
       )
       expect(() => normalizeAndValidate(options)).toThrow(
-        'collection "media" provides its own stream config but is missing `libraryId`',
+        'collection "media" provides its own stream options but is missing `libraryId`',
       )
     })
 

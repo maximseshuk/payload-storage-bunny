@@ -25,9 +25,9 @@ body:
       required: true
 
   - type: textarea
-    id: current-config
+    id: current-options
     attributes:
-      label: Current Configuration (if relevant)
+      label: Current Options (if relevant)
       description: Share your plugin setup (**remove API keys and sensitive data**)
       placeholder: |
         ```typescript

@@ -247,10 +247,10 @@ For [Stream with TUS](/v4/configuration/stream/tus), the instructions have `type
 
 ## Client upload requirements
 
-The config validator throws a startup error if any of these is violated:
+The options validator throws a startup error if any of these is violated:
 
 - Bunny Storage must be enabled for the collection.
-- A zone **with** `storage.s3` presigns directly — no `edge` config, nothing to deploy.
+- A zone **with** `storage.s3` presigns directly — no `edge` options, nothing to deploy.
 - A zone **without** `storage.s3` requires `storage.clientUploads.edge.scriptUrl` and `edge.secret`.
 - All non-s3 zones that share the same `edge.scriptUrl` must use the same `edge.secret` — one deployed script holds one shared secret.
 
@@ -267,7 +267,7 @@ collections: {
     },
   },
   archive: {
-    // full per-collection zone with its own edge config
+    // full per-collection zone with its own edge options
     storage: {
       apiKey: process.env.BUNNY_ARCHIVE_STORAGE_API_KEY,
       hostname: 'archive.b-cdn.net',
@@ -280,4 +280,4 @@ collections: {
 }
 ```
 
-See [Collection overrides](/v4/configuration/collection-overrides) for the full list of options you can tune per collection, and [Examples](/v4/guides/examples#browser-direct-client-uploads) for complete configs.
+See [Collection overrides](/v4/configuration/collection-overrides) for the full list of options you can tune per collection, and [Examples](/v4/guides/examples#browser-direct-client-uploads) for complete examples.

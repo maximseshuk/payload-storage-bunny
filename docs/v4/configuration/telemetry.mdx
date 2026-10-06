@@ -25,7 +25,7 @@ Every report is a single JSON document with these fields:
 
 ### Feature flags
 
-`features` is a flat map of booleans derived from your **resolved** configuration. It records only whether a capability is on, never any value tied to it:
+`features` is a flat map of booleans derived from your **resolved** options. It records only whether a capability is on, never any value tied to it:
 
 | Flag                       | Meaning                                                          |
 | -------------------------- | ---------------------------------------------------------------- |
@@ -43,7 +43,7 @@ Every report is a single JSON document with these fields:
 | `signedUrlsCountryLock`    | Signed URLs set an allowed/blocked country list.                 |
 | `cdnPurge`                 | CDN cache purging is enabled.                                    |
 | `urlTransform`             | URL transformation is enabled.                                   |
-| `collectionOverrides`      | At least one collection uses object config (not just `true`).    |
+| `collectionOverrides`      | At least one collection uses object options (not just `true`).   |
 | `collectionZones`          | At least one collection defines its own zone/library.            |
 | `accountApiKey`            | An account-level API key is set.                                 |
 

@@ -67,7 +67,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
       } else {
         req.payload.logger.debug({
           file: { name: filename },
-          msg: '[bunny:storage] delete: skipping, no storage or stream config',
+          msg: '[bunny:storage] delete: skipping, no storage or stream options',
         })
       }
     } catch (err) {

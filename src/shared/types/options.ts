@@ -8,7 +8,7 @@ import type { StreamTusAuthRequest } from './core.js'
 export type UrlTransformFunction = (args: {
   /** Base URL */
   baseUrl: string
-  /** Collection configuration */
+  /** Collection options */
   collection: CollectionConfig
   /** Document data (for streams contains bunnyData.stream.videoId) */
   data?: Record<string, unknown>
@@ -49,7 +49,7 @@ export type ThumbnailOptions = {
   /**
    * Enable animated preview (WebP) instead of static thumbnail for Bunny Stream videos.
    * When enabled, uses preview.webp instead of thumbnail.jpg for video thumbnails.
-   * Only works when stream configuration is enabled for the collection.
+   * Only works when stream is enabled for the collection.
    * @default false
    */
   streamAnimated?: boolean
@@ -205,7 +205,7 @@ export type StreamOptions = {
          */
         maxAge?: number
         /**
-         * Cron schedule configuration for cleanup task
+         * Cron schedule options for cleanup task
          * @default { cron: '0 2 * * *', queue: 'storage-bunny' }
          */
         schedule?: Exclude<TaskConfig['schedule'], undefined>[0]
@@ -251,7 +251,7 @@ export type StreamOptions = {
    */
   uploadTimeout?: number
   /**
-   * Webhook configuration for receiving video status updates from Bunny Stream.
+   * Webhook options for receiving video status updates from Bunny Stream.
    * When enabled, creates an endpoint at: /api/storage-bunny/stream/webhook
    *
    * Configure this URL in your Bunny Stream library settings.
@@ -291,7 +291,7 @@ export type StaticHandlerOptions = {
 }
 
 export type SignedUrlsCallbackArgs = {
-  /** Collection configuration */
+  /** Collection options */
   collection: CollectionConfig
   /** Filename being signed */
   filename: string
@@ -422,7 +422,7 @@ export type BunnyStorageCollectionOptions = {
 } & Omit<CollectionOptions, 'adapter' | 'disableLocalStorage'>
 
 /**
- * Configuration for which collections use Bunny Storage.
+ * Options for which collections use Bunny Storage.
  * `true` uses the global settings, an object overrides them, `false` disables the collection.
  */
 export type CollectionsOptions = Partial<Record<UploadCollectionSlug, boolean | BunnyStorageCollectionOptions>>

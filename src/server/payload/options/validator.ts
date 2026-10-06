@@ -168,26 +168,26 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
   if (options._original.storage) {
     const storage = options._original.storage
     if (!isNonEmptyString(storage.apiKey)) {
-      errors.push('global storage config is missing `apiKey`')
+      errors.push('global storage options are missing `apiKey`')
     }
     if (!isNonEmptyString(storage.hostname)) {
-      errors.push('global storage config is missing `hostname`')
+      errors.push('global storage options are missing `hostname`')
     }
     if (!isNonEmptyString(storage.zoneName)) {
-      errors.push('global storage config is missing `zoneName`')
+      errors.push('global storage options are missing `zoneName`')
     }
   }
 
   if (options._original.stream) {
     const stream = options._original.stream
     if (!isNonEmptyString(stream.apiKey)) {
-      errors.push('global stream config is missing `apiKey`')
+      errors.push('global stream options are missing `apiKey`')
     }
     if (!isNonEmptyString(stream.hostname)) {
-      errors.push('global stream config is missing `hostname`')
+      errors.push('global stream options are missing `hostname`')
     }
     if (typeof stream.libraryId !== 'number') {
-      errors.push('global stream config is missing `libraryId`')
+      errors.push('global stream options are missing `libraryId`')
     }
   }
 
@@ -199,26 +199,26 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
     const rawStorage = raw.storage
     if (rawStorage && 'apiKey' in rawStorage) {
       if (!isNonEmptyString(rawStorage.apiKey)) {
-        errors.push(`collection "${slug}" provides its own storage config but is missing \`apiKey\``)
+        errors.push(`collection "${slug}" provides its own storage options but is missing \`apiKey\``)
       }
       if (!isNonEmptyString(rawStorage.hostname)) {
-        errors.push(`collection "${slug}" provides its own storage config but is missing \`hostname\``)
+        errors.push(`collection "${slug}" provides its own storage options but is missing \`hostname\``)
       }
       if (!isNonEmptyString(rawStorage.zoneName)) {
-        errors.push(`collection "${slug}" provides its own storage config but is missing \`zoneName\``)
+        errors.push(`collection "${slug}" provides its own storage options but is missing \`zoneName\``)
       }
     }
 
     const rawStream = raw.stream
     if (rawStream && 'apiKey' in rawStream) {
       if (!isNonEmptyString(rawStream.apiKey)) {
-        errors.push(`collection "${slug}" provides its own stream config but is missing \`apiKey\``)
+        errors.push(`collection "${slug}" provides its own stream options but is missing \`apiKey\``)
       }
       if (!isNonEmptyString(rawStream.hostname)) {
-        errors.push(`collection "${slug}" provides its own stream config but is missing \`hostname\``)
+        errors.push(`collection "${slug}" provides its own stream options but is missing \`hostname\``)
       }
       if (typeof rawStream.libraryId !== 'number') {
-        errors.push(`collection "${slug}" provides its own stream config but is missing \`libraryId\``)
+        errors.push(`collection "${slug}" provides its own stream options but is missing \`libraryId\``)
       }
     }
   }
@@ -390,7 +390,7 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
 
   if (errors.length > 0) {
     throw new Error(
-      `Invalid Bunny Storage configuration: ${errors.join('; ')}. Check the documentation at: https://github.com/maximseshuk/payload-storage-bunny`,
+      `Invalid Bunny Storage options: ${errors.join('; ')}. Check the documentation at: https://github.com/maximseshuk/payload-storage-bunny`,
     )
   }
 }

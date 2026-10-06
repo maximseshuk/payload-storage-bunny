@@ -83,7 +83,7 @@ export const generateSignedUrl = (
   options: SigningOptions,
 ): string => {
   if (!baseUrl || !securityKey || !countryOptions) {
-    throw new Error('Base URL, security key, and configuration are required')
+    throw new Error('Base URL, security key, and country options are required')
   }
 
   if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {

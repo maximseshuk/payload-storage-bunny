@@ -361,7 +361,7 @@ describe('deployEdgeScript secrets', () => {
     })
   })
 
-  it('removes ZONE_* secrets that are no longer in the config and keeps shared and user secrets', async () => {
+  it('removes ZONE_* secrets that are no longer in the options and keeps shared and user secrets', async () => {
     const calls = mockSecrets([
       { Id: 10, Name: 'ZONE_MEDIA' },
       { Id: 11, Name: 'ZONE_OLD' },

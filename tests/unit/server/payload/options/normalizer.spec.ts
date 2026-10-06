@@ -309,7 +309,7 @@ describe('options normalizer', () => {
 
   describe('signedUrls', () => {
     it('inherits and overrides expiresIn', () => {
-      const configs: Array<{
+      const cases: Array<{
         collection:
           | {
               signedUrls: { expiresIn: number }
@@ -321,7 +321,7 @@ describe('options normalizer', () => {
         { collection: { signedUrls: { expiresIn: 7200 } }, expected: 7200 },
       ]
 
-      configs.forEach(({ collection, expected }) => {
+      cases.forEach(({ collection, expected }) => {
         const options: BunnyStorageOptions = {
           accountApiKey: 'test-api-key',
           collections: { media: collection },
@@ -498,7 +498,7 @@ describe('options normalizer', () => {
 
   describe('purge', () => {
     it('inherits and overrides async', () => {
-      const configs: Array<{
+      const cases: Array<{
         collection:
           | {
               purge: { async: boolean }
@@ -510,7 +510,7 @@ describe('options normalizer', () => {
         { collection: { purge: { async: true } }, expected: true },
       ]
 
-      configs.forEach(({ collection, expected }) => {
+      cases.forEach(({ collection, expected }) => {
         const options: BunnyStorageOptions = {
           accountApiKey: 'test-api-key',
           collections: { media: collection },
@@ -683,7 +683,7 @@ describe('options normalizer', () => {
 
   describe('storage', () => {
     it('inherits and overrides uploadTimeout', () => {
-      const configs: Array<{
+      const cases: Array<{
         collection:
           | {
               storage: { uploadTimeout: number }
@@ -695,7 +695,7 @@ describe('options normalizer', () => {
         { collection: { storage: { uploadTimeout: 120000 } }, expected: 120000 },
       ]
 
-      configs.forEach(({ collection, expected }) => {
+      cases.forEach(({ collection, expected }) => {
         const options: BunnyStorageOptions = {
           accountApiKey: 'test-api-key',
           collections: { media: collection },

@@ -31,9 +31,9 @@ body:
       required: true
 
   - type: textarea
-    id: config
+    id: options
     attributes:
-      label: Plugin Configuration
+      label: Plugin Options
       description: Share your plugin setup (**remove API keys and sensitive data**)
       placeholder: |
         ```typescript

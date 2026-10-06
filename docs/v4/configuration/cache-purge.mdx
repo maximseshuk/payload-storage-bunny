@@ -37,7 +37,7 @@ Cache purging is an account-level operation, so it needs a Bunny **account** API
 Get it from your Bunny dashboard → account menu (top-right) → **Account settings** → **API** → copy the API key.
 
 <Warning>
-Without a global `accountApiKey`, the config validator throws a startup error, including when only individual collections enable `purge`.
+Without a global `accountApiKey`, the options validator throws a startup error, including when only individual collections enable `purge`.
 
 Purging is only performed for Bunny **Storage** files — it doesn't apply to Stream videos, which are served from Bunny's video CDN and cached differently.
 

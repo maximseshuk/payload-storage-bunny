@@ -24,16 +24,16 @@ body:
         Describe the feature you'd like to see:
         - What problem does this solve, and who is it for?
         - How should it work?
-        - What would the configuration look like?
+        - What would the options look like?
         - Any current workarounds you're using?
     validations:
       required: true
 
   - type: textarea
-    id: config-example
+    id: options-example
     attributes:
-      label: Example Configuration (optional)
-      description: If this involves configuration changes, show what you imagine it would look like
+      label: Example Options (optional)
+      description: If this involves option changes, show what you imagine it would look like
       placeholder: |
         ```typescript
         bunnyStorage({

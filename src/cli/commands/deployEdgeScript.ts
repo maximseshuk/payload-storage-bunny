@@ -196,7 +196,7 @@ export const deployEdgeScriptCommand = defineCLICommand({
 
       if (group.scriptUrl === undefined && group.sharedSecret === undefined) {
         logger.info(
-          'No zone enables clientUploads yet — deploying for all non-s3 zones so you can wire the config afterwards.',
+          'No zone enables clientUploads yet — deploying for all non-s3 zones so you can wire the options afterwards.',
         )
       }
     }

@@ -221,7 +221,7 @@ const pruneSecrets = async (accountApiKey: string, scriptId: number, options: Pr
     try {
       await bunnyFetch(accountApiKey, `/compute/script/${scriptId}/secrets/${id}`, { method: 'DELETE' })
       if (ZONE_SECRET_PATTERN.test(name)) {
-        logger?.info(`Removed zone secret ${name} (no longer in config).`)
+        logger?.info(`Removed zone secret ${name} (no longer in the options).`)
       }
     } catch (err) {
       logger?.warn(`Could not remove stale secret "${name}": ${(err as Error).message}`)

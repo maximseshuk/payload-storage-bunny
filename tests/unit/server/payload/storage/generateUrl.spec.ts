@@ -134,7 +134,7 @@ describe('getGenerateUrl', () => {
     })
   })
 
-  describe('no configuration', () => {
+  describe('no options', () => {
     it('returns an empty string when there is no Stream video and no storage options', () => {
       const generate = getGenerateUrl(buildContext())
 

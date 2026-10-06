@@ -30,7 +30,7 @@ bunnyStorage({
 
 Thumbnails have `urlTransform.appendTimestamp` **on by default**. When a file is replaced (for example, during image cropping), the timestamp changes and browsers fetch the new version instead of a cached copy. While it is enabled, the plugin also disables Payload's cache tags for the thumbnail field, to avoid caching conflicts.
 
-Opt out per config if you don't want it:
+Opt out in the options if you don't want it:
 
 ```ts
 thumbnail: {
