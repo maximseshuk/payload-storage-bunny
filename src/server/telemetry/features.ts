@@ -6,7 +6,25 @@ import type {
   NormalizedStreamConfig,
 } from '@/shared/types/configNormalized.js'
 
-import type { TelemetryFeatures } from './types.js'
+export type TelemetryFeatures = {
+  accountApiKey: boolean
+  cdnPurge: boolean
+  collectionOverrides: boolean
+  collectionZones: boolean
+  signedUrls: boolean
+  signedUrlsCountryLock: boolean
+  storage: boolean
+  storageClientUploads: boolean
+  storageClientUploadsEdge: boolean
+  storageS3: boolean
+  stream: boolean
+  streamCleanup: boolean
+  streamTus: boolean
+  streamTusAutoMode: boolean
+  streamWebhook: boolean
+  thumbnail: boolean
+  urlTransform: boolean
+}
 
 const collections = (config: NormalizedBunnyStorageConfig): NormalizedCollectionConfig[] => [
   ...config.collections.values(),
