@@ -2,7 +2,7 @@ import type { EnvEntry } from '@/cli/lib/envFile.js'
 import type { InitAnswers } from '@/cli/lib/plan.js'
 import { DEFAULT_REGION, wantsStorage, wantsStream } from '@/cli/lib/plan.js'
 import type { ProvisionResult } from '@/cli/lib/provision.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/config.js'
 
 export type InitOutput = {
   configBlock: string
@@ -136,8 +136,8 @@ export const buildInstallLines = (pluginVersion: string, payloadVersion: string 
         'Pin @payloadcms/plugin-cloud-storage to the same version as your `payload` package.',
       ]
 
-export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult): BunnyStorageConfig => {
-  const config: BunnyStorageConfig = {
+export const buildConfigObject = (answers: InitAnswers, result: ProvisionResult): BunnyStorageOptions => {
+  const config: BunnyStorageOptions = {
     collections: { [answers.collectionSlug]: { disablePayloadAccessControl: true } },
   }
 

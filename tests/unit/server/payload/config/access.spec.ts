@@ -8,7 +8,7 @@ import {
   getBunnyStreamForCollection,
 } from '@/server/payload/config/access.js'
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/config.js'
 
 import {
   createBaseStorage as sharedCreateBaseStorage,
@@ -22,7 +22,7 @@ const createBaseStorage = (overrides: Record<string, unknown> = {}) =>
 
 const fakePayload = (custom?: Record<string, unknown>): Payload => ({ config: { custom } }) as unknown as Payload
 
-const payloadFor = (userConfig: BunnyStorageConfig): Payload =>
+const payloadFor = (userConfig: BunnyStorageOptions): Payload =>
   fakePayload({ '@seshuk/payload-storage-bunny': { config: createNormalizedConfig(userConfig) } })
 
 describe('config accessors', () => {

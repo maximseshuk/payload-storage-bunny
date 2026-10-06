@@ -37,7 +37,7 @@ import { PLUGIN_KEY } from '@/shared/constants.js'
 import { translations } from '@/shared/translations/index.js'
 import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
-import type { BunnyStorageConfig, BunnyStoragePlugin, CollectionContext } from '@/shared/types/index.js'
+import type { BunnyStorageOptions, BunnyStoragePlugin, CollectionContext } from '@/shared/types/index.js'
 
 export {
   getBunnyCollectionConfig,
@@ -51,11 +51,12 @@ export type {
   BunnyCollectionStream,
 } from '@/server/payload/config/access.js'
 export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from '@/shared/types/configNormalized.js'
+export type { BunnyStorageCollectionOptions, BunnyStorageOptions } from '@/shared/types/index.js'
 
 const CLIENT_UPLOAD_HANDLER_PATH = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
 
 const getCloudStorageCollections = (
-  collections: BunnyStorageConfig['collections'],
+  collections: BunnyStorageOptions['collections'],
   adapter: Adapter | null,
 ): CloudStoragePluginOptions['collections'] =>
   Object.entries(collections).reduce(
@@ -72,7 +73,7 @@ const getCloudStorageCollections = (
     {} as Record<string, CollectionOptions>,
   )
 
-export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => ({
+export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptions) => ({
   name: 'bunny',
   collections: Object.entries(pluginConfig.collections)
     .filter(([, collOptions]) => collOptions)

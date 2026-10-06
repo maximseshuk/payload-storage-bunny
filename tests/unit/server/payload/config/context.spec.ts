@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createCollectionContext } from '@/server/payload/config/context.js'
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/config.js'
 
 import {
   createBaseStorage as sharedCreateBaseStorage,
@@ -59,7 +59,7 @@ describe('createCollectionContext', () => {
 
   describe('full per-collection override contexts', () => {
     it('exposes its own storage and stream configs while a sibling keeps the global ones', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: {
           own: {
             disablePayloadAccessControl: true,
@@ -85,7 +85,7 @@ describe('createCollectionContext', () => {
 
   describe('prefix and access control', () => {
     it('uses the collection prefix or prefixOverride', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { prefix: 'config-prefix' } },
         storage: createBaseStorage(),
       }
@@ -99,14 +99,14 @@ describe('createCollectionContext', () => {
     })
 
     it('sets usePayloadAccessControl based on disablePayloadAccessControl', () => {
-      const config1: BunnyStorageConfig = {
+      const config1: BunnyStorageOptions = {
         collections: { media: { disablePayloadAccessControl: true } },
         storage: createBaseStorage(),
       }
       const ctx1 = createCollectionContext(createNormalizedConfig(config1), createMockCollection('media'))
       expect(ctx1.usePayloadAccessControl).toBe(false)
 
-      const config2: BunnyStorageConfig = {
+      const config2: BunnyStorageOptions = {
         collections: { media: true },
         storage: createBaseStorage(),
       }
@@ -117,7 +117,7 @@ describe('createCollectionContext', () => {
 
   describe('TUS upload support', () => {
     it('disables TUS when the config or upload is missing', () => {
-      const config1: BunnyStorageConfig = {
+      const config1: BunnyStorageOptions = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: createBaseStream(),
       }
@@ -127,7 +127,7 @@ describe('createCollectionContext', () => {
       )
       expect(ctx1.isTusUploadSupported).toBe(false)
 
-      const config2: BunnyStorageConfig = {
+      const config2: BunnyStorageOptions = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: { ...createBaseStream(), tus: true },
       }
@@ -138,7 +138,7 @@ describe('createCollectionContext', () => {
 
   describe('stream MIME type filtering', () => {
     it('intersects collection mimeTypes with stream mimeTypes', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: { ...createBaseStream(), mimeTypes: ['video/mp4', 'video/webm', 'audio/mpeg'], tus: true },
       }
@@ -153,7 +153,7 @@ describe('createCollectionContext', () => {
     })
 
     it('disables TUS when the MIME types do not intersect', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: { ...createBaseStream(), mimeTypes: ['video/mp4'], tus: true },
       }
@@ -167,7 +167,7 @@ describe('createCollectionContext', () => {
     })
 
     it('keeps the original mimeTypes and enables TUS when the collection has no restriction', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { disablePayloadAccessControl: true } },
         stream: { ...createBaseStream(), mimeTypes: ['video/mp4', 'video/webm'], tus: true },
       }

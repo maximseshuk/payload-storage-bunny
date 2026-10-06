@@ -388,7 +388,7 @@ export type CollectionStreamConfig = {
   cleanup?: boolean | { maxAge?: number }
 } & Omit<StreamConfig, 'cleanup'>
 
-export type BunnyStorageCollectionConfig = {
+export type BunnyStorageCollectionOptions = {
   /**
    * `false` turns it off. `true` or an object turns it on, even when the global `purge` is off.
    * Object fields inherit.
@@ -425,7 +425,7 @@ export type BunnyStorageCollectionConfig = {
  * Configuration for which collections use Bunny Storage.
  * `true` uses the global settings, an object overrides them, `false` disables the collection.
  */
-export type CollectionsConfig = Partial<Record<UploadCollectionSlug, boolean | BunnyStorageCollectionConfig>>
+export type CollectionsConfig = Partial<Record<UploadCollectionSlug, boolean | BunnyStorageCollectionOptions>>
 
 type BunnyStorageBaseConfig = {
   /** Bunny account API key. Required for `purge`. */
@@ -482,11 +482,11 @@ type BunnyStorageBaseConfig = {
   urlTransform?: UrlTransformConfig
 }
 
-export type BunnyStorageConfig = {
+export type BunnyStorageOptions = {
   /** Optional when every collection has its own zone. */
   storage?: StorageConfig
   /** Optional when every collection has its own library. */
   stream?: StreamConfig
 } & BunnyStorageBaseConfig
 
-export type BunnyStoragePlugin = (pluginConfig: BunnyStorageConfig) => StorageAdapter
+export type BunnyStoragePlugin = (pluginConfig: BunnyStorageOptions) => StorageAdapter

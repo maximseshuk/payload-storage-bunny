@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { CONFIG_DEFAULTS } from '@/server/payload/config/defaults.js'
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/config.js'
 
 import {
   createBaseStorage,
@@ -23,7 +23,7 @@ const args = { collection: { slug: 'media' } } as never
 describe('config normalizer', () => {
   describe('collections', () => {
     it('leaves out collections set to false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { docs: false, media: true },
         storage: createBaseStorage(),
       }
@@ -33,7 +33,7 @@ describe('config normalizer', () => {
     })
 
     it('records whether the collection sets generateFileURL', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: {
           docs: { prefix: 'docs' },
           files: { generateFileURL: () => 'https://example.com/x' },
@@ -62,7 +62,7 @@ describe('config normalizer', () => {
     }
 
     it('inherits global settings', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: true },
         storage: createBaseStorage(),
@@ -79,7 +79,7 @@ describe('config normalizer', () => {
     })
 
     it('overrides the given properties', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { thumbnail: { streamAnimated: true } },
@@ -99,7 +99,7 @@ describe('config normalizer', () => {
     })
 
     it('replaces queryParams and keeps the global appendTimestamp', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { thumbnail: { urlTransform: { queryParams: { custom: 'value' } } } },
@@ -117,7 +117,7 @@ describe('config normalizer', () => {
 
     it('keeps the global urlTransform function when the collection only sets sizeName', () => {
       const transform = () => 'https://cdn.example.com/x.jpg'
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { thumbnail: { sizeName: 'small' } } },
         storage: createBaseStorage(),
         thumbnail: { urlTransform: transform },
@@ -129,7 +129,7 @@ describe('config normalizer', () => {
     })
 
     it('uses the thumbnail defaults when a collection object replaces the global function', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { thumbnail: { urlTransform: { queryParams: { custom: 'value' } } } } },
         storage: createBaseStorage(),
         thumbnail: { urlTransform: () => 'https://cdn.example.com/x.jpg' },
@@ -143,7 +143,7 @@ describe('config normalizer', () => {
 
     it('uses a urlTransform function and drops the default timestamp', () => {
       const transform = () => 'https://cdn.example.com/x.jpg'
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: true },
         storage: createBaseStorage(),
         thumbnail: { urlTransform: transform },
@@ -159,7 +159,7 @@ describe('config normalizer', () => {
     })
 
     it('turns the URL transform off with urlTransform false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: true },
         storage: createBaseStorage(),
         thumbnail: { urlTransform: false },
@@ -171,7 +171,7 @@ describe('config normalizer', () => {
     })
 
     it('disables with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { thumbnail: false } },
         storage: createBaseStorage(),
@@ -183,7 +183,7 @@ describe('config normalizer', () => {
     })
 
     it('enables with defaults for true without a global config', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { thumbnail: true } },
         storage: createBaseStorage(),
@@ -203,7 +203,7 @@ describe('config normalizer', () => {
     }
 
     it('inherits global settings', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: true },
         storage: createBaseStorage(),
@@ -218,7 +218,7 @@ describe('config normalizer', () => {
     })
 
     it('overrides the given properties', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { urlTransform: { appendTimestamp: true } },
@@ -236,7 +236,7 @@ describe('config normalizer', () => {
     })
 
     it('replaces queryParams', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { urlTransform: { queryParams: { custom: 'value' } } },
@@ -253,7 +253,7 @@ describe('config normalizer', () => {
 
     it('replaces the global object with a collection function', () => {
       const transform = () => 'https://cdn.example.com/x.jpg'
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { urlTransform: transform } },
         storage: createBaseStorage(),
         urlTransform: globalUrlTransform,
@@ -268,7 +268,7 @@ describe('config normalizer', () => {
     })
 
     it('replaces the global function with a collection object', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { urlTransform: { appendTimestamp: true } } },
         storage: createBaseStorage(),
         urlTransform: () => 'https://cdn.example.com/x.jpg',
@@ -282,7 +282,7 @@ describe('config normalizer', () => {
     })
 
     it('disables with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { urlTransform: false as const } },
         storage: createBaseStorage(),
@@ -294,7 +294,7 @@ describe('config normalizer', () => {
     })
 
     it('enables with defaults for true without a global config', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { urlTransform: true } },
         storage: createBaseStorage(),
@@ -322,7 +322,7 @@ describe('config normalizer', () => {
       ]
 
       configs.forEach(({ collection, expected }) => {
-        const config: BunnyStorageConfig = {
+        const config: BunnyStorageOptions = {
           accountApiKey: 'test-api-key',
           collections: { media: collection },
           signedUrls: { expiresIn: 3600 },
@@ -335,7 +335,7 @@ describe('config normalizer', () => {
     })
 
     it('enables with defaults for true without a global config', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { signedUrls: true } },
         storage: createBaseStorage(),
@@ -348,7 +348,7 @@ describe('config normalizer', () => {
     })
 
     it('inherits global keys on a partial override', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { signedUrls: { expiresIn: 100 } } },
         signedUrls: {
@@ -370,7 +370,7 @@ describe('config normalizer', () => {
     })
 
     it('enables the redirect with status 302 for redirect true', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: true },
         signedUrls: { staticHandler: { redirect: true } },
         storage: createBaseStorage(),
@@ -381,7 +381,7 @@ describe('config normalizer', () => {
     })
 
     it('turns the global redirect off per collection with redirect false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { signedUrls: { staticHandler: { redirect: false } } } },
         signedUrls: { staticHandler: { redirect: true } },
         storage: createBaseStorage(),
@@ -392,7 +392,7 @@ describe('config normalizer', () => {
     })
 
     it('disables with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { signedUrls: false } },
         signedUrls: true,
@@ -404,7 +404,7 @@ describe('config normalizer', () => {
     })
 
     it('overrides userIp per collection', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { signedUrls: { userIp: collectionUserIp } },
@@ -424,7 +424,7 @@ describe('config normalizer', () => {
 
   describe('clientUploads', () => {
     it('inherits global keys on a partial override', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { storage: { clientUploads: { access: testCollectionClientAccess } } } },
         storage: {
@@ -445,7 +445,7 @@ describe('config normalizer', () => {
     })
 
     it('uses the global config when the collection sets true', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { storage: { clientUploads: true } } },
         storage: {
           ...createBaseStorage(),
@@ -461,7 +461,7 @@ describe('config normalizer', () => {
     })
 
     it('enables per collection with defaults for true without a global config', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { storage: { clientUploads: true } } },
         storage: { ...createBaseStorage(), s3: true },
       }
@@ -472,7 +472,7 @@ describe('config normalizer', () => {
     })
 
     it('disables per collection with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { storage: { clientUploads: false } } },
         storage: { ...createBaseStorage(), clientUploads: true, s3: true },
       }
@@ -482,7 +482,7 @@ describe('config normalizer', () => {
     })
 
     it('nests the normalized clientUploads under storage, not the raw value', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: true },
         storage: { ...createBaseStorage(), clientUploads: true, s3: true },
       }
@@ -511,7 +511,7 @@ describe('config normalizer', () => {
       ]
 
       configs.forEach(({ collection, expected }) => {
-        const config: BunnyStorageConfig = {
+        const config: BunnyStorageOptions = {
           accountApiKey: 'test-api-key',
           collections: { media: collection },
           purge: { async: false },
@@ -524,7 +524,7 @@ describe('config normalizer', () => {
     })
 
     it('accepts true globally', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: true },
         purge: true,
@@ -537,7 +537,7 @@ describe('config normalizer', () => {
     })
 
     it.each([true, { async: true }])('enables collection purge %o when the global purge is off', (purge) => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { docs: true, media: { purge } },
         storage: createBaseStorage(),
@@ -550,7 +550,7 @@ describe('config normalizer', () => {
     })
 
     it.each([true, { async: true }])('leaves purge %o off without accountApiKey', (purge) => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { purge } },
         purge,
         storage: createBaseStorage(),
@@ -562,7 +562,7 @@ describe('config normalizer', () => {
     })
 
     it('disables with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { purge: false } },
         purge: true,
@@ -582,7 +582,7 @@ describe('config normalizer', () => {
     }
 
     it('inherits global settings', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: true },
         storage: createBaseStorage(),
@@ -597,7 +597,7 @@ describe('config normalizer', () => {
     })
 
     it('overrides the given properties', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: {
@@ -616,7 +616,7 @@ describe('config normalizer', () => {
     })
 
     it('disables with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { stream: false } },
         storage: createBaseStorage(),
@@ -628,7 +628,7 @@ describe('config normalizer', () => {
     })
 
     it('disables TUS per collection with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { stream: { tus: false } },
@@ -644,7 +644,7 @@ describe('config normalizer', () => {
     })
 
     it('overrides TUS settings per collection and keeps the global access', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { stream: { tus: { autoMode: false, expiresIn: 7200 } } },
@@ -658,7 +658,7 @@ describe('config normalizer', () => {
     })
 
     it('enables TUS per collection with true when the global TUS is off', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { stream: { tus: true } }, videos: true },
         storage: createBaseStorage(),
         stream: globalStream,
@@ -670,7 +670,7 @@ describe('config normalizer', () => {
     })
 
     it('enables TUS per collection with an object when the global TUS is off', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: { stream: { tus: { expiresIn: 600 } } } },
         storage: createBaseStorage(),
         stream: globalStream,
@@ -696,7 +696,7 @@ describe('config normalizer', () => {
       ]
 
       configs.forEach(({ collection, expected }) => {
-        const config: BunnyStorageConfig = {
+        const config: BunnyStorageOptions = {
           accountApiKey: 'test-api-key',
           collections: { media: collection },
           storage: { ...createBaseStorage(), uploadTimeout: 60000 },
@@ -708,7 +708,7 @@ describe('config normalizer', () => {
     })
 
     it('disables with false', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { storage: false } },
         storage: createBaseStorage(),
@@ -729,14 +729,14 @@ describe('config normalizer', () => {
       const normalized = createNormalizedConfig({
         collections: { media: true },
         storage: { ...createBaseStorage(), ...storage },
-      } as BunnyStorageConfig)
+      } as BunnyStorageOptions)
 
       expect(normalized.storage?.region).toBe(expected.region)
       expect(normalized.storage?.s3).toBe(expected.s3)
     })
 
     it('passes the S3 config to collections', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: { media: { storage: { uploadTimeout: 90000 } } },
         storage: { ...createBaseStorage(), s3: true },
@@ -750,7 +750,7 @@ describe('config normalizer', () => {
 
   describe('full per-collection storage override', () => {
     it('replaces the global zone without leaking global credentials and resets uploadTimeout to the default', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: { storage: createOwnStorage('media', { tokenSecurityKey: undefined }) },
@@ -774,7 +774,7 @@ describe('config normalizer', () => {
     })
 
     it('normalizes clientUploads from its own zone without leaking global clientUploads', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: {
           own: {
             storage: createOwnStorage('own', {
@@ -801,7 +801,7 @@ describe('config normalizer', () => {
 
   describe('full per-collection stream override', () => {
     it('replaces the global library with plugin defaults without leaking global values', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: {
@@ -832,13 +832,13 @@ describe('config normalizer', () => {
       const boolCleanup = createNormalizedConfig({
         collections: { media: { stream: createOwnStream(1, { cleanup: true }) } },
         storage: createBaseStorage(),
-      } as BunnyStorageConfig).collections.get('media')?.stream
+      } as BunnyStorageOptions).collections.get('media')?.stream
       expect(boolCleanup?.cleanup?.maxAge).toBe(CONFIG_DEFAULTS.stream.cleanup.maxAge)
 
       const objCleanup = createNormalizedConfig({
         collections: { media: { stream: createOwnStream(2, { cleanup: { maxAge: 5 } }) } },
         storage: createBaseStorage(),
-      } as BunnyStorageConfig).collections.get('media')?.stream
+      } as BunnyStorageOptions).collections.get('media')?.stream
       expect(objCleanup?.cleanup?.maxAge).toBe(5)
     })
   })
@@ -850,7 +850,7 @@ describe('config normalizer', () => {
           files: { storage: createOwnStorage('files') },
           videos: { stream: createOwnStream(500) },
         },
-      } as BunnyStorageConfig
+      } as BunnyStorageOptions
 
       const normalized = createNormalizedConfig(config)
       expect(normalized.storage).toBeUndefined()
@@ -862,7 +862,7 @@ describe('config normalizer', () => {
 
   describe('collection properties', () => {
     it('sets prefix and disablePayloadAccessControl', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
         collections: {
           media: {

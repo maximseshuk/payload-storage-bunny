@@ -1,7 +1,7 @@
 import { collectStorageConfigs } from '@/server/payload/config/inspect.js'
 import { MAX_EXPIRES_IN_SECONDS } from '@/server/payload/tokenAuth.js'
 import { PLUGIN_KEY } from '@/shared/constants.js'
-import type { BunnyStorageConfig, SignedUrlsConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions, SignedUrlsConfig } from '@/shared/types/config.js'
 import type {
   NormalizedBunnyStorageConfig,
   NormalizedStorageConfig,
@@ -59,7 +59,7 @@ const findRemovedKeys = (source: unknown, prefix: string, global: boolean): stri
     ]
   })
 
-export const assertNoRemovedKeys = (config: BunnyStorageConfig): void => {
+export const assertNoRemovedKeys = (config: BunnyStorageOptions): void => {
   const messages = findRemovedKeys(config, '', true)
 
   for (const [slug, collection] of Object.entries(config.collections ?? {})) {
@@ -71,7 +71,7 @@ export const assertNoRemovedKeys = (config: BunnyStorageConfig): void => {
   }
 }
 
-const rawCollectionEnablesClientUploads = (original: BunnyStorageConfig, slug: string): boolean => {
+const rawCollectionEnablesClientUploads = (original: BunnyStorageOptions, slug: string): boolean => {
   const globalEnabled = Boolean(original.storage?.clientUploads)
   const raw = original.collections[slug as keyof typeof original.collections]
 

@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
 import { reportTelemetry } from '@/server/telemetry/index.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/config.js'
 import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 
 import { createBaseStorage } from '../../../helpers/unit/configBuilders.js'
 
-const makeConfig = (overrides: Partial<BunnyStorageConfig> = {}): NormalizedBunnyStorageConfig =>
+const makeConfig = (overrides: Partial<BunnyStorageOptions> = {}): NormalizedBunnyStorageConfig =>
   createNormalizedConfig({ collections: { media: true }, storage: createBaseStorage(), ...overrides })
 
 const info = vi.fn()

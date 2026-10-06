@@ -9,7 +9,7 @@ import {
   hasAnyStreamTus,
 } from '@/server/payload/config/inspect.js'
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/config.js'
 
 import {
   createBaseStorage,
@@ -21,7 +21,7 @@ import {
 describe('config inspect helpers', () => {
   describe('collectStreamConfigs', () => {
     it('keys configs by libraryId and keeps the first one, global first', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: {
           a: { stream: createOwnStream(200, { mp4Fallback: true }) },
           b: { stream: createOwnStream(200, { mp4Fallback: false }) },
@@ -41,7 +41,7 @@ describe('config inspect helpers', () => {
 
   describe('collectStorageConfigs', () => {
     it('removes duplicate zones by zoneName across global and collection configs', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: {
           own: { storage: createOwnStorage('own') },
           shared: true,
@@ -57,7 +57,7 @@ describe('config inspect helpers', () => {
     it('reports no storage when nothing configures it', () => {
       const config = {
         collections: { videos: { stream: createOwnStream(9) } },
-      } as BunnyStorageConfig
+      } as BunnyStorageOptions
 
       expect(hasAnyStorage(createNormalizedConfig(config))).toBe(false)
     })
@@ -65,7 +65,7 @@ describe('config inspect helpers', () => {
 
   describe('TUS, cleanup and webhook flags', () => {
     it('detects TUS, cleanup and webhook secrets across global and per-collection sources', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: {
           global: true,
           own: {
@@ -88,7 +88,7 @@ describe('config inspect helpers', () => {
     })
 
     it('keys webhook secrets by libraryId and keeps the first secret of each library', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: {
           global: true,
           own: {
@@ -105,7 +105,7 @@ describe('config inspect helpers', () => {
     })
 
     it('detects TUS that a collection turns on over a global stream without TUS', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: true, videos: { stream: { tus: true } } },
         storage: createBaseStorage(),
         stream: createBaseStream(),
@@ -115,7 +115,7 @@ describe('config inspect helpers', () => {
     })
 
     it('reports no TUS or cleanup when none is configured', () => {
-      const config: BunnyStorageConfig = {
+      const config: BunnyStorageOptions = {
         collections: { media: true },
         storage: createBaseStorage(),
         stream: createBaseStream(),

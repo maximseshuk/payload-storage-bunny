@@ -1,7 +1,7 @@
 import type { TaskConfig } from 'payload'
 
 import type {
-  BunnyStorageConfig,
+  BunnyStorageOptions,
   ClientUploadsAccess,
   ClientUploadsPrefix,
   SignedUrlsCallbackArgs,
@@ -85,7 +85,7 @@ export interface NormalizedCollectionConfig {
 }
 
 export interface NormalizedBunnyStorageConfig {
-  _original: BunnyStorageConfig
+  _original: BunnyStorageOptions
   accountApiKey?: string
   collections: Map<string, NormalizedCollectionConfig>
   purge?: NormalizedPurgeConfig

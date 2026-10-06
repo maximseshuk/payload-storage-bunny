@@ -1,7 +1,7 @@
 import { trimTrailingSlashes } from '@/shared/http.js'
 import type {
-  BunnyStorageCollectionConfig,
-  BunnyStorageConfig,
+  BunnyStorageCollectionOptions,
+  BunnyStorageOptions,
   ClientUploadsConfig,
   CollectionsConfig,
   PurgeConfig,
@@ -33,7 +33,7 @@ const mergeDefined = <T extends object>(base: T, override: Partial<T>): T => {
   return { ...base, ...defined }
 }
 
-export const createNormalizedConfig = (options: BunnyStorageConfig): NormalizedBunnyStorageConfig => {
+export const createNormalizedConfig = (options: BunnyStorageOptions): NormalizedBunnyStorageConfig => {
   const normalized: NormalizedBunnyStorageConfig = {
     _original: options,
     accountApiKey: options.accountApiKey,
@@ -300,7 +300,7 @@ const normalizeCollectionConfig = ({
   collectionConfig,
   globalConfig,
 }: {
-  collectionConfig: BunnyStorageCollectionConfig | true
+  collectionConfig: BunnyStorageCollectionOptions | true
   globalConfig: NormalizedBunnyStorageConfig
 }): NormalizedCollectionConfig => {
   if (collectionConfig === true) {
@@ -390,7 +390,7 @@ const resolveCollectionStorageConfig = ({
   collectionOverride,
   globalValue,
 }: {
-  collectionOverride: BunnyStorageCollectionConfig['storage']
+  collectionOverride: BunnyStorageCollectionOptions['storage']
   globalValue: NormalizedStorageConfig | undefined
 }): NormalizedStorageConfig | undefined => {
   if (collectionOverride === false) {
@@ -422,7 +422,7 @@ const resolveCollectionStreamConfig = ({
   collectionOverride,
   globalValue,
 }: {
-  collectionOverride: BunnyStorageCollectionConfig['stream']
+  collectionOverride: BunnyStorageCollectionOptions['stream']
   globalValue: NormalizedStreamConfig | undefined
 }): NormalizedStreamConfig | undefined => {
   if (collectionOverride === false) {

@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
 import { buildFeatures } from '@/server/telemetry/features.js'
-import type { BunnyStorageConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/config.js'
 
 import { createBaseStorage, createBaseStream, createOwnStorage } from '../../../helpers/unit/configBuilders.js'
 
-const features = (config: BunnyStorageConfig) => buildFeatures(createNormalizedConfig(config))
+const features = (config: BunnyStorageOptions) => buildFeatures(createNormalizedConfig(config))
 
 describe('buildFeatures', () => {
   it('sets only storage for an HTTP API storage-only config', () => {
