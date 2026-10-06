@@ -1,7 +1,7 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { NormalizedStreamConfig } from '@/shared/types/index.js'
+import type { NormalizedStreamOptions } from '@/shared/types/index.js'
 
 import { signed } from '../../../../helpers/unit/signedUrls.js'
 
@@ -12,7 +12,7 @@ const { streamThumbnailStaticHandler } = await import('@/server/payload/stream/s
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
-const streamConfig = (over: Partial<NormalizedStreamConfig> = {}): NormalizedStreamConfig =>
+const streamOptions = (over: Partial<NormalizedStreamOptions> = {}): NormalizedStreamOptions =>
   ({
     apiKey: 'stream-key',
     hostname: 'stream.b-cdn.net',
@@ -22,7 +22,7 @@ const streamConfig = (over: Partial<NormalizedStreamConfig> = {}): NormalizedStr
     tokenSecurityKey: 'stream-sec',
     uploadTimeout: 300000,
     ...over,
-  }) as NormalizedStreamConfig
+  }) as NormalizedStreamOptions
 
 const makeReq = (): PayloadRequest =>
   ({
@@ -35,7 +35,7 @@ const baseArgs = () => ({
   collection,
   req: makeReq(),
   signedUrls: false as const,
-  streamConfig: streamConfig(),
+  streamOptions: streamOptions(),
   thumbnailType: 'thumbnail.jpg' as const,
   usePayloadAccessControl: false,
   videoId: 'vid1',

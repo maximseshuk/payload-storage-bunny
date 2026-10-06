@@ -171,7 +171,7 @@ describe('generateSignedToken', () => {
 
 describe('generateSignedUrl', () => {
   const securityKey = 'test-security-key'
-  const baseConfig = {}
+  const baseCountryOptions = {}
   const options = { expiresAt: 1700000000 }
 
   describe('storage URLs (query params)', () => {
@@ -179,7 +179,7 @@ describe('generateSignedUrl', () => {
       const url = generateSignedUrl(
         'https://cdn.example.com/path/to/file.jpg?width=100&height=200',
         securityKey,
-        baseConfig,
+        baseCountryOptions,
         options,
       )
 
@@ -206,17 +206,19 @@ describe('generateSignedUrl', () => {
 
   describe('error handling', () => {
     it('throws on invalid URL format', () => {
-      expect(() => generateSignedUrl('not-a-valid-url', securityKey, baseConfig, options)).toThrow('Invalid URL format')
+      expect(() => generateSignedUrl('not-a-valid-url', securityKey, baseCountryOptions, options)).toThrow(
+        'Invalid URL format',
+      )
     })
 
     it('throws without baseUrl', () => {
-      expect(() => generateSignedUrl('', securityKey, baseConfig, options)).toThrow(
+      expect(() => generateSignedUrl('', securityKey, baseCountryOptions, options)).toThrow(
         'Base URL, security key, and configuration are required',
       )
     })
 
     it('throws without securityKey', () => {
-      expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', '', baseConfig, options)).toThrow(
+      expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', '', baseCountryOptions, options)).toThrow(
         'Base URL, security key, and configuration are required',
       )
     })
@@ -224,14 +226,19 @@ describe('generateSignedUrl', () => {
 
   describe('URL construction', () => {
     it('handles URLs with port numbers', () => {
-      const url = generateSignedUrl('https://cdn.example.com:8443/file.jpg', securityKey, baseConfig, options)
+      const url = generateSignedUrl('https://cdn.example.com:8443/file.jpg', securityKey, baseCountryOptions, options)
 
       expect(url).toContain('cdn.example.com:8443')
       expect(url).toContain('token=')
     })
 
     it('signs the decoded path and keeps the encoded one in the URL', () => {
-      const url = generateSignedUrl('https://cdn.example.com/path/to/file%20name.jpg', securityKey, baseConfig, options)
+      const url = generateSignedUrl(
+        'https://cdn.example.com/path/to/file%20name.jpg',
+        securityKey,
+        baseCountryOptions,
+        options,
+      )
 
       expect(url).toBe(
         `https://cdn.example.com/path/to/file%20name.jpg?token=${rawToken(`${securityKey}/path/to/file name.jpg1700000000`)}&expires=1700000000`,

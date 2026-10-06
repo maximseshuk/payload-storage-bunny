@@ -167,7 +167,7 @@ describe('schema when the plugin is disabled', () => {
     expect(prefix).toMatchObject({ type: 'text', defaultValue: 'media' })
   })
 
-  it('does not wire the adapter, hooks or plugin config', () => {
+  it('does not wire the adapter, hooks or plugin options', () => {
     const incoming = { collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config
     const result = bunnyStorage({
       collections: { media: true },

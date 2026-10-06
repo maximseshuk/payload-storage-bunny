@@ -36,7 +36,7 @@ export const rs: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Није могуће обрисати фајл: {{filename}}',
     errorMissingRequiredFields: 'Недостају неке потребне информације',
     errorNoServiceConfigured: 'Ниједна услуга није конфигурисана',
-    errorStreamConfigMissing: 'Bunny Stream није исправно конфигурисан',
+    errorStreamOptionsMissing: 'Bunny Stream није исправно конфигурисан',
     errorTitleRequired: 'Молимо унесите наслов за ваш видео',
     errorUploadFileFailed: 'Није могуће отпремити фајл: {{filename}}',
   },

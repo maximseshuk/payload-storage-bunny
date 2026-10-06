@@ -36,7 +36,7 @@ export const ja: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'ファイルを削除できませんでした：{{filename}}',
     errorMissingRequiredFields: '必要な情報が不足しています',
     errorNoServiceConfigured: 'サービスが設定されていません',
-    errorStreamConfigMissing: 'Bunny Streamが正しく設定されていません',
+    errorStreamOptionsMissing: 'Bunny Streamが正しく設定されていません',
     errorTitleRequired: '動画のタイトルを入力してください',
     errorUploadFileFailed: 'ファイルをアップロードできませんでした：{{filename}}',
   },

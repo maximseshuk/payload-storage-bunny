@@ -6,15 +6,15 @@ import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/to
 import { buildStreamCdnUrl } from '@/server/urls.js'
 import { createProxyResponse } from '@/shared/http.js'
 import type { BunnyDataInternal } from '@/shared/types/core.js'
-import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/shared/types/index.js'
+import type { NormalizedSignedUrlsOptions, NormalizedStreamOptions } from '@/shared/types/index.js'
 
 type Args = {
   bunnyData: BunnyDataInternal
   collection: CollectionConfig
   docId: number | string
   req: PayloadRequest
-  signedUrls: false | NormalizedSignedUrlsConfig
-  streamConfig: NormalizedStreamConfig
+  signedUrls: false | NormalizedSignedUrlsOptions
+  streamOptions: NormalizedStreamOptions
   usePayloadAccessControl: boolean
 }
 
@@ -24,23 +24,23 @@ export const streamStaticHandler = async ({
   docId,
   req,
   signedUrls,
-  streamConfig,
+  streamOptions,
   usePayloadAccessControl,
 }: Args): Promise<Response> => {
-  if (!streamConfig.mp4Fallback) {
+  if (!streamOptions.mp4Fallback) {
     return new Response('MP4 fallback not configured.', { status: 400 })
   }
 
   const videoId = bunnyData.stream?.videoId ?? ''
   const videoResolutions = bunnyData.stream?.resolutions
 
-  const referer = streamConfig.referer
+  const referer = streamOptions.referer
 
   const context = {
     collection,
     filename: '',
     signedUrls,
-    tokenSecurityKey: streamConfig.tokenSecurityKey,
+    tokenSecurityKey: streamOptions.tokenSecurityKey,
     usePayloadAccessControl,
   }
 
@@ -49,7 +49,11 @@ export const streamStaticHandler = async ({
   let metaNeedsUpdate = false
 
   if (videoResolutions?.highest) {
-    const savedResolutionUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, `play_${videoResolutions.highest}.mp4`)
+    const savedResolutionUrl = buildStreamCdnUrl(
+      streamOptions.hostname,
+      videoId,
+      `play_${videoResolutions.highest}.mp4`,
+    )
     const checkContext = { ...context, filename: `${videoId}/play_${videoResolutions.highest}.mp4` }
 
     try {
@@ -80,8 +84,8 @@ export const streamStaticHandler = async ({
   if (!fallbackQuality) {
     try {
       const resolutionsData = await getStreamVideoResolutions({
-        apiKey: streamConfig.apiKey,
-        libraryId: streamConfig.libraryId,
+        apiKey: streamOptions.apiKey,
+        libraryId: streamOptions.libraryId,
         videoId,
       })
 
@@ -95,7 +99,7 @@ export const streamStaticHandler = async ({
 
         if (available.length > 0) {
           for (const resolution of sorted) {
-            const baseCheckUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, `play_${resolution}.mp4`)
+            const baseCheckUrl = buildStreamCdnUrl(streamOptions.hostname, videoId, `play_${resolution}.mp4`)
             const checkContext = { ...context, filename: `${videoId}/play_${resolution}.mp4` }
             const checkUrl = maybeGenerateSignedUrl(baseCheckUrl, checkContext)
 
@@ -165,7 +169,7 @@ export const streamStaticHandler = async ({
     }
   }
 
-  let mp4Url = buildStreamCdnUrl(streamConfig.hostname, videoId, `play_${fallbackQuality}.mp4`)
+  let mp4Url = buildStreamCdnUrl(streamOptions.hostname, videoId, `play_${fallbackQuality}.mp4`)
 
   if (req.url) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)

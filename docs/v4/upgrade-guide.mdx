@@ -72,6 +72,16 @@ Check these details too:
 - **`tus.access`.** It still replaces the default check. Call `defaultAccess()` to keep it, for example `access: async ({ data, defaultAccess }) => data.filesize < 5e9 && (await defaultAccess())`. See [TUS uploads](/v4/configuration/stream/tus).
 - **`getBunnyStorageForCollection()`.** It returns `s3: true` or `false` and the region in `region`. Read `region`, not `s3.region`.
 
+Some exports are renamed. TypeScript shows an error for each old name:
+
+| v3                             | v4                              |
+| ------------------------------ | ------------------------------- |
+| `getBunnyConfig()`             | `getBunnyOptions()`             |
+| `getBunnyCollectionConfig()`   | `getBunnyCollectionOptions()`   |
+| `BunnyCollectionConfig`        | `BunnyCollectionOptions`        |
+| `NormalizedBunnyStorageConfig` | `NormalizedBunnyStorageOptions` |
+| `NormalizedCollectionConfig`   | `NormalizedCollectionOptions`   |
+
 These changes do not throw an error. Check them if they apply to your app:
 
 - The `prefix` argument of a `urlTransform` function is now only the document's own `prefix` field. In v3 it also contained the collection `prefix`. If your function builds a path from `prefix`, add the collection prefix yourself.

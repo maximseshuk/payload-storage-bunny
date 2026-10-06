@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
 import { buildFeatures } from '@/server/telemetry/features.js'
-import type { BunnyStorageOptions } from '@/shared/types/config.js'
+import type { BunnyStorageOptions } from '@/shared/types/options.js'
 
-import { createBaseStorage, createBaseStream, createOwnStorage } from '../../../helpers/unit/configBuilders.js'
+import { createBaseStorage, createBaseStream, createOwnStorage } from '../../../helpers/unit/optionsBuilders.js'
 
-const features = (config: BunnyStorageOptions) => buildFeatures(createNormalizedConfig(config))
+const features = (options: BunnyStorageOptions) => buildFeatures(createNormalizedOptions(options))
 
 describe('buildFeatures', () => {
-  it('sets only storage for an HTTP API storage-only config', () => {
+  it('sets only storage for an HTTP API storage-only options', () => {
     const result = features({ collections: { media: true }, storage: createBaseStorage() })
 
     expect(result).toMatchObject({
@@ -91,7 +91,7 @@ describe('buildFeatures', () => {
     expect(features({ collections: { media: true }, purge: true, storage: createBaseStorage() }).cdnPurge).toBe(false)
   })
 
-  it('sets collectionOverrides for an object collection config but not for `true`', () => {
+  it('sets collectionOverrides for object collection options but not for `true`', () => {
     expect(features({ collections: { media: true }, storage: createBaseStorage() }).collectionOverrides).toBe(false)
     expect(
       features({ collections: { media: { thumbnail: true } }, storage: createBaseStorage() }).collectionOverrides,

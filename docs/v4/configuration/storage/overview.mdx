@@ -128,7 +128,7 @@ Set `serverURL` in your Payload config. Cropping, changing the focal point and d
 A collection's `storage` can be one of three things:
 
 - a **partial override** (`uploadTimeout`, `clientUploads`) — merged onto the global zone;
-- a **full config** (with its own `apiKey`/`hostname`/`zoneName`) — this collection uses its OWN storage zone, ignoring the global zone entirely;
+- **full options** (with their own `apiKey`/`hostname`/`zoneName`) — this collection uses its OWN storage zone, ignoring the global zone entirely;
 - **`false`** — disable Bunny Storage for this collection.
 
 ```ts payload.config.ts
@@ -139,7 +139,7 @@ collections: {
       uploadTimeout: 300000, // 5 minutes for this collection only
     },
   },
-  // Full config — this collection uses its own zone
+  // Full options — this collection uses its own zone
   tenantA: {
     storage: {
       apiKey: process.env.TENANT_A_STORAGE_API_KEY,
@@ -156,6 +156,6 @@ collections: {
 }
 ```
 
-The plugin distinguishes a full config from a partial override by whether it includes `apiKey`. A full config **inherits nothing** from the global zone: omitted optional keys (`region`, `s3`, `tokenSecurityKey`, `clientUploads`, `uploadTimeout`) fall back to plugin defaults, never to the global zone's values. Provide that zone's own `tokenSecurityKey` if you enable [signed URLs](/v4/configuration/signed-urls) for it.
+The plugin distinguishes full options from a partial override by whether it includes `apiKey`. Full options **inherit nothing** from the global zone: omitted optional keys (`region`, `s3`, `tokenSecurityKey`, `clientUploads`, `uploadTimeout`) fall back to plugin defaults, never to the global zone's values. Provide that zone's own `tokenSecurityKey` if you enable [signed URLs](/v4/configuration/signed-urls) for it.
 
 See [Collection overrides](/v4/configuration/collection-overrides) for the full-config vs partial-override rules and the complete list of options.

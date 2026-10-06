@@ -12,15 +12,15 @@ vi.mock('@/server/bunny/stream.js', () => ({
   parseMp4Resolutions: parseMock,
 }))
 
-const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
+const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
 
 const collection = { slug: 'media', upload: { mimeTypes: ['video/mp4'] } }
 
 const sign = (rawBody: string, secret: string) => createHmac('sha256', secret).update(rawBody).digest('hex')
 
-const buildConfig = (mp4Fallback = true) =>
-  createNormalizedConfig({
+const buildOptions = (mp4Fallback = true) =>
+  createNormalizedOptions({
     collections: { media: { disablePayloadAccessControl: true } },
     stream: {
       apiKey: 'stream-key',
@@ -75,8 +75,8 @@ const buildReq = (
   } as never
 }
 
-const getWebhookHandler = (config: ReturnType<typeof buildConfig>) => {
-  const endpoint = getStreamEndpoints(config).find((e) => e.path === '/storage-bunny/stream/webhook')
+const getWebhookHandler = (options: ReturnType<typeof buildOptions>) => {
+  const endpoint = getStreamEndpoints(options).find((e) => e.path === '/storage-bunny/stream/webhook')
   return endpoint!.handler as (req: never) => Promise<Response>
 }
 
@@ -86,28 +86,28 @@ describe('Stream webhook endpoint', () => {
   })
 
   it('returns 401 for a signature computed with the wrong secret', async () => {
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { secret: 'wrong' }))
 
     expect(res.status).toBe(401)
   })
 
   it('returns 401 when the signature header is missing', async () => {
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { secret: null }))
 
     expect(res.status).toBe(401)
   })
 
   it('returns 401 for a malformed (non-hex, wrong length) signature', async () => {
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { signature: 'nope' }))
 
     expect(res.status).toBe(401)
   })
 
   it('returns 401 when the signature version or algorithm is unsupported', async () => {
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const body = { Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }
 
     expect((await handler(buildReq(body, { version: 'v2' }))).status).toBe(401)
@@ -116,14 +116,14 @@ describe('Stream webhook endpoint', () => {
   })
 
   it('returns 400 for an invalid payload', async () => {
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ VideoLibraryId: 12345 }))
 
     expect(res.status).toBe(400)
   })
 
   it('returns 403 on a library id mismatch', async () => {
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 99999 }))
 
     expect(res.status).toBe(403)
@@ -135,7 +135,7 @@ describe('Stream webhook endpoint', () => {
     getResolutionsMock.mockResolvedValue({ data: { mp4Resolutions: [{ resolution: '720p' }] }, success: true })
     parseMock.mockReturnValue({ available: ['720p', '480p'], sorted: ['720p', '480p'] })
 
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
     const json = await res.json()
 
@@ -150,7 +150,7 @@ describe('Stream webhook endpoint', () => {
 
   it('acknowledges non-finished statuses without touching resolutions', async () => {
     const find = vi.fn()
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 2, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find }))
     const json = await res.json()
 
@@ -160,7 +160,7 @@ describe('Stream webhook endpoint', () => {
 
   it('skips the resolution update when mp4Fallback is disabled', async () => {
     const find = vi.fn()
-    const handler = getWebhookHandler(buildConfig(false))
+    const handler = getWebhookHandler(buildOptions(false))
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find }))
     const json = await res.json()
 
@@ -173,7 +173,7 @@ describe('Stream webhook endpoint', () => {
     const update = vi.fn()
     getResolutionsMock.mockRejectedValue(new Error('bunny down'))
 
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
     const json = await res.json()
 
@@ -185,7 +185,7 @@ describe('Stream webhook endpoint', () => {
     const find = vi.fn().mockResolvedValue({ docs: [] })
     const update = vi.fn()
 
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
     const json = await res.json()
 
@@ -195,7 +195,7 @@ describe('Stream webhook endpoint', () => {
   })
 
   it('returns 500 when reading the raw body throws', async () => {
-    const handler = getWebhookHandler(buildConfig())
+    const handler = getWebhookHandler(buildOptions())
     const badReq = {
       headers: new Headers(),
       payload: { collections: {}, logger: { debug: vi.fn(), error: vi.fn() } },
@@ -214,8 +214,8 @@ describe('Stream webhook endpoint', () => {
     const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
     const gamma = { slug: 'gamma', upload: { mimeTypes: ['video/mp4'] } }
 
-    const buildMultiConfig = () =>
-      createNormalizedConfig({
+    const buildMultiOptions = () =>
+      createNormalizedOptions({
         collections: {
           alpha: {
             disablePayloadAccessControl: true,
@@ -283,7 +283,7 @@ describe('Stream webhook endpoint', () => {
     }
 
     it('authenticates a body signed with the library-bound secret', async () => {
-      const handler = getWebhookHandler(buildMultiConfig())
+      const handler = getWebhookHandler(buildMultiOptions())
 
       const res = await handler(
         buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 111 }, { secret: 'alpha-hook' }),
@@ -292,7 +292,7 @@ describe('Stream webhook endpoint', () => {
     })
 
     it('rejects a body signed with the secret of another library', async () => {
-      const handler = getWebhookHandler(buildMultiConfig())
+      const handler = getWebhookHandler(buildMultiOptions())
 
       const res = await handler(
         buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 111 }, { secret: 'global-hook' }),
@@ -301,7 +301,7 @@ describe('Stream webhook endpoint', () => {
     })
 
     it('returns 401 for a library that has no configured webhook secret', async () => {
-      const handler = getWebhookHandler(buildMultiConfig())
+      const handler = getWebhookHandler(buildMultiOptions())
 
       const res = await handler(
         buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 333 }, { secret: 'global-hook' }),
@@ -310,14 +310,14 @@ describe('Stream webhook endpoint', () => {
     })
 
     it('returns 403 for a library not in the configured set', async () => {
-      const handler = getWebhookHandler(buildMultiConfig())
+      const handler = getWebhookHandler(buildMultiOptions())
       const res = await handler(buildMultiReq({ Status: 3, VideoGuid: 'v', VideoLibraryId: 555 }))
       expect(res.status).toBe(403)
     })
 
     it('searches only collections of the incoming library', async () => {
       const find = vi.fn().mockResolvedValue({ docs: [] })
-      const handler = getWebhookHandler(buildMultiConfig())
+      const handler = getWebhookHandler(buildMultiOptions())
       await handler(buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 }, { find, secret: 'alpha-hook' }))
 
       expect(find).toHaveBeenCalledTimes(1)
@@ -330,7 +330,7 @@ describe('Stream webhook endpoint', () => {
       getResolutionsMock.mockResolvedValue({ data: { mp4Resolutions: [{ resolution: '720p' }] }, success: true })
       parseMock.mockReturnValue({ available: ['720p'], sorted: ['720p'] })
 
-      const handler = getWebhookHandler(buildMultiConfig())
+      const handler = getWebhookHandler(buildMultiOptions())
       await handler(
         buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 }, { find, secret: 'alpha-hook', update }),
       )
@@ -345,7 +345,7 @@ describe('Stream webhook endpoint', () => {
     })
 
     it('registers the webhook endpoint when only a collection has a webhook', () => {
-      const config = createNormalizedConfig({
+      const options = createNormalizedOptions({
         collections: {
           videos: {
             disablePayloadAccessControl: true,
@@ -360,7 +360,7 @@ describe('Stream webhook endpoint', () => {
         },
       } as never)
 
-      const endpoint = getStreamEndpoints(config).find((e) => e.path === '/storage-bunny/stream/webhook')
+      const endpoint = getStreamEndpoints(options).find((e) => e.path === '/storage-bunny/stream/webhook')
       expect(endpoint).toBeDefined()
     })
   })

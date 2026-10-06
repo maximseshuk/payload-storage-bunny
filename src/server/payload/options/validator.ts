@@ -1,12 +1,12 @@
-import { collectStorageConfigs } from '@/server/payload/config/inspect.js'
+import { collectStorageOptions } from '@/server/payload/options/inspect.js'
 import { MAX_EXPIRES_IN_SECONDS } from '@/server/payload/tokenAuth.js'
 import { PLUGIN_KEY } from '@/shared/constants.js'
-import type { BunnyStorageOptions, SignedUrlsConfig } from '@/shared/types/config.js'
+import type { BunnyStorageOptions, SignedUrlsOptions } from '@/shared/types/options.js'
 import type {
-  NormalizedBunnyStorageConfig,
-  NormalizedStorageConfig,
-  NormalizedStreamConfig,
-} from '@/shared/types/configNormalized.js'
+  NormalizedBunnyStorageOptions,
+  NormalizedStorageOptions,
+  NormalizedStreamOptions,
+} from '@/shared/types/optionsNormalized.js'
 
 const isNonEmptyString = (value: unknown): boolean => typeof value === 'string' && value.length > 0
 
@@ -59,10 +59,10 @@ const findRemovedKeys = (source: unknown, prefix: string, global: boolean): stri
     ]
   })
 
-export const assertNoRemovedKeys = (config: BunnyStorageOptions): void => {
-  const messages = findRemovedKeys(config, '', true)
+export const assertNoRemovedKeys = (options: BunnyStorageOptions): void => {
+  const messages = findRemovedKeys(options, '', true)
 
-  for (const [slug, collection] of Object.entries(config.collections ?? {})) {
+  for (const [slug, collection] of Object.entries(options.collections ?? {})) {
     messages.push(...findRemovedKeys(collection, `collections.${slug}.`, false))
   }
 
@@ -97,15 +97,15 @@ const rawCollectionEnablesClientUploads = (original: BunnyStorageOptions, slug: 
   return Boolean(collectionClientUploads)
 }
 
-export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) => {
+export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions) => {
   const errors: string[] = []
 
-  if (config.collections.size === 0) {
+  if (options.collections.size === 0) {
     errors.push('at least one collection must be configured')
   }
 
   const collectionsWithoutService: string[] = []
-  for (const [slug, collection] of config.collections) {
+  for (const [slug, collection] of options.collections) {
     if (!collection.storage && !collection.stream) {
       collectionsWithoutService.push(slug)
     }
@@ -117,14 +117,14 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     )
   }
 
-  if (config._original.purge && !config.accountApiKey) {
+  if (options._original.purge && !options.accountApiKey) {
     errors.push('`purge` requires global `accountApiKey` to be provided')
   }
 
-  if (!config.accountApiKey && !config._original.purge) {
+  if (!options.accountApiKey && !options._original.purge) {
     const collectionsWithPurge: string[] = []
-    for (const [slug, collectionConfig] of Object.entries(config._original.collections)) {
-      if (typeof collectionConfig === 'object' && collectionConfig.purge) {
+    for (const [slug, collectionOptions] of Object.entries(options._original.collections)) {
+      if (typeof collectionOptions === 'object' && collectionOptions.purge) {
         collectionsWithPurge.push(slug)
       }
     }
@@ -137,8 +137,8 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
   }
 
   const signedUrlsSources: [string, unknown][] = [
-    ['signedUrls', config._original.signedUrls],
-    ...Object.entries(config._original.collections).map(([slug, raw]): [string, unknown] => [
+    ['signedUrls', options._original.signedUrls],
+    ...Object.entries(options._original.collections).map(([slug, raw]): [string, unknown] => [
       `collections.${slug}.signedUrls`,
       typeof raw === 'object' ? raw.signedUrls : undefined,
     ]),
@@ -147,7 +147,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     if (typeof signedUrls !== 'object' || signedUrls === null) {
       continue
     }
-    const { expiresIn, staticHandler } = signedUrls as SignedUrlsConfig
+    const { expiresIn, staticHandler } = signedUrls as SignedUrlsOptions
     const redirect = typeof staticHandler?.redirect === 'object' ? staticHandler.redirect : undefined
     const expiries: [string, unknown][] = [
       [`${path}.expiresIn`, expiresIn],
@@ -165,8 +165,8 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     }
   }
 
-  if (config._original.storage) {
-    const storage = config._original.storage
+  if (options._original.storage) {
+    const storage = options._original.storage
     if (!isNonEmptyString(storage.apiKey)) {
       errors.push('global storage config is missing `apiKey`')
     }
@@ -178,8 +178,8 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     }
   }
 
-  if (config._original.stream) {
-    const stream = config._original.stream
+  if (options._original.stream) {
+    const stream = options._original.stream
     if (!isNonEmptyString(stream.apiKey)) {
       errors.push('global stream config is missing `apiKey`')
     }
@@ -191,7 +191,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     }
   }
 
-  for (const [slug, raw] of Object.entries(config._original.collections)) {
+  for (const [slug, raw] of Object.entries(options._original.collections)) {
     if (typeof raw !== 'object') {
       continue
     }
@@ -226,7 +226,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
   const storageSignedUrlIssues: string[] = []
   const streamSignedUrlIssues: string[] = []
 
-  for (const [slug, collection] of config.collections) {
+  for (const [slug, collection] of options.collections) {
     if (collection.storage) {
       if (collection.storage.hostname.includes('storage.bunnycdn.com')) {
         errors.push(`collection "${slug}" storage \`hostname\` cannot include "storage.bunnycdn.com"`)
@@ -254,11 +254,11 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     )
   }
 
-  for (const [slug, collection] of config.collections) {
+  for (const [slug, collection] of options.collections) {
     const clientUploads = collection.storage?.clientUploads
 
     if (!clientUploads) {
-      if (rawCollectionEnablesClientUploads(config._original, slug)) {
+      if (rawCollectionEnablesClientUploads(options._original, slug)) {
         errors.push(`collection "${slug}" enables \`storage.clientUploads\` but Bunny Storage is not enabled for it`)
       }
       continue
@@ -272,7 +272,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
   }
 
   const secretsByScriptUrl = new Map<string, { secrets: Set<string>; zones: string[] }>()
-  for (const storage of collectStorageConfigs(config)) {
+  for (const storage of collectStorageOptions(options)) {
     const edge = storage.clientUploads?.edge
     if (!edge?.scriptUrl || !edge.secret) {
       continue
@@ -293,7 +293,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
 
   const collectionsWithIssues: string[] = []
 
-  for (const [slug, collection] of config.collections) {
+  for (const [slug, collection] of options.collections) {
     if (!collection.stream || collection.disablePayloadAccessControl) {
       continue
     }
@@ -317,7 +317,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
 
   const streamApiKeys = new Map<number, string>()
   const streamConflicts = new Set<number>()
-  const checkStreamConflict = (stream: NormalizedStreamConfig | undefined) => {
+  const checkStreamConflict = (stream: NormalizedStreamOptions | undefined) => {
     if (!stream) {
       return
     }
@@ -331,7 +331,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
 
   const storageApiKeys = new Map<string, string>()
   const storageConflicts = new Set<string>()
-  const checkStorageConflict = (storage: NormalizedStorageConfig | undefined) => {
+  const checkStorageConflict = (storage: NormalizedStorageOptions | undefined) => {
     if (!storage) {
       return
     }
@@ -346,7 +346,7 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
   let webhookSecretIssue = false
   const webhookSecretsByLibrary = new Map<number, string>()
   const webhookConflicts = new Set<number>()
-  const checkWebhookSecret = (stream: NormalizedStreamConfig | undefined) => {
+  const checkWebhookSecret = (stream: NormalizedStreamOptions | undefined) => {
     if (!stream?.webhook) {
       return
     }
@@ -362,11 +362,11 @@ export const validateNormalizedConfig = (config: NormalizedBunnyStorageConfig) =
     }
   }
 
-  checkStreamConflict(config.stream)
-  checkStorageConflict(config.storage)
-  checkWebhookSecret(config.stream)
+  checkStreamConflict(options.stream)
+  checkStorageConflict(options.storage)
+  checkWebhookSecret(options.stream)
 
-  for (const collection of config.collections.values()) {
+  for (const collection of options.collections.values()) {
     checkStreamConflict(collection.stream)
     checkStorageConflict(collection.storage)
     checkWebhookSecret(collection.stream)

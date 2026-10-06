@@ -5,7 +5,7 @@ Thanks for helping with the Bunny.net storage adapter for Payload. This guide co
 ## Before you start
 
 - For a bug, open an issue with steps to reproduce first, unless the fix is small and obvious.
-- For a new feature or a change to the public config, open an issue first and describe the use case. It saves you work if the idea doesn't fit the plugin.
+- For a new feature or a change to the public options, open an issue first and describe the use case. It saves you work if the idea doesn't fit the plugin.
 - For security problems, don't open an issue. Follow [SECURITY.md](SECURITY.md).
 
 ## Setup
@@ -69,11 +69,11 @@ Run `pnpm typecheck && pnpm lint && pnpm format && pnpm test:unit` before you pu
 
 ## Code rules
 
-- **Read settings from the collection context.** Handlers use `context.storageConfig`, `context.streamConfig` and so on, never the global config. Per-collection overrides are already applied there.
-- **Apply overrides in the normalizer.** A new per-collection option goes into the config type in `src/shared/types/config.ts` (with JSDoc) and into the matching `resolveCollection*Config` in `src/server/payload/config/normalizer.ts`.
+- **Read settings from the collection context.** Handlers use `context.storageOptions`, `context.streamOptions` and so on, never the global options. Per-collection overrides are already applied there.
+- **Apply overrides in the normalizer.** A new per-collection option goes into the options type in `src/shared/types/options.ts` (with JSDoc) and into the matching `resolveCollection*Options` in `src/server/payload/options/normalizer.ts`.
 - **Check `false` explicitly** for options that can be disabled (`purge`, `signedUrls`, `thumbnail`, `urlTransform`). Write `value === false ? undefined : value`, not `value || undefined`.
 - **Keep the layers.** Inside `src/server/`, `payload/` may use `bunny/`, `bunny/` may use `http/`, and all of them may use `src/shared/`. Only `src/server/bunny/` talks to the Bunny API.
-- **Comment sparingly.** Name things so the code explains itself. Add a comment only for a workaround or a constraint a reader would miss. The public config types and accessors keep their JSDoc.
+- **Comment sparingly.** Name things so the code explains itself. Add a comment only for a workaround or a constraint a reader would miss. The public options types and accessors keep their JSDoc.
 - **Match the surrounding code.** Follow the naming and patterns already used in the file you change.
 - **Ask before adding a runtime dependency.** Say why in the issue or PR.
 
@@ -81,7 +81,7 @@ Run `pnpm typecheck && pnpm lint && pnpm format && pnpm test:unit` before you pu
 
 - Add or update tests for every behavior change.
 - Unit tests live in `tests/unit/` and mirror the `src/` layout.
-- Name a `describe` after the function or feature under test (`purgeCache`, `config validator`). Start an `it` name with a present-tense verb and write it in plain English: `throws when S3 is enabled without a region`, not `should throw…`.
+- Name a `describe` after the function or feature under test (`purgeCache`, `options validator`). Start an `it` name with a present-tense verb and write it in plain English: `throws when S3 is enabled without a region`, not `should throw…`.
 - A bug fix should come with a test that fails without the fix.
 - Don't commit `.only`, `.skip` or placeholder tests.
 

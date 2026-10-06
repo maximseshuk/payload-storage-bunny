@@ -36,7 +36,7 @@ export const id: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Tidak dapat menghapus file: {{filename}}',
     errorMissingRequiredFields: 'Beberapa informasi yang diperlukan hilang',
     errorNoServiceConfigured: 'Tidak ada layanan yang dikonfigurasi',
-    errorStreamConfigMissing: 'Bunny Stream tidak dikonfigurasi dengan benar',
+    errorStreamOptionsMissing: 'Bunny Stream tidak dikonfigurasi dengan benar',
     errorTitleRequired: 'Silakan masukkan judul untuk video Anda',
     errorUploadFileFailed: 'Tidak dapat mengunggah file: {{filename}}',
   },

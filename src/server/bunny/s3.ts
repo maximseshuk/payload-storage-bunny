@@ -1,7 +1,7 @@
 import { S3mini } from 's3mini'
 
 import { TIMEOUTS } from '@/shared/constants.js'
-import type { StorageRegion } from '@/shared/types/config.js'
+import type { StorageRegion } from '@/shared/types/options.js'
 
 export type BunnyStorageS3Credentials = {
   apiKey: string

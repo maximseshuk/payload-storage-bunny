@@ -41,18 +41,18 @@ export const TusUpload: React.FC = () => {
     }) as ClientCollectionConfig
   }, [docSlug, getEntityConfig])
 
-  const customCollectionConfig = useMemo(() => {
+  const customCollectionOptions = useMemo(() => {
     return collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']
   }, [collectionConfig])
 
   const allowedMimeTypes = useMemo(() => {
-    return customCollectionConfig?.stream?.mimeTypes || []
-  }, [customCollectionConfig])
+    return customCollectionOptions?.stream?.mimeTypes || []
+  }, [customCollectionOptions])
 
   const collectionSlug = collectionConfig?.slug || ''
   const isBulkUpload = !!bulkUploadContext?.collectionSlug && isModalOpen(bulkUploadContext.modalSlug)
-  const isAutoModeEnabled = customCollectionConfig?.stream?.tus?.autoMode === true && !isBulkUpload
-  const isTusEnabled = customCollectionConfig?.stream?.tus !== undefined && !isBulkUpload
+  const isAutoModeEnabled = customCollectionOptions?.stream?.tus?.autoMode === true && !isBulkUpload
+  const isTusEnabled = customCollectionOptions?.stream?.tus !== undefined && !isBulkUpload
 
   const removeFileManagerFile = useCallback(() => clickFileFieldRemoveButton(fileManagerRef.current), [])
 

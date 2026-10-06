@@ -4,13 +4,13 @@ import { httpFetch } from '@/server/http/index.js'
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStreamCdnUrl } from '@/server/urls.js'
 import { copyHeaders } from '@/shared/http.js'
-import type { NormalizedSignedUrlsConfig, NormalizedStreamConfig } from '@/shared/types/index.js'
+import type { NormalizedSignedUrlsOptions, NormalizedStreamOptions } from '@/shared/types/index.js'
 
 type Args = {
   collection: CollectionConfig
   req: PayloadRequest
-  signedUrls: false | NormalizedSignedUrlsConfig
-  streamConfig: NormalizedStreamConfig
+  signedUrls: false | NormalizedSignedUrlsOptions
+  streamOptions: NormalizedStreamOptions
   thumbnailType: 'preview.webp' | 'thumbnail.jpg'
   usePayloadAccessControl: boolean
   videoId: string
@@ -20,12 +20,12 @@ export const streamThumbnailStaticHandler = async ({
   collection,
   req,
   signedUrls,
-  streamConfig,
+  streamOptions,
   thumbnailType,
   usePayloadAccessControl,
   videoId,
 }: Args): Promise<Response> => {
-  let thumbnailUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, thumbnailType)
+  let thumbnailUrl = buildStreamCdnUrl(streamOptions.hostname, videoId, thumbnailType)
 
   if (req.url) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)
@@ -38,7 +38,7 @@ export const streamThumbnailStaticHandler = async ({
     collection,
     filename: `${videoId}/${thumbnailType}`,
     signedUrls,
-    tokenSecurityKey: streamConfig.tokenSecurityKey,
+    tokenSecurityKey: streamOptions.tokenSecurityKey,
     usePayloadAccessControl,
   }
 

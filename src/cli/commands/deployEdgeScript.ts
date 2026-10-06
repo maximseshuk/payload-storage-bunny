@@ -16,7 +16,7 @@ import { applyEnvFile } from '@/cli/lib/envFile.js'
 import type { Logger } from '@/cli/lib/logger.js'
 import { EDGE_SCRIPT_SOURCE, EDGE_SCRIPT_VERSION } from '@/server/payload/storage/clientUploads/embedded.js'
 import { PLUGIN_KEY } from '@/shared/constants.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
+import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
 /* eslint-disable no-console */
 const logger: Logger = { error: console.error, info: console.log, warn: console.warn }
@@ -24,14 +24,14 @@ const logger: Logger = { error: console.error, info: console.log, warn: console.
 
 let reloadCounter = 0
 
-export const reloadNormalizedConfig = async (): Promise<NormalizedBunnyStorageConfig> => {
+export const reloadNormalizedOptions = async (): Promise<NormalizedBunnyStorageOptions> => {
   const configPath = findConfig()
   const url = `${pathToFileURL(configPath).href}?psb-env-reload=${String(++reloadCounter)}`
 
   const imported = (await import(url)) as { default: unknown }
   const resolved = (await imported.default) as { custom?: Record<string, unknown> }
 
-  const pluginCustom = resolved.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageConfig } | undefined
+  const pluginCustom = resolved.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageOptions } | undefined
   if (!pluginCustom?.config) {
     throw new Error(
       `reloaded Payload config does not include the ${PLUGIN_KEY} plugin; cannot rebuild the deploy plan from --env-file`,
@@ -84,7 +84,7 @@ export const deployEdgeScriptCommand = defineCLICommand({
       return 1
     }
 
-    const originalCustom = config.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageConfig } | undefined
+    const originalCustom = config.custom?.[PLUGIN_KEY] as { config?: NormalizedBunnyStorageOptions } | undefined
 
     let normalized = originalCustom?.config
 
@@ -92,7 +92,7 @@ export const deployEdgeScriptCommand = defineCLICommand({
       try {
         const { names } = applyEnvFile(envFilePath)
         logger.info(`Using env file: ${envFilePath} (${names.length} variables)`)
-        normalized = await reloadNormalizedConfig()
+        normalized = await reloadNormalizedOptions()
       } catch (err) {
         logger.error((err as Error).message)
         return 1

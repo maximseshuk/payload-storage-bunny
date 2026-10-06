@@ -36,7 +36,7 @@ export const da: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Kunne ikke slette fil: {{filename}}',
     errorMissingRequiredFields: 'Nogle nødvendige oplysninger mangler',
     errorNoServiceConfigured: 'Ingen service konfigureret',
-    errorStreamConfigMissing: 'Bunny Stream er ikke konfigureret korrekt',
+    errorStreamOptionsMissing: 'Bunny Stream er ikke konfigureret korrekt',
     errorTitleRequired: 'Indtast venligst en titel til din video',
     errorUploadFileFailed: 'Kunne ikke uploade fil: {{filename}}',
   },

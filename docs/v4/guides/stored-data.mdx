@@ -23,7 +23,7 @@ For a video, the API returns:
 For non-video documents in the same collection, `bunnyData` is omitted from the response.
 
 - `videoId` **Stored** — stored and indexed.
-- `type` and `libraryId` **Computed** — computed on read from your config, not stored in the database.
+- `type` and `libraryId` **Computed** — computed on read from your plugin options, not stored in the database.
 - `resolutions` **Stored** — `available` lists the MP4 renditions Bunny reports (unordered); `highest` is the highest of those whose MP4 file has been verified to exist. Because Bunny encodes renditions asynchronously, `highest` can be lower than the top of `available` until the higher rendition finishes.
 
 <Tip>

@@ -39,7 +39,7 @@ vi.mock('@/server/bunny/cdn.js', () => ({
   purgeCache: purgeCacheMock,
 }))
 
-import { buildContext, storageConfig, streamConfig } from '../../../../helpers/unit/context.js'
+import { buildContext, storageOptions, streamOptions } from '../../../../helpers/unit/context.js'
 import { createReq } from '../../../../helpers/unit/req.js'
 
 const { buildUploadStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
@@ -63,7 +63,7 @@ describe('getHandleUpload', () => {
       createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
       uploadStreamVideoMock.mockResolvedValue(undefined)
 
-      const handler = getHandleUpload(buildContext({ streamConfig } as unknown as Partial<CollectionContext>))
+      const handler = getHandleUpload(buildContext({ streamOptions } as unknown as Partial<CollectionContext>))
       const data: Record<string, unknown> = {}
       const file = createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' })
 
@@ -99,7 +99,7 @@ describe('getHandleUpload', () => {
 
       const req = createReq()
       const handler = getHandleUpload(
-        buildContext({ streamConfig: { ...streamConfig, cleanup: true } } as unknown as Partial<CollectionContext>),
+        buildContext({ streamOptions: { ...streamOptions, cleanup: true } } as unknown as Partial<CollectionContext>),
       )
 
       await handler({
@@ -118,10 +118,10 @@ describe('getHandleUpload', () => {
   })
 
   describe('storage path', () => {
-    it('uploads via the HTTP backend when no S3 config is present', async () => {
+    it('uploads via the HTTP backend when no S3 options are present', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
 
-      const handler = getHandleUpload(buildContext({ storageConfig } as unknown as Partial<CollectionContext>))
+      const handler = getHandleUpload(buildContext({ storageOptions } as unknown as Partial<CollectionContext>))
       const data: Record<string, unknown> = {}
       const file = createFile()
 
@@ -147,11 +147,11 @@ describe('getHandleUpload', () => {
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
 
-    it('uploads via the S3 backend when S3 config is present', async () => {
+    it('uploads via the S3 backend when S3 options are present', async () => {
       uploadStorageFileS3Mock.mockResolvedValue(undefined)
 
       const handler = getHandleUpload(
-        buildContext({ storageConfig: { ...storageConfig, s3: true } } as unknown as Partial<CollectionContext>),
+        buildContext({ storageOptions: { ...storageOptions, s3: true } } as unknown as Partial<CollectionContext>),
       )
       const file = createFile({ filename: 'doc.pdf', mimeType: 'application/pdf' })
 
@@ -182,8 +182,8 @@ describe('getHandleUpload', () => {
       const handler = getHandleUpload(
         buildContext({
           prefix: 'media',
-          purgeConfig: { async: false },
-          storageConfig,
+          purgeOptions: { async: false },
+          storageOptions,
         } as unknown as Partial<CollectionContext>),
       )
       const data = { prefix: '' }
@@ -205,13 +205,13 @@ describe('getHandleUpload', () => {
   })
 
   describe('purge after upload', () => {
-    it('purges the cache when purgeConfig and accountApiKey are present', async () => {
+    it('purges the cache when purgeOptions and accountApiKey are present', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockResolvedValue(undefined)
 
       const req = createReq()
       const handler = getHandleUpload(
-        buildContext({ purgeConfig: { async: false }, storageConfig } as unknown as Partial<CollectionContext>),
+        buildContext({ purgeOptions: { async: false }, storageOptions } as unknown as Partial<CollectionContext>),
       )
 
       const result = await handler({
@@ -237,7 +237,7 @@ describe('getHandleUpload', () => {
 
       const req = createReq()
       const handler = getHandleUpload(
-        buildContext({ purgeConfig: { async: false }, storageConfig } as unknown as Partial<CollectionContext>),
+        buildContext({ purgeOptions: { async: false }, storageOptions } as unknown as Partial<CollectionContext>),
       )
       const data: Record<string, unknown> = {}
 
@@ -262,9 +262,9 @@ describe('getHandleUpload', () => {
 
       const handler = getHandleUpload(
         buildContext({
-          purgeConfig: { async: false },
+          purgeOptions: { async: false },
           signedUrls: { expiresIn: () => 3600 },
-          storageConfig,
+          storageOptions,
           urlTransform: { appendTimestamp: true, queryParams: { v: '2' } },
         } as unknown as Partial<CollectionContext>),
       )
@@ -282,14 +282,14 @@ describe('getHandleUpload', () => {
       )
     })
 
-    it('does not purge when accountApiKey is missing even if purgeConfig is set', async () => {
+    it('does not purge when accountApiKey is missing even if purgeOptions is set', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
 
       const handler = getHandleUpload(
         buildContext({
           accountApiKey: undefined,
-          purgeConfig: { async: false },
-          storageConfig,
+          purgeOptions: { async: false },
+          storageOptions,
         } as unknown as Partial<CollectionContext>),
       )
 
@@ -328,7 +328,7 @@ describe('getHandleUpload', () => {
       uploadStorageFileMock.mockRejectedValue(new Error('network down'))
 
       const req = createReq()
-      const handler = getHandleUpload(buildContext({ storageConfig } as unknown as Partial<CollectionContext>))
+      const handler = getHandleUpload(buildContext({ storageOptions } as unknown as Partial<CollectionContext>))
 
       await expect(
         handler({

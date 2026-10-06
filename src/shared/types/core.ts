@@ -1,13 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
 import type {
-  NormalizedPurgeConfig,
-  NormalizedSignedUrlsConfig,
-  NormalizedStorageConfig,
-  NormalizedStreamConfig,
-  NormalizedThumbnailConfig,
-  NormalizedUrlTransformConfig,
-} from './configNormalized.js'
+  NormalizedPurgeOptions,
+  NormalizedSignedUrlsOptions,
+  NormalizedStorageOptions,
+  NormalizedStreamOptions,
+  NormalizedThumbnailOptions,
+  NormalizedUrlTransformOptions,
+} from './optionsNormalized.js'
 
 export type CollectionContext = {
   accountApiKey?: string
@@ -15,12 +15,12 @@ export type CollectionContext = {
   hasGenerateFileURL: boolean
   isTusUploadSupported: boolean
   prefix?: string
-  purgeConfig?: NormalizedPurgeConfig
-  signedUrls?: NormalizedSignedUrlsConfig
-  storageConfig?: NormalizedStorageConfig
-  streamConfig?: NormalizedStreamConfig
-  thumbnail?: NormalizedThumbnailConfig
-  urlTransform?: NormalizedUrlTransformConfig
+  purgeOptions?: NormalizedPurgeOptions
+  signedUrls?: NormalizedSignedUrlsOptions
+  storageOptions?: NormalizedStorageOptions
+  streamOptions?: NormalizedStreamOptions
+  thumbnail?: NormalizedThumbnailOptions
+  urlTransform?: NormalizedUrlTransformOptions
   usePayloadAccessControl: boolean
 }
 

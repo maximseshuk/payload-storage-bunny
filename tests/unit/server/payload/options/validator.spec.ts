@@ -1,34 +1,34 @@
 import { describe, expect, it } from 'vitest'
 
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
-import { validateNormalizedConfig } from '@/server/payload/config/validator.js'
-import type { BunnyStorageOptions } from '@/shared/types/config.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
+import { validateNormalizedOptions } from '@/server/payload/options/validator.js'
+import type { BunnyStorageOptions } from '@/shared/types/options.js'
 
 import {
   createBaseStorage,
   createBaseStream,
   createOwnStorage,
   createOwnStream,
-} from '../../../../helpers/unit/configBuilders.js'
+} from '../../../../helpers/unit/optionsBuilders.js'
 
-const normalizeAndValidate = (config: BunnyStorageOptions) => {
-  const normalized = createNormalizedConfig(config)
-  validateNormalizedConfig(normalized)
+const normalizeAndValidate = (options: BunnyStorageOptions) => {
+  const normalized = createNormalizedOptions(options)
+  validateNormalizedOptions(normalized)
   return normalized
 }
 
-describe('config validator', () => {
+describe('options validator', () => {
   describe('service requirements', () => {
     it('throws when neither storage nor stream is configured', () => {
-      const config = {
+      const options = {
         collections: { media: true },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow('collections [media] must have at least one service enabled')
+      expect(() => normalizeAndValidate(options)).toThrow('collections [media] must have at least one service enabled')
     })
 
     it('throws when a collection has no service (storage: false, stream: false)', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: {
           media: {
             storage: false,
@@ -39,13 +39,13 @@ describe('config validator', () => {
         stream: createBaseStream(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow('collections [media] must have at least one service enabled')
+      expect(() => normalizeAndValidate(options)).toThrow('collections [media] must have at least one service enabled')
     })
   })
 
   describe('client uploads validation', () => {
     it('throws when edge transport is missing scriptUrl or secret', () => {
-      const config = {
+      const options = {
         collections: { media: true },
         storage: {
           ...createBaseStorage(),
@@ -53,20 +53,20 @@ describe('config validator', () => {
         },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow('uses edge-transport client uploads')
+      expect(() => normalizeAndValidate(options)).toThrow('uses edge-transport client uploads')
     })
 
-    it('throws when edge transport has no edge config at all', () => {
-      const config = {
+    it('throws when edge transport has no edge options at all', () => {
+      const options = {
         collections: { media: true },
         storage: { ...createBaseStorage(), clientUploads: true },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow('uses edge-transport client uploads')
+      expect(() => normalizeAndValidate(options)).toThrow('uses edge-transport client uploads')
     })
 
     it('throws when a collection enables client uploads without Bunny Storage', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: {
           media: {
             disablePayloadAccessControl: true,
@@ -76,7 +76,7 @@ describe('config validator', () => {
         stream: createBaseStream(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collection "media" enables `storage.clientUploads` but Bunny Storage is not enabled for it',
       )
     })
@@ -84,22 +84,22 @@ describe('config validator', () => {
 
   describe('purge validation', () => {
     it.each([true, { async: true }])('throws when purge %o is enabled without accountApiKey', (purge) => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: true },
         purge,
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow('`purge` requires global `accountApiKey` to be provided')
+      expect(() => normalizeAndValidate(options)).toThrow('`purge` requires global `accountApiKey` to be provided')
     })
 
     it.each([true, { async: true }])('throws when collection purge %o is set without accountApiKey', (purge) => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { docs: { purge: false }, media: { purge }, photos: { purge } },
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collections [media, photos] enable `purge` but global `accountApiKey` is not provided',
       )
     })
@@ -107,7 +107,7 @@ describe('config validator', () => {
 
   describe('storage hostname validation', () => {
     it('throws when the storage hostname includes storage.bunnycdn.com', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: true },
         storage: {
           ...createBaseStorage(),
@@ -115,30 +115,30 @@ describe('config validator', () => {
         },
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow('storage `hostname` cannot include "storage.bunnycdn.com"')
+      expect(() => normalizeAndValidate(options)).toThrow('storage `hostname` cannot include "storage.bunnycdn.com"')
     })
   })
 
   describe('signed URL redirect validation', () => {
     it('throws for a permanent redirect status', () => {
-      const config = {
+      const options = {
         collections: { media: true },
         signedUrls: { staticHandler: { redirect: { status: 301 } } },
         storage: createBaseStorage(),
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         '`signedUrls.staticHandler.redirect.status` must be 302 or 307',
       )
     })
 
     it('names the collection in the redirect status error', () => {
-      const config = {
+      const options = {
         collections: { media: { signedUrls: { staticHandler: { redirect: { status: 308 } } } } },
         storage: createBaseStorage(),
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         '`collections.media.signedUrls.staticHandler.redirect.status` must be 302 or 307',
       )
     })
@@ -146,41 +146,41 @@ describe('config validator', () => {
 
   describe('signed URL expiry validation', () => {
     it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 400000000])('throws for signedUrls.expiresIn %s', (value) => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: true },
         signedUrls: { expiresIn: value },
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow('`signedUrls.expiresIn` must be more than 0')
+      expect(() => normalizeAndValidate(options)).toThrow('`signedUrls.expiresIn` must be more than 0')
     })
 
     it('names the collection and the redirect key', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: { signedUrls: { staticHandler: { redirect: { expiresIn: 0 } } } } },
         signedUrls: true,
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         '`collections.media.signedUrls.staticHandler.redirect.expiresIn` must be more than 0',
       )
     })
 
     it('accepts 10 years and functions', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: { signedUrls: { expiresIn: () => 0 } } },
         signedUrls: { expiresIn: 315360000, staticHandler: { redirect: { expiresIn: 60 } } },
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).not.toThrow()
+      expect(() => normalizeAndValidate(options)).not.toThrow()
     })
   })
 
   describe('signed URLs validation', () => {
     it('throws when signedUrls is enabled without storage.tokenSecurityKey', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: true },
         signedUrls: true,
         storage: {
@@ -190,13 +190,13 @@ describe('config validator', () => {
         },
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collections [media] enable `signedUrls` but storage `tokenSecurityKey` is not provided',
       )
     })
 
     it('throws when signedUrls and stream are set without stream.tokenSecurityKey', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: {
           media: {
             disablePayloadAccessControl: true,
@@ -211,24 +211,24 @@ describe('config validator', () => {
         },
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collections [media] enable `signedUrls` but stream `tokenSecurityKey` is not provided',
       )
     })
 
     it('throws when collection signedUrls is enabled without storage.tokenSecurityKey', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: { signedUrls: true } },
         storage: createBaseStorage({ tokenSecurityKey: undefined }),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collections [media] enable `signedUrls` but storage `tokenSecurityKey` is not provided',
       )
     })
 
     it('throws when collection signedUrls is enabled without stream.tokenSecurityKey', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: {
           media: {
             disablePayloadAccessControl: true,
@@ -244,7 +244,7 @@ describe('config validator', () => {
         },
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collections [media] enable `signedUrls` but stream `tokenSecurityKey` is not provided',
       )
     })
@@ -252,7 +252,7 @@ describe('config validator', () => {
 
   describe('access control and stream validation', () => {
     it('throws when access control and stream are set without mp4Fallback or a signed redirect', () => {
-      const config = {
+      const options = {
         collections: {
           videos: {
             disablePayloadAccessControl: false,
@@ -265,13 +265,13 @@ describe('config validator', () => {
         },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collections [videos] with `disablePayloadAccessControl: false` require',
       )
     })
 
     it('throws for multiple collections with issues', () => {
-      const config = {
+      const options = {
         collections: {
           videos1: { disablePayloadAccessControl: false },
           videos2: { disablePayloadAccessControl: false },
@@ -283,7 +283,7 @@ describe('config validator', () => {
         },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         /collections \[videos1, videos2\]|collections \[videos2, videos1\]/,
       )
     })
@@ -291,75 +291,75 @@ describe('config validator', () => {
 
   describe('per-collection full override validation', () => {
     it('throws when a full storage override is missing zoneName', () => {
-      const config = {
+      const options = {
         collections: { media: { storage: { apiKey: 'k', hostname: 'media.b-cdn.net' } } },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collection "media" provides its own storage config but is missing `zoneName`',
       )
     })
 
     it('throws when a full stream override is missing hostname and libraryId', () => {
-      const config = {
+      const options = {
         collections: { media: { disablePayloadAccessControl: true, stream: { apiKey: 'k' } } },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collection "media" provides its own stream config but is missing `hostname`',
       )
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collection "media" provides its own stream config but is missing `libraryId`',
       )
     })
 
     it('throws when an own zone has no tokenSecurityKey but inherits global signedUrls', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: { media: { storage: createOwnStorage('media') } },
         signedUrls: true,
         storage: createBaseStorage(),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collections [media] enable `signedUrls` but storage `tokenSecurityKey` is not provided',
       )
     })
 
     it('throws when an own zone hostname includes storage.bunnycdn.com', () => {
-      const config = {
+      const options = {
         collections: { media: { storage: createOwnStorage('media', { hostname: 'x.storage.bunnycdn.com' }) } },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'collection "media" storage `hostname` cannot include "storage.bunnycdn.com"',
       )
     })
 
     it('throws the edge transport error for an own zone with clientUploads but no S3 or edge', () => {
-      const config = {
+      const options = {
         collections: { media: { storage: createOwnStorage('media', { clientUploads: true }) } },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow('collection "media" uses edge-transport client uploads')
+      expect(() => normalizeAndValidate(options)).toThrow('collection "media" uses edge-transport client uploads')
     })
   })
 
   describe('cross-collection conflicts', () => {
     it('throws when the same library is configured with different apiKeys', () => {
-      const config = {
+      const options = {
         collections: {
           a: { disablePayloadAccessControl: true, stream: { apiKey: 'key-a', hostname: 'a.b-cdn.net', libraryId: 55 } },
           b: { disablePayloadAccessControl: true, stream: { apiKey: 'key-b', hostname: 'b.b-cdn.net', libraryId: 55 } },
         },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'stream library 55 is configured with conflicting API keys across collections',
       )
     })
 
     it('throws when the same library is configured with different webhook secrets', () => {
-      const config = {
+      const options = {
         collections: {
           a: {
             disablePayloadAccessControl: true,
@@ -372,13 +372,13 @@ describe('config validator', () => {
         },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'stream library 55 is configured with conflicting webhook secrets across collections',
       )
     })
 
     it('throws when a webhook secret is an empty string', () => {
-      const config = {
+      const options = {
         collections: {
           a: {
             disablePayloadAccessControl: true,
@@ -387,29 +387,29 @@ describe('config validator', () => {
         },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow('stream `webhook.secret` must be a non-empty string')
+      expect(() => normalizeAndValidate(options)).toThrow('stream `webhook.secret` must be a non-empty string')
     })
   })
 
   describe('relaxed top-level requirements', () => {
     it('throws when a collection has only a partial override and no global service', () => {
-      const config = {
+      const options = {
         collections: { media: { storage: { uploadTimeout: 5 } } },
       } as unknown as BunnyStorageOptions
 
-      expect(() => normalizeAndValidate(config)).toThrow('collections [media] must have at least one service enabled')
+      expect(() => normalizeAndValidate(options)).toThrow('collections [media] must have at least one service enabled')
     })
   })
 
   describe('error message format', () => {
     it('combines multiple errors with semicolons', () => {
-      const config = {
+      const options = {
         collections: { media: true },
         purge: true,
       } as unknown as BunnyStorageOptions
 
       try {
-        normalizeAndValidate(config)
+        normalizeAndValidate(options)
         expect.fail('Should have thrown')
       } catch (e) {
         const message = (e as Error).message
@@ -422,7 +422,7 @@ describe('config validator', () => {
 
   describe('shared Edge Script secret consistency', () => {
     it('throws when zones share a scriptUrl but configure different secrets', () => {
-      const config: BunnyStorageOptions = {
+      const options: BunnyStorageOptions = {
         collections: {
           archives: {
             storage: createOwnStorage('archives', {
@@ -436,7 +436,7 @@ describe('config validator', () => {
         }),
       }
 
-      expect(() => normalizeAndValidate(config)).toThrow(
+      expect(() => normalizeAndValidate(options)).toThrow(
         'share `clientUploads.edge.scriptUrl` but configure different `secret` values',
       )
     })
@@ -456,7 +456,7 @@ describe('config validator', () => {
       },
     ],
     [
-      's3 transport without edge config',
+      's3 transport without edge options',
       { collections: { media: true }, storage: { ...createBaseStorage(), clientUploads: {}, s3: true } },
     ],
     [
@@ -605,7 +605,7 @@ describe('config validator', () => {
         }),
       },
     ],
-  ])('accepts %s', (_, config) => {
-    expect(() => normalizeAndValidate(config as BunnyStorageOptions)).not.toThrow()
+  ])('accepts %s', (_, options) => {
+    expect(() => normalizeAndValidate(options as BunnyStorageOptions)).not.toThrow()
   })
 })

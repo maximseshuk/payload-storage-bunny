@@ -47,13 +47,13 @@ vi.mock('@/server/payload/stream/tusSignature.js', async (importOriginal) => ({
 const { verifyClientUploadReceipt } = await import('payload/internal')
 const { readClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
 const { signStreamVideoToken } = await import('@/server/payload/stream/tusSignature.js')
-const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
+const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
 
 const collection = { slug: 'media', upload: { mimeTypes: ['video/mp4'] } }
 
-const buildConfig = (streamOverrides: Record<string, unknown> = {}, cleanup = false) =>
-  createNormalizedConfig({
+const buildOptions = (streamOverrides: Record<string, unknown> = {}, cleanup = false) =>
+  createNormalizedOptions({
     collections: { media: { disablePayloadAccessControl: true } },
     stream: {
       apiKey: 'stream-key',
@@ -87,8 +87,8 @@ const tokenFor = (videoId: string, collectionSlug = 'media', libraryId = 12345, 
     videoId,
   })
 
-const getTusHandler = (config: ReturnType<typeof buildConfig>) => {
-  const endpoint = getStreamEndpoints(config).find((e) => e.path === '/storage-bunny/stream/tus-auth')
+const getTusHandler = (options: ReturnType<typeof buildOptions>) => {
+  const endpoint = getStreamEndpoints(options).find((e) => e.path === '/storage-bunny/stream/tus-auth')
   return endpoint!.handler as (req: never) => Promise<Response>
 }
 
@@ -110,7 +110,7 @@ describe('TUS auth endpoint', () => {
   it('creates a new video and returns a signed upload payload', async () => {
     vi.useFakeTimers()
     try {
-      const handler = getTusHandler(buildConfig())
+      const handler = getTusHandler(buildOptions())
       const res = await handler(buildReq(validBody))
       const json = await res.json()
 
@@ -129,19 +129,19 @@ describe('TUS auth endpoint', () => {
   })
 
   it('throws 400 when required fields are missing', async () => {
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     await expect(handler(buildReq({ collection: 'media', filename: 'clip.mp4' }))).rejects.toMatchObject({
       status: 400,
     })
   })
 
   it('throws 403 when access is denied', async () => {
-    const handler = getTusHandler(buildConfig({ tus: { access: () => false } }))
+    const handler = getTusHandler(buildOptions({ tus: { access: () => false } }))
     await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
   })
 
-  it('throws 400 when the requested collection has no stream TUS config', async () => {
-    const config = createNormalizedConfig({
+  it('throws 400 when the requested collection has no stream TUS options', async () => {
+    const options = createNormalizedOptions({
       collections: { media: { disablePayloadAccessControl: true, stream: { tus: false } } },
       stream: {
         apiKey: 'stream-key',
@@ -150,17 +150,17 @@ describe('TUS auth endpoint', () => {
         tus: { access: () => true },
       },
     } as never)
-    const handler = getTusHandler(config)
+    const handler = getTusHandler(options)
     await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 400 })
   })
 
   it('throws 404 when the requested collection is unknown', async () => {
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     await expect(handler(buildReq({ ...validBody, collection: 'ghost' }))).rejects.toMatchObject({ status: 404 })
   })
 
   it('throws 400 when the resolved title is empty', async () => {
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     await expect(handler(buildReq({ ...validBody, filename: '   ', title: '' }))).rejects.toMatchObject({ status: 400 })
   })
 
@@ -169,7 +169,7 @@ describe('TUS auth endpoint', () => {
     isErrorMock.mockReturnValue(false)
     isProcessedMock.mockReturnValue(true)
 
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'existing-1', videoToken: tokenFor('existing-1') }))
     const json = await res.json()
 
@@ -186,7 +186,7 @@ describe('TUS auth endpoint', () => {
     isProcessedMock.mockReturnValue(false)
     canUploadToVideoMock.mockReturnValue(true)
 
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }))
     const json = await res.json()
 
@@ -205,7 +205,7 @@ describe('TUS auth endpoint', () => {
   ])('creates a new video when the videoId comes with %s', async (_label, videoToken) => {
     canUploadToVideoMock.mockReturnValue(true)
 
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
     const json = await res.json()
 
@@ -217,7 +217,7 @@ describe('TUS auth endpoint', () => {
 
   it('binds the video token to the signed-in user', async () => {
     const user = { collection: 'users', id: 'user-1' }
-    const json = await (await getTusHandler(buildConfig())(buildReq(validBody, { user }))).json()
+    const json = await (await getTusHandler(buildOptions())(buildReq(validBody, { user }))).json()
 
     expect(json.videoToken).toBe(tokenFor('new-video-1', 'media', 12345, user))
     expect(json.videoToken).not.toBe(tokenFor('new-video-1'))
@@ -229,7 +229,7 @@ describe('TUS auth endpoint', () => {
       const videoToken = tokenFor('reuse-1')
       vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1000)
       const json = await (
-        await getTusHandler(buildConfig())(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
+        await getTusHandler(buildOptions())(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
       ).json()
 
       expect(getVideoMock).not.toHaveBeenCalled()
@@ -240,7 +240,7 @@ describe('TUS auth endpoint', () => {
   })
 
   it('returns a signed upload reference bound to the video and head when the file head is sent', async () => {
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     const req = buildReq(
       { ...validBody, head: 'AAAA' },
       {
@@ -270,7 +270,7 @@ describe('TUS auth endpoint', () => {
   })
 
   it('signs the collection prefix, never the zone root', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: { disablePayloadAccessControl: true, prefix: 'media' } },
       stream: {
         apiKey: 'stream-key',
@@ -291,7 +291,7 @@ describe('TUS auth endpoint', () => {
         },
       },
     )
-    const json = await (await getTusHandler(config)(req)).json()
+    const json = await (await getTusHandler(options)(req)).json()
 
     expect(
       verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt: json.signedReceipt }).filePrefix,
@@ -299,7 +299,7 @@ describe('TUS auth endpoint', () => {
   })
 
   it('binds the upload reference to a unique file name', async () => {
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     const taken = new Set(['clip.mp4'])
     const req = buildReq(
       { ...validBody, head: 'AAAA' },
@@ -337,19 +337,19 @@ describe('TUS auth endpoint', () => {
 
     it.each([
       ['a type outside upload.mimeTypes', { filetype: 'video/webm' }, { mimeTypes: ['video/mp4'] }, 415],
-      ['a type the stream config does not accept', { filename: 'a.png', filetype: 'image/png' }, {}, 415],
+      ['a type the stream options do not accept', { filename: 'a.png', filetype: 'image/png' }, {}, 415],
       ['a restricted file type', { filename: 'clip.html' }, { mimeTypes: ['video/mp4'] }, 415],
       ['an SVG file', { filename: 'a.svg', filetype: 'image/svg+xml' }, {}, 400],
       ['an invalid MIME type', { filetype: 'not a type' }, {}, 400],
       ['a fractional file size', { filesize: 1.5 }, {}, 400],
     ])('rejects %s before creating a video', async (_label, overrides, upload, status) => {
-      const handler = getTusHandler(buildConfig())
+      const handler = getTusHandler(buildOptions())
       await expect(handler(buildCheckReq({ ...validBody, ...overrides }, upload))).rejects.toMatchObject({ status })
       expect(createVideoMock).not.toHaveBeenCalled()
     })
 
     it('rejects a file over upload.limits.fileSize', async () => {
-      const handler = getTusHandler(buildConfig())
+      const handler = getTusHandler(buildOptions())
       await expect(handler(buildCheckReq(validBody, {}, 999))).rejects.toMatchObject({ status: 413 })
       expect(createVideoMock).not.toHaveBeenCalled()
     })
@@ -359,7 +359,7 @@ describe('TUS auth endpoint', () => {
       isErrorMock.mockReturnValue(false)
       isProcessedMock.mockReturnValue(true)
 
-      const handler = getTusHandler(buildConfig())
+      const handler = getTusHandler(buildOptions())
       const body = { ...validBody, filetype: 'text/html', videoId: 'existing-1', videoToken: tokenFor('existing-1') }
       await expect(handler(buildCheckReq(body, {}))).rejects.toMatchObject({ status: 415 })
       expect(getVideoMock).not.toHaveBeenCalled()
@@ -367,7 +367,7 @@ describe('TUS auth endpoint', () => {
   })
 
   it('rejects an oversized file head', async () => {
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     await expect(handler(buildReq({ ...validBody, head: 'A'.repeat(8193) }))).rejects.toMatchObject({ status: 400 })
     expect(createVideoMock).not.toHaveBeenCalled()
   })
@@ -377,7 +377,7 @@ describe('TUS auth endpoint', () => {
     isErrorMock.mockReturnValue(true)
     isProcessedMock.mockReturnValue(false)
 
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'broken-1', videoToken: tokenFor('broken-1') }))
     const json = await res.json()
 
@@ -388,7 +388,7 @@ describe('TUS auth endpoint', () => {
   it('creates a fresh video when the lookup throws', async () => {
     getVideoMock.mockRejectedValue(new Error('not found'))
 
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'missing-1', videoToken: tokenFor('missing-1') }))
     const json = await res.json()
 
@@ -399,7 +399,7 @@ describe('TUS auth endpoint', () => {
   it('wraps an unexpected error as a 500', async () => {
     createVideoMock.mockRejectedValue(new Error('boom'))
     const req = buildReq(validBody)
-    const handler = getTusHandler(buildConfig())
+    const handler = getTusHandler(buildOptions())
 
     await expect(handler(req)).rejects.toMatchObject({ status: 500 })
     expect(
@@ -408,7 +408,7 @@ describe('TUS auth endpoint', () => {
   })
 
   describe('default access control (getAccessResults)', () => {
-    const noAccessConfig = () => buildConfig({ tus: true })
+    const noAccessOptions = () => buildOptions({ tus: true })
 
     it('grants access with admin access and create access on a configured collection', async () => {
       getAccessResultsMock.mockResolvedValue({
@@ -416,7 +416,7 @@ describe('TUS auth endpoint', () => {
         collections: { media: { create: true } },
       })
 
-      const handler = getTusHandler(noAccessConfig())
+      const handler = getTusHandler(noAccessOptions())
       const res = await handler(buildReq(validBody))
       const json = await res.json()
 
@@ -429,7 +429,7 @@ describe('TUS auth endpoint', () => {
         collections: { media: { create: true } },
       })
 
-      const handler = getTusHandler(noAccessConfig())
+      const handler = getTusHandler(noAccessOptions())
       await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
       expect(createVideoMock).not.toHaveBeenCalled()
     })
@@ -438,7 +438,7 @@ describe('TUS auth endpoint', () => {
       const access = vi.fn().mockReturnValue(true)
       const req = buildReq(validBody)
 
-      const res = await getTusHandler(buildConfig({ tus: { access } }))(req)
+      const res = await getTusHandler(buildOptions({ tus: { access } }))(req)
 
       expect((await res.json()).type).toBe('upload')
       expect(access).toHaveBeenCalledWith(
@@ -456,7 +456,7 @@ describe('TUS auth endpoint', () => {
         async ({ data, defaultAccess }: { data: { filesize: number }; defaultAccess: () => Promise<boolean> }) =>
           data.filesize < 500 && (await defaultAccess()),
       )
-      const handler = getTusHandler(buildConfig({ tus: { access } }))
+      const handler = getTusHandler(buildOptions({ tus: { access } }))
 
       await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 403 })
       expect(getAccessResultsMock).not.toHaveBeenCalled()
@@ -470,8 +470,8 @@ describe('TUS auth endpoint', () => {
       const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
       const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
 
-      const buildScopedConfig = () =>
-        createNormalizedConfig({
+      const buildScopedOptions = () =>
+        createNormalizedOptions({
           collections: {
             alpha: {
               disablePayloadAccessControl: true,
@@ -506,7 +506,7 @@ describe('TUS auth endpoint', () => {
         })
         createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
 
-        const handler = getTusHandler(buildScopedConfig())
+        const handler = getTusHandler(buildScopedOptions())
         await expect(handler(buildScopedReq(betaBody))).rejects.toMatchObject({ status: 403 })
         expect(createVideoMock).not.toHaveBeenCalled()
 
@@ -521,8 +521,8 @@ describe('TUS auth endpoint', () => {
     const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
     const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
 
-    const buildMultiConfig = () =>
-      createNormalizedConfig({
+    const buildMultiOptions = () =>
+      createNormalizedOptions({
         collections: {
           alpha: {
             disablePayloadAccessControl: true,
@@ -569,7 +569,7 @@ describe('TUS auth endpoint', () => {
 
     it('creates the signature and response for the library of the requested collection', async () => {
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
-      const handler = getTusHandler(buildMultiConfig())
+      const handler = getTusHandler(buildMultiOptions())
       const res = await handler(buildMultiReq(alphaBody))
       const json = await res.json()
 
@@ -584,7 +584,7 @@ describe('TUS auth endpoint', () => {
       isProcessedMock.mockReturnValue(false)
       canUploadToVideoMock.mockReturnValue(true)
 
-      const handler = getTusHandler(buildMultiConfig())
+      const handler = getTusHandler(buildMultiOptions())
       await handler(buildMultiReq({ ...betaBody, videoId: 'reuse-b', videoToken: tokenFor('reuse-b', 'beta', 222) }))
 
       expect(getVideoMock).toHaveBeenCalledWith(
@@ -594,7 +594,7 @@ describe('TUS auth endpoint', () => {
 
     it('creates a session only for a collection with cleanup enabled', async () => {
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
-      const handler = getTusHandler(buildMultiConfig())
+      const handler = getTusHandler(buildMultiOptions())
       await handler(buildMultiReq(alphaBody))
       expect(createSessionMock).toHaveBeenCalledWith(expect.objectContaining({ libraryId: 111, videoId: 'v-alpha' }))
 
@@ -609,7 +609,7 @@ describe('TUS auth endpoint', () => {
       const betaAccess = vi.fn().mockResolvedValue(true)
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
 
-      const config = createNormalizedConfig({
+      const options = createNormalizedOptions({
         collections: {
           alpha: {
             disablePayloadAccessControl: true,
@@ -632,14 +632,14 @@ describe('TUS auth endpoint', () => {
         },
       } as never)
 
-      const handler = getTusHandler(config)
+      const handler = getTusHandler(options)
       await handler(buildMultiReq(alphaBody))
       expect(alphaAccess).toHaveBeenCalled()
       expect(betaAccess).not.toHaveBeenCalled()
     })
 
     it('registers the tus-auth endpoint when only a collection has TUS', () => {
-      const config = createNormalizedConfig({
+      const options = createNormalizedOptions({
         collections: {
           videos: {
             disablePayloadAccessControl: true,
@@ -648,7 +648,7 @@ describe('TUS auth endpoint', () => {
         },
       } as never)
 
-      const endpoint = getStreamEndpoints(config).find((e) => e.path === '/storage-bunny/stream/tus-auth')
+      const endpoint = getStreamEndpoints(options).find((e) => e.path === '/storage-bunny/stream/tus-auth')
       expect(endpoint).toBeDefined()
     })
   })

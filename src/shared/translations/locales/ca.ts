@@ -36,7 +36,7 @@ export const ca: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: "No s'ha pogut eliminar el fitxer: {{filename}}",
     errorMissingRequiredFields: 'Falta alguna informació necessària',
     errorNoServiceConfigured: "No s'ha configurat cap servei",
-    errorStreamConfigMissing: 'Bunny Stream no està configurat correctament',
+    errorStreamOptionsMissing: 'Bunny Stream no està configurat correctament',
     errorTitleRequired: 'Si us plau, introduïu un títol per al vostre vídeo',
     errorUploadFileFailed: "No s'ha pogut carregar el fitxer: {{filename}}",
   },

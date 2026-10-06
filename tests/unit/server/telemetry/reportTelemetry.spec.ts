@@ -1,15 +1,15 @@
 import type { Payload } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
 import { reportTelemetry } from '@/server/telemetry/index.js'
-import type { BunnyStorageOptions } from '@/shared/types/config.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
+import type { BunnyStorageOptions } from '@/shared/types/options.js'
+import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
-import { createBaseStorage } from '../../../helpers/unit/configBuilders.js'
+import { createBaseStorage } from '../../../helpers/unit/optionsBuilders.js'
 
-const makeConfig = (overrides: Partial<BunnyStorageOptions> = {}): NormalizedBunnyStorageConfig =>
-  createNormalizedConfig({ collections: { media: true }, storage: createBaseStorage(), ...overrides })
+const makeOptions = (overrides: Partial<BunnyStorageOptions> = {}): NormalizedBunnyStorageOptions =>
+  createNormalizedOptions({ collections: { media: true }, storage: createBaseStorage(), ...overrides })
 
 const info = vi.fn()
 
@@ -20,8 +20,8 @@ const makePayload = (telemetry?: boolean): Payload =>
     secret: 'sekret',
   }) as unknown as Payload
 
-const run = (config: NormalizedBunnyStorageConfig, deps: Parameters<typeof reportTelemetry>[1]) =>
-  reportTelemetry({ config, payload: makePayload() }, { env: {}, readState: () => ({}), ...deps })
+const run = (options: NormalizedBunnyStorageOptions, deps: Parameters<typeof reportTelemetry>[1]) =>
+  reportTelemetry({ options, payload: makePayload() }, { env: {}, readState: () => ({}), ...deps })
 
 beforeEach(() => {
   info.mockReset()
@@ -32,7 +32,7 @@ describe('reportTelemetry', () => {
     const send = vi.fn().mockResolvedValue(undefined)
     const writeState = vi.fn()
 
-    await run(makeConfig(), { send, writeState })
+    await run(makeOptions(), { send, writeState })
 
     expect(send).toHaveBeenCalledTimes(1)
     const [report, endpoint] = send.mock.calls[0]
@@ -45,7 +45,7 @@ describe('reportTelemetry', () => {
   it('uses the custom collector from telemetry.url', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
 
-    await run(makeConfig({ telemetry: { url: 'https://my.collector/v1/collect' } }), { send, writeState: vi.fn() })
+    await run(makeOptions({ telemetry: { url: 'https://my.collector/v1/collect' } }), { send, writeState: vi.fn() })
 
     expect(send.mock.calls[0][1]).toBe('https://my.collector/v1/collect')
   })
@@ -58,11 +58,11 @@ describe('reportTelemetry', () => {
     ['NODE_ENV=test', { env: { NODE_ENV: 'test' } }],
   ])('does not send when disabled by %s', async (_label, opts) => {
     const send = vi.fn().mockResolvedValue(undefined)
-    const config = makeConfig('telemetry' in opts ? { telemetry: opts.telemetry } : {})
+    const options = makeOptions('telemetry' in opts ? { telemetry: opts.telemetry } : {})
     const payload = makePayload('payloadTelemetry' in opts ? opts.payloadTelemetry : undefined)
 
     await reportTelemetry(
-      { config, payload },
+      { options, payload },
       { env: 'env' in opts ? opts.env : {}, readState: () => ({}), send, writeState: vi.fn() },
     )
 
@@ -73,7 +73,7 @@ describe('reportTelemetry', () => {
     const send = vi.fn().mockResolvedValue(undefined)
     const now = new Date('2026-07-30T10:00:00Z')
 
-    await run(makeConfig(), {
+    await run(makeOptions(), {
       now,
       readState: () => ({ lastSentDay: '2026-07-30', noticeShown: true }),
       send,
@@ -86,7 +86,7 @@ describe('reportTelemetry', () => {
   it('prints the notice only once across runs', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
 
-    await run(makeConfig(), { readState: () => ({ noticeShown: true }), send, writeState: vi.fn() })
+    await run(makeOptions(), { readState: () => ({ noticeShown: true }), send, writeState: vi.fn() })
 
     expect(info).not.toHaveBeenCalled()
     expect(send).toHaveBeenCalledTimes(1)
@@ -95,14 +95,14 @@ describe('reportTelemetry', () => {
   it('never throws when sending rejects', async () => {
     const send = vi.fn().mockRejectedValue(new Error('boom'))
 
-    await expect(run(makeConfig(), { send, writeState: vi.fn() })).resolves.toBeUndefined()
+    await expect(run(makeOptions(), { send, writeState: vi.fn() })).resolves.toBeUndefined()
   })
 
   it('never throws when reading throttle state fails', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
 
     await expect(
-      run(makeConfig(), {
+      run(makeOptions(), {
         readState: () => {
           throw new Error('fs down')
         },

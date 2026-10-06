@@ -36,7 +36,7 @@ export const th: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'ไม่สามารถลบไฟล์ได้: {{filename}}',
     errorMissingRequiredFields: 'ข้อมูลที่จำเป็นบางส่วนหายไป',
     errorNoServiceConfigured: 'ไม่มีบริการที่กำหนดค่าไว้',
-    errorStreamConfigMissing: 'Bunny Stream ไม่ได้กำหนดค่าอย่างถูกต้อง',
+    errorStreamOptionsMissing: 'Bunny Stream ไม่ได้กำหนดค่าอย่างถูกต้อง',
     errorTitleRequired: 'กรุณาใส่ชื่อเรื่องสำหรับวิดีโอของคุณ',
     errorUploadFileFailed: 'ไม่สามารถอัปโหลดไฟล์ได้: {{filename}}',
   },

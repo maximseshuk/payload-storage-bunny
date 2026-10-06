@@ -11,16 +11,16 @@ import type {
 import type { AcceptedLanguages } from '@payloadcms/translations'
 import type { Config } from 'payload'
 
+import { getAfterReadHook } from '@/server/payload/fields/bunnyGroupField.js'
+import { getFields } from '@/server/payload/fields/getFields.js'
 import {
   assertNoRemovedKeys,
   createCollectionContext,
-  createNormalizedConfig,
+  createNormalizedOptions,
   hasAnyStorage,
   hasAnyStreamCleanup,
-  validateNormalizedConfig,
-} from '@/server/payload/config/index.js'
-import { getAfterReadHook } from '@/server/payload/fields/bunnyGroupField.js'
-import { getFields } from '@/server/payload/fields/getFields.js'
+  validateNormalizedOptions,
+} from '@/server/payload/options/index.js'
 import {
   getBeforeChangeHook,
   getBeforeOperationHook,
@@ -36,21 +36,21 @@ import { reportTelemetry } from '@/server/telemetry/index.js'
 import { PLUGIN_KEY } from '@/shared/constants.js'
 import { translations } from '@/shared/translations/index.js'
 import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
-import type { NormalizedBunnyStorageConfig } from '@/shared/types/configNormalized.js'
 import type { BunnyStorageOptions, BunnyStoragePlugin, CollectionContext } from '@/shared/types/index.js'
+import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
 export {
-  getBunnyCollectionConfig,
-  getBunnyConfig,
+  getBunnyCollectionOptions,
+  getBunnyOptions,
   getBunnyStorageForCollection,
   getBunnyStreamForCollection,
-} from '@/server/payload/config/access.js'
+} from '@/server/payload/options/access.js'
 export type {
-  BunnyCollectionConfig,
+  BunnyCollectionOptions,
   BunnyCollectionStorage,
   BunnyCollectionStream,
-} from '@/server/payload/config/access.js'
-export type { NormalizedBunnyStorageConfig, NormalizedCollectionConfig } from '@/shared/types/configNormalized.js'
+} from '@/server/payload/options/access.js'
+export type { NormalizedBunnyStorageOptions, NormalizedCollectionOptions } from '@/shared/types/optionsNormalized.js'
 export type { BunnyStorageCollectionOptions, BunnyStorageOptions } from '@/shared/types/index.js'
 
 const CLIENT_UPLOAD_HANDLER_PATH = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
@@ -73,28 +73,28 @@ const getCloudStorageCollections = (
     {} as Record<string, CollectionOptions>,
   )
 
-export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptions) => ({
+export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOptions) => ({
   name: 'bunny',
-  collections: Object.entries(pluginConfig.collections)
+  collections: Object.entries(pluginOptions.collections)
     .filter(([, collOptions]) => collOptions)
     .map(([slug]) => slug),
   init: (incomingConfig: Config): Config => {
-    assertNoRemovedKeys(pluginConfig)
+    assertNoRemovedKeys(pluginOptions)
 
-    if (pluginConfig.enabled === false) {
+    if (pluginOptions.enabled === false) {
       return cloudStoragePlugin({
-        collections: getCloudStorageCollections(pluginConfig.collections, null),
+        collections: getCloudStorageCollections(pluginOptions.collections, null),
         enabled: false,
       })(incomingConfig)
     }
 
-    const config = createNormalizedConfig(pluginConfig)
-    validateNormalizedConfig(config)
+    const options = createNormalizedOptions(pluginOptions)
+    validateNormalizedOptions(options)
 
-    const collectionsWithAdapter = getCloudStorageCollections(pluginConfig.collections, bunnyStorageInternal(config))
+    const collectionsWithAdapter = getCloudStorageCollections(pluginOptions.collections, bunnyStorageInternal(options))
 
-    const streamEndpoints = getStreamEndpoints(config)
-    const cleanupTask = getStreamCleanupTask(config)
+    const streamEndpoints = getStreamEndpoints(options)
+    const cleanupTask = getStreamCleanupTask(options)
 
     const dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -108,7 +108,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
         },
       },
       cli:
-        incomingConfig.cli === false || !hasAnyStorage(config)
+        incomingConfig.cli === false || !hasAnyStorage(options)
           ? incomingConfig.cli
           : {
               ...incomingConfig.cli,
@@ -121,7 +121,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
         ...incomingConfig.custom,
         [PLUGIN_KEY]: {
           ...(incomingConfig.custom?.[PLUGIN_KEY] || {}),
-          config,
+          config: options,
         },
       },
       collections: [
@@ -136,9 +136,9 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
             )
           }
 
-          const collectionContext = createCollectionContext(config, collection)
+          const collectionContext = createCollectionContext(options, collection)
           const usesClientUploadReceipt =
-            !!collectionContext.storageConfig?.clientUploads || collectionContext.isTusUploadSupported
+            !!collectionContext.storageOptions?.clientUploads || collectionContext.isTusUploadSupported
 
           const originalFilesRequiredOnCreate =
             typeof collection.upload === 'object' ? (collection.upload.filesRequiredOnCreate ?? true) : true
@@ -160,19 +160,19 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
                     : {}),
                 },
               },
-              ...(collectionContext.streamConfig
+              ...(collectionContext.streamOptions
                 ? {
                     custom: {
                       ...(collection.admin?.custom || {}),
                       '@seshuk/payload-storage-bunny': {
                         ...(collection.admin?.custom?.['@seshuk/payload-storage-bunny'] || {}),
                         stream: {
-                          libraryId: collectionContext.streamConfig.libraryId,
-                          mimeTypes: collectionContext.streamConfig.mimeTypes,
+                          libraryId: collectionContext.streamOptions.libraryId,
+                          mimeTypes: collectionContext.streamOptions.mimeTypes,
                           ...(collectionContext.isTusUploadSupported
                             ? {
                                 tus: {
-                                  autoMode: collectionContext.streamConfig.tus?.autoMode,
+                                  autoMode: collectionContext.streamOptions.tus?.autoMode,
                                 },
                               }
                             : {}),
@@ -188,7 +188,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
               afterChange: [...(collection.hooks?.afterChange || []), getAfterChangeHook(collectionContext)],
               afterRead: [
                 ...(collection.hooks?.afterRead || []),
-                ...(collectionContext.streamConfig ? [getAfterReadHook()] : []),
+                ...(collectionContext.streamOptions ? [getAfterReadHook()] : []),
               ],
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
@@ -203,7 +203,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
                 ...(collectionContext.isTusUploadSupported
                   ? [
                       getBeforeValidateHook({
-                        config,
+                        options,
                         context: collectionContext,
                         filesRequiredOnCreate: originalFilesRequiredOnCreate,
                       }),
@@ -229,7 +229,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
             },
           }
         }),
-        ...(hasAnyStreamCleanup(config) ? [getStreamUploadSessionsCollection()] : []),
+        ...(hasAnyStreamCleanup(options) ? [getStreamUploadSessionsCollection()] : []),
       ],
       endpoints: [...(incomingConfig.endpoints || []), ...streamEndpoints],
       i18n: {
@@ -270,7 +270,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
         if (cleanupTask) {
           warnIfCleanupQueueNotRun({ payload, task: cleanupTask })
         }
-        void reportTelemetry({ config, payload }).catch(() => {})
+        void reportTelemetry({ options, payload }).catch(() => {})
       },
     }
 
@@ -281,11 +281,11 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginConfig: BunnyStorageOptio
 })
 
 const hasClientUploads = (context: CollectionContext): boolean =>
-  !!context.storageConfig?.clientUploads || hasStreamClientUploads(context)
+  !!context.storageOptions?.clientUploads || hasStreamClientUploads(context)
 
-const bunnyStorageInternal = (config: NormalizedBunnyStorageConfig): Adapter => {
+const bunnyStorageInternal = (options: NormalizedBunnyStorageOptions): Adapter => {
   return ({ collection, prefix }): GeneratedAdapter => {
-    const collectionContext = createCollectionContext(config, collection, prefix)
+    const collectionContext = createCollectionContext(options, collection, prefix)
 
     return {
       name: 'bunny',

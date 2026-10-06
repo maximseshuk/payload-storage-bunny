@@ -34,7 +34,7 @@ Provide `storage`, `stream`, or both at the top level — or omit both and give 
 The plugin validates your config on startup and throws a clear error if any of these are missing:
 
 - Every collection set to `true` or an object must end up with at least one active service (storage or stream) after overrides are applied — either from the top-level `storage`/`stream` or from a per-collection zone/library.
-- A per-collection full config must be complete: storage needs `apiKey`/`hostname`/`zoneName`; stream needs `apiKey`/`hostname`/`libraryId`.
+- Per-collection full options must be complete: storage needs `apiKey`/`hostname`/`zoneName`; stream needs `apiKey`/`hostname`/`libraryId`.
 - `purge` (globally or on any collection) requires the global `accountApiKey`.
 - `signedUrls.staticHandler.redirect.status` must be `302` or `307`.
 - Removed or renamed v3 options throw an error that names the replacement. See the [upgrade guide](/v4/upgrade-guide).

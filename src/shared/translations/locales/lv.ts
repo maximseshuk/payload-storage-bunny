@@ -36,7 +36,7 @@ export const lv: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Neizdevās dzēst failu: {{filename}}',
     errorMissingRequiredFields: 'Trūkst nepieciešamas informācijas',
     errorNoServiceConfigured: 'Nav konfigurēts neviens pakalpojums',
-    errorStreamConfigMissing: 'Bunny Stream nav pareizi konfigurēts',
+    errorStreamOptionsMissing: 'Bunny Stream nav pareizi konfigurēts',
     errorTitleRequired: 'Lūdzu, ievadiet sava video nosaukumu',
     errorUploadFileFailed: 'Neizdevās augšupielādēt failu: {{filename}}',
   },

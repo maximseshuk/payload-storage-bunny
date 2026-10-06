@@ -1,9 +1,9 @@
 ---
 title: 'Collection overrides'
-description: 'Override individual plugin options per collection, including partial vs full-replacement configs and per-collection zones or libraries.'
+description: 'Override individual plugin options per collection, including partial vs full-replacement options and per-collection zones or libraries.'
 ---
 
-Every collection listed under `collections` can use the global config as-is, or override individual options. This lets you keep one plugin config while giving each collection different behavior.
+Every collection listed under `collections` can use the global options as-is, or override individual options. This lets you keep one set of plugin options while giving each collection different behavior.
 
 ```ts
 collections: {
@@ -20,48 +20,48 @@ collections: {
 
 ## Collection options
 
-| Option                        | Type                            | Default          | Description                                                                                                                                                                                                                                                                                                                       |
-| ----------------------------- | ------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prefix`                      | `string`                        | `''` (zone root) | Folder path inside Bunny Storage, e.g. `prefix: 'images'` stores files under an "images" folder. Defaults to the zone root (empty string).                                                                                                                                                                                        |
-| `disablePayloadAccessControl` | `boolean`                       | `false`          | `true` serves files directly from the Bunny CDN, bypassing Payload's access rules. `false` (default) proxies every request through Payload.                                                                                                                                                                                       |
-| `storage`                     | `object \| false`               | inherits global  | Partial override (`uploadTimeout`, `clientUploads`), a full config (own `apiKey`/`hostname`/`zoneName`) to use its own zone, or `false` to disable. See [Storage](/v4/configuration/storage/overview#collection-overrides).                                                                                                       |
-| `stream`                      | `object \| false`               | inherits global  | Partial override (`mimeTypes`, `mp4Fallback`, `thumbnailTime`, `uploadTimeout`, `tus` — `tus: true` or an object enables TUS, `tus: false` disables it), a full config (own `apiKey`/`hostname`/`libraryId`) to use its own library, or `false` to disable. See [Stream](/v4/configuration/stream/overview#collection-overrides). |
-| `storage.clientUploads`       | `boolean \| object`             | inherits global  | Enable, disable, or override browser-direct uploads for this collection. See [Client uploads](/v4/configuration/storage/client-uploads#per-collection-client-uploads).                                                                                                                                                            |
-| `purge`                       | `boolean \| object`             | inherits global  | `true` or an object enables purging, even when the global `purge` is off. An object overrides `async`. `false` disables purging. See [Cache purging](/v4/configuration/cache-purge#collection-overrides).                                                                                                                         |
-| `signedUrls`                  | `boolean \| object`             | inherits global  | Override signed URL settings, or `false` to disable. See [Signed URLs](/v4/configuration/signed-urls#collection-overrides).                                                                                                                                                                                                       |
-| `thumbnail`                   | `boolean \| object`             | inherits global  | Override thumbnail settings, or `false` to disable. See [Thumbnails](/v4/configuration/thumbnails#collection-overrides).                                                                                                                                                                                                          |
-| `urlTransform`                | `boolean \| object \| function` | inherits global  | Override URL rewriting, or `false` to disable. See [URL transforms](/v4/configuration/url-transforms#collection-overrides).                                                                                                                                                                                                       |
+| Option                        | Type                            | Default          | Description                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------- | ------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prefix`                      | `string`                        | `''` (zone root) | Folder path inside Bunny Storage, e.g. `prefix: 'images'` stores files under an "images" folder. Defaults to the zone root (empty string).                                                                                                                                                                                       |
+| `disablePayloadAccessControl` | `boolean`                       | `false`          | `true` serves files directly from the Bunny CDN, bypassing Payload's access rules. `false` (default) proxies every request through Payload.                                                                                                                                                                                      |
+| `storage`                     | `object \| false`               | inherits global  | Partial override (`uploadTimeout`, `clientUploads`), full options (own `apiKey`/`hostname`/`zoneName`) to use its own zone, or `false` to disable. See [Storage](/v4/configuration/storage/overview#collection-overrides).                                                                                                       |
+| `stream`                      | `object \| false`               | inherits global  | Partial override (`mimeTypes`, `mp4Fallback`, `thumbnailTime`, `uploadTimeout`, `tus` — `tus: true` or an object enables TUS, `tus: false` disables it), full options (own `apiKey`/`hostname`/`libraryId`) to use its own library, or `false` to disable. See [Stream](/v4/configuration/stream/overview#collection-overrides). |
+| `storage.clientUploads`       | `boolean \| object`             | inherits global  | Enable, disable, or override browser-direct uploads for this collection. See [Client uploads](/v4/configuration/storage/client-uploads#per-collection-client-uploads).                                                                                                                                                           |
+| `purge`                       | `boolean \| object`             | inherits global  | `true` or an object enables purging, even when the global `purge` is off. An object overrides `async`. `false` disables purging. See [Cache purging](/v4/configuration/cache-purge#collection-overrides).                                                                                                                        |
+| `signedUrls`                  | `boolean \| object`             | inherits global  | Override signed URL settings, or `false` to disable. See [Signed URLs](/v4/configuration/signed-urls#collection-overrides).                                                                                                                                                                                                      |
+| `thumbnail`                   | `boolean \| object`             | inherits global  | Override thumbnail settings, or `false` to disable. See [Thumbnails](/v4/configuration/thumbnails#collection-overrides).                                                                                                                                                                                                         |
+| `urlTransform`                | `boolean \| object \| function` | inherits global  | Override URL rewriting, or `false` to disable. See [URL transforms](/v4/configuration/url-transforms#collection-overrides).                                                                                                                                                                                                      |
 
 `prefix` and `disablePayloadAccessControl` come from `@payloadcms/plugin-cloud-storage` and apply to every collection using this plugin. `disableLocalStorage` can't be passed here — the plugin always sets it to `true` on managed collections.
 
 ## Override surface: partial vs full replacement
 
-Not every option can be tweaked in isolation. Some are **partially overridable** (merged onto the global zone/library); others exist **only inside a full replacement config** and can never be set on their own. The plugin flips `storage`/`stream` into full-replacement mode the moment the object contains `apiKey` — see [Own zone or library per collection](#own-zone-or-library-per-collection).
+Not every option can be tweaked in isolation. Some are **partially overridable** (merged onto the global zone/library); others exist **only inside full replacement options** and can never be set on their own. The plugin flips `storage`/`stream` into full-replacement mode the moment the object contains `apiKey` — see [Own zone or library per collection](#own-zone-or-library-per-collection).
 
-| Option                                                                 | Partially overridable?                             | Full-replace only?                 | Notes                                                                            |
-| ---------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `storage.uploadTimeout`                                                | yes                                                | —                                  | Merged onto the global zone.                                                     |
-| `storage.clientUploads`                                                | yes                                                | also settable inside a full config | Object merges `access`/`prefix`; the `edge` block replaces.                      |
-| `storage.apiKey` / `hostname` / `zoneName`                             | no                                                 | yes — all three required together  | Presence of `apiKey` triggers full replacement.                                  |
-| `storage.region` / `s3` / `tokenSecurityKey`                           | no                                                 | yes                                | Reachable only inside a full storage config.                                     |
-| `stream.mimeTypes` / `mp4Fallback` / `thumbnailTime` / `uploadTimeout` | yes                                                | —                                  | Merged onto the global library.                                                  |
-| `stream.tus`                                                           | yes — `true` / `false` / `{ autoMode, expiresIn }` | —                                  | Works even when the global `stream.tus` is off.                                  |
-| `stream.tus.access`                                                    | no                                                 | yes                                | The partial nested surface is `autoMode`/`expiresIn` only.                       |
-| `stream.apiKey` / `hostname` / `libraryId`                             | no                                                 | yes — all three required together  | Presence of `apiKey` triggers full replacement.                                  |
-| `stream.tokenSecurityKey` / `webhook` / `referer`                      | no                                                 | yes                                | Reachable only inside a full stream config.                                      |
-| `stream.cleanup`                                                       | yes — `maxAge` only                                | —                                  | The cleanup `schedule` is global-only.                                           |
-| `purge`                                                                | yes — `false` / `true` / `{ async }`               | —                                  | Merged onto the global purge config.                                             |
-| `signedUrls`                                                           | yes — `false` / `true` / object                    | —                                  | Object merged field-by-field onto the global config (including `staticHandler`). |
-| `thumbnail`                                                            | yes — `false` / `true` / object                    | —                                  | Merged onto the global thumbnail config.                                         |
-| `urlTransform`                                                         | yes — `false` / `true` / object / function         | —                                  | An object merges onto a global object; a function replaces it.                   |
-| `prefix` / `disablePayloadAccessControl`                               | collection-level                                   | —                                  | From `@payloadcms/plugin-cloud-storage`; set directly on the collection.         |
+| Option                                                                 | Partially overridable?                             | Full-replace only?                | Notes                                                                             |
+| ---------------------------------------------------------------------- | -------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------- |
+| `storage.uploadTimeout`                                                | yes                                                | —                                 | Merged onto the global zone.                                                      |
+| `storage.clientUploads`                                                | yes                                                | also settable inside full options | Object merges `access`/`prefix`; the `edge` block replaces.                       |
+| `storage.apiKey` / `hostname` / `zoneName`                             | no                                                 | yes — all three required together | Presence of `apiKey` triggers full replacement.                                   |
+| `storage.region` / `s3` / `tokenSecurityKey`                           | no                                                 | yes                               | Reachable only inside full storage options.                                       |
+| `stream.mimeTypes` / `mp4Fallback` / `thumbnailTime` / `uploadTimeout` | yes                                                | —                                 | Merged onto the global library.                                                   |
+| `stream.tus`                                                           | yes — `true` / `false` / `{ autoMode, expiresIn }` | —                                 | Works even when the global `stream.tus` is off.                                   |
+| `stream.tus.access`                                                    | no                                                 | yes                               | The partial nested surface is `autoMode`/`expiresIn` only.                        |
+| `stream.apiKey` / `hostname` / `libraryId`                             | no                                                 | yes — all three required together | Presence of `apiKey` triggers full replacement.                                   |
+| `stream.tokenSecurityKey` / `webhook` / `referer`                      | no                                                 | yes                               | Reachable only inside full stream options.                                        |
+| `stream.cleanup`                                                       | yes — `maxAge` only                                | —                                 | The cleanup `schedule` is global-only.                                            |
+| `purge`                                                                | yes — `false` / `true` / `{ async }`               | —                                 | Merged onto the global purge options.                                             |
+| `signedUrls`                                                           | yes — `false` / `true` / object                    | —                                 | Object merged field-by-field onto the global options (including `staticHandler`). |
+| `thumbnail`                                                            | yes — `false` / `true` / object                    | —                                 | Merged onto the global thumbnail options.                                         |
+| `urlTransform`                                                         | yes — `false` / `true` / object / function         | —                                 | An object merges onto a global object; a function replaces it.                    |
+| `prefix` / `disablePayloadAccessControl`                               | collection-level                                   | —                                 | From `@payloadcms/plugin-cloud-storage`; set directly on the collection.          |
 
 ## How overrides merge
 
 A **partial** override object (one without `apiKey`) is merged on top of the matching global option — it doesn't replace the whole block. An object that _includes_ `apiKey` isn't a merge at all: it is a complete replacement of that zone/library, with every credential field required and nothing inherited — see [Own zone or library per collection](#own-zone-or-library-per-collection). For a partial override, for example:
 
 ```ts
-// Global config
+// Global options
 stream: {
   uploadTimeout: 300000,
   mp4Fallback: false,
@@ -82,11 +82,11 @@ collections: {
 
 ## Own zone or library per collection
 
-A collection's `storage` or `stream` can go beyond a partial override and supply a **full config** — its own `apiKey`, `hostname`, `zoneName` (storage) or `libraryId` (stream). That collection then uses its OWN Bunny zone / library, and the global one is ignored for it. This is how you point different collections at different tenants' zones and libraries.
+A collection's `storage` or `stream` can go beyond a partial override and supply **full options** — its own `apiKey`, `hostname`, `zoneName` (storage) or `libraryId` (stream). That collection then uses its OWN Bunny zone / library, and the global one is ignored for it. This is how you point different collections at different tenants' zones and libraries.
 
 ```ts
 collections: {
-  // Full config → own storage zone + own stream library
+  // Full options → own storage zone + own stream library
   tenantA: {
     storage: {
       apiKey: process.env.TENANT_A_STORAGE_API_KEY,
@@ -104,13 +104,13 @@ collections: {
 
 The rules:
 
-- **How it's detected.** The plugin treats the override as a full config when it contains `apiKey` (`'apiKey' in override`); otherwise it's a partial override merged onto the global config. `{ uploadTimeout: 5 }` is a partial override; `{ apiKey, hostname, zoneName }` is a full config.
-- **No inheritance.** A full config inherits **nothing** from the global zone/library. Omitted optional keys (storage: `region`, `s3`, `tokenSecurityKey`, `clientUploads`, `uploadTimeout`; stream: `mimeTypes`, `mp4Fallback`, `tus`, `referer`, …) fall back to plugin defaults — never to the global config's values.
+- **How it's detected.** The plugin treats the override as full options when it contains `apiKey` (`'apiKey' in override`); otherwise it's a partial override merged onto the global options. `{ uploadTimeout: 5 }` is a partial override; `{ apiKey, hostname, zoneName }` is full options.
+- **No inheritance.** Full options inherit **nothing** from the global zone/library. Omitted optional keys (storage: `region`, `s3`, `tokenSecurityKey`, `clientUploads`, `uploadTimeout`; stream: `mimeTypes`, `mp4Fallback`, `tus`, `referer`, …) fall back to plugin defaults — never to the global options' values.
 - **Signed URLs.** Provide that zone/library's own `tokenSecurityKey` when [signed URLs](/v4/configuration/signed-urls) are enabled for the collection.
 - **Webhooks.** A per-collection stream library can carry its own `webhook.secret`; the single webhook endpoint accepts every configured secret.
 - **Cleanup.** Per-collection stream `cleanup` controls only `maxAge`. The cleanup `schedule` is global-only (one task for the whole plugin).
-- **Client uploads travel with the zone.** A full storage config's `clientUploads` (including its `edge` script and secret) belongs to that zone and doesn't merge with the global `storage.clientUploads`.
-- **Top-level optional.** Because a collection can own its whole zone/library, the top-level `storage`/`stream` are optional — a config made entirely of per-collection zones is valid.
+- **Client uploads travel with the zone.** Full storage options' `clientUploads` (including its `edge` script and secret) belongs to that zone and doesn't merge with the global `storage.clientUploads`.
+- **Top-level optional.** Because a collection can own its whole zone/library, the top-level `storage`/`stream` are optional — options made entirely of per-collection zones is valid.
 
 <Warning>
 **Adding `apiKey` to a small tweak turns it into a full replacement**
@@ -119,7 +119,7 @@ The trigger is purely the presence of `apiKey`, so an object you meant as a mino
 
 </Warning>
 
-The completeness of a full config is validated at startup: a full storage config needs `apiKey`/`hostname`/`zoneName`; a full stream config needs `apiKey`/`hostname`/`libraryId`. A single stream library must not be configured with conflicting `apiKey` values across collections.
+The completeness of full options is validated at startup: full storage options need `apiKey`/`hostname`/`zoneName`; full stream options need `apiKey`/`hostname`/`libraryId`. A single stream library must not be configured with conflicting `apiKey` values across collections.
 
 ## Disabling a service or feature: use `false`
 
@@ -147,7 +147,7 @@ collections: {
 }
 ```
 
-`purge`, `signedUrls`, `thumbnail`, `urlTransform`, `storage.clientUploads`, and `stream.tus` all support `false` this way. A collection must keep at least one of `storage` or `stream` active — disabling both is a config error.
+`purge`, `signedUrls`, `thumbnail`, `urlTransform`, `storage.clientUploads`, and `stream.tus` all support `false` this way. A collection must keep at least one of `storage` or `stream` active — disabling both is an options error.
 
 ## Enabling a collection with defaults
 
@@ -159,16 +159,16 @@ collections: {
 }
 ```
 
-## Accessing the resolved config
+## Accessing the resolved options
 
-Sometimes you need the settings the plugin resolved for a collection — the library id and API key for a Stream recipe, the zone name for a direct Storage call — from inside a hook, endpoint, or script. Rather than re-derive them from `process.env` or hand-maintain a lookup, ask the plugin. These accessors read the config it stashed on `payload.config.custom`, with global config and per-collection overrides already applied.
+Sometimes you need the settings the plugin resolved for a collection — the library id and API key for a Stream recipe, the zone name for a direct Storage call — from inside a hook, endpoint, or script. Rather than re-derive them from `process.env` or hand-maintain a lookup, ask the plugin. These accessors read the options it stashed on `payload.config.custom`, with global options and per-collection overrides already applied.
 
 ```ts
 import {
   getBunnyStreamForCollection,
   getBunnyStorageForCollection,
-  getBunnyCollectionConfig,
-  getBunnyConfig,
+  getBunnyCollectionOptions,
+  getBunnyOptions,
 } from '@seshuk/payload-storage-bunny'
 
 // inside a hook / endpoint
@@ -180,14 +180,14 @@ const stream = getBunnyStreamForCollection(req.payload, 'media')
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `getBunnyStorageForCollection(payload, slug)` | `{ apiKey, zoneName, hostname, region, s3, tokenSecurityKey? }` or `undefined`. `s3` is `true` or `false`. |
 | `getBunnyStreamForCollection(payload, slug)`  | `{ apiKey, libraryId, hostname, tokenSecurityKey? }` or `undefined`.                                       |
-| `getBunnyCollectionConfig(payload, slug)`     | `{ storage?, stream? }` for a managed collection, or `undefined`.                                          |
-| `getBunnyConfig(payload)`                     | The full normalized plugin config (escape hatch), or `undefined`.                                          |
+| `getBunnyCollectionOptions(payload, slug)`    | `{ storage?, stream? }` for a managed collection, or `undefined`.                                          |
+| `getBunnyOptions(payload)`                    | The full normalized plugin options (escape hatch), or `undefined`.                                         |
 
 Semantics:
 
 - **`payload`** is a running Payload instance — `req.payload` in a hook or endpoint, or the instance from `getPayload(...)` in a script.
-- **Never throws.** Each accessor returns `undefined` when the plugin is absent or disabled, the slug isn't one of the plugin's `collections`, or (for a per-backend accessor) that backend is off for the collection. `getBunnyCollectionConfig` returns an object for any managed slug — a backend the collection doesn't use is simply absent from it.
-- **`getBunnyConfig` is an escape hatch.** It returns the plugin's internal normalized shape, which may change between minor releases. Treat it as read-only and prefer the curated accessors above.
+- **Never throws.** Each accessor returns `undefined` when the plugin is absent or disabled, the slug isn't one of the plugin's `collections`, or (for a per-backend accessor) that backend is off for the collection. `getBunnyCollectionOptions` returns an object for any managed slug — a backend the collection doesn't use is simply absent from it.
+- **`getBunnyOptions` is an escape hatch.** It returns the plugin's internal normalized shape, which may change between minor releases. Treat it as read-only and prefer the curated accessors above.
 - The curated results are fresh copies; mutating them doesn't affect the plugin.
 
 <Warning>

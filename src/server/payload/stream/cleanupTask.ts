@@ -1,10 +1,10 @@
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import { BunnyStreamVideoStatus, deleteStreamVideo, getStreamVideo } from '@/server/bunny/stream.js'
-import { CONFIG_DEFAULTS } from '@/server/payload/config/defaults.js'
-import { collectStreamConfigs } from '@/server/payload/config/inspect.js'
+import { OPTIONS_DEFAULTS } from '@/server/payload/options/defaults.js'
+import { collectStreamOptions } from '@/server/payload/options/inspect.js'
 import { streamUploadSessionsCollectionSlug } from '@/server/payload/stream/sessionsCollection.js'
-import type { NormalizedBunnyStorageConfig, NormalizedStreamConfig } from '@/shared/types/index.js'
+import type { NormalizedBunnyStorageOptions, NormalizedStreamOptions } from '@/shared/types/index.js'
 
 const isVideoSaved = async ({
   collectionSlugs,
@@ -38,14 +38,14 @@ const isVideoSaved = async ({
 const processLibrarySessions = async ({
   collectionSlugs,
   req,
-  streamConfig,
+  streamOptions,
 }: {
   collectionSlugs: string[]
   req: PayloadRequest
-  streamConfig: NormalizedStreamConfig
+  streamOptions: NormalizedStreamOptions
 }): Promise<{ deletedCount: number; errorCount: number }> => {
-  const maxAge = streamConfig.cleanup!.maxAge
-  const libraryId = streamConfig.libraryId
+  const maxAge = streamOptions.cleanup!.maxAge
+  const libraryId = streamOptions.libraryId
   const cutoffDate = new Date(Date.now() - maxAge * 1000)
 
   const incompleteSessions = await req.payload.find({
@@ -79,8 +79,8 @@ const processLibrarySessions = async ({
 
     try {
       const video = await getStreamVideo({
-        apiKey: streamConfig.apiKey,
-        libraryId: streamConfig.libraryId,
+        apiKey: streamOptions.apiKey,
+        libraryId: streamOptions.libraryId,
         videoId,
       })
 
@@ -93,8 +93,8 @@ const processLibrarySessions = async ({
       ) {
         req.payload.logger.debug({ msg: `[bunny:stream] cleanup: deleting orphan video ${videoId}` })
         await deleteStreamVideo({
-          apiKey: streamConfig.apiKey,
-          libraryId: streamConfig.libraryId,
+          apiKey: streamOptions.apiKey,
+          libraryId: streamOptions.libraryId,
           videoId,
         })
 
@@ -141,16 +141,16 @@ const processLibrarySessions = async ({
 }
 
 export const getStreamCleanupTask = (
-  config: NormalizedBunnyStorageConfig,
+  options: NormalizedBunnyStorageOptions,
 ): TaskConfig<'StorageBunnyStreamCleanup'> | undefined => {
-  const streamConfigs = collectStreamConfigs(config)
-  const cleanupConfigs = [...streamConfigs.values()].filter((c) => c.cleanup)
+  const streamOptionsByLibrary = collectStreamOptions(options)
+  const cleanupStreamOptions = [...streamOptionsByLibrary.values()].filter((c) => c.cleanup)
 
-  if (cleanupConfigs.length === 0) {
+  if (cleanupStreamOptions.length === 0) {
     return undefined
   }
 
-  const schedule = config.stream?.cleanup?.schedule ?? CONFIG_DEFAULTS.stream.cleanup.schedule
+  const schedule = options.stream?.cleanup?.schedule ?? OPTIONS_DEFAULTS.stream.cleanup.schedule
 
   return {
     slug: 'StorageBunnyStreamCleanup',
@@ -158,18 +158,18 @@ export const getStreamCleanupTask = (
       let deletedCount = 0
       let errorCount = 0
 
-      for (const streamConfig of cleanupConfigs) {
-        const collectionSlugs = [...config.collections]
-          .filter(([, collection]) => collection.stream?.libraryId === streamConfig.libraryId)
+      for (const streamOptions of cleanupStreamOptions) {
+        const collectionSlugs = [...options.collections]
+          .filter(([, collection]) => collection.stream?.libraryId === streamOptions.libraryId)
           .map(([slug]) => slug)
-        const result = await processLibrarySessions({ collectionSlugs, req, streamConfig })
+        const result = await processLibrarySessions({ collectionSlugs, req, streamOptions })
         deletedCount += result.deletedCount
         errorCount += result.errorCount
       }
 
-      const maxAge = Math.max(...cleanupConfigs.map((c) => c.cleanup!.maxAge))
+      const maxAge = Math.max(...cleanupStreamOptions.map((c) => c.cleanup!.maxAge))
       const orphanCutoff = new Date(Date.now() - maxAge * 1000)
-      const configuredLibraryIds = [...streamConfigs.keys()].map((id) => id.toString())
+      const configuredLibraryIds = [...streamOptionsByLibrary.keys()].map((id) => id.toString())
 
       const orphanSessions = await req.payload.find({
         collection: streamUploadSessionsCollectionSlug,

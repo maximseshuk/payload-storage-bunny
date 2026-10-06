@@ -17,8 +17,8 @@ vi.mock('@/server/files.js', () => ({
   getSafeFileName: getSafeFileNameMock,
 }))
 
-const { createCollectionContext } = await import('@/server/payload/config/context.js')
-const { createNormalizedConfig } = await import('@/server/payload/config/normalizer.js')
+const { createCollectionContext } = await import('@/server/payload/options/context.js')
+const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 const { getGenerateUploadInstructions } = await import('@/server/payload/storage/clientUploads/uploadInstructions.js')
 const { verifyEdgeUploadUrl } = await import('@/server/payload/storage/clientUploads/mint.js')
 const { readClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
@@ -49,23 +49,23 @@ const buildRequest = (
   ...overrides,
 })
 
-type Config = ReturnType<typeof createNormalizedConfig>
+type Options = ReturnType<typeof createNormalizedOptions>
 
 const generate = (
-  config: Config,
+  options: Options,
   body: Record<string, unknown>,
   overrides: Record<string, unknown> = {},
   collectionConfig: Record<string, unknown> = collection,
 ) => {
   const req = buildRequest(overrides, collectionConfig)
-  const context = createCollectionContext(config, collectionConfig as never)
+  const context = createCollectionContext(options, collectionConfig as never)
   return getGenerateUploadInstructions(context)({ ...body, req } as never) as Promise<any>
 }
 
 const photo = { collectionSlug: 'media', filename: 'photo.jpg', filesize: 1000, mimeType: 'image/jpeg' }
 
-const s3Config = () =>
-  createNormalizedConfig({
+const s3Options = () =>
+  createNormalizedOptions({
     collections: { media: true },
     storage: {
       apiKey: 'zone-pw',
@@ -87,9 +87,11 @@ describe('client upload endpoint', () => {
   })
 
   it('denies unauthenticated requests', async () => {
-    await expect(generate(s3Config(), { ...photo, mimeType: 'image/png' }, { user: undefined })).rejects.toMatchObject({
-      status: 403,
-    })
+    await expect(generate(s3Options(), { ...photo, mimeType: 'image/png' }, { user: undefined })).rejects.toMatchObject(
+      {
+        status: 403,
+      },
+    )
     expect(presignMock).not.toHaveBeenCalled()
   })
 
@@ -97,12 +99,12 @@ describe('client upload endpoint', () => {
     const denied = { ...collection, access: { create: () => false, update: () => false } }
     const updateOnly = { ...collection, access: { create: () => false, update: () => true } }
 
-    await expect(generate(s3Config(), photo, {}, denied)).rejects.toMatchObject({ status: 403 })
-    expect((await generate(s3Config(), photo, {}, updateOnly)).type).toBe('http')
+    await expect(generate(s3Options(), photo, {}, denied)).rejects.toMatchObject({ status: 403 })
+    expect((await generate(s3Options(), photo, {}, updateOnly)).type).toBe('http')
   })
 
   it('uses the clientUploads.access callback when set', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'zone-pw',
@@ -113,25 +115,25 @@ describe('client upload endpoint', () => {
       },
     } as never)
 
-    await expect(generate(config, photo)).rejects.toMatchObject({ status: 403 })
+    await expect(generate(options, photo)).rejects.toMatchObject({ status: 403 })
   })
 
   it('requires a valid file size', async () => {
-    await expect(generate(s3Config(), { ...photo, filesize: undefined })).rejects.toMatchObject({ status: 400 })
-    await expect(generate(s3Config(), { ...photo, filesize: -1 })).rejects.toMatchObject({ status: 400 })
+    await expect(generate(s3Options(), { ...photo, filesize: undefined })).rejects.toMatchObject({ status: 400 })
+    await expect(generate(s3Options(), { ...photo, filesize: -1 })).rejects.toMatchObject({ status: 400 })
     expect(presignMock).not.toHaveBeenCalled()
   })
 
   it('rejects SVG and XML files', async () => {
     await expect(
-      generate(s3Config(), { ...photo, filename: 'logo.svg', mimeType: 'image/svg+xml' }),
+      generate(s3Options(), { ...photo, filename: 'logo.svg', mimeType: 'image/svg+xml' }),
     ).rejects.toMatchObject({ status: 400 })
-    await expect(generate(s3Config(), { ...photo, filename: 'photo.xml' })).rejects.toMatchObject({ status: 400 })
+    await expect(generate(s3Options(), { ...photo, filename: 'photo.xml' })).rejects.toMatchObject({ status: 400 })
   })
 
   it('rejects restricted file types by extension or MIME type', async () => {
-    await expect(generate(s3Config(), { ...photo, filename: 'photo.html' })).rejects.toMatchObject({ status: 415 })
-    await expect(generate(s3Config(), { ...photo, mimeType: 'text/javascript' })).rejects.toMatchObject({
+    await expect(generate(s3Options(), { ...photo, filename: 'photo.html' })).rejects.toMatchObject({ status: 415 })
+    await expect(generate(s3Options(), { ...photo, mimeType: 'text/javascript' })).rejects.toMatchObject({
       status: 415,
     })
     expect(presignMock).not.toHaveBeenCalled()
@@ -140,7 +142,7 @@ describe('client upload endpoint', () => {
   it('allows restricted file types when the collection opts in', async () => {
     const permissive = { ...collection, upload: { allowRestrictedFileTypes: true } }
     const instructions = await generate(
-      s3Config(),
+      s3Options(),
       { ...photo, filename: 'page.html', mimeType: 'text/html' },
       {},
       permissive,
@@ -151,7 +153,7 @@ describe('client upload endpoint', () => {
 
   it('returns 409 when an object already exists at the key', async () => {
     existsMock.mockResolvedValue(true)
-    await expect(generate(s3Config(), photo)).rejects.toMatchObject({ status: 409 })
+    await expect(generate(s3Options(), photo)).rejects.toMatchObject({ status: 409 })
     expect(existsMock).toHaveBeenCalledWith(
       expect.objectContaining({ path: expect.stringMatching(keyed('')), zoneName: 'zone' }),
     )
@@ -160,7 +162,7 @@ describe('client upload endpoint', () => {
 
   it('returns a signed receipt bound to the prefix, size and type', async () => {
     const req = buildRequest()
-    const { file } = await getGenerateUploadInstructions(createCollectionContext(s3Config(), collection as never))({
+    const { file } = await getGenerateUploadInstructions(createCollectionContext(s3Options(), collection as never))({
       ...photo,
       req,
     } as never)
@@ -184,7 +186,7 @@ describe('client upload endpoint', () => {
   })
 
   it('gives Edge uploads of the same filename different keys', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: { prefix: 'media' } },
       storage: {
         apiKey: 'zone-pw',
@@ -196,7 +198,7 @@ describe('client upload endpoint', () => {
 
     const paths = await Promise.all(
       [1, 2].map(async () => {
-        const { request } = await generate(config, photo)
+        const { request } = await generate(options, photo)
         expect(verifyEdgeUploadUrl(request.url, 'shared').valid).toBe(true)
         return new URL(request.url).searchParams.get('X-Upload-Path')
       }),
@@ -208,7 +210,7 @@ describe('client upload endpoint', () => {
   })
 
   it('resolves a document to the key its receipt signed', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: { prefix: 'media' } },
       storage: {
         apiKey: 'zone-pw',
@@ -218,7 +220,7 @@ describe('client upload endpoint', () => {
         zoneName: 'zone',
       },
     } as never)
-    const context = createCollectionContext(config, collection as never)
+    const context = createCollectionContext(options, collection as never)
     const req = buildRequest()
 
     const { file } = await getGenerateUploadInstructions(context)({ ...photo, req } as never)
@@ -242,7 +244,7 @@ describe('client upload endpoint', () => {
 
   it('rejects a disallowed mime type', async () => {
     await expect(
-      generate(s3Config(), {
+      generate(s3Options(), {
         collectionSlug: 'media',
         filename: 'doc.pdf',
         filesize: 1000,
@@ -253,7 +255,7 @@ describe('client upload endpoint', () => {
 
   it('rejects a file over the size limit', async () => {
     await expect(
-      generate(s3Config(), {
+      generate(s3Options(), {
         collectionSlug: 'media',
         filename: 'big.png',
         filesize: 9_000_000,
@@ -263,7 +265,7 @@ describe('client upload endpoint', () => {
   })
 
   it('presigns an S3 PUT for the resolved key', async () => {
-    const instructions = await generate(s3Config(), photo)
+    const instructions = await generate(s3Options(), photo)
 
     expect(instructions.type).toBe('http')
     expect(instructions.request.method).toBe('PUT')
@@ -281,7 +283,7 @@ describe('client upload endpoint', () => {
   })
 
   it('applies a server-side prefix callback to the key', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'zone-pw',
@@ -292,7 +294,7 @@ describe('client upload endpoint', () => {
       },
     } as never)
 
-    const instructions = await generate(config, photo)
+    const instructions = await generate(options, photo)
 
     expect(instructions.file.uploadReference.prefix).toMatch(keyed('tenants/acme', ''))
     expect(presignMock).toHaveBeenCalledWith(
@@ -301,7 +303,7 @@ describe('client upload endpoint', () => {
   })
 
   it('nests a prefix callback result under the static collection prefix', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: { prefix: 'uploads' } },
       storage: {
         apiKey: 'zone-pw',
@@ -312,7 +314,7 @@ describe('client upload endpoint', () => {
       },
     } as never)
 
-    const instructions = await generate(config, photo)
+    const instructions = await generate(options, photo)
 
     expect(instructions.file.uploadReference.prefix).toMatch(keyed('uploads/tenants/acme', ''))
     expect(presignMock).toHaveBeenCalledWith(
@@ -321,7 +323,7 @@ describe('client upload endpoint', () => {
   })
 
   it('keeps a prefix callback result already under the static collection prefix', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: { prefix: 'uploads' } },
       storage: {
         apiKey: 'zone-pw',
@@ -332,7 +334,7 @@ describe('client upload endpoint', () => {
       },
     } as never)
 
-    const instructions = await generate(config, photo)
+    const instructions = await generate(options, photo)
 
     expect(instructions.file.uploadReference.prefix).toMatch(keyed('uploads/acme', ''))
     expect(presignMock).toHaveBeenCalledWith(
@@ -341,7 +343,7 @@ describe('client upload endpoint', () => {
   })
 
   it('creates a signed Edge Script URL in edge mode', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'zone-pw',
@@ -351,7 +353,7 @@ describe('client upload endpoint', () => {
       },
     } as never)
 
-    const { request } = await generate(config, photo)
+    const { request } = await generate(options, photo)
 
     expect(request.method).toBe('PUT')
     expect(request.url.startsWith('https://uploader.b-cdn.net/upload?')).toBe(true)
@@ -366,7 +368,7 @@ describe('client upload endpoint', () => {
   })
 
   it('rejects a file over the Edge Script max size', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'zone-pw',
@@ -376,18 +378,18 @@ describe('client upload endpoint', () => {
       },
     } as never)
 
-    await expect(generate(config, photo)).rejects.toMatchObject({ status: 413 })
+    await expect(generate(options, photo)).rejects.toMatchObject({ status: 413 })
   })
 
   it('rejects instructions for a collection without client uploads', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
     } as never)
 
-    await expect(generate(config, photo, {}, collection)).rejects.toMatchObject({ status: 403 })
+    await expect(generate(options, photo, {}, collection)).rejects.toMatchObject({ status: 403 })
     await expect(
-      getGenerateUploadInstructions(createCollectionContext(config, collection as never))({
+      getGenerateUploadInstructions(createCollectionContext(options, collection as never))({
         ...photo,
         overrideAccess: true,
         req: buildRequest(),
@@ -396,7 +398,7 @@ describe('client upload endpoint', () => {
   })
 
   it('sends Stream videos to the TUS handler without creating a storage URL', async () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
         apiKey: 'zone-pw',
@@ -409,8 +411,8 @@ describe('client upload endpoint', () => {
     } as never)
     const media = { ...collection, upload: { mimeTypes: ['image/*', 'video/*'] } }
 
-    const video = await generate(config, { ...photo, filename: 'clip.mp4', mimeType: 'video/mp4' }, {}, media)
-    const image = await generate(config, photo, {}, media)
+    const video = await generate(options, { ...photo, filename: 'clip.mp4', mimeType: 'video/mp4' }, {}, media)
+    const image = await generate(options, photo, {}, media)
 
     expect(video).toEqual({
       name: 'bunny',
@@ -421,7 +423,7 @@ describe('client upload endpoint', () => {
     expect(presignMock).toHaveBeenCalledTimes(1)
   })
   describe('per-collection routing', () => {
-    const config = createNormalizedConfig({
+    const options = createNormalizedOptions({
       collections: {
         ownEdge: {
           disablePayloadAccessControl: true,
@@ -453,7 +455,7 @@ describe('client upload endpoint', () => {
       },
     } as never)
     const generateFor = (slug: string) =>
-      generate(config, { ...photo, collectionSlug: slug }, {}, { ...collection, slug })
+      generate(options, { ...photo, collectionSlug: slug }, {}, { ...collection, slug })
 
     it('presigns an S3 PUT for the zone of the override collection, not the global zone', async () => {
       const { request } = await generateFor('ownS3')

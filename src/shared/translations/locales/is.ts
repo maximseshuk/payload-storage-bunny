@@ -36,7 +36,7 @@ export const is: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Mistókst að eyða skrá: {{filename}}',
     errorMissingRequiredFields: 'Sumar nauðsynlegar upplýsingar vantar',
     errorNoServiceConfigured: 'Engin þjónusta stillt',
-    errorStreamConfigMissing: 'Bunny Stream er ekki rétt stillt',
+    errorStreamOptionsMissing: 'Bunny Stream er ekki rétt stillt',
     errorTitleRequired: 'Vinsamlegast sláðu inn titil fyrir myndskeiðið þitt',
     errorUploadFileFailed: 'Mistókst að hlaða upp skrá: {{filename}}',
   },

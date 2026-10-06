@@ -1,3 +1,3 @@
-export * from './config.js'
-export * from './configNormalized.js'
+export * from './options.js'
+export * from './optionsNormalized.js'
 export * from './core.js'

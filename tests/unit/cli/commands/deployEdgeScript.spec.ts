@@ -3,7 +3,7 @@ import path from 'node:path'
 
 import { afterAll, describe, expect, it, vi } from 'vitest'
 
-import { deployEdgeScriptCommand, reloadNormalizedConfig } from '@/cli/commands/deployEdgeScript.js'
+import { deployEdgeScriptCommand, reloadNormalizedOptions } from '@/cli/commands/deployEdgeScript.js'
 
 import { useTmpDir } from '../../../helpers/unit/tmpDir.js'
 
@@ -58,7 +58,7 @@ describe('bunny:deploy-edge-script input', () => {
   })
 })
 
-describe('reloadNormalizedConfig', () => {
+describe('reloadNormalizedOptions', () => {
   const makeDir = useTmpDir('psb-reload-')
   const writeConfig = (contents: string): string => {
     const file = path.join(makeDir(), 'payload.config.mjs')
@@ -81,17 +81,19 @@ describe('reloadNormalizedConfig', () => {
     )
 
     process.env.PSB_RELOAD_MARKER = 'first'
-    const first = (await reloadNormalizedConfig()) as unknown as { marker: string }
+    const first = (await reloadNormalizedOptions()) as unknown as { marker: string }
     expect(first.marker).toBe('first')
 
     process.env.PSB_RELOAD_MARKER = 'second'
-    const second = (await reloadNormalizedConfig()) as unknown as { marker: string }
+    const second = (await reloadNormalizedOptions()) as unknown as { marker: string }
     expect(second.marker).toBe('second')
   })
 
   it('throws when the reloaded config lacks the plugin key', async () => {
     hoisted.configPath = writeConfig('export default Promise.resolve({ custom: {} })\n')
 
-    await expect(reloadNormalizedConfig()).rejects.toThrow(/does not include the @seshuk\/payload-storage-bunny plugin/)
+    await expect(reloadNormalizedOptions()).rejects.toThrow(
+      /does not include the @seshuk\/payload-storage-bunny plugin/,
+    )
   })
 })

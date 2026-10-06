@@ -36,7 +36,7 @@ export const uk: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Не вдалося видалити файл: {{filename}}',
     errorMissingRequiredFields: 'Відсутня необхідна інформація',
     errorNoServiceConfigured: 'Жодна служба не налаштована',
-    errorStreamConfigMissing: 'Bunny Stream налаштовано неправильно',
+    errorStreamOptionsMissing: 'Bunny Stream налаштовано неправильно',
     errorTitleRequired: 'Будь ласка, введіть заголовок для вашого відео',
     errorUploadFileFailed: 'Не вдалося завантажити файл: {{filename}}',
   },

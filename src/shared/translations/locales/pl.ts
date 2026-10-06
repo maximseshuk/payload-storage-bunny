@@ -36,7 +36,7 @@ export const pl: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Nie udało się usunąć pliku: {{filename}}',
     errorMissingRequiredFields: 'Brakuje niektórych wymaganych informacji',
     errorNoServiceConfigured: 'Brak skonfigurowanej usługi',
-    errorStreamConfigMissing: 'Bunny Stream nie jest poprawnie skonfigurowany',
+    errorStreamOptionsMissing: 'Bunny Stream nie jest poprawnie skonfigurowany',
     errorTitleRequired: 'Proszę wprowadzić tytuł swojego wideo',
     errorUploadFileFailed: 'Nie udało się przesłać pliku: {{filename}}',
   },

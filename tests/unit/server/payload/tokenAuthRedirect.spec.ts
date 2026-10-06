@@ -1,9 +1,9 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createNormalizedConfig } from '@/server/payload/config/normalizer.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
 import { generateSignedToken, maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
-import type { SignedUrlsConfig } from '@/shared/types/index.js'
+import type { SignedUrlsOptions } from '@/shared/types/index.js'
 
 import { signed } from '../../../helpers/unit/signedUrls.js'
 
@@ -233,8 +233,8 @@ describe('maybeGenerateSignedUrl with userIp', () => {
 })
 
 describe('signedUrls.expiresIn', () => {
-  const signedFrom = (global: SignedUrlsConfig, collectionValue?: SignedUrlsConfig) => {
-    const normalized = createNormalizedConfig({
+  const signedFrom = (global: SignedUrlsOptions, collectionValue?: SignedUrlsOptions) => {
+    const normalized = createNormalizedOptions({
       collections: { media: collectionValue ? { signedUrls: collectionValue } : true },
       signedUrls: global,
     })

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
 import { REGIONS } from '@/shared/regions.js'
-import type { StorageRegion } from '@/shared/types/config.js'
+import type { StorageRegion } from '@/shared/types/options.js'
 
 describe('StorageRegion', () => {
   it('accepts every region code from the table and any other string', () => {

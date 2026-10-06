@@ -1,6 +1,6 @@
-import type { NormalizedSignedUrlsConfig } from '@/shared/types/index.js'
+import type { NormalizedSignedUrlsOptions } from '@/shared/types/index.js'
 
-export const signed = (over: Partial<NormalizedSignedUrlsConfig> = {}): NormalizedSignedUrlsConfig => ({
+export const signed = (over: Partial<NormalizedSignedUrlsOptions> = {}): NormalizedSignedUrlsOptions => ({
   expiresIn: () => 3600,
   ...over,
 })

@@ -1,6 +1,6 @@
 import { TIMEOUTS, TUS_MIME_TYPES } from '@/shared/constants.js'
 
-export const CONFIG_DEFAULTS = {
+export const OPTIONS_DEFAULTS = {
   clientUploads: {
     edge: {
       maxSize: 1073741824,

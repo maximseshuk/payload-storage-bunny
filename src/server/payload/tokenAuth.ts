@@ -3,9 +3,9 @@ import { createHash } from 'crypto'
 import type { CollectionConfig, PayloadRequest } from 'payload'
 
 import { PLUGIN_KEY } from '@/shared/constants.js'
-import type { ExpiresResolver, NormalizedSignedUrlsConfig, SignedUrlsCallbackArgs } from '@/shared/types/index.js'
+import type { ExpiresResolver, NormalizedSignedUrlsOptions, SignedUrlsCallbackArgs } from '@/shared/types/index.js'
 
-type SigningConfig = {
+type SigningCountryOptions = {
   allowedCountries?: string[]
   blockedCountries?: string[]
 }
@@ -79,10 +79,10 @@ export const generateSignedToken = (
 export const generateSignedUrl = (
   baseUrl: string,
   securityKey: string,
-  config: SigningConfig,
+  countryOptions: SigningCountryOptions,
   options: SigningOptions,
 ): string => {
-  if (!baseUrl || !securityKey || !config) {
+  if (!baseUrl || !securityKey || !countryOptions) {
     throw new Error('Base URL, security key, and configuration are required')
   }
 
@@ -95,12 +95,12 @@ export const generateSignedUrl = (
 
   const signedQueryParams: Record<string, string> = {}
 
-  if (config.allowedCountries?.length) {
-    signedQueryParams.token_countries = config.allowedCountries.join(',')
+  if (countryOptions.allowedCountries?.length) {
+    signedQueryParams.token_countries = countryOptions.allowedCountries.join(',')
   }
 
-  if (config.blockedCountries?.length) {
-    signedQueryParams.token_countries_blocked = config.blockedCountries.join(',')
+  if (countryOptions.blockedCountries?.length) {
+    signedQueryParams.token_countries_blocked = countryOptions.blockedCountries.join(',')
   }
 
   if (options.tokenPath) {
@@ -159,11 +159,11 @@ type SignedUrlContext = {
   collection: CollectionConfig
   filename: string
   req?: PayloadRequest
-  signedUrls: false | NormalizedSignedUrlsConfig | undefined
+  signedUrls: false | NormalizedSignedUrlsOptions | undefined
   tokenSecurityKey?: string
 }
 
-const resolveUserIp = (signedUrls: NormalizedSignedUrlsConfig, args: SignedUrlsCallbackArgs): string | undefined => {
+const resolveUserIp = (signedUrls: NormalizedSignedUrlsOptions, args: SignedUrlsCallbackArgs): string | undefined => {
   if (!signedUrls.userIp || !args.req) {
     return undefined
   }
@@ -208,7 +208,7 @@ const resolveExpiresAt = (expiresIn: ExpiresResolver, key: string, args: SignedU
 }
 
 const resolveSigningOptions = (
-  signedUrls: NormalizedSignedUrlsConfig,
+  signedUrls: NormalizedSignedUrlsOptions,
   expiresIn: { key: string; resolve: ExpiresResolver },
   args: SignedUrlsCallbackArgs,
   options?: Partial<SigningOptions>,
@@ -218,7 +218,10 @@ const resolveSigningOptions = (
   userIp: options?.userIp ?? resolveUserIp(signedUrls, args),
 })
 
-const signingConfig = ({ allowedCountries, blockedCountries }: NormalizedSignedUrlsConfig): SigningConfig => ({
+const signingCountryOptions = ({
+  allowedCountries,
+  blockedCountries,
+}: NormalizedSignedUrlsOptions): SigningCountryOptions => ({
   allowedCountries,
   blockedCountries,
 })
@@ -245,7 +248,7 @@ export const maybeGenerateSignedUrl = (
   return generateSignedUrl(
     baseUrl,
     tokenSecurityKey,
-    signingConfig(signedUrls),
+    signingCountryOptions(signedUrls),
     resolveSigningOptions(
       signedUrls,
       { key: 'signedUrls.expiresIn', resolve: signedUrls.expiresIn },
@@ -285,7 +288,7 @@ export const maybeCreateRedirect = (
   const signedUrl = generateSignedUrl(
     baseUrl,
     tokenSecurityKey,
-    signingConfig(signedUrls),
+    signingCountryOptions(signedUrls),
     resolveSigningOptions(
       signedUrls,
       signedUrls.redirect.expiresIn

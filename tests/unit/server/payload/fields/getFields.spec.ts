@@ -29,7 +29,7 @@ const getField = (fields: Field[], name: string) => fields.find((f) => 'name' in
 
 describe('getFields prefix injection', () => {
   it('injects a hidden readOnly prefix field when clientUploads.prefix is a function', () => {
-    const fields = getFields(collection, context({ storageConfig: dynamicPrefixStorage } as never), [])
+    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
 
     const prefixField = getField(fields, 'prefix') as { admin?: Record<string, unknown>; defaultValue?: unknown }
     expect(prefixField).toBeDefined()
@@ -39,7 +39,7 @@ describe('getFields prefix injection', () => {
   })
 
   it('does not accept a prefix from create or update input', () => {
-    const fields = getFields(collection, context({ storageConfig: dynamicPrefixStorage } as never), [])
+    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
 
     const prefixField = getField(fields, 'prefix') as { access?: Record<string, () => boolean> }
     expect(prefixField.access?.create?.()).toBe(false)
@@ -47,7 +47,11 @@ describe('getFields prefix injection', () => {
   })
 
   it('uses the static collection prefix as the field defaultValue', () => {
-    const fields = getFields(collection, context({ prefix: 'media', storageConfig: dynamicPrefixStorage } as never), [])
+    const fields = getFields(
+      collection,
+      context({ prefix: 'media', storageOptions: dynamicPrefixStorage } as never),
+      [],
+    )
 
     const prefixField = getField(fields, 'prefix') as { defaultValue?: unknown }
     expect(prefixField.defaultValue).toBe('media')
@@ -57,7 +61,7 @@ describe('getFields prefix injection', () => {
     const fields = getFields(
       collection,
       context({
-        storageConfig: { ...dynamicPrefixStorage, clientUploads: {} },
+        storageOptions: { ...dynamicPrefixStorage, clientUploads: {} },
       } as never),
       [],
     )
@@ -68,7 +72,7 @@ describe('getFields prefix injection', () => {
   it('does not inject a prefix field when clientUploads is absent', () => {
     const fields = getFields(
       collection,
-      context({ storageConfig: { ...dynamicPrefixStorage, clientUploads: undefined } } as never),
+      context({ storageOptions: { ...dynamicPrefixStorage, clientUploads: undefined } } as never),
       [],
     )
     expect(hasField(fields, 'prefix')).toBe(false)
@@ -76,7 +80,7 @@ describe('getFields prefix injection', () => {
 
   it('does not duplicate an existing prefix field', () => {
     const existing: Field[] = [{ name: 'prefix', type: 'text' }]
-    const fields = getFields(collection, context({ storageConfig: dynamicPrefixStorage } as never), existing)
+    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), existing)
 
     const prefixFields = fields.filter((f) => 'name' in f && f.name === 'prefix')
     expect(prefixFields).toHaveLength(1)

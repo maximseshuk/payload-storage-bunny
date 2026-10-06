@@ -36,7 +36,7 @@ export const ar: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'لا يمكن حذف الملف: {{filename}}',
     errorMissingRequiredFields: 'بعض المعلومات المطلوبة مفقودة',
     errorNoServiceConfigured: 'لم يتم تكوين أي خدمة',
-    errorStreamConfigMissing: 'Bunny Stream غير مكون بشكل صحيح',
+    errorStreamOptionsMissing: 'Bunny Stream غير مكون بشكل صحيح',
     errorTitleRequired: 'يرجى إدخال عنوان للفيديو الخاص بك',
     errorUploadFileFailed: 'لا يمكن تحميل الملف: {{filename}}',
   },

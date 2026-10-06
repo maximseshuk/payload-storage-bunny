@@ -36,7 +36,7 @@ export const hu: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Nem sikerült törölni a fájlt: {{filename}}',
     errorMissingRequiredFields: 'Hiányzik néhány szükséges információ',
     errorNoServiceConfigured: 'Nincs szolgáltatás konfigurálva',
-    errorStreamConfigMissing: 'A Bunny Stream nincs megfelelően beállítva',
+    errorStreamOptionsMissing: 'A Bunny Stream nincs megfelelően beállítva',
     errorTitleRequired: 'Kérjük, adjon címet a videójának',
     errorUploadFileFailed: 'Nem sikerült feltölteni a fájlt: {{filename}}',
   },

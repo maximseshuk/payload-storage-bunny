@@ -12,7 +12,7 @@ import { streamThumbnailStaticHandler } from '@/server/payload/stream/serveThumb
 import type { CollectionContext } from '@/shared/types/index.js'
 
 export const getStaticHandler = (context: CollectionContext): StaticHandler => {
-  const { collection, prefix, signedUrls, storageConfig, streamConfig, usePayloadAccessControl } = context
+  const { collection, prefix, signedUrls, storageOptions, streamOptions, usePayloadAccessControl } = context
 
   return async (req, data) => {
     try {
@@ -21,7 +21,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         params: { filename, prefix: prefixQueryParam, uploadReference },
       } = data
       const clientUpload = readClientUpload({ collectionSlug: collection.slug, filename, req, uploadReference })
-      if (streamConfig) {
+      if (streamOptions) {
         if (clientUpload?.videoId) {
           return new Response(trimToCompleteIsoBoxes(Buffer.from(clientUpload.head ?? '', 'base64')))
         }
@@ -36,7 +36,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
               collection,
               req,
               signedUrls: signedUrls || false,
-              streamConfig,
+              streamOptions,
               thumbnailType,
               usePayloadAccessControl,
               videoId,
@@ -74,13 +74,13 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
             docId: docId!,
             req,
             signedUrls: signedUrls || false,
-            streamConfig,
+            streamOptions,
             usePayloadAccessControl,
           })
         }
       }
 
-      if (!storageConfig) {
+      if (!storageOptions) {
         return new Response('Storage not configured', { status: 404 })
       }
 
@@ -101,7 +101,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         prefix: resolvedPrefix,
         req,
         signedUrls: signedUrls || false,
-        storageConfig,
+        storageOptions,
         usePayloadAccessControl,
       })
     } catch (err) {
@@ -114,7 +114,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
           err,
           file: { name: data.params.filename },
           msg: '[bunny:storage] serve: upstream request failed',
-          ...(storageConfig && { storage: storageConfig.zoneName }),
+          ...(storageOptions && { storage: storageOptions.zoneName }),
         })
 
         return new Response(null, {
@@ -127,7 +127,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         err,
         file: { name: data.params.filename },
         msg: '[bunny:storage] serve: static handler failed',
-        ...(storageConfig && { storage: storageConfig.zoneName }),
+        ...(storageOptions && { storage: storageOptions.zoneName }),
       })
 
       return new Response('Internal Server Error', { status: 500 })

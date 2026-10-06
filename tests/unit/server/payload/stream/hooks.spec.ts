@@ -36,7 +36,7 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
   ({
     collection: { slug: 'media' },
     isTusUploadSupported: false,
-    streamConfig: { apiKey: 'stream-key', libraryId: 12345 },
+    streamOptions: { apiKey: 'stream-key', libraryId: 12345 },
     usePayloadAccessControl: true,
     ...overrides,
   }) as unknown as CollectionContext
@@ -55,7 +55,7 @@ const clientUpload = (signedReceipt?: string) => ({
   uploadReference: { prefix: '', ...(signedReceipt !== undefined && { signedReceipt }) },
 })
 
-const emptyConfig = { collections: new Map() } as never
+const emptyOptions = { collections: new Map() } as never
 
 const buildReq = (overrides: Record<string, unknown> = {}) =>
   ({
@@ -76,14 +76,22 @@ describe('stream hooks', () => {
 
   describe('getBeforeValidateHook', () => {
     it('throws MissingFile when a create requires a file and none is present', async () => {
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
       await expect(hook({ data: {}, operation: 'create', req: buildReq() } as never)).rejects.toBeInstanceOf(
         MissingFile,
       )
     })
 
     it('clears the videoId on a normal create with a file', async () => {
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
       const data: Record<string, unknown> = {}
 
       const result = (await hook({
@@ -99,7 +107,11 @@ describe('stream hooks', () => {
     it('stores the videoId of a client-direct TUS upload after checking it against the library', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-client', status: 1 })
 
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
       const file = clientUpload(receiptFor('v-client'))
 
       const result = (await hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)) as Record<
@@ -114,7 +126,11 @@ describe('stream hooks', () => {
     it('rejects a client-direct upload whose video is not in the library', async () => {
       getVideoMock.mockRejectedValue(new Error('404'))
 
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
       const file = clientUpload(receiptFor('missing'))
 
       await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toThrow('404')
@@ -136,7 +152,11 @@ describe('stream hooks', () => {
         }),
       ],
     ])('requires a valid signed receipt for a client-direct upload (%s)', async (_label, signedReceipt) => {
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
       const file = clientUpload(signedReceipt)
 
       await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toBeInstanceOf(
@@ -150,7 +170,11 @@ describe('stream hooks', () => {
       isProcessedMock.mockReturnValue(true)
       getSafeFileNameMock.mockResolvedValue('great-video.mp4')
 
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: true })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-123' } } }
 
       const result = (await hook({ data, operation: 'create', req: buildReq() } as never)) as Record<string, any>
@@ -167,7 +191,11 @@ describe('stream hooks', () => {
       isProcessedMock.mockReturnValue(true)
       getSafeFileNameMock.mockResolvedValue('new.mp4')
 
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-new' } } }
       const originalDoc = { bunnyData: { stream: { videoId: 'v-old' } }, filename: 'old.mp4' }
       const req = buildReq()
@@ -179,7 +207,11 @@ describe('stream hooks', () => {
     })
 
     it('does not treat the cloud-storage metadata update after a server upload as a replacement', async () => {
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-new' } } }
       const originalDoc = { bunnyData: { stream: { videoId: null } }, filename: 'clip.mp4' }
       const req = buildReq({ context: { skipCloudStorage: true } })
@@ -190,10 +222,10 @@ describe('stream hooks', () => {
       expect(getVideoMock).not.toHaveBeenCalled()
     })
 
-    it('skips processing when the context has no stream config', async () => {
+    it('skips processing when the context has no stream options', async () => {
       const hook = getBeforeValidateHook({
-        config: emptyConfig,
-        context: buildContext({ streamConfig: undefined }),
+        options: emptyOptions,
+        context: buildContext({ streamOptions: undefined }),
         filesRequiredOnCreate: false,
       })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-123' } } }
@@ -208,7 +240,11 @@ describe('stream hooks', () => {
       getVideoMock.mockResolvedValue({ guid: 'v-123', status: 0, title: 'Pending' })
       isProcessedMock.mockReturnValue(false)
 
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-123' } } }
 
       const result = (await hook({ data, operation: 'create', req: buildReq() } as never)) as Record<string, any>
@@ -219,7 +255,11 @@ describe('stream hooks', () => {
     })
 
     it('does not reprocess when the update videoId is unchanged', async () => {
-      const hook = getBeforeValidateHook({ config: emptyConfig, context: buildContext(), filesRequiredOnCreate: false })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-same' } } }
       const originalDoc = { bunnyData: { stream: { videoId: 'v-same' } }, filename: 'same.mp4' }
 
@@ -230,7 +270,7 @@ describe('stream hooks', () => {
   })
 
   describe('video ownership', () => {
-    const libraryConfig = {
+    const libraryOptions = {
       collections: new Map([
         ['media', { stream: { libraryId: 12345 } }],
         ['clips', { stream: { libraryId: 12345 } }],
@@ -273,7 +313,7 @@ describe('stream hooks', () => {
       ['a document of another Stream collection in the same library', { clips: 'doc-9' }],
     ])('rejects a videoId already used by %s', async (_label, owners) => {
       const hook = getBeforeValidateHook({
-        config: libraryConfig,
+        options: libraryOptions,
         context: buildContext(),
         filesRequiredOnCreate: false,
       })
@@ -288,7 +328,7 @@ describe('stream hooks', () => {
     it('rejects a client-direct upload of a video another document already uses', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 1 })
       const hook = getBeforeValidateHook({
-        config: libraryConfig,
+        options: libraryOptions,
         context: buildContext(),
         filesRequiredOnCreate: true,
       })
@@ -301,7 +341,7 @@ describe('stream hooks', () => {
     it('searches only stream collections of the same library', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
       const hook = getBeforeValidateHook({
-        config: libraryConfig,
+        options: libraryOptions,
         context: buildContext(),
         filesRequiredOnCreate: false,
       })
@@ -315,7 +355,7 @@ describe('stream hooks', () => {
     it('ignores the document being updated', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
       const hook = getBeforeValidateHook({
-        config: libraryConfig,
+        options: libraryOptions,
         context: buildContext(),
         filesRequiredOnCreate: false,
       })
@@ -327,7 +367,7 @@ describe('stream hooks', () => {
 
     it('does not look up an unchanged videoId', async () => {
       const hook = getBeforeValidateHook({
-        config: libraryConfig,
+        options: libraryOptions,
         context: buildContext(),
         filesRequiredOnCreate: false,
       })
@@ -343,7 +383,7 @@ describe('stream hooks', () => {
   describe('getAfterChangeHook', () => {
     it('deletes the upload session when cleanup is enabled and a videoId exists', async () => {
       const hook = getAfterChangeHook(
-        buildContext({ streamConfig: { apiKey: 'k', cleanup: true, libraryId: 12345 } as never }),
+        buildContext({ streamOptions: { apiKey: 'k', cleanup: true, libraryId: 12345 } as never }),
       )
       const req = buildReq()
       await hook({ data: { bunnyData: { stream: { videoId: 'v1' } } }, req } as never)

@@ -50,8 +50,8 @@ const context = (over: Partial<CollectionContext> = {}): CollectionContext =>
     collection,
     isTusUploadSupported: false,
     prefix: '',
-    storageConfig: { apiKey: 'k', hostname: 'cdn.b-cdn.net', uploadTimeout: 60000, zoneName: 'z' },
-    streamConfig: {
+    storageOptions: { apiKey: 'k', hostname: 'cdn.b-cdn.net', uploadTimeout: 60000, zoneName: 'z' },
+    streamOptions: {
       apiKey: 's',
       hostname: 'stream.b-cdn.net',
       libraryId: 1,
@@ -163,7 +163,7 @@ describe('getStaticHandler dispatch', () => {
   })
 
   it('serves storage directly when stream is not configured', async () => {
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
     const res = await handler(makeReq(), { doc: undefined, params: { filename: 'photo.jpg' } })
 
     expect(await res.text()).toBe('storage')
@@ -171,7 +171,7 @@ describe('getStaticHandler dispatch', () => {
   })
 
   it('returns 404 when neither stream nor storage is configured', async () => {
-    const handler = getStaticHandler(context({ storageConfig: undefined, streamConfig: undefined }))
+    const handler = getStaticHandler(context({ storageOptions: undefined, streamOptions: undefined }))
     const res = await handler(makeReq(), { doc: undefined, params: { filename: 'photo.jpg' } })
 
     expect(res.status).toBe(404)
@@ -181,7 +181,7 @@ describe('getStaticHandler dispatch', () => {
   it('maps an upstream HTTPError 404 to a 404 response', async () => {
     storageHandlerMock.mockRejectedValue(httpError(404))
     const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     const res = await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
 
@@ -192,7 +192,7 @@ describe('getStaticHandler dispatch', () => {
 
   it('maps a non-404 HTTPError to a 500 response', async () => {
     storageHandlerMock.mockRejectedValue(httpError(500))
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     const res = await handler(makeReq(), { doc: undefined, params: { filename: 'photo.jpg' } })
 
@@ -203,7 +203,7 @@ describe('getStaticHandler dispatch', () => {
   it('maps a generic error to a 500 response', async () => {
     storageHandlerMock.mockRejectedValue(new Error('boom'))
     const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     const res = await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
 
@@ -221,7 +221,7 @@ const prefixCollection = {
 describe('getStaticHandler storage prefix resolution', () => {
   it('uses params.prefix over everything else', async () => {
     const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     await handler(req, {
       doc: { prefix: 'doc/pre' },
@@ -234,7 +234,7 @@ describe('getStaticHandler storage prefix resolution', () => {
 
   it('reads back only the signed prefix, never the one sent next to it', async () => {
     const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     await handler(req, {
       doc: null,
@@ -250,7 +250,7 @@ describe('getStaticHandler storage prefix resolution', () => {
 
   it('rejects a read-back with an unsigned upload reference', async () => {
     const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     const res = await handler(req, {
       doc: null,
@@ -263,7 +263,7 @@ describe('getStaticHandler storage prefix resolution', () => {
 
   it('uses doc.prefix when no param or upload reference is present', async () => {
     const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     await handler(req, { doc: { prefix: 'tenants/beta/media' }, params: { filename: 'photo.jpg' } })
 
@@ -273,7 +273,7 @@ describe('getStaticHandler storage prefix resolution', () => {
 
   it('passes the collection prefix to the storage handler for an empty doc.prefix', async () => {
     const req = makeReq()
-    const handler = getStaticHandler(context({ prefix: 'media', streamConfig: undefined }))
+    const handler = getStaticHandler(context({ prefix: 'media', streamOptions: undefined }))
 
     await handler(req, { doc: { prefix: '' }, params: { filename: 'photo.jpg', prefix: '' } })
 
@@ -282,7 +282,7 @@ describe('getStaticHandler storage prefix resolution', () => {
 
   it('falls back to a gated DB find when the collection has a prefix field', async () => {
     const req = makeReq({ docs: [{ prefix: 'tenants/db/media' }] })
-    const handler = getStaticHandler(context({ collection: prefixCollection, streamConfig: undefined }))
+    const handler = getStaticHandler(context({ collection: prefixCollection, streamOptions: undefined }))
 
     await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
 
@@ -298,7 +298,7 @@ describe('getStaticHandler storage prefix resolution', () => {
 
   it('skips the DB find and uses the static fallback prefix when no prefix field exists', async () => {
     const req = makeReq()
-    const handler = getStaticHandler(context({ prefix: 'static-pre', streamConfig: undefined }))
+    const handler = getStaticHandler(context({ prefix: 'static-pre', streamOptions: undefined }))
 
     await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
 
@@ -308,7 +308,7 @@ describe('getStaticHandler storage prefix resolution', () => {
 
   it('sanitizes a traversal attempt in the prefix query param', async () => {
     const req = makeReq()
-    const handler = getStaticHandler(context({ streamConfig: undefined }))
+    const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     await handler(req, { doc: undefined, params: { filename: 'photo.jpg', prefix: '../%2e%2e/secret' } })
 

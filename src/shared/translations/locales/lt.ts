@@ -36,7 +36,7 @@ export const lt: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Nepavyko ištrinti failo: {{filename}}',
     errorMissingRequiredFields: 'Trūksta reikalingos informacijos',
     errorNoServiceConfigured: 'Nėra sukonfigūruotos paslaugos',
-    errorStreamConfigMissing: 'Bunny Stream nėra tinkamai sukonfigūruotas',
+    errorStreamOptionsMissing: 'Bunny Stream nėra tinkamai sukonfigūruotas',
     errorTitleRequired: 'Prašome įvesti savo vaizdo įrašo pavadinimą',
     errorUploadFileFailed: 'Nepavyko įkelti failo: {{filename}}',
   },

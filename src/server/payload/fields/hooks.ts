@@ -5,8 +5,8 @@ import { getGenerateUrl } from '@/server/payload/storage/generateUrl.js'
 import { maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/server/urls.js'
 import { isImage } from '@/shared/mimeTypes.js'
-import type { NormalizedThumbnailConfig } from '@/shared/types/configNormalized.js'
 import type { CollectionContext } from '@/shared/types/index.js'
+import type { NormalizedThumbnailOptions } from '@/shared/types/optionsNormalized.js'
 import { applyUrlTransform } from '@/shared/urlTransform.js'
 
 type FieldHookArgs = {
@@ -15,21 +15,21 @@ type FieldHookArgs = {
 }
 
 const applyTransform = (
-  config: false | NormalizedThumbnailConfig | undefined,
+  options: false | NormalizedThumbnailOptions | undefined,
   context: CollectionContext,
   doc: Record<string, unknown>,
   filename: string,
   prefix: string,
   url: string,
 ): string => {
-  if (!config) {
+  if (!options) {
     return url
   }
 
-  const { sizeName: _sizeName, ...configWithoutSizeName } = config
+  const { sizeName: _sizeName, ...optionsWithoutSizeName } = options
   return applyUrlTransform({
     collection: context.collection,
-    config: configWithoutSizeName,
+    options: optionsWithoutSizeName,
     data: doc,
     filename,
     prefix,
@@ -38,7 +38,7 @@ const applyTransform = (
 }
 
 export const getAdminThumbnail = (context: CollectionContext) => {
-  const { collection, signedUrls, storageConfig, streamConfig, thumbnail } = context
+  const { collection, signedUrls, storageOptions, streamOptions, thumbnail } = context
 
   if (!thumbnail) {
     return undefined
@@ -65,14 +65,14 @@ export const getAdminThumbnail = (context: CollectionContext) => {
           return applyTransform(thumbnail, context, doc, sizeFilename, prefix, internalUrl)
         }
 
-        if (!storageConfig) {
+        if (!storageOptions) {
           return null
         }
 
         const baseUrl = buildStorageCdnUrl({
           collectionPrefix: context.prefix,
           filename: sizeFilename,
-          hostname: storageConfig.hostname,
+          hostname: storageOptions.hostname,
           prefix,
         })
         const transformedUrl = applyTransform(thumbnail, context, doc, sizeFilename, prefix, baseUrl)
@@ -81,7 +81,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
           filename: sizeFilename,
           req,
           signedUrls,
-          tokenSecurityKey: storageConfig.tokenSecurityKey,
+          tokenSecurityKey: storageOptions.tokenSecurityKey,
         })
       }
     }
@@ -95,14 +95,14 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 
-      if (!storageConfig) {
+      if (!storageOptions) {
         return null
       }
 
       const baseUrl = buildStorageCdnUrl({
         collectionPrefix: context.prefix,
         filename,
-        hostname: storageConfig.hostname,
+        hostname: storageOptions.hostname,
         prefix,
       })
       const transformedUrl = applyTransform(thumbnail, context, doc, filename, prefix, baseUrl)
@@ -111,12 +111,12 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         filename,
         req,
         signedUrls,
-        tokenSecurityKey: storageConfig.tokenSecurityKey,
+        tokenSecurityKey: storageOptions.tokenSecurityKey,
       })
     }
 
     const videoId = readStoredVideo(doc)?.videoId
-    if (streamConfig && videoId) {
+    if (streamOptions && videoId) {
       const isStreamAnimated = thumbnail && typeof thumbnail === 'object' && thumbnail.streamAnimated
       const thumbnailFile = isStreamAnimated ? 'preview.webp' : 'thumbnail.jpg'
       const filename = `${videoId}/${thumbnailFile}`
@@ -127,14 +127,14 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 
-      const baseUrl = buildStreamCdnUrl(streamConfig.hostname, videoId, thumbnailFile)
+      const baseUrl = buildStreamCdnUrl(streamOptions.hostname, videoId, thumbnailFile)
       const transformedUrl = applyTransform(thumbnail, context, doc, filename, prefix, baseUrl)
       return maybeGenerateSignedUrl(transformedUrl, {
         collection,
         filename,
         req,
         signedUrls,
-        tokenSecurityKey: streamConfig.tokenSecurityKey,
+        tokenSecurityKey: streamOptions.tokenSecurityKey,
       })
     }
 
@@ -161,7 +161,7 @@ export const getUrlAfterReadFieldHook = ({ context, size }: FieldHookArgs): Fiel
     if (context.usePayloadAccessControl && context.urlTransform && url && typeof url === 'string') {
       url = applyUrlTransform({
         collection: context.collection,
-        config: context.urlTransform,
+        options: context.urlTransform,
         data,
         filename: filename || '',
         prefix: prefix || '',

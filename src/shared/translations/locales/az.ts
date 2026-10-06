@@ -36,7 +36,7 @@ export const az: PluginDefaultTranslationsObject = {
     errorDeleteFileFailed: 'Fayl silinmədi: {{filename}}',
     errorMissingRequiredFields: 'Bəzi tələb olunan məlumatlar əksikdir',
     errorNoServiceConfigured: 'Heç bir xidmət konfiqurasiya edilməyib',
-    errorStreamConfigMissing: 'Bunny Stream düzgün konfiqurasiya edilməyib',
+    errorStreamOptionsMissing: 'Bunny Stream düzgün konfiqurasiya edilməyib',
     errorTitleRequired: 'Zəhmət olmasa videonuz üçün başlıq daxil edin',
     errorUploadFileFailed: 'Fayl yüklənmədi: {{filename}}',
   },

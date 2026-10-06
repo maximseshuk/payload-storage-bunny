@@ -12,7 +12,7 @@ import type { PluginStorageBunnyTranslationsKeys } from '@/shared/translations/i
 import type { CollectionContext } from '@/shared/types/index.js'
 
 export const getHandleDelete = (context: CollectionContext): HandleDelete => {
-  const { accountApiKey, purgeConfig, storageConfig, streamConfig } = context
+  const { accountApiKey, purgeOptions, storageOptions, streamOptions } = context
 
   return async ({ doc, filename, req, storageFilePath: path }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
@@ -20,38 +20,38 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
     try {
       const bunnyData = getBunnyData(doc, filename)
 
-      if (streamConfig && bunnyData?.stream) {
+      if (streamOptions && bunnyData?.stream) {
         await deleteStreamVideo({
-          apiKey: streamConfig.apiKey,
-          libraryId: streamConfig.libraryId,
+          apiKey: streamOptions.apiKey,
+          libraryId: streamOptions.libraryId,
           videoId: bunnyData.stream.videoId,
         })
-      } else if (storageConfig) {
-        if (storageConfig.s3) {
+      } else if (storageOptions) {
+        if (storageOptions.s3) {
           await deleteStorageFileS3({
-            apiKey: storageConfig.apiKey,
+            apiKey: storageOptions.apiKey,
             path,
-            region: storageConfig.region,
-            zoneName: storageConfig.zoneName,
+            region: storageOptions.region,
+            zoneName: storageOptions.zoneName,
           })
         } else {
           await deleteStorageFile({
-            apiKey: storageConfig.apiKey,
+            apiKey: storageOptions.apiKey,
             path,
-            region: storageConfig.region,
-            zoneName: storageConfig.zoneName,
+            region: storageOptions.region,
+            zoneName: storageOptions.zoneName,
           })
         }
 
-        if (purgeConfig && accountApiKey) {
+        if (purgeOptions && accountApiKey) {
           const fileUrl = buildStoragePurgeUrl({
             collectionPrefix: context.prefix,
             filename,
-            hostname: storageConfig.hostname,
+            hostname: storageOptions.hostname,
             prefix: doc.prefix,
           })
           try {
-            await purgeCache({ apiKey: accountApiKey, async: purgeConfig.async, url: fileUrl })
+            await purgeCache({ apiKey: accountApiKey, async: purgeOptions.async, url: fileUrl })
             req.payload.logger.debug({
               msg: '[bunny:storage] delete: cache purged',
               url: fileUrl,
@@ -75,7 +75,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
         err,
         file: { name: filename },
         msg: '[bunny:storage] delete: failed',
-        ...(storageConfig && { storage: storageConfig.zoneName }),
+        ...(storageOptions && { storage: storageOptions.zoneName }),
       })
 
       throw new APIError(
