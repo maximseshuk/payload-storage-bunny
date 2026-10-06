@@ -110,8 +110,10 @@ Opt out with `telemetry: false`, `DO_NOT_TRACK=1`, or `BUNNY_TELEMETRY_DISABLED=
 
 ## Related plugins
 
-- **[@seshuk/payload-plugin-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — preview images, video, audio, and documents directly in the Payload admin panel. Works with any storage adapter; ships a [Bunny Stream adapter](https://payload-storage-bunny.seshuk.im/v4/guides/media-preview) for this plugin.
-- **[@seshuk/payload-plugin-openapi](https://github.com/maximseshuk/payload-plugin-openapi)** — OpenAPI 3.0/3.1/3.2 spec generator for Payload, with Scalar / Swagger UI.
+- **[@seshuk/payload-plugin-media-preview](https://github.com/maximseshuk/payload-plugin-media-preview)** — preview images, video, audio and documents in the Payload admin panel. Works with any storage adapter; ships a [Bunny Stream adapter](https://payload-storage-bunny.seshuk.im/v4/guides/media-preview) for this plugin.
+- **[@seshuk/payload-plugin-janitor](https://github.com/maximseshuk/payload-plugin-janitor)** — find orphaned files and unused documents, then delete only what you approve.
+- **[@seshuk/payload-plugin-sitemap](https://github.com/maximseshuk/payload-plugin-sitemap)** — sitemaps for Payload, stored with any storage adapter.
+- **[@seshuk/payload-plugin-openapi](https://github.com/maximseshuk/payload-plugin-openapi)** — OpenAPI 3.0, 3.1 and 3.2 spec for Payload, with Scalar or Swagger UI.
 
 ## Support
 
