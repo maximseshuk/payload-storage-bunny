@@ -61,7 +61,7 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
                 return { resolutions: mp4Fallback ? null : undefined, status: 'processing' as const }
               })
           : undefined
-        setStoredVideoId(data, video.guid, saved?.status, saved?.resolutions)
+        setStoredVideoId(data, video.guid, saved?.status, saved?.resolutions ?? (mp4Fallback ? null : undefined))
 
         const adminThumbnail = getAdminThumbnail(context)
         if (adminThumbnail) {

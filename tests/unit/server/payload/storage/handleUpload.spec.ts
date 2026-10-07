@@ -180,6 +180,26 @@ describe('getHandleUpload', () => {
       expect((data.bunnyData as { stream: unknown }).stream).toEqual({ videoId: 'video-guid' })
     })
 
+    it('replaces the old resolutions with null when the status is turned off and mp4Fallback is on', async () => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+      const data: Record<string, unknown> = {
+        bunnyData: { stream: { resolutions: { available: ['720p'], highest: '720p' }, videoId: 'old-guid' } },
+      }
+
+      await getHandleUpload(
+        buildContext({
+          streamOptions: { ...streamOptions, mp4Fallback: true, status: false },
+        } as unknown as Partial<CollectionContext>),
+      )({
+        collection: { slug: 'media' },
+        data,
+        file: createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' }),
+        req: createReq(),
+      } as never)
+
+      expect((data.bunnyData as { stream: unknown }).stream).toEqual({ resolutions: null, videoId: 'video-guid' })
+    })
+
     it('creates a tracking session when cleanup is enabled', async () => {
       createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 999 })
       uploadStreamVideoMock.mockResolvedValue(undefined)

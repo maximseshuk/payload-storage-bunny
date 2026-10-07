@@ -158,6 +158,24 @@ describe('stream hooks', () => {
       expect(result.bunnyData.stream).toEqual({ resolutions, status: 'ready', videoId: 'v-client' })
     })
 
+    it('clears the old resolutions on a client-direct upload when the status is turned off and mp4Fallback is on', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-client', status: 4 })
+
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext({
+          streamOptions: { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: false },
+        } as never),
+        filesRequiredOnCreate: true,
+      })
+      const data = { bunnyData: { stream: { resolutions: { available: ['720p'] }, videoId: 'v-old' } } }
+      const req = buildReq({ file: clientUpload(receiptFor('v-client')) })
+
+      const result = (await hook({ data, operation: 'update', req } as never)) as Record<string, any>
+
+      expect(result.bunnyData.stream).toEqual({ resolutions: null, videoId: 'v-client' })
+    })
+
     it('rejects a client-direct upload whose video is not in the library', async () => {
       getVideoMock.mockRejectedValue(new Error('404'))
 
@@ -393,6 +411,32 @@ describe('stream hooks', () => {
 
       expect(result.bunnyData.stream).toEqual({ videoId: 'v-123' })
       expect(saveStateMock).not.toHaveBeenCalled()
+    })
+
+    it('clears the old resolutions of a replaced video when the status is turned off and mp4Fallback is on', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-new', status: 2, title: 'Pending' })
+      isProcessedMock.mockReturnValue(false)
+      const oldResolutions = { available: ['720p'], highest: '720p' }
+
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext({
+          streamOptions: { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: false },
+        } as never),
+        filesRequiredOnCreate: false,
+      })
+      const data: Record<string, unknown> = { bunnyData: { stream: { resolutions: oldResolutions, videoId: 'v-new' } } }
+      const originalDoc = {
+        bunnyData: { stream: { resolutions: oldResolutions, videoId: 'v-old' } },
+        filename: 'old.mp4',
+      }
+
+      const result = (await hook({ data, operation: 'update', originalDoc, req: buildReq() } as never)) as Record<
+        string,
+        any
+      >
+
+      expect(result.bunnyData.stream).toEqual({ resolutions: null, videoId: 'v-new' })
     })
 
     it('does not reprocess when the update videoId is unchanged', async () => {

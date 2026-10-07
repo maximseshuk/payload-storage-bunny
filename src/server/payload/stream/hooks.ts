@@ -91,7 +91,7 @@ export const getBeforeValidateHook = ({
       const saved = status
         ? await getStreamSaveState({ apiKey, libraryId, logger: req.payload.logger, mp4Fallback, video })
         : undefined
-      setStoredVideoId(data, clientVideoId, saved?.status, saved?.resolutions)
+      setStoredVideoId(data, clientVideoId, saved?.status, saved?.resolutions ?? (mp4Fallback ? null : undefined))
     }
 
     if (data && !readStoredVideo(data)?.videoId) {
@@ -130,8 +130,8 @@ export const getBeforeValidateHook = ({
           video: videoData,
         })
         setStoredVideoId(targetData, videoData.guid, saved.status, saved.resolutions)
-      } else if (isVideoProcessed(videoData.status)) {
-        setStoredVideoId(targetData, videoData.guid, undefined)
+      } else {
+        setStoredVideoId(targetData, videoData.guid, undefined, context.streamOptions.mp4Fallback ? null : undefined)
       }
 
       if (isVideoProcessed(videoData.status)) {
