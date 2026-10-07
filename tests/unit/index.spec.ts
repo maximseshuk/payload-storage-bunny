@@ -320,3 +320,29 @@ describe('translations', () => {
     expect(translations.en['@seshuk/payload-storage-bunny'].tusUploadEnableMode).toBe('Enable TUS mode')
   })
 })
+
+describe('TUS upload component', () => {
+  const getUpload = (tus: boolean): unknown => {
+    const incoming = {
+      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*'] } }],
+    } as unknown as Config
+
+    const result = bunnyStorage({
+      collections: { media: { disablePayloadAccessControl: true, storage: false } },
+      stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, tus },
+    } as BunnyStorageOptions).init(incoming) as Config
+
+    return result.collections?.[0]?.admin?.components?.edit?.Upload
+  }
+
+  it('renders the server wrapper with the collection slug so the edit view keeps its filePreview', () => {
+    expect(getUpload(true)).toEqual({
+      path: '@seshuk/payload-storage-bunny/rsc#TusUploadServer',
+      serverProps: { collectionSlug: 'media' },
+    })
+  })
+
+  it('keeps the default upload when TUS is off', () => {
+    expect(getUpload(false)).toBeUndefined()
+  })
+})

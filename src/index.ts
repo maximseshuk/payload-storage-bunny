@@ -155,7 +155,10 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
                   ...(collection.admin?.components?.edit || {}),
                   ...(collectionContext.isTusUploadSupported
                     ? {
-                        Upload: '@seshuk/payload-storage-bunny/client#TusUpload',
+                        Upload: {
+                          path: '@seshuk/payload-storage-bunny/rsc#TusUploadServer',
+                          serverProps: { collectionSlug: collection.slug },
+                        },
                       }
                     : {}),
                 },

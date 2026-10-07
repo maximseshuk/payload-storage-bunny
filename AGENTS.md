@@ -1,6 +1,6 @@
 # Bunny.net Storage for Payload
 
-Payload 4 storage adapter for Bunny.net. Wrap `@payloadcms/plugin-cloud-storage`. Features: Bunny Storage (HTTP API or S3), Bunny Stream (HLS/MP4, thumbnails, TUS uploads), client-direct uploads (presigned S3 or Edge Script), signed URLs (expiry, country, IPv4 lock), CDN purge on upload/delete, per-collection overrides (own zone/library too), CLI (`init` wizard, `bunny:deploy-edge-script`), subpath exports `./client`, `./media-preview`.
+Payload 4 storage adapter for Bunny.net. Wrap `@payloadcms/plugin-cloud-storage`. Features: Bunny Storage (HTTP API or S3), Bunny Stream (HLS/MP4, thumbnails, TUS uploads), client-direct uploads (presigned S3 or Edge Script), signed URLs (expiry, country, IPv4 lock), CDN purge on upload/delete, per-collection overrides (own zone/library too), CLI (`init` wizard, `bunny:deploy-edge-script`), subpath exports `./client`, `./media-preview`, `./rsc`.
 
 ## Environment
 
@@ -35,13 +35,14 @@ Before every commit: `pnpm typecheck && pnpm lint && pnpm format`.
 
 ## Structure
 
-Entrypoints: `index.ts` (server), `client/index.ts` (admin UI), `cli/index.ts` (bin). Dependency direction in `server/`: payload → bunny → http → shared. Enforced by `oxlint.config.ts` overrides.
+Entrypoints: `index.ts` (server), `client/index.ts` (admin UI), `rsc/index.ts` (admin server components), `cli/index.ts` (bin). Dependency direction in `server/`: payload → bunny → http → shared. Enforced by `oxlint.config.ts` overrides.
 
 ```
 src/
 ├── index.ts     # plugin entry
 ├── shared/      # isomorphic leaf: types/ (options.ts = public JSDoc API), translations/, constants, mimeTypes, http, urlTransform, zoneSecret
 ├── client/      # 'use client' entry; TusUpload/*, ClientUploadHandler
+├── rsc/         # admin server components: TusUploadServer (edit.Upload of TUS collections)
 ├── edge/        # uploader.edge.js (Bunny Edge Script)
 ├── cli/         # bin (cac); commands/ (init/, deployEdgeScript.ts); lib/ (Logger, bunnyFetch, envFile: reuse)
 └── server/

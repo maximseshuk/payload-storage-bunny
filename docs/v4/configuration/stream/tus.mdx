@@ -66,6 +66,10 @@ If `cleanup` is enabled, the plugin tracks the upload in a hidden `bunny-stream-
 
 </Steps>
 
+## Custom upload controls
+
+The edit view keeps the collection's custom upload controls (`upload.admin.components.controls`) next to the TUS toggle. With `autoMode` on, there is no toggle, so only your controls show. The bulk upload drawer shows no upload controls, like Payload's own upload area.
+
 ## Bulk uploads and form saves
 
 Payload's bulk upload drawer opens from the list view's **Bulk Upload** button and whenever a file is dropped or pasted on an upload field. The drawer has no TUS controls. Instead, videos saved there, and videos saved from the edit view without switching to TUS mode, go to Bunny Stream over TUS through Payload's client upload handler. The document is created only after the upload finishes. Video bytes never pass through your server, so a request body cap (Vercel's 4.5 MB) doesn't apply.
@@ -77,3 +81,9 @@ Uploads through your server are multipart form data. Payload limits them to 20 M
 These uploads show Payload's own progress overlay and don't resume after a dropped connection. Use TUS mode in the edit view for that.
 
 If the save fails after the video has uploaded, the video stays in your Stream library. Enable [cleanup](/v4/configuration/stream/overview#cleanup) to remove such videos automatically.
+
+<Warning>
+
+**Known limitation.** In the bulk upload drawer of a collection with TUS uploads, crop and focal point edits are not saved. Payload does not pass upload edits to a custom upload component. A fix depends on Payload, see [payloadcms/payload#18612](https://github.com/payloadcms/payload/pull/18612).
+
+</Warning>

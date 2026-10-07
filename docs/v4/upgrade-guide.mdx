@@ -5,6 +5,16 @@ description: 'Upgrade between major versions of the Bunny Storage plugin — opt
 
 This guide covers upgrading between versions of the Bunny Storage plugin.
 
+## v4.0.0-beta.1 to v4.0.0-beta.2
+
+### Regenerate the import map
+
+Collections with TUS uploads now load their upload area from `@seshuk/payload-storage-bunny/rsc`, so the edit view shows the collection's `filePreview`, for example the media preview, and its custom upload controls (`upload.admin.components.controls`). Regenerate the import map, or the admin cannot find the component:
+
+```bash
+npx payload generate:importmap
+```
+
 ## v3 to v4
 
 v4 supports Payload 4. It follows the new storage adapter API, so most changes come from Payload itself. Do steps 1 to 4 first. The later steps only apply to some apps.

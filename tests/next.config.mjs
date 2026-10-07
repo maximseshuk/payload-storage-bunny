@@ -22,6 +22,7 @@ export default withPayload(
         '@payload-config': './payload.config.ts',
         '@seshuk/payload-storage-bunny$': '../src/index.ts',
         '@seshuk/payload-storage-bunny/client': '../src/client/index.ts',
+        '@seshuk/payload-storage-bunny/rsc': '../src/rsc/index.ts',
       },
     },
     env: {

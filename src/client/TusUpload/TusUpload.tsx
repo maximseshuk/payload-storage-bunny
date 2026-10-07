@@ -22,7 +22,10 @@ import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 
 import { clickFileFieldRemoveButton } from './TusUpload.utils.js'
 
-export const TusUpload: React.FC = () => {
+export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' | 'UploadFilePreview'>> = ({
+  UploadControls,
+  UploadFilePreview,
+}) => {
   const { collectionSlug: docSlug, initialState } = useDocumentInfo()
   const { getEntityConfig } = useConfig()
   const { resetUploadEdits } = useUploadEdits()
@@ -99,12 +102,20 @@ export const TusUpload: React.FC = () => {
   }, [allowedMimeTypes, fileValue, handleEnableTus, isAutoModeEnabled, isTusMode, removeFileManagerFile])
 
   const uploadControls = useMemo(() => {
-    if (isAutoModeEnabled || !isTusEnabled) {
+    if (isBulkUpload) {
       return null
     }
+    if (isAutoModeEnabled || !isTusEnabled) {
+      return UploadControls
+    }
 
-    return <ToggleButton isEnabled={false} onToggle={handleEnableTus} />
-  }, [handleEnableTus, isAutoModeEnabled, isTusEnabled])
+    return (
+      <>
+        {UploadControls}
+        <ToggleButton isEnabled={false} onToggle={handleEnableTus} />
+      </>
+    )
+  }, [handleEnableTus, isAutoModeEnabled, isBulkUpload, isTusEnabled, UploadControls])
 
   return (
     <>
@@ -114,6 +125,7 @@ export const TusUpload: React.FC = () => {
           initialState={initialState}
           uploadConfig={collectionConfig?.upload as PayloadFileManagerProps['uploadConfig']}
           UploadControls={uploadControls}
+          UploadFilePreview={UploadFilePreview}
         />
       </div>
 

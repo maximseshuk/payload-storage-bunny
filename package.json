@@ -41,7 +41,8 @@
   "exports": {
     ".": "./dist/index.js",
     "./client": "./dist/client/index.js",
-    "./media-preview": "./dist/server/payload/mediaPreview.js"
+    "./media-preview": "./dist/server/payload/mediaPreview.js",
+    "./rsc": "./dist/rsc/index.js"
   },
   "publishConfig": {
     "main": "./dist/index.js",
@@ -61,6 +62,11 @@
         "types": "./dist/server/payload/mediaPreview.d.ts",
         "import": "./dist/server/payload/mediaPreview.js",
         "default": "./dist/server/payload/mediaPreview.js"
+      },
+      "./rsc": {
+        "types": "./dist/rsc/index.d.ts",
+        "import": "./dist/rsc/index.js",
+        "default": "./dist/rsc/index.js"
       }
     },
     "access": "public",
