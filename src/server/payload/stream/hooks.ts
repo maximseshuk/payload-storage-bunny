@@ -20,6 +20,7 @@ import { readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunny
 import { readClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import { getHandleDelete } from '@/server/payload/storage/handleDelete.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
+import { isStreamFileMimeType } from '@/shared/mimeTypes.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
@@ -132,6 +133,11 @@ export const getBeforeValidateHook = ({
         setStoredVideoId(targetData, videoData.guid, saved.status, saved.resolutions)
       } else {
         setStoredVideoId(targetData, videoData.guid, undefined, context.streamOptions.mp4Fallback ? null : undefined)
+      }
+
+      if (!isStreamFileMimeType(targetData.mimeType ?? originalDoc?.mimeType, context.streamOptions.mimeTypes)) {
+        targetData.mimeType = 'video/mp4'
+        targetData.filesize = videoData.storageSize
       }
 
       if (isVideoProcessed(videoData.status)) {

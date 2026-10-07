@@ -329,6 +329,39 @@ describe('stream hooks', () => {
       expect(result.filename).toBeUndefined()
     })
 
+    it('gives a document with a non-Stream file the video type and size when a new video is set without a file', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-new', status: 1, storageSize: 0, title: 'Pending' })
+      isProcessedMock.mockReturnValue(false)
+
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const originalDoc = {
+        bunnyData: { stream: { videoId: null } },
+        filename: 'photo.png',
+        filesize: 1234,
+        mimeType: 'image/png',
+      }
+
+      const image = (await hook({
+        data: { bunnyData: { stream: { videoId: 'v-new' } } },
+        operation: 'update',
+        originalDoc,
+        req: buildReq(),
+      } as never)) as Record<string, any>
+      const video = (await hook({
+        data: { bunnyData: { stream: { videoId: 'v-new' } }, filesize: 99, mimeType: 'video/quicktime' },
+        operation: 'update',
+        originalDoc,
+        req: buildReq(),
+      } as never)) as Record<string, any>
+
+      expect(image).toMatchObject({ filesize: 0, mimeType: 'video/mp4' })
+      expect(video).toMatchObject({ filesize: 99, mimeType: 'video/quicktime' })
+    })
+
     it('stores the state of a replacement video that is still encoding', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-new', status: 0, title: 'Pending' })
       isProcessedMock.mockReturnValue(false)

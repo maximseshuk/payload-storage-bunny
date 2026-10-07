@@ -1,5 +1,6 @@
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
 import type { TFunction } from '@payloadcms/translations'
+import type { CollectionBeforeChangeHook } from 'payload'
 import { APIError } from 'payload'
 
 import { purgeCache } from '@/server/bunny/cdn.js'
@@ -14,6 +15,27 @@ import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/shared/translations/index.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
+const uploadsToStream = ({ streamOptions }: CollectionContext, mimeType: unknown): boolean =>
+  !!streamOptions?.apiKey &&
+  typeof mimeType === 'string' &&
+  streamOptions.mimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
+
+export const getForgetStreamVideoHook =
+  (context: CollectionContext): CollectionBeforeChangeHook =>
+  ({ data, req }) => {
+    const { streamOptions } = context
+    if (!streamOptions || !req.file || req.file.uploadReference || uploadsToStream(context, data.mimeType)) {
+      return data
+    }
+    setStoredVideoId(
+      data,
+      null,
+      streamOptions.status ? null : undefined,
+      streamOptions.status && streamOptions.mp4Fallback ? null : undefined,
+    )
+    return data
+  }
+
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
   const { accountApiKey, purgeOptions, storageOptions, streamOptions } = context
 
@@ -22,9 +44,8 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
 
     try {
       const fileName = file.filename
-      const isVideoFile = !!streamOptions?.mimeTypes?.some((pattern) => matchesMimeTypePattern(file.mimeType, pattern))
 
-      if (streamOptions?.apiKey && isVideoFile) {
+      if (streamOptions && uploadsToStream(context, file.mimeType)) {
         const video = await createStreamVideo({
           apiKey: streamOptions.apiKey,
           libraryId: streamOptions.libraryId,
@@ -89,13 +110,6 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             zoneName: storageOptions.zoneName,
           })
         }
-
-        setStoredVideoId(
-          data,
-          null,
-          streamOptions?.status ? null : undefined,
-          streamOptions?.status && streamOptions.mp4Fallback ? null : undefined,
-        )
 
         if (purgeOptions && accountApiKey) {
           const url = buildStoragePurgeUrl({

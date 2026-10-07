@@ -11,6 +11,7 @@ import { getSelectMode } from 'payload/shared'
 
 import { bunnyDataFieldOpenApi } from '@/server/payload/openapi.js'
 import { verifyStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
+import { isStreamFileMimeType } from '@/shared/mimeTypes.js'
 import type { BunnyDataInternal, CollectionContext, StreamVideoState } from '@/shared/types/index.js'
 
 type StoredResolutions = {
@@ -201,14 +202,21 @@ export const readStoredVideo = (doc: unknown): StoredStream | undefined => {
   return (doc as { bunnyData?: StoredBunnyData } | undefined)?.bunnyData?.stream
 }
 
+export const readStreamFileVideoId = (doc: unknown, mimeTypes: readonly string[] = []): null | string | undefined => {
+  if (!isStreamFileMimeType((doc as { mimeType?: unknown } | undefined)?.mimeType, mimeTypes)) {
+    return undefined
+  }
+  return readStoredVideo(doc)?.videoId
+}
+
 export const setStoredVideoId = (
   data: Record<string, unknown>,
   videoId: null | string,
   status: null | StreamVideoState | undefined,
   resolutions?: null | StoredResolutions,
 ): void => {
-  const bunnyData = (data.bunnyData as Record<string, unknown> | undefined) ?? {}
-  const stream = (bunnyData.stream as Record<string, unknown> | undefined) ?? {}
+  const bunnyData = { ...(data.bunnyData as Record<string, unknown> | undefined) }
+  const stream = { ...(bunnyData.stream as Record<string, unknown> | undefined) }
   stream.videoId = videoId
   if (status !== undefined) {
     stream.status = videoId ? status : null
@@ -220,7 +228,11 @@ export const setStoredVideoId = (
   data.bunnyData = bunnyData
 }
 
-export const getBunnyData = (doc: TypeWithID | undefined, filename: string): BunnyDataInternal | null => {
+export const getBunnyData = (
+  doc: TypeWithID | undefined,
+  filename: string,
+  mimeTypes?: readonly string[],
+): BunnyDataInternal | null => {
   if (!doc || typeof doc !== 'object') {
     return null
   }
@@ -229,15 +241,15 @@ export const getBunnyData = (doc: TypeWithID | undefined, filename: string): Bun
     return null
   }
 
-  const stored = readStoredVideo(doc)
-  if (!stored?.videoId || typeof stored.videoId !== 'string') {
+  const videoId = readStreamFileVideoId(doc, mimeTypes)
+  if (!videoId || typeof videoId !== 'string') {
     return null
   }
 
   return {
     stream: {
-      resolutions: stored.resolutions,
-      videoId: stored.videoId,
+      resolutions: readStoredVideo(doc)?.resolutions,
+      videoId,
     },
   }
 }

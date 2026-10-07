@@ -136,6 +136,20 @@ describe('field hooks', () => {
         const fn = getAdminThumbnail(buildContext({ streamOptions, usePayloadAccessControl: true }))!
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('/api/media/file/bunny%3Astream%3Av-9%3Athumbnail.jpg')
       })
+
+      it('returns null when a stale videoId remains on an application/pdf file', () => {
+        const fn = getAdminThumbnail(buildContext({ storageOptions, streamOptions }))!
+        expect(
+          fn({ doc: { ...streamDoc, filename: 'doc.pdf', mimeType: 'application/pdf' }, req: {} as never }),
+        ).toBeNull()
+      })
+
+      it('keeps the Stream thumbnail for an audio/mpeg file that the Stream mimeTypes do not list', () => {
+        const fn = getAdminThumbnail(buildContext({ storageOptions, streamOptions }))!
+        expect(fn({ doc: { ...streamDoc, filename: 'song.mp3', mimeType: 'audio/mpeg' }, req: {} as never })).toBe(
+          'https://stream.b-cdn.net/v-9/thumbnail.jpg',
+        )
+      })
     })
 
     it('returns null for a non-image, non-stream document', () => {

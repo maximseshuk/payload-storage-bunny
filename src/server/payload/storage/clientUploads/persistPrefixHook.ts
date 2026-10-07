@@ -1,6 +1,7 @@
 import { sanitizePrefix } from '@payloadcms/plugin-cloud-storage/utilities'
 import type { CollectionBeforeChangeHook, CollectionBeforeOperationHook } from 'payload'
 
+import { setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
 import { readClientUpload, type VerifiedClientUpload } from './receipt.js'
@@ -45,6 +46,15 @@ export const getBeforeChangeHook =
     }
     if (typeof stored.mimeType === 'string') {
       data.mimeType = stored.mimeType
+    }
+    const { streamOptions } = context
+    if (streamOptions && !stored.videoId) {
+      setStoredVideoId(
+        data,
+        null,
+        streamOptions.status ? null : undefined,
+        streamOptions.status && streamOptions.mp4Fallback ? null : undefined,
+      )
     }
     return data
   }

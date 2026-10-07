@@ -58,6 +58,23 @@ describe('bunnyGroupField', () => {
       })
     })
 
+    it('returns null when a stale videoId remains on an image', () => {
+      const doc = { filename: 'photo.jpg', bunnyData: { stream: { videoId: 'v1' } }, mimeType: 'image/jpeg' }
+      expect(getBunnyData(doc as unknown as TypeWithID, 'photo.jpg', ['video/*'])).toBeNull()
+    })
+
+    it.each([
+      ['application/mxf', ['application/mxf']],
+      ['video/mp4', ['video/webm']],
+      ['audio/mpeg', []],
+      ['', ['video/*']],
+    ])('keeps the video of a "%s" file', (mimeType, mimeTypes) => {
+      const doc = { filename: 'a', bunnyData: { stream: { videoId: 'v1' } }, mimeType }
+      expect(getBunnyData(doc as unknown as TypeWithID, 'a', mimeTypes)).toEqual({
+        stream: { resolutions: undefined, videoId: 'v1' },
+      })
+    })
+
     it('skips the filename check when filename arg is empty', () => {
       const doc = { filename: 'whatever.mp4', bunnyData: { stream: { videoId: 'v1' } } } as unknown as TypeWithID
       expect(getBunnyData(doc, '')).toEqual({ stream: { resolutions: undefined, videoId: 'v1' } })
@@ -74,6 +91,14 @@ describe('bunnyGroupField', () => {
     it('clears the status when the videoId is cleared', () => {
       const data: Record<string, unknown> = { bunnyData: { stream: { status: 'ready', videoId: 'v1' } } }
       setStoredVideoId(data, null, 'ready')
+      expect(readStoredVideo(data)).toEqual({ status: null, videoId: null })
+    })
+
+    it('leaves the stream object it replaces untouched, because Payload can share it with the original doc', () => {
+      const stream = { status: 'ready', videoId: 'v1' }
+      const data: Record<string, unknown> = { bunnyData: { stream } }
+      setStoredVideoId(data, null, null)
+      expect(stream).toEqual({ status: 'ready', videoId: 'v1' })
       expect(readStoredVideo(data)).toEqual({ status: null, videoId: null })
     })
 

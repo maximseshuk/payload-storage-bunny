@@ -20,7 +20,7 @@ bunnyStorage({
 
 With Payload access control on (the default), a Stream collection needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/v4/configuration/stream/overview#access-control-and-mp4-fallback). Set `disablePayloadAccessControl: true` on the collection to serve straight from the CDN instead, where this requirement doesn't apply.
 
-Files whose MIME type matches `mimeTypes` are routed to Bunny Stream. Everything else goes to [Bunny Storage](/v4/configuration/storage/overview), if configured. Video metadata for each document lives in the [`bunnyData`](/v4/guides/stored-data) field.
+Files whose MIME type matches `mimeTypes` are routed to Bunny Stream. Everything else goes to [Bunny Storage](/v4/configuration/storage/overview), if configured. When a document gets a new file that goes to Bunny Storage, the plugin removes its Stream video ID, and Payload deletes the old video. The file URL and the admin thumbnail come from Bunny Stream when the document has a Stream video ID and its file is a video or audio file, matches `mimeTypes` or has no MIME type. Other files get the Bunny Storage URL. Video metadata for each document lives in the [`bunnyData`](/v4/guides/stored-data) field.
 
 ## Options
 

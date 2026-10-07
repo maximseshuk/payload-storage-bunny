@@ -28,7 +28,13 @@ import {
   getBeforeOperationHook,
 } from '@/server/payload/storage/clientUploads/persistPrefixHook.js'
 import { getGenerateUploadInstructions } from '@/server/payload/storage/clientUploads/uploadInstructions.js'
-import { getGenerateUrl, getHandleDelete, getHandleUpload, getStaticHandler } from '@/server/payload/storage/index.js'
+import {
+  getForgetStreamVideoHook,
+  getGenerateUrl,
+  getHandleDelete,
+  getHandleUpload,
+  getStaticHandler,
+} from '@/server/payload/storage/index.js'
 import { hasStreamClientUploads } from '@/server/payload/stream/clientUploads.js'
 import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
 import { getAfterChangeHook, getBeforeValidateHook, getStreamBeforeChangeHook } from '@/server/payload/stream/hooks.js'
@@ -215,6 +221,7 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
               ],
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
+                ...(collectionContext.streamOptions ? [getForgetStreamVideoHook(collectionContext)] : []),
                 ...(usesClientUploadReceipt ? [getBeforeChangeHook(collectionContext)] : []),
                 ...(collectionContext.streamOptions?.status || collectionContext.streamOptions?.mp4Fallback
                   ? [getStreamBeforeChangeHook(collectionContext)]

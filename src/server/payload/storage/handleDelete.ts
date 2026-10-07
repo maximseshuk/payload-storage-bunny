@@ -18,7 +18,7 @@ export const getHandleDelete = (context: CollectionContext): HandleDelete => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
 
     try {
-      const bunnyData = getBunnyData(doc, filename)
+      const bunnyData = getBunnyData(doc, filename, streamOptions?.mimeTypes)
 
       if (streamOptions && bunnyData?.stream) {
         await deleteStreamVideo({

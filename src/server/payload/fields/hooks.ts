@@ -1,6 +1,6 @@
 import type { FieldHook, PayloadRequest } from 'payload'
 
-import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
+import { readStreamFileVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { getGenerateUrl } from '@/server/payload/storage/generateUrl.js'
 import { maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/server/urls.js'
@@ -115,7 +115,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       })
     }
 
-    const videoId = readStoredVideo(doc)?.videoId
+    const videoId = readStreamFileVideoId(doc, streamOptions?.mimeTypes)
     if (streamOptions && videoId) {
       const isStreamAnimated = thumbnail && typeof thumbnail === 'object' && thumbnail.streamAnimated
       const thumbnailFile = isStreamAnimated ? 'preview.webp' : 'thumbnail.jpg'

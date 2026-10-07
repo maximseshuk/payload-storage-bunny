@@ -118,6 +118,43 @@ describe('getBeforeChangeHook', () => {
     expect(data.prefix).toBeUndefined()
   })
 
+  describe('Stream collection', () => {
+    const streamContext = {
+      collection: { slug: 'media' },
+      streamOptions: { libraryId: 1, mimeTypes: ['video/*'], mp4Fallback: true, status: true },
+    } as unknown as CollectionContext
+    const staleVideo = () => ({
+      bunnyData: { stream: { resolutions: { available: ['720p'] }, status: 'ready', videoId: 'old-video' } },
+    })
+    const runStreamHooks = async (
+      file: { uploadReference?: unknown },
+      data: Record<string, unknown>,
+      sharp = false,
+    ) => {
+      const req = { context: {}, file, payload, t: (key: string) => key } as unknown as PayloadRequest
+      await getBeforeOperationHook(streamContext)({ args: {}, operation: 'update', req } as never)
+      if (sharp) {
+        delete file.uploadReference
+      }
+      return getBeforeChangeHook(streamContext)({ data, req } as never)
+    }
+
+    it('forgets the stored video when a Storage client upload replaces it', async () => {
+      const data = await runStreamHooks(signed('', { mimeType: 'image/png' }), staleVideo())
+      expect(data.bunnyData).toEqual({ stream: { resolutions: null, status: null, videoId: null } })
+    })
+
+    it('keeps the video of a Stream client upload', async () => {
+      const data = await runStreamHooks(signed('', { videoId: 'new-video' }), staleVideo())
+      expect(data.bunnyData).toEqual(staleVideo().bunnyData)
+    })
+
+    it('leaves the video to the adapter when sharp dropped the upload reference', async () => {
+      const data = await runStreamHooks(signed('', { mimeType: 'image/png' }), staleVideo(), true)
+      expect(data.bunnyData).toEqual(staleVideo().bunnyData)
+    })
+  })
+
   it('rejects a receipt issued for another collection', async () => {
     await expect(runHook(signed('tenants/acme', {}, { collectionSlug: 'docs' }))).rejects.toBeInstanceOf(Forbidden)
   })

@@ -72,6 +72,33 @@ describe('getGenerateUrl', () => {
       )
       expect(result).toBe('signed:transformed:https://stream.b-cdn.net/video-guid/playlist.m3u8')
     })
+
+    it.each(['video/mp4', 'audio/mpeg', 'application/mxf', ''])(
+      'keeps the playlist URL for a "%s" file',
+      (mimeType) => {
+        const generate = getGenerateUrl(
+          buildContext({
+            storageOptions,
+            streamOptions: { ...streamOptions, mimeTypes: ['video/webm', 'application/mxf'] },
+          } as Partial<CollectionContext>),
+        )
+
+        expect(generate({ data: { ...streamData, mimeType }, filename: 'clip' })).toBe(
+          'signed:https://stream.b-cdn.net/video-guid/playlist.m3u8',
+        )
+      },
+    )
+
+    it.each([
+      ['image/jpeg', 'photo.jpg'],
+      ['application/pdf', 'doc.pdf'],
+    ])('uses the storage URL when a stale videoId remains on a %s file', (mimeType, filename) => {
+      const generate = getGenerateUrl(buildContext({ storageOptions, streamOptions } as Partial<CollectionContext>))
+
+      expect(generate({ data: { ...streamData, mimeType }, filename })).toBe(
+        `signed:https://storage.b-cdn.net/${filename}`,
+      )
+    })
   })
 
   describe('storage branch', () => {

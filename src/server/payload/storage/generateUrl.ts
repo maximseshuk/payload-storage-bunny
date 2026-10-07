@@ -1,7 +1,7 @@
 import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
 import type { PayloadRequest } from 'payload'
 
-import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
+import { readStreamFileVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/server/urls.js'
 import type { CollectionContext } from '@/shared/types/index.js'
@@ -13,7 +13,7 @@ export const getGenerateUrl = (context: CollectionContext): ((args: GenerateUrlA
   const { collection, prefix: collectionPrefix, signedUrls, storageOptions, streamOptions, urlTransform } = context
 
   return ({ data, filename, prefix = '', req }) => {
-    const videoId = readStoredVideo(data)?.videoId
+    const videoId = readStreamFileVideoId(data, streamOptions?.mimeTypes)
 
     if (streamOptions && videoId) {
       let streamUrl = buildStreamCdnUrl(streamOptions.hostname, videoId, 'playlist.m3u8')

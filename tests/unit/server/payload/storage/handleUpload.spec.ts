@@ -47,7 +47,7 @@ import { buildContext, storageOptions, streamOptions } from '../../../../helpers
 import { createReq } from '../../../../helpers/unit/req.js'
 
 const { buildUploadStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
-const { getHandleUpload } = await import('@/server/payload/storage/handleUpload.js')
+const { getForgetStreamVideoHook, getHandleUpload } = await import('@/server/payload/storage/handleUpload.js')
 
 const createFile = (overrides: Record<string, unknown> = {}) => ({
   buffer: Buffer.from('binary-content'),
@@ -251,39 +251,25 @@ describe('getHandleUpload', () => {
         zoneName: 'my-zone',
       })
       expect(uploadStorageFileS3Mock).not.toHaveBeenCalled()
-      expect((data.bunnyData as { stream: { videoId: unknown } }).stream.videoId).toBeNull()
+      expect(data).toEqual({})
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
 
-    it.each([
-      [true, true, { resolutions: null, status: null, videoId: null }],
-      [true, false, { resolutions: { available: ['720p'] }, status: null, videoId: null }],
-      [false, true, { resolutions: { available: ['720p'] }, status: 'ready', videoId: null }],
-    ])(
-      'clears the old video of a document when an image replaces it (status %s, mp4Fallback %s)',
-      async (status, mp4Fallback, expected) => {
-        uploadStorageFileMock.mockResolvedValue(undefined)
-        const data: Record<string, unknown> = {
-          bunnyData: { stream: { resolutions: { available: ['720p'] }, status: 'ready', videoId: 'old-guid' } },
-        }
+    it('leaves the Bunny data alone, because the document write already forgot the old video', async () => {
+      uploadStorageFileMock.mockResolvedValue(undefined)
+      const data: Record<string, unknown> = { mimeType: 'image/jpeg' }
 
-        await getHandleUpload(
-          buildContext({
-            storageOptions,
-            streamOptions: { ...streamOptions, mp4Fallback, status },
-          } as unknown as Partial<CollectionContext>),
-        )({
-          collection: { slug: 'media' },
-          data,
-          file: createFile(),
-          req: createReq(),
-        } as never)
+      await getHandleUpload(buildContext({ storageOptions, streamOptions } as unknown as Partial<CollectionContext>))({
+        collection: { slug: 'media' },
+        data,
+        file: createFile(),
+        req: createReq(),
+      } as never)
 
-        expect(uploadStorageFileMock).toHaveBeenCalled()
-        expect(createStreamVideoMock).not.toHaveBeenCalled()
-        expect((data.bunnyData as { stream: unknown }).stream).toEqual(expected)
-      },
-    )
+      expect(uploadStorageFileMock).toHaveBeenCalled()
+      expect(createStreamVideoMock).not.toHaveBeenCalled()
+      expect(data).toEqual({ mimeType: 'image/jpeg' })
+    })
 
     it('uploads via the S3 backend when S3 options are present', async () => {
       uploadStorageFileS3Mock.mockResolvedValue(undefined)
@@ -482,5 +468,53 @@ describe('getHandleUpload', () => {
         expect.objectContaining({ msg: '[bunny:storage] upload: failed', storage: 'my-zone' }),
       )
     })
+  })
+})
+
+describe('getForgetStreamVideoHook', () => {
+  const oldVideo = () => ({
+    bunnyData: { stream: { resolutions: { available: ['720p'] }, status: 'ready', videoId: 'old-guid' } },
+  })
+
+  const runHook = (
+    data: Record<string, unknown>,
+    file: Record<string, unknown> | undefined,
+    options: Record<string, unknown> = streamOptions,
+  ) =>
+    getForgetStreamVideoHook(
+      buildContext({ storageOptions, streamOptions: options } as unknown as Partial<CollectionContext>),
+    )({ data, req: { file } } as never)
+
+  it.each([
+    [true, true, { resolutions: null, status: null, videoId: null }],
+    [true, false, { resolutions: { available: ['720p'] }, status: null, videoId: null }],
+    [false, true, { resolutions: { available: ['720p'] }, status: 'ready', videoId: null }],
+  ])(
+    'forgets the old video when a server upload stores the file in Storage (status %s, mp4Fallback %s)',
+    (status, mp4Fallback, expected) => {
+      const data = { ...oldVideo(), mimeType: 'image/jpeg' }
+
+      runHook(data, { name: 'photo.jpg' }, { ...streamOptions, mp4Fallback, status })
+
+      expect(data.bunnyData.stream).toEqual(expected)
+    },
+  )
+
+  it('forgets the old video when Stream has no API key, because the file goes to Storage', () => {
+    const data = { ...oldVideo(), mimeType: 'video/mp4' }
+
+    runHook(data, { name: 'clip.mp4' }, { ...streamOptions, apiKey: '' })
+
+    expect(data.bunnyData.stream.videoId).toBeNull()
+  })
+
+  it.each([
+    ['a file that goes to Stream', { ...oldVideo(), mimeType: 'video/mp4' }, { name: 'clip.mp4' }],
+    ['a client upload', { ...oldVideo(), mimeType: 'image/jpeg' }, { name: 'photo.jpg', uploadReference: {} }],
+    ['a save without a file', { ...oldVideo(), mimeType: 'image/jpeg' }, undefined],
+  ])('keeps the stored video for %s', (_label, data, file) => {
+    runHook(data, file)
+
+    expect(data.bunnyData).toEqual(oldVideo().bunnyData)
   })
 })

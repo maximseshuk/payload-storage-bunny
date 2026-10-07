@@ -45,7 +45,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         }
 
         let docId = doc?.id
-        let bunnyData = getBunnyData(doc, filename)
+        let bunnyData = getBunnyData(doc, filename, streamOptions?.mimeTypes)
         const docFilename = doc && 'filename' in doc ? (doc.filename as string) : undefined
 
         if (!bunnyData?.stream || docFilename !== filename) {
@@ -63,7 +63,7 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
           if (result.docs.length > 0) {
             const foundDoc = result.docs[0]
             docId = foundDoc.id
-            bunnyData = getBunnyData(foundDoc, filename)
+            bunnyData = getBunnyData(foundDoc, filename, streamOptions.mimeTypes)
           }
         }
 

@@ -63,6 +63,21 @@ describe('getHandleDelete', () => {
       expect(deleteStorageFileS3Mock).not.toHaveBeenCalled()
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
+
+    it('deletes the Storage object, not the Stream video, when a stale videoId remains on an image', async () => {
+      const handler = getHandleDelete(buildContext({ storageOptions, streamOptions } as Partial<CollectionContext>))
+
+      await handler({
+        collection: { slug: 'media' },
+        doc: { ...streamDoc, filename: 'photo.jpg', mimeType: 'image/jpeg' },
+        filename: 'photo.jpg',
+        req: createReq(),
+        storageFilePath: 'photo.jpg',
+      } as never)
+
+      expect(deleteStreamVideoMock).not.toHaveBeenCalled()
+      expect(deleteStorageFileMock).toHaveBeenCalledWith(expect.objectContaining({ path: 'photo.jpg' }))
+    })
   })
 
   describe('storage documents', () => {
