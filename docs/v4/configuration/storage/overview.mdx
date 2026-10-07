@@ -118,7 +118,7 @@ See [Client uploads](/v4/configuration/storage/client-uploads) for how S3 mode p
 
 The plugin validates these on startup and throws a clear error if any fails:
 
-- `hostname` must be your Pull Zone host. The plugin rejects a `hostname` containing `storage.bunnycdn.com`.
+- `hostname` must be your Pull Zone host. The plugin rejects `storage.bunnycdn.com` and any host that ends in `.storage.bunnycdn.com`.
 - If you turn on [signed URLs](/v4/configuration/signed-urls) anywhere `storage` is active, `tokenSecurityKey` becomes required.
 
 Set `serverURL` in your Payload config. Cropping, changing the focal point and duplicating a document make Payload download the stored file again. Without `serverURL`, Payload may call the wrong origin, or call it without the editor's session, and these operations fail when the collection uses Payload access control.

@@ -285,8 +285,14 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
 
   for (const [slug, collection] of options.collections) {
     if (collection.storage) {
-      if (collection.storage.hostname.includes('storage.bunnycdn.com')) {
-        errors.push(`collection "${slug}" storage \`hostname\` cannot include "storage.bunnycdn.com"`)
+      const rawHost = collection.storage.hostname.trim()
+      const storageHost = (
+        URL.parse(rawHost.includes('://') ? rawHost : `https://${rawHost}`)?.hostname ?? rawHost.toLowerCase()
+      ).replace(/\.$/, '')
+      if (storageHost === 'storage.bunnycdn.com' || storageHost.endsWith('.storage.bunnycdn.com')) {
+        errors.push(
+          `collection "${slug}" storage \`hostname\` cannot be the Bunny Storage API host (storage.bunnycdn.com)`,
+        )
       }
 
       if (collection.signedUrls && !collection.storage.tokenSecurityKey) {

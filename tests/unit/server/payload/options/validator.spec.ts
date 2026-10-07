@@ -204,8 +204,39 @@ describe('options validator', () => {
         },
       }
 
-      expect(() => normalizeAndValidate(options)).toThrow('storage `hostname` cannot include "storage.bunnycdn.com"')
+      expect(() => normalizeAndValidate(options)).toThrow(
+        'storage `hostname` cannot be the Bunny Storage API host (storage.bunnycdn.com)',
+      )
     })
+
+    it.each([
+      'storage.bunnycdn.com',
+      'ny.storage.bunnycdn.com',
+      'NY.Storage.BunnyCDN.com',
+      'storage.bunnycdn.com.',
+      'https://storage.bunnycdn.com',
+      'storage.bunnycdn.com/',
+      'storage.bunnycdn.com:443',
+    ])('rejects the storage endpoint host %s', (hostname) => {
+      const options: BunnyStorageOptions = {
+        collections: { media: true },
+        storage: { ...createBaseStorage(), hostname },
+      }
+
+      expect(() => normalizeAndValidate(options)).toThrow('cannot be the Bunny Storage API host (storage.bunnycdn.com)')
+    })
+
+    it.each(['example.b-cdn.net', 'storage.bunnycdn.com.example.com', 'mystorage.bunnycdn.com'])(
+      'accepts the pull zone host %s',
+      (hostname) => {
+        const options: BunnyStorageOptions = {
+          collections: { media: true },
+          storage: { ...createBaseStorage(), hostname },
+        }
+
+        expect(() => normalizeAndValidate(options)).not.toThrow()
+      },
+    )
   })
 
   describe('signed URL redirect validation', () => {
@@ -420,7 +451,7 @@ describe('options validator', () => {
       } as unknown as BunnyStorageOptions
 
       expect(() => normalizeAndValidate(options)).toThrow(
-        'collection "media" storage `hostname` cannot include "storage.bunnycdn.com"',
+        'collection "media" storage `hostname` cannot be the Bunny Storage API host (storage.bunnycdn.com)',
       )
     })
 
