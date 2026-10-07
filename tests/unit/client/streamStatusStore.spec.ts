@@ -198,12 +198,12 @@ describe('stream status store', () => {
       .map((endpoint) => endpoint.path)
       .find((endpointPath) => endpointPath.startsWith('/storage-bunny/stream/status/'))
 
-    expect(path).toBe('/storage-bunny/stream/status/:collection/:id')
-    expect(getStreamStatusUrl('/api', '', 'my media', 'a/b')).toBe(
-      `/api${path?.replace(':collection', 'my%20media').replace(':id', 'a%2Fb')}`,
+    expect(path).toBe('/storage-bunny/stream/status/:collection/:id/:videoId')
+    expect(getStreamStatusUrl('/api', '', 'my media', 'a/b', 'v 1')).toBe(
+      `/api${path?.replace(':collection', 'my%20media').replace(':id', 'a%2Fb').replace(':videoId', 'v%201')}`,
     )
-    expect(getStreamStatusUrl('/api', 'https://cms.example.com', 'media', 7)).toBe(
-      'https://cms.example.com/api/storage-bunny/stream/status/media/7',
+    expect(getStreamStatusUrl('/api', 'https://cms.example.com', 'media', 7, 'video-1')).toBe(
+      'https://cms.example.com/api/storage-bunny/stream/status/media/7/video-1',
     )
   })
 

@@ -1,3 +1,4 @@
+import { sharpTransformer } from '@payloadcms/transformer-sharp'
 import type { Payload, PayloadRequest } from 'payload'
 import { getPayload } from 'payload'
 import sharp from 'sharp'
@@ -28,7 +29,7 @@ const PROXY_SLUG = 'prefix-proxy-media'
 const DIRECT_SLUG = 'prefix-direct-media'
 const HOSTNAME = 'storage.example.com'
 
-const upload = { imageSizes: [{ name: 'thumb', width: 4 }] }
+const variants = [{ name: 'thumb', width: 4 }]
 
 const uploadedPaths = (): string[] => uploadStorageFileMock.mock.calls.map(([args]) => args.path).toSorted()
 const deletedPaths = (): string[] => deleteStorageFileMock.mock.calls.map(([args]) => args.path).toSorted()
@@ -44,10 +45,7 @@ describe('storage keys for a document with an empty prefix in a prefixed collect
 
     payload = await getPayload({
       config: await buildConfigWithDefaults({
-        collections: [
-          createMediaCollection({ slug: PROXY_SLUG, upload }),
-          createMediaCollection({ slug: DIRECT_SLUG, upload }),
-        ],
+        collections: [createMediaCollection({ slug: PROXY_SLUG }), createMediaCollection({ slug: DIRECT_SLUG })],
         storage: [
           bunnyStorage({
             collections: {
@@ -57,6 +55,11 @@ describe('storage keys for a document with an empty prefix in a prefixed collect
             storage: { apiKey: 'x', hostname: HOSTNAME, zoneName: 'zone' },
           }),
         ],
+        upload: {
+          transformers: [
+            sharpTransformer({ collections: { [DIRECT_SLUG]: { variants }, [PROXY_SLUG]: { variants } } }),
+          ],
+        },
       }),
       key: 'storage-path-prefix',
     })
@@ -81,17 +84,22 @@ describe('storage keys for a document with an empty prefix in a prefixed collect
       overrideAccess: true,
     })
 
-  const keys = (prefix: string, doc: Record<string, unknown>): string[] =>
-    [
-      `${prefix}/${doc.filename}`,
-      `${prefix}/${(doc.sizes as { thumb: { filename: string } }).thumb.filename}`,
+  type Stored = { _objectKey?: string; filename: string; prefix?: string }
+
+  const keys = (doc: Record<string, unknown>): string[] => {
+    const thumb = (doc.variants as { thumb: Stored }).thumb
+    return [
+      `${doc.prefix}/${doc._objectKey}/${doc.filename}`,
+      `${thumb.prefix}/${thumb._objectKey}/${thumb.filename}`,
     ].toSorted()
+  }
 
   it('uploads the original and every image size beneath the collection prefix', async () => {
     const doc = await createWithEmptyPrefix(PROXY_SLUG, 'upload-root.png')
 
-    expect(doc.prefix).toBe('')
-    expect(uploadedPaths()).toEqual(keys('media', doc))
+    expect(doc.prefix).toBe('media')
+    expect(doc._objectKey).toEqual(expect.any(String))
+    expect(uploadedPaths()).toEqual(keys(doc))
   })
 
   it('deletes the keys it uploaded', async () => {
@@ -100,7 +108,7 @@ describe('storage keys for a document with an empty prefix in a prefixed collect
 
     await payload.delete({ collection: PROXY_SLUG, id: doc.id, overrideAccess: true })
 
-    expect(deletedPaths()).toEqual(keys('media', doc))
+    expect(deletedPaths()).toEqual(keys(doc))
     expect(deletedPaths()).toEqual(written)
   })
 
@@ -117,7 +125,7 @@ describe('storage keys for a document with an empty prefix in a prefixed collect
       { doc: doc as never, params: { collection: PROXY_SLUG, filename: doc.filename! } },
     )
 
-    expect(httpFetchMock.mock.calls[0][0]).toBe(`https://${HOSTNAME}/media/${doc.filename}`)
+    expect(httpFetchMock.mock.calls[0][0]).toBe(`https://${HOSTNAME}/media/${doc._objectKey}/${doc.filename}`)
   })
 
   it('returns a direct URL that points at the uploaded key', async () => {
@@ -125,18 +133,27 @@ describe('storage keys for a document with an empty prefix in a prefixed collect
 
     const read = await payload.findByID({ collection: DIRECT_SLUG, id: doc.id, overrideAccess: true })
 
-    expect(read.url).toBe(`https://${HOSTNAME}/media/${doc.filename}`)
+    expect(read.url).toBe(`https://${HOSTNAME}/media/${doc._objectKey}/${doc.filename}`)
   })
 
   it('keeps resolving a legacy stored prefix outside the collection prefix to its existing keys', async () => {
-    const created = await createWithEmptyPrefix(DIRECT_SLUG, 'legacy.png')
-    await payload.db.updateOne({ collection: DIRECT_SLUG, data: { prefix: 'legacy' }, id: created.id })
+    const created = await payload.db.create({
+      collection: DIRECT_SLUG,
+      data: {
+        alt: 'a',
+        filename: 'legacy.png',
+        filesize: image.length,
+        mimeType: 'image/png',
+        prefix: 'legacy',
+        variants: { thumb: { filename: 'legacy-4x4.png', filesize: 1, height: 4, mimeType: 'image/png', width: 4 } },
+      },
+    })
     const doc = await payload.findByID({ collection: DIRECT_SLUG, id: created.id, overrideAccess: true })
 
-    expect(doc.url).toBe(`https://${HOSTNAME}/legacy/${doc.filename}`)
+    expect(doc.url).toBe(`https://${HOSTNAME}/legacy/legacy.png`)
 
     await payload.delete({ collection: DIRECT_SLUG, id: doc.id, overrideAccess: true })
 
-    expect(deletedPaths()).toEqual(keys('legacy', doc))
+    expect(deletedPaths()).toEqual(['legacy/legacy-4x4.png', 'legacy/legacy.png'])
   })
 })

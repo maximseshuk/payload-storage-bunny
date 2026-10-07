@@ -1,3 +1,4 @@
+import { sharpTransformer } from '@payloadcms/transformer-sharp'
 import type { Config } from 'payload'
 
 import { bunnyStorage } from '@/index.js'
@@ -7,19 +8,21 @@ import { createMediaCollection } from '../../helpers/shared/createMediaCollectio
 
 export default buildConfigWithDefaults({
   collections: [
-    createMediaCollection({
-      slug: 'storage-basic',
-      upload: { imageSizes: [{ name: 'preview', height: 400, width: 300 }] },
-    }),
-    createMediaCollection({
-      slug: 'thumbnail-custom',
-      upload: { imageSizes: [{ name: 'thumbnail', height: 100, width: 100 }] },
-    }),
-    createMediaCollection({
-      slug: 'thumbnail-disabled',
-      upload: { imageSizes: [{ name: 'preview', height: 400, width: 300 }] },
-    }),
+    createMediaCollection({ slug: 'storage-basic' }),
+    createMediaCollection({ slug: 'thumbnail-custom' }),
+    createMediaCollection({ slug: 'thumbnail-disabled' }),
   ],
+  upload: {
+    transformers: [
+      sharpTransformer({
+        collections: {
+          'storage-basic': { variants: [{ name: 'preview', height: 400, width: 300 }] },
+          'thumbnail-custom': { variants: [{ name: 'thumbnail', height: 100, width: 100 }] },
+          'thumbnail-disabled': { variants: [{ name: 'preview', height: 400, width: 300 }] },
+        },
+      }),
+    ],
+  },
   storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',

@@ -5,15 +5,17 @@ import { httpError } from '../../../helpers/unit/httpError.js'
 const { kyMethods, mockKy } = await vi.hoisted(() => import('../../../helpers/unit/kyMock.js'))
 vi.mock('ky', mockKy)
 
-const { delete: deleteMock, get: getMock, post: postMock, put: putMock } = kyMethods
+const { delete: deleteMock, get: getMock, head: headMock, post: postMock, put: putMock } = kyMethods
 
 const {
   BunnyStreamVideoStatus,
-  canUploadToVideo,
+  createStreamTusUpload,
   createStreamVideo,
   deleteStreamVideo,
   getReadyResolutions,
   getStreamSaveState,
+  getStreamTusUploadOffset,
+  getStreamTusUpload,
   getStreamVideo,
   getStreamVideoState,
   getStreamVideoResolutions,
@@ -32,6 +34,7 @@ const creds = { apiKey: 'stream-key', libraryId: 42 }
 beforeEach(() => {
   deleteMock.mockReset()
   getMock.mockReset()
+  headMock.mockReset()
   postMock.mockReset()
   putMock.mockReset()
 })
@@ -150,6 +153,94 @@ describe('deleteStreamVideo', () => {
   it('falls back to the generic message for other HTTPError statuses', async () => {
     deleteMock.mockRejectedValue(httpError(400))
     await expect(deleteStreamVideo({ ...creds, videoId: 'vid-1' })).rejects.toThrow('Unable to delete video: vid-1')
+  })
+})
+
+const tusHeaders = {
+  AuthorizationExpire: '1700000000',
+  AuthorizationSignature: 'sig',
+  LibraryId: '42',
+  VideoId: 'vid-1',
+}
+const withHeaders = (headers: Record<string, string>) => ({ headers: new Headers(headers) })
+
+describe('createStreamTusUpload', () => {
+  it('creates the TUS upload with the declared length and stores its absolute URL on the video', async () => {
+    postMock.mockResolvedValueOnce(withHeaders({ Location: '/tusupload/token-1' })).mockResolvedValueOnce({})
+
+    const url = await createStreamTusUpload({
+      ...creds,
+      headers: tusHeaders,
+      metadata: { filetype: 'video/mp4', title: 'clip.mp4' },
+      size: 4096,
+      videoId: 'vid-1',
+    })
+
+    expect(url).toBe('https://video.bunnycdn.com/tusupload/token-1')
+    expect(postMock).toHaveBeenNthCalledWith(1, 'https://video.bunnycdn.com/tusupload', {
+      headers: {
+        ...tusHeaders,
+        'Tus-Resumable': '1.0.0',
+        'Upload-Length': '4096',
+        'Upload-Metadata': `filetype ${btoa('video/mp4')},title ${btoa('clip.mp4')}`,
+      },
+      timeout: 15000,
+    })
+    expect(postMock).toHaveBeenNthCalledWith(2, 'https://video.bunnycdn.com/library/42/videos/vid-1', {
+      headers: { Accept: 'application/json', AccessKey: 'stream-key', 'Content-Type': 'application/json' },
+      json: {
+        metaTags: [
+          { property: 'payload-storage-bunny:upload-url', value: url },
+          { property: 'payload-storage-bunny:upload-length', value: '4096' },
+        ],
+      },
+      timeout: 15000,
+    })
+  })
+
+  it('reads the upload URL and length that the server stored on the video', () => {
+    const url = 'https://video.bunnycdn.com/tusupload/token-1'
+    const urlTag = { property: 'payload-storage-bunny:upload-url', value: url }
+    const lengthTag = { property: 'payload-storage-bunny:upload-length', value: '4096' }
+
+    expect(getStreamTusUpload({ metaTags: [urlTag, lengthTag] })).toEqual({ length: 4096, url })
+    expect(getStreamTusUpload({ metaTags: [urlTag] })).toBeUndefined()
+    expect(getStreamTusUpload({ metaTags: [lengthTag, { property: 'other', value: url }] })).toBeUndefined()
+    expect(getStreamTusUpload({ metaTags: null })).toBeUndefined()
+  })
+
+  it('throws when Bunny refuses the upload or sends no Location, and stores nothing', async () => {
+    const args = { ...creds, headers: tusHeaders, metadata: {}, size: 1, videoId: 'vid-1' }
+    postMock.mockRejectedValueOnce(httpError(401))
+    await expect(createStreamTusUpload(args)).rejects.toThrow('Unable to create TUS upload: vid-1')
+    postMock.mockResolvedValueOnce(withHeaders({}))
+    await expect(createStreamTusUpload(args)).rejects.toThrow('Unable to create TUS upload: vid-1')
+    expect(postMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('getStreamTusUploadOffset', () => {
+  it('reads the offset and length of the upload with a HEAD request', async () => {
+    headMock.mockResolvedValueOnce(withHeaders({ 'Upload-Length': '4096', 'Upload-Offset': '1024' }))
+
+    const url = 'https://video.bunnycdn.com/tusupload/token-1'
+    expect(await getStreamTusUploadOffset({ headers: tusHeaders, uploadUrl: url })).toEqual({
+      length: 4096,
+      offset: 1024,
+    })
+    expect(headMock).toHaveBeenCalledWith(url, {
+      headers: { ...tusHeaders, 'Tus-Resumable': '1.0.0' },
+      timeout: 15000,
+    })
+  })
+
+  it('keeps the HTTP error as the cause', async () => {
+    const error = httpError(404)
+    headMock.mockRejectedValueOnce(error)
+    await expect(getStreamTusUploadOffset({ headers: tusHeaders, uploadUrl: 'https://x/' })).rejects.toHaveProperty(
+      'cause',
+      error,
+    )
   })
 })
 
@@ -445,18 +536,17 @@ describe('parseMp4Resolutions', () => {
 
 describe('status predicates', () => {
   it.each([
-    [BunnyStreamVideoStatus.Created, { canUpload: true, error: false, processed: false }],
-    [BunnyStreamVideoStatus.Uploaded, { canUpload: false, error: false, processed: true }],
-    [BunnyStreamVideoStatus.Processing, { canUpload: false, error: false, processed: true }],
-    [BunnyStreamVideoStatus.Transcoding, { canUpload: false, error: false, processed: true }],
-    [BunnyStreamVideoStatus.Finished, { canUpload: false, error: false, processed: true }],
-    [BunnyStreamVideoStatus.Error, { canUpload: false, error: true, processed: false }],
-    [BunnyStreamVideoStatus.UploadFailed, { canUpload: false, error: true, processed: false }],
-    [BunnyStreamVideoStatus.JitSegmenting, { canUpload: false, error: false, processed: true }],
-    [BunnyStreamVideoStatus.JitPlaylistsCreated, { canUpload: false, error: false, processed: true }],
+    [BunnyStreamVideoStatus.Created, { error: false, processed: false }],
+    [BunnyStreamVideoStatus.Uploaded, { error: false, processed: true }],
+    [BunnyStreamVideoStatus.Processing, { error: false, processed: true }],
+    [BunnyStreamVideoStatus.Transcoding, { error: false, processed: true }],
+    [BunnyStreamVideoStatus.Finished, { error: false, processed: true }],
+    [BunnyStreamVideoStatus.Error, { error: true, processed: false }],
+    [BunnyStreamVideoStatus.UploadFailed, { error: true, processed: false }],
+    [BunnyStreamVideoStatus.JitSegmenting, { error: false, processed: true }],
+    [BunnyStreamVideoStatus.JitPlaylistsCreated, { error: false, processed: true }],
   ])('classifies status %s', (status, expected) => {
     expect({
-      canUpload: canUploadToVideo(status),
       error: isVideoInErrorState(status),
       processed: isVideoProcessed(status),
     }).toEqual(expected)

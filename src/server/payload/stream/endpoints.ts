@@ -1,45 +1,54 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 
-import type { Endpoint, TypeWithID } from 'payload'
-import { APIError, getAccessResults, isValidID, NotFound, UnauthorizedError } from 'payload'
-import sanitize from 'sanitize-filename'
+import type { Endpoint, PayloadRequest, TypeWithID } from 'payload'
+import { APIError, isValidID, NotFound, UnauthorizedError } from 'payload'
 
+import { isNotFound } from '@/server/bunny/client.js'
 import {
-  canUploadToVideo,
-  createStreamVideo,
-  getStreamVideo,
+  deleteStreamVideo,
   getReadyResolutions,
+  getStreamTusUpload,
+  getStreamVideo,
   getWebhookVideoState,
   isMissingResolutions,
-  isVideoInErrorState,
   isVideoProcessed,
 } from '@/server/bunny/stream.js'
-import { getSafeFileName } from '@/server/files.js'
-import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
-import { streamStatusOperation, streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
+import { readStoredVideo, readStreamFileVideoId } from '@/server/payload/fields/bunnyGroupField.js'
+import {
+  streamStatusOperation,
+  streamThumbnailOperation,
+  streamWebhookOperation,
+  tusAuthOperation,
+} from '@/server/payload/openapi.js'
 import { isAdminUser } from '@/server/payload/options/access.js'
 import { createCollectionContext } from '@/server/payload/options/context.js'
 import { collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/options/inspect.js'
-import { signClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
+import { assertClientUploadFile } from '@/server/payload/storage/clientUploads/uploadInstructions.js'
+import { getLibraryCollectionSlugs, isVideoReferenced } from '@/server/payload/stream/references.js'
+import { streamThumbnailStaticHandler } from '@/server/payload/stream/serveThumbnail.js'
 import {
-  assertClientUploadFile,
-  resolveClientUploadPrefix,
-} from '@/server/payload/storage/clientUploads/uploadInstructions.js'
-import { createStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
-import { fetchStreamVideoState, writeStoredStream } from '@/server/payload/stream/storedStream.js'
+  checkStreamOriginalSize,
+  fetchStreamVideoState,
+  writeStoredStream,
+} from '@/server/payload/stream/storedStream.js'
+import { signStreamVideoToken, verifyStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 import {
-  generateStreamTusUploadSignature,
-  signStreamVideoToken,
-  verifyStreamVideoToken,
-} from '@/server/payload/stream/tusSignature.js'
+  checkStreamTusUpload,
+  createStreamTusUploadSession,
+  getStreamTusClientHeaders,
+  hasStreamTusAccess,
+} from '@/server/payload/stream/tusUpload.js'
 import { jsonResponse } from '@/shared/http.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTFunction } from '@/shared/translations/index.js'
-import type { StreamStatusResponse, StreamTusAuthRequest, StreamTusAuthResponse } from '@/shared/types/index.js'
-import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
-
-const MAX_HEAD_LENGTH = 8192
+import type {
+  CollectionContext,
+  StreamStatusResponse,
+  StreamTusAuthRequest,
+  StreamTusAuthResponse,
+} from '@/shared/types/index.js'
+import type { NormalizedBunnyStorageOptions, NormalizedStreamOptions } from '@/shared/types/optionsNormalized.js'
 
 const STATUS_CACHE_TTL = {
   DEFAULT: 10_000,
@@ -60,6 +69,85 @@ type StatusCacheEntry = {
   state: Promise<StreamStatusResponse>
 }
 
+type ReadableVideo = {
+  context: CollectionContext
+  doc: TypeWithID
+  stored: NonNullable<ReturnType<typeof readStoredVideo>>
+  streamOptions: NormalizedStreamOptions
+  videoId: string
+}
+
+const findReadableVideo = async (
+  options: NormalizedBunnyStorageOptions,
+  req: PayloadRequest,
+  isServed: (context: CollectionContext) => boolean,
+): Promise<ReadableVideo> => {
+  const {
+    collection: collectionSlug,
+    id,
+    videoId,
+  } = (req.routeParams ?? {}) as { collection?: string; id?: string; videoId?: string }
+  const collection =
+    collectionSlug && options.collections.has(collectionSlug)
+      ? req.payload.collections[collectionSlug]?.config
+      : undefined
+  if (!collectionSlug || !id || !videoId || !collection) {
+    throw new NotFound(req.t)
+  }
+
+  const context = createCollectionContext(options, collection)
+  const idType = req.payload.collections[collectionSlug]?.customIDType || req.payload.db.defaultIDType
+  const { streamOptions } = context
+  if (!streamOptions || !isServed(context) || !isValidID(idType === 'number' ? Number(id) : id, idType)) {
+    throw new NotFound(req.t)
+  }
+
+  const read = (draft: boolean) =>
+    req.payload.findByID({
+      id,
+      collection: collectionSlug,
+      depth: 0,
+      draft,
+      overrideAccess: false,
+      req,
+      select: { bunnyData: true, filesize: true, mimeType: true },
+      trash: true,
+    })
+  let doc = await read(false)
+  if (readStreamFileVideoId(doc, streamOptions.mimeTypes) !== videoId) {
+    doc = await read(true)
+  }
+  const stored = readStoredVideo(doc)
+  if (!stored || readStreamFileVideoId(doc, streamOptions.mimeTypes) !== videoId) {
+    throw new NotFound(req.t)
+  }
+
+  return { context, doc, stored, streamOptions, videoId }
+}
+
+const deleteReplacedStreamVideo = async ({
+  collectionSlug,
+  options,
+  req,
+  streamOptions: { apiKey, libraryId },
+  videoId,
+}: {
+  collectionSlug: string
+  options: NormalizedBunnyStorageOptions
+  req: PayloadRequest
+  streamOptions: NormalizedStreamOptions
+  videoId: string
+}): Promise<void> => {
+  try {
+    const collectionSlugs = getLibraryCollectionSlugs(options, collectionSlug, libraryId)
+    if (!(await isVideoReferenced({ collectionSlugs, req, videoId }))) {
+      await deleteStreamVideo({ apiKey, libraryId, videoId })
+    }
+  } catch (err) {
+    req.payload.logger.warn({ err, msg: '[bunny:stream] tus-auth: failed to delete the replaced video', videoId })
+  }
+}
+
 export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endpoint[] => {
   const webhookSecrets = collectWebhookSecrets(options)
   const statusCache = new Map<string, StatusCacheEntry>()
@@ -78,10 +166,6 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorMissingRequiredFields'), 400, undefined, true)
           }
 
-          if (body.head !== undefined && (typeof body.head !== 'string' || body.head.length > MAX_HEAD_LENGTH)) {
-            throw new APIError('Invalid file head', 400, undefined, true)
-          }
-
           const collection = req.payload.collections[body.collection]?.config
           if (!collection) {
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 404, undefined, true)
@@ -94,18 +178,7 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorStreamOptionsMissing'), 400, undefined, true)
           }
 
-          const defaultAccess = async (): Promise<boolean> => {
-            const accessResults = await getAccessResults({ req })
-            return (
-              accessResults.canAccessAdmin === true && accessResults.collections?.[body.collection]?.create === true
-            )
-          }
-
-          const accessResult = collectionStreamOptions.tus.access
-            ? await collectionStreamOptions.tus.access({ data: body, defaultAccess, req })
-            : await defaultAccess()
-
-          if (!accessResult) {
+          if (!(await hasStreamTusAccess({ data: body, req, streamOptions: collectionStreamOptions }))) {
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 403, undefined, true)
           }
 
@@ -126,109 +199,84 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
             secret: req.payload.secret,
             user: req.user,
           }
-          const withVideoToken = async (videoId: string) => {
-            const videoToken = signStreamVideoToken({ ...tokenInput, videoId })
-            const head = body.head
-            if (head === undefined) {
-              return { videoId, videoToken }
-            }
-            const filename = await getSafeFileName({
-              collectionSlug: body.collection,
-              desiredFilename: sanitize(body.filename),
-              req,
-              staticPath: '',
-            })
-            const signedReceipt = signClientUpload({
-              claims: { filesize: body.filesize, head, mimeType: body.filetype, videoId },
-              collectionSlug: body.collection,
-              filename,
-              prefix: await resolveClientUploadPrefix(collectionContext, {
-                collectionSlug: body.collection,
-                filename,
-                req,
-              }),
-              req,
-            })
-            return { filename, signedReceipt, videoId, videoToken }
-          }
+          const withVideoToken = (videoId: string) => ({
+            videoId,
+            videoToken: signStreamVideoToken({ ...tokenInput, videoId }),
+          })
 
-          let videoId =
+          const { libraryId } = collectionStreamOptions
+          const videoId =
             body.videoId && verifyStreamVideoToken({ ...tokenInput, token: body.videoToken, videoId: body.videoId })
               ? body.videoId
               : undefined
-          let videoData = null
 
           if (videoId) {
-            try {
-              videoData = await getStreamVideo({
-                apiKey: collectionStreamOptions.apiKey,
-                libraryId: collectionStreamOptions.libraryId,
+            const video = await getStreamVideo({ apiKey: collectionStreamOptions.apiKey, libraryId, videoId }).catch(
+              (err) => {
+                if (isNotFound(err)) {
+                  return undefined
+                }
+                throw err
+              },
+            )
+            const upload =
+              video && !isVideoProcessed(video.status)
+                ? await checkStreamTusUpload({ streamOptions: collectionStreamOptions, video })
+                : undefined
+            if (video && (isVideoProcessed(video.status) || upload?.state === 'complete')) {
+              return jsonResponse({
+                type: 'uploaded',
+                libraryId,
+                title: video.title || body.filename,
+                ...withVideoToken(videoId),
+              } satisfies StreamTusAuthResponse)
+            }
+            const serverUpload = video && getStreamTusUpload(video)
+            if (upload?.state === 'incomplete' && serverUpload?.length === body.filesize) {
+              return jsonResponse({
+                type: 'upload',
+                ...getStreamTusClientHeaders(collectionStreamOptions, videoId),
+                libraryId,
+                uploadUrl: serverUpload.url,
+                ...withVideoToken(videoId),
+              } satisfies StreamTusAuthResponse)
+            }
+            if (serverUpload && !body.renew) {
+              await deleteReplacedStreamVideo({
+                collectionSlug: body.collection,
+                options,
+                req,
+                streamOptions: collectionStreamOptions,
                 videoId,
               })
-              const videoStatus = videoData.status
-
-              if (isVideoInErrorState(videoStatus)) {
-                videoId = undefined
-                videoData = null
-              } else if (isVideoProcessed(videoStatus)) {
-                return jsonResponse({
-                  type: 'uploaded',
-                  libraryId: collectionStreamOptions.libraryId,
-                  thumbnailTime: collectionStreamOptions.thumbnailTime,
-                  title: videoData.title || body.filename,
-                  ...(await withVideoToken(videoId)),
-                } as StreamTusAuthResponse)
-              } else if (!canUploadToVideo(videoStatus)) {
-                videoId = undefined
-                videoData = null
-              }
-            } catch {
-              videoId = undefined
-              videoData = null
             }
           }
 
-          if (!videoId || !videoData) {
-            const title = (body.title || body.filename).trim()
-            if (!title || title.length === 0) {
-              throw new APIError(reqT('@seshuk/payload-storage-bunny:errorTitleRequired'), 400, undefined, true)
-            }
-
-            const newVideo = await createStreamVideo({
-              apiKey: collectionStreamOptions.apiKey,
-              libraryId: collectionStreamOptions.libraryId,
-              thumbnailTime: collectionStreamOptions.thumbnailTime,
-              title,
-            })
-
-            if (collectionStreamOptions.cleanup) {
-              await createStreamVideoSession({
-                libraryId: newVideo.videoLibraryId,
-                payload: req.payload,
-                videoId: newVideo.guid,
-              })
-            }
-
-            videoId = newVideo.guid
+          if (body.renew) {
+            throw new APIError('This upload cannot be renewed. Start a new upload.', 409, undefined, true)
           }
 
-          const tusExpiresIn = collectionStreamOptions.tus.expiresIn
-          const expirationTime = Math.floor(Date.now() / 1000) + tusExpiresIn
-          const signature = generateStreamTusUploadSignature({
-            apiKey: collectionStreamOptions.apiKey,
-            expirationTime,
-            libraryId: collectionStreamOptions.libraryId,
-            videoId,
+          const title = (body.title || body.filename).trim()
+          if (!title) {
+            throw new APIError(reqT('@seshuk/payload-storage-bunny:errorTitleRequired'), 400, undefined, true)
+          }
+
+          const session = await createStreamTusUploadSession({
+            filesize: body.filesize,
+            filetype: body.filetype,
+            req,
+            streamOptions: collectionStreamOptions,
+            title,
           })
 
           return jsonResponse({
             type: 'upload',
-            authorizationExpire: expirationTime,
-            authorizationSignature: signature,
-            libraryId: collectionStreamOptions.libraryId,
-            thumbnailTime: collectionStreamOptions.thumbnailTime,
-            ...(await withVideoToken(videoId)),
-          } as StreamTusAuthResponse)
+            expiresIn: session.expiresIn,
+            headers: session.headers,
+            libraryId,
+            uploadUrl: session.uploadUrl,
+            ...withVideoToken(session.videoId),
+          } satisfies StreamTusAuthResponse)
         } catch (err) {
           if (err instanceof APIError) {
             throw err
@@ -321,7 +369,7 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
             const resolutionsChanged = !isDeepStrictEqual(resolutions, stored.resolutions)
 
             if (statusChanged || resolutionsChanged) {
-              await writeStoredStream({
+              const written = await writeStoredStream({
                 collection: collectionSlug,
                 id: doc.id,
                 req,
@@ -335,6 +383,16 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
                 status,
                 videoId: VideoGuid,
               })
+              if (written && statusChanged && status === 'ready') {
+                await checkStreamOriginalSize({
+                  apiKey,
+                  collection: collectionSlug,
+                  doc,
+                  libraryId,
+                  logger: req.payload.logger,
+                  videoId: VideoGuid,
+                })
+              }
             }
 
             if (missingResolutions) {
@@ -400,7 +458,7 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
                     continue
                   }
 
-                  await writeStoredStream({
+                  const written = await writeStoredStream({
                     collection: collectionSlug,
                     id: doc.id,
                     req,
@@ -412,6 +470,16 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
                     resolutions: resolutions.available,
                     videoId: VideoGuid,
                   })
+                  if (written && !isDeepStrictEqual(resolutions, readStoredVideo(doc)?.resolutions)) {
+                    await checkStreamOriginalSize({
+                      apiKey: collectionStreamOptions.apiKey,
+                      collection: collectionSlug,
+                      doc,
+                      libraryId: collectionStreamOptions.libraryId,
+                      logger: req.payload.logger,
+                      videoId: VideoGuid,
+                    })
+                  }
 
                   return jsonResponse({ success: true })
                 }
@@ -492,39 +560,14 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 403, undefined, true)
           }
 
-          const { collection: collectionSlug, id } = (req.routeParams ?? {}) as { collection?: string; id?: string }
-          const collection =
-            collectionSlug && options.collections.has(collectionSlug)
-              ? req.payload.collections[collectionSlug]?.config
-              : undefined
-          if (!collectionSlug || !id || !collection) {
-            throw new NotFound(req.t)
-          }
-
-          const collectionStreamOptions = createCollectionContext(options, collection).streamOptions
-          const idType = req.payload.collections[collectionSlug]?.customIDType || req.payload.db.defaultIDType
-          if (!collectionStreamOptions?.status || !isValidID(idType === 'number' ? Number(id) : id, idType)) {
-            throw new NotFound(req.t)
-          }
-
-          await req.payload.findByID({
-            id,
-            collection: collectionSlug,
-            depth: 0,
-            overrideAccess: false,
-            req,
-            select: { id: true },
-          })
-          const doc = await req.payload.db.findOne<TypeWithID>({
-            collection: collectionSlug,
-            req,
-            where: { id: { equals: id } },
-          })
-          const stored = readStoredVideo(doc)
-          const videoId = stored?.videoId
-          if (!doc || !videoId) {
-            throw new NotFound(req.t)
-          }
+          const {
+            context,
+            doc,
+            stored,
+            streamOptions: collectionStreamOptions,
+            videoId,
+          } = await findReadableVideo(options, req, ({ streamOptions }) => !!streamOptions?.status)
+          const collectionSlug = context.collection.slug
 
           if (stored.status === 'failed' || stored.status === 'ready') {
             return jsonResponse({
@@ -563,13 +606,24 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
                     if (isMissingResolutions({ encoded, mp4Fallback, resolutions })) {
                       next = 'processing'
                     }
-                    if (next !== stored.status) {
-                      await writeStoredStream({
+                    if (
+                      next !== stored.status &&
+                      (await writeStoredStream({
                         collection: collectionSlug,
                         id: doc.id,
                         req,
                         stream: { resolutions, status: next, videoId },
                         whenStatus: stored.status ?? null,
+                      })) &&
+                      next === 'ready'
+                    ) {
+                      await checkStreamOriginalSize({
+                        apiKey,
+                        collection: collectionSlug,
+                        doc,
+                        libraryId,
+                        logger: req.payload.logger,
+                        videoId,
                       })
                     }
                   } catch (err) {
@@ -604,7 +658,52 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
       },
       custom: { openapi: streamStatusOperation },
       method: 'get',
-      path: '/storage-bunny/stream/status/:collection/:id',
+      path: '/storage-bunny/stream/status/:collection/:id/:videoId',
+    })
+  }
+
+  if (
+    [...options.collections.values()].some(
+      (collection) => collection.stream && collection.thumbnail && !collection.disablePayloadAccessControl,
+    )
+  ) {
+    endpoints.push({
+      handler: async (req): Promise<Response> => {
+        const reqT = req.t as unknown as PluginStorageBunnyTFunction
+
+        try {
+          const { file } = (req.routeParams ?? {}) as { file?: string }
+          if (file !== 'thumbnail.jpg' && file !== 'preview.webp') {
+            throw new NotFound(req.t)
+          }
+
+          const { context, streamOptions, videoId } = await findReadableVideo(
+            options,
+            req,
+            ({ thumbnail, usePayloadAccessControl }) => !!thumbnail && usePayloadAccessControl,
+          )
+
+          return await streamThumbnailStaticHandler({
+            collection: context.collection,
+            req,
+            signedUrls: context.signedUrls || false,
+            streamOptions,
+            thumbnailType: file,
+            usePayloadAccessControl: true,
+            videoId,
+          })
+        } catch (err) {
+          if (err instanceof APIError) {
+            throw err
+          }
+
+          req.payload.logger.error({ err, msg: '[bunny:stream] thumbnail: request failed' })
+          throw new APIError(reqT('error:unknown'), 500, undefined, true)
+        }
+      },
+      custom: { openapi: streamThumbnailOperation },
+      method: 'get',
+      path: '/storage-bunny/stream/thumbnail/:collection/:id/:videoId/:file',
     })
   }
 

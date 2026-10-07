@@ -20,6 +20,7 @@ export const getStreamUploadSessionsCollection = (): CollectionConfig => {
     admin: {
       hidden: true,
     },
+    authorship: false,
     fields: [
       {
         name: 'libraryId',

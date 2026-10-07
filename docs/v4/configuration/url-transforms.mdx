@@ -70,6 +70,20 @@ Return the final URL string.
 | `false` (default)             | Payload's own access-controlled file route, e.g. `/api/<collection>/file/<filename>` |
 | `true`                        | The direct Bunny CDN URL                                                             |
 
+## Sharp dynamic resizing
+
+With Payload access control on, image URLs go through Payload's `/api/<collection>/file/<filename>` route. If you turn on dynamic resizing in `sharpTransformer({ dynamic: true })` from `@payloadcms/transformer-sharp`, Sharp takes every request on that route that has a `width`, `height` or `withoutEnlargement` query parameter. This applies to JPEG, PNG, GIF, WebP, TIFF and AVIF files in the collections that `dynamic` covers.
+
+For such a request, Payload fetches the original file from Bunny without the query string, and Sharp resizes it on your server. So none of the query parameters reach Bunny's Image Optimizer, not even ones Sharp does not know, such as `quality`. Sharp also returns `400` for a value it does not accept, for example `width=abc`.
+
+To keep resizing on Bunny, do one of these:
+
+- Leave `dynamic` off, which is the default.
+- Limit it with `sharpTransformer({ dynamic: { collections: [...] } })` to collections that do not use Optimizer parameters.
+- Set `disablePayloadAccessControl: true` on the collection, so its URLs point straight at the Bunny CDN.
+
+Stream video thumbnails are not affected. They use the plugin's own endpoint, which passes the query on to Bunny. See [Thumbnail URLs](/v4/configuration/thumbnails#thumbnail-urls).
+
 ## Collection overrides
 
 ```ts

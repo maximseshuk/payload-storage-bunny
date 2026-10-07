@@ -3,6 +3,7 @@ import type {
   Field,
   FieldAccess,
   GroupField,
+  PayloadRequest,
   SelectFn,
   SelectIncludeType,
   TypeWithID,
@@ -29,10 +30,25 @@ type StoredBunnyData = {
   stream?: StoredStream
 }
 
+const SERVER_STREAM_UPLOAD_CONTEXT_KEY = 'bunnyServerStreamUpload'
+
+export const markServerStreamUpload = (req: PayloadRequest, videoId: string): void => {
+  req.context ??= {}
+  req.context[SERVER_STREAM_UPLOAD_CONTEXT_KEY] = videoId
+}
+
+const isServerStreamUpload: FieldAccess = ({ req, siblingData }) =>
+  typeof siblingData?.videoId === 'string' && req.context?.[SERVER_STREAM_UPLOAD_CONTEXT_KEY] === siblingData.videoId
+
+const isRestoringVersion: FieldAccess = ({ req }) => !!req.context?.isRestoringVersion
+
+const canWriteStreamState: FieldAccess = (args) => isRestoringVersion(args) || isServerStreamUpload(args)
+
 export const bunnyGroupField = (context: CollectionContext, status: boolean): GroupField => {
-  const canWriteVideoId: FieldAccess = ({ req, siblingData }) => {
+  const canWriteVideoId: FieldAccess = (args) => {
+    const { req, siblingData } = args
     const videoId = siblingData?.videoId
-    if (!videoId) {
+    if (!videoId || canWriteStreamState(args)) {
       return true
     }
     return (
@@ -80,14 +96,18 @@ export const bunnyGroupField = (context: CollectionContext, status: boolean): Gr
     streamFields.push({
       name: 'status',
       type: 'text',
-      access: { create: () => false, update: () => false },
+      access: { create: isServerStreamUpload, update: canWriteStreamState },
       admin: { disabled: { field: true }, readOnly: true },
       index: true,
     })
   }
 
   if (context.streamOptions?.mp4Fallback) {
-    streamFields.push({ name: 'resolutions', type: 'json', access: { create: () => false, update: () => false } })
+    streamFields.push({
+      name: 'resolutions',
+      type: 'json',
+      access: { create: isServerStreamUpload, update: canWriteStreamState },
+    })
   }
 
   return {
@@ -171,10 +191,10 @@ export const getAfterReadHook = (): CollectionAfterReadHook => {
       return doc
     }
     collapseStoredBunnyData(doc)
-    const sizes = (doc as { sizes?: unknown }).sizes
-    if (sizes && typeof sizes === 'object') {
-      for (const size of Object.values(sizes as Record<string, unknown>)) {
-        collapseStoredBunnyData(size)
+    const variants = (doc as { variants?: unknown }).variants
+    if (variants && typeof variants === 'object') {
+      for (const variant of Object.values(variants as Record<string, unknown>)) {
+        collapseStoredBunnyData(variant)
       }
     }
     return doc

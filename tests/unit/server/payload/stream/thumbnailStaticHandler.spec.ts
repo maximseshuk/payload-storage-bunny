@@ -97,6 +97,24 @@ describe('streamThumbnailStaticHandler', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('forwards conditional headers and returns 304 when the CDN copy is unchanged', async () => {
+    fetchMock.mockResolvedValue({
+      body: null,
+      headers: new Headers({ 'cache-control': 'public, max-age=60', etag: '"e1"' }),
+      ok: false,
+      status: 304,
+    })
+    const req = makeReq()
+    req.headers.set('if-none-match', '"e1"')
+
+    const res = await streamThumbnailStaticHandler({ ...baseArgs(), req })
+
+    expect(res.status).toBe(304)
+    expect(res.headers.get('etag')).toBe('"e1"')
+    expect(res.headers.get('cache-control')).toBe('private, max-age=60')
+    expect((fetchMock.mock.calls[0][1].headers as Headers).get('if-none-match')).toBe('"e1"')
+  })
+
   it('sends the stream referer so BlockNoneReferrer libraries serve the thumbnail', async () => {
     fetchMock.mockResolvedValue({ body: 'x', headers: new Headers(), ok: true, status: 200 })
 

@@ -11,7 +11,7 @@ Without the media-preview plugin, the edit view of a Stream video or audio file 
 
 ## Install
 
-The media-preview plugin is an optional peer — install it alongside this plugin. Its version for Payload 4 is in beta under the `beta` npm tag:
+The media-preview plugin is an optional peer — install it alongside this plugin. Its version for Payload 4 is in beta under the `beta` npm tag. This plugin needs `^2.0.0-beta.3`:
 
 <CodeGroup>
 
@@ -89,7 +89,7 @@ The state changes in these ways:
 
 - **Save.** When you save a document with a new video, the plugin asks Bunny for the current state and stores it. Right after an upload, this is usually `processing`.
 - **Webhook (fast path).** If you set up the [Stream webhook](/v4/configuration/stream/webhooks), Bunny tells your server when the state changes, and the plugin saves the new state right away.
-- **Status check (safety net).** While the stored state is `processing`, the preview asks your server at `GET /api/storage-bunny/stream/status/:collection/:id`. The server asks the Bunny API and saves the new state when it changes. When the new state is `ready`, Bunny has finished encoding the video and `mp4Fallback` is on, it also saves the MP4 `resolutions` if the document has none. Until Bunny returns them, the state stays `processing`. This works with or without a webhook, so a lost webhook does not leave a video stuck.
+- **Status check (safety net).** While the stored state is `processing`, the preview asks your server at `GET /api/storage-bunny/stream/status/:collection/:id/:videoId`. The server asks the Bunny API and saves the new state when it changes. When the new state is `ready`, Bunny has finished encoding the video and `mp4Fallback` is on, it also saves the MP4 `resolutions` if the document has none. Until Bunny returns them, the state stays `processing`. This works with or without a webhook, so a lost webhook does not leave a video stuck.
 - **Status sync (optional).** A [background task](/v4/configuration/background-tasks#status-sync) asks Bunny about all videos stored as `processing` and stores the new state.
 
 How the preview behaves:

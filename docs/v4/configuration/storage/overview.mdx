@@ -114,6 +114,43 @@ The S3 endpoint is `https://{region}-s3.storage.bunnycdn.com`, with the same `re
 
 See [Client uploads](/v4/configuration/storage/client-uploads) for how S3 mode powers browser-direct uploads.
 
+## Files, versions and rename
+
+Payload manages stored files by their storage key. Every upload through the Payload server goes to a new folder:
+
+```text
+<prefix>/<uuid>/<name>-original.<ext>
+```
+
+`<prefix>` is the `prefix` stored on the document. It is the collection prefix, or the document prefix placed under the collection prefix. This is the source file. The processed file and the image variants go to the same folder. [Client uploads](/v4/configuration/storage/client-uploads) use the same layout. Documents from earlier versions keep their old keys. Payload starts to manage them the first time their file changes.
+
+Payload stores the keys in fields of each upload collection: the `original` group, and `prefix` and `_objectKey` on each image variant. SQL databases need a migration for these fields. See [Create the migrations](/v4/upgrade-guide#2-create-the-migrations).
+
+### Versions
+
+What happens to a replaced file depends on `versions`. Payload 4 turns `versions` on for every collection that does not set `versions: false`, with `maxPerDoc: 100`.
+
+- **With `versions`** (the default), a replaced file stays in Bunny Storage while any document or version references it. So restoring a version brings back a working file. Payload deletes the file after its last reference is gone. This happens when you replace the file, delete the document, change a draft, or when Payload removes old versions because of `maxPerDoc`.
+- **With `versions: false`**, Payload deletes the old file when you replace it, as before. Set `versions: false` on the collection to get this behavior back.
+
+See [Replaced files stay while a version uses them](/v4/upgrade-guide#4-replaced-files-stay-while-a-version-uses-them) in the upgrade guide.
+
+When Payload deletes a file, the plugin [purges](/v4/configuration/cache-purge) it from the CDN cache, if `purge` is on. Stream videos follow the same rule, see [Replaced videos and versions](/v4/configuration/stream/overview#replaced-videos-and-versions).
+
+### Rename and restore
+
+`payload.renameFile`, the rename operation in REST and GraphQL, and restoring a version copy the stored files to new keys. A rename adds Payload's `-original` suffix to a file without variants: renaming to `x.jpg` stores `x-original.jpg`. A restore keeps the name of a file that the current document still uses, and gives every other file a new name, for example `photo-original-<uuid>.jpg`. How the plugin copies a file depends on the mode:
+
+- **Storage HTTP API** (the default): the plugin downloads the file and uploads it again through your server. Bunny then sets the `Content-Type` from the file extension, so a custom type is not kept. A large file costs server bandwidth. The copy is not atomic. The plugin checks right before the upload that no file exists at the new key. A file that another request writes in the short time between the check and the upload is overwritten.
+- **[S3 mode](#s3-mode)**: the plugin uses S3 `CopyObject`, so the file does not pass through your server. The copy keeps the `Content-Type`. It sends `If-None-Match: *`, so Bunny rejects the copy when a file already exists at the new key. This check is atomic.
+
+The copy does not overwrite a file that exists at the new key when the copy starts. A rename then fails with `409`. A restore fails with a server error instead, because Payload maps only rename collisions to `409`. A restore rarely collides, because the new name has a random ID.
+
+<Warning>
+  Rename can hang on Postgres or PGlite when the database pool has a single connection. This is a Payload issue, see
+  [payloadcms/payload#18406](https://github.com/payloadcms/payload/issues/18406).
+</Warning>
+
 ## Requirements
 
 The plugin validates these on startup and throws a clear error if any fails:

@@ -18,7 +18,7 @@ Or configure it:
 stream: {
   tus: {
     autoMode: true,       // auto-enable TUS for supported video/audio files (default: true)
-    expiresIn: 7200,      // seconds until the TUS session expires (default: 3600)
+    expiresIn: 7200,      // seconds Bunny keeps an unfinished upload (default: 3600)
     access: async ({ data, defaultAccess }) => data.filesize < 5e9 && (await defaultAccess()),
   },
 }
@@ -27,7 +27,7 @@ stream: {
 | Option      | Type                                                            | Default        | Description                                                                                                                                                                                                                                                                   |
 | ----------- | --------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `autoMode`  | `boolean`                                                       | `true`         | When `true`, TUS is used automatically for supported files and the admin UI hides the mode toggle. When `false`, editors get a button to switch between standard and TUS upload.                                                                                              |
-| `expiresIn` | `number`                                                        | `3600`         | Seconds before the TUS upload session expires.                                                                                                                                                                                                                                |
+| `expiresIn` | `number`                                                        | `3600`         | Seconds that Bunny keeps an unfinished upload. Set it longer than your largest upload takes. The browser gets TUS headers that are valid for at most 5 minutes and asks for new ones while it uploads.                                                                        |
 | `access`    | `({ req, data, defaultAccess }) => boolean \| Promise<boolean>` | built-in check | Replaces the default check for the TUS auth endpoint. `data` is the parsed request body (`collection`, `filename`, `filesize`, `filetype`, ...). Call `defaultAccess()` to run the built-in check, which requires admin access and create access to the requested collection. |
 
 How it works:
@@ -42,19 +42,23 @@ The admin UI calls `POST /api/storage-bunny/stream/tus-auth` with the target col
 
 <Step title="Authorize">
 
-The plugin checks access (via `access` or the default rule) and the file. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type (HTML, scripts, SVG or XML) and a file over Payload's `upload.limits.fileSize`, whatever `access` returns. Then it creates the video in Bunny Stream and returns a signed TUS authorization. The response also contains a `videoToken` that is bound to the video, the collection, the library and the signed-in user. It expires after 24 hours.
+The plugin checks access (via `access` or the default rule) and the file. It rejects a type outside the collection's `upload.mimeTypes` or the Stream `mimeTypes`, a restricted type (HTML, scripts, SVG or XML) and a file over Payload's `upload.limits.fileSize`, whatever `access` returns. Then it creates the video and its TUS upload in Bunny Stream with the declared file size. It returns the upload URL and TUS headers that are valid for at most 5 minutes, or for `expiresIn` seconds when that is shorter. The response field `expiresIn` gives this lifetime in seconds. The response also contains a `videoToken` that is bound to the video, the collection, the library and the signed-in user. It expires after 24 hours.
 
 </Step>
 
 <Step title="Upload">
 
-The browser uploads directly to Bunny using the TUS protocol.
+The browser sends the file directly to that upload in Bunny. Before the headers expire, it asks `tus-auth` in renew mode for new headers for the same upload. It counts the lifetime from the time of the response, so a wrong clock in the browser does not matter. Renew mode never creates a video. When the upload has already finished, the upload ends as complete. Bunny accepts only the declared number of bytes, so a larger file fails with `413`.
+
+If Bunny answers `404` for the upload, or `tus-auth` cannot renew it, the edit view asks `tus-auth` once more in the normal mode. It resumes the upload when Bunny still has it, or creates a new video and starts the upload again. A second failure shows an error.
 
 </Step>
 
 <Step title="Save">
 
-The admin UI saves the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken`. Payload only accepts a `videoId` that comes with a matching `videoToken`. To resume an upload, send both values to `tus-auth` again. Without a valid token, `tus-auth` creates a new video. Payload also rejects a `videoId` that another document in a Stream collection of the same library already uses.
+The admin UI saves the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken`. It does not send a file to Payload. Payload only accepts a `videoId` that comes with a matching `videoToken`. It asks Bunny whether the upload is complete and stores the size of the upload as `filesize`. A save before the upload is complete fails with `400`. Payload also rejects a `videoId` that another document in a Stream collection of the same library already uses.
+
+To resume an upload after a dropped connection or a page reload, the admin UI sends `videoId` and `videoToken` to `tus-auth` again. While the upload is not complete and the file size is the same, `tus-auth` returns the same upload URL with new headers. When the upload is complete, it returns `type: 'uploaded'`. Otherwise, or without a valid token, it creates a new video. With a valid token, the plugin also deletes the old video when it has the upload that the plugin created, is not processed, and no document or version uses it.
 
 </Step>
 
@@ -72,24 +76,104 @@ The edit view keeps the collection's custom upload controls (`upload.admin.compo
 
 In TUS mode, a file that your controls add replaces the selected file and goes to the TUS upload. A running upload of the old file stops. Only Stream file types go there. For any other file, the upload view shows a file type error and keeps the selected file.
 
-When you cancel a TUS upload or replace its file, Bunny keeps the video that the plugin already created for the old file. It stays in your Stream library. Enable [cleanup](/v4/configuration/stream/overview#cleanup) to remove such videos automatically.
+When you cancel a TUS upload or pick another file before you save, Bunny keeps the video that the plugin already created for the old file. No document references this video, so it stays in your Stream library. Enable [cleanup](/v4/configuration/stream/overview#cleanup) to remove such videos automatically. A video that a saved document replaces follows [Replaced videos and versions](/v4/configuration/stream/overview#replaced-videos-and-versions).
+
+## Files required on create
+
+For a collection with TUS, the plugin sets `upload.filesRequiredOnCreate: false`, because the admin saves a video ID instead of a file. The plugin then checks the rule itself: a create needs a file or a verified TUS video. Draft saves skip this check. If your collection sets `filesRequiredOnCreate: false`, the plugin does not require either. So the rule for editors stays the same.
+
+## Custom TUS clients
+
+The admin UI handles all of this for you. A headless client that uploads videos over TUS follows these steps:
+
+1. Call `POST /api/storage-bunny/stream/tus-auth` with `collection`, `filename`, `filesize` and `filetype`. The response has `uploadUrl`, `headers`, `videoId` and `videoToken`.
+2. Send the file to `uploadUrl` with `PATCH` requests and the `headers`. Do not create another upload. For a long upload, call `tus-auth` again with the same body plus `videoId`, `videoToken` and `renew: true` before `expiresIn` seconds have passed. Count them from the response, not from `headers.AuthorizationExpire`. Use the new `headers` for the next requests. A response with `type: 'uploaded'` means the upload has finished. A `409` means the upload cannot be renewed: start a new upload without `renew`.
+3. Create or update the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken`. Do not send a file or a file reference.
+
+```json
+{
+  "alt": "My video",
+  "bunnyData": {
+    "stream": {
+      "videoId": "e7f2c1a0-…",
+      "videoToken": "…"
+    }
+  }
+}
+```
+
+Payload rejects a `videoId` without a matching `videoToken`. See the [API reference](/v4/api-reference/overview) for the `tus-auth` request and response.
+
+The plugin fills the file fields of the document from the video:
+
+- `filename` is the video title with `-original`, for example `clip-original.mp4`. Payload adds a number to a name that another document with the same prefix already uses. A document with another prefix can use the same name.
+- `filesize` is the size of the upload that `tus-auth` created. A save before this upload is complete fails with `400` `The video upload is not usable: the upload has not finished yet.`
+- Bunny forgets a finished upload about 15 minutes after it completes. For a processed video whose upload Bunny no longer knows, the plugin compares the declared size with the original file in Bunny. When they differ, the save fails with `400`. When Bunny reports no original file, the plugin trusts the declared size.
+- `mimeType` comes from the request when it is a Stream file type. Otherwise it is `video/mp4`.
+- For a video that `tus-auth` did not create, `filesize` comes from the request when `mimeType` is a Stream file type. Otherwise it is the size that Bunny reports for the video: the original file, or the encoded files when the library does not keep the original.
+- `width` and `height` are `null`.
+
+An update that sends the same `videoId` with an empty `filename`, `mimeType` or `filesize` keeps the stored value. If the document has no stored value, the plugin fills it from the video as above. The file and the video stay the same.
+
+## Size check after encoding
+
+When a video becomes `ready`, the plugin compares the size of the original file in Bunny with the `filesize` of the document. This happens in the [webhook](/v4/configuration/stream/webhooks), the status endpoint and the status sync task. When the sizes differ, the plugin logs `the original file in Bunny Stream does not match the stored file size` with the document ID and the video ID. It changes and deletes nothing. It skips the check when the library does not keep original files or when Bunny does not answer.
 
 ## Bulk uploads and form saves
 
-Payload's bulk upload drawer opens from the list view's **Bulk Upload** button and whenever a file is dropped or pasted on an upload field. The drawer has no TUS controls. Instead, videos saved there, and videos saved from the edit view without switching to TUS mode, go to Bunny Stream over TUS through Payload's client upload handler. The document is created only after the upload finishes. Video bytes never pass through your server, so a request body cap (Vercel's 4.5 MB) doesn't apply.
+Payload's bulk upload drawer opens from the list view's **Bulk Upload** button and whenever a file is dropped or pasted on an upload field. The drawer has no TUS controls. Instead, videos saved there, and videos saved from the edit view without switching to TUS mode, go from the browser straight to Bunny Stream over TUS. For this, the plugin registers `BunnyClientUploadHandler` from `@seshuk/payload-storage-bunny/client` as Payload's client upload handler. When the admin asks Payload for the upload instructions, the plugin creates the video and its TUS upload in Bunny with the declared file size. The browser then sends the file to that upload. The document is created only after the upload finishes. Video bytes never pass through your server, so a request body cap (Vercel's 4.5 MB) doesn't apply.
 
-This covers collections that store files only in Stream (`storage: false`). A collection that also stores files in Bunny Storage needs [client uploads](/v4/configuration/storage/client-uploads) enabled for the same effect, because the handler must take every file, not only videos. Without them, those saves upload through your server as before.
+This works when all of these are true:
+
+- TUS is on for the collection.
+- The collection stores files only in Stream (`storage: false`), or it also has [client uploads](/v4/configuration/storage/client-uploads) for Bunny Storage. The handler must take every file, not only videos. Other files still go to Bunny Storage through client uploads.
+- The collection does not set `upload.mimeTypes`.
+- No upload transformer with `transformFile` handles video. A transformer counts when its `mimeTypes` include `*/*` or a Stream file type. The `sharpTransformer` from `@payloadcms/transformer-sharp` does not count.
+
+In all other cases, videos upload through your server:
+
+- A collection that also stores files in Bunny Storage, but has no client uploads, uploads videos through your server as before.
+- With `upload.mimeTypes`, Payload needs the whole file to check its type. A transformer with `transformFile` needs the whole file too. A collection that stores files only in Stream then uploads videos through your server. A collection with client uploads rejects them with `File type "<type>" uploads to Bunny Stream, not through client uploads`. Use TUS mode in the edit view, or remove `upload.mimeTypes` and limit types with Stream `mimeTypes`.
 
 Uploads through your server are multipart form data. Payload limits them to 20 MB per file and 50 MB per request by default. Change them with `upload.limits.fileSize` and `upload.requestSizeLimit` in your Payload config, or use TUS or client uploads for large files.
 
-These uploads show Payload's own progress overlay and don't resume after a dropped connection. Use TUS mode in the edit view for that.
+Bulk uploads and form saves show the upload progress of each video in a notification, for example `clip.mp4: 42%`. You cannot cancel this upload, and it does not resume after a dropped connection. Use TUS mode in the edit view for that.
 
-If the save fails after the video has uploaded, the video stays in your Stream library. Enable [cleanup](/v4/configuration/stream/overview#cleanup) to remove such videos automatically.
+If the upload fails, the browser retries it three times within a few seconds. It does not retry when `tus-auth` cannot renew the headers. After that, the save fails and the plugin shows an error notification with a short message, for example `Couldn't upload file: clip.mp4`. The document is not created. The browser console shows the TUS error. In the edit view, Payload shows the same message in a second notification.
+
+If the upload fails, or you cancel the save, or the save fails after the video has uploaded, the video stays in your Stream library. The browser cannot delete it, because the plugin has no endpoint for that. Enable [cleanup](/v4/configuration/stream/overview#cleanup) to remove such videos automatically.
+
+Bunny accepts only the declared number of bytes for this upload. A larger file fails in the browser with `413`. When the document is saved, the plugin asks Bunny whether the upload is complete and gives Payload the declared size:
+
+- A save with another size fails with `400` `Uploaded source size does not match the declared size.`
+- A save before the upload is complete, for example of a smaller file, fails with `400` `Uploaded source is not readable.` The plugin logs `the upload has not finished yet`.
+- A save of a video that Bunny marked as failed fails with `400` `Uploaded source is not readable.` The plugin logs `Bunny Stream marked the upload as failed`.
+
+The save does not wait for encoding. The check needs no library setting: it does not read the original file in Bunny, so it also works when the library does not keep original files.
+
+In a collection that also has client uploads for Bunny Storage, a failed Bunny Stream check (for example `401`, `429` or `5xx`) does not block other files. The plugin logs a warning and reads the file from Bunny Storage instead. A video is not in Bunny Storage, so its save fails with `400`.
+
+A document saved over this path gets these fields:
+
+- `_objectKey` and `bunnyData.stream.videoId` hold the Bunny video ID.
+- `bunnyData.stream.status` is the state of the video in Bunny at save time, usually `processing`. The field is only there with `stream.status` on.
+- `filename` gets Payload's `-original` suffix, for example `clip-original.mp4`. Payload adds a number to a name that another document in the collection already uses, whatever its prefix. The video title in Bunny is the uploaded name without `-original`.
+- `prefix` is the collection or document prefix.
+- `original` holds `_objectKey`, `filename`, `filesize`, `mimeType` and `prefix`.
+- `filesize` and `mimeType` come from the browser. The file size must match the size that the upload was created with.
+- `url` contains the video ID.
+- `width` and `height` are not set.
 
 Do not send a file and a TUS `videoId` in the same request. The plugin uses the file and forgets the `videoId`: it uploads a Stream file as a new video, and any other file to Bunny Storage. In both cases the TUS video stays in your library unless cleanup is on.
 
 <Warning>
 
-**Known limitation.** In the bulk upload drawer of a collection with TUS uploads, crop and focal point edits are not saved. Payload does not pass upload edits to a custom upload component. A fix depends on Payload, see [payloadcms/payload#18612](https://github.com/payloadcms/payload/pull/18612).
+**Known limitations.**
+
+- In the bulk upload drawer of a collection with TUS uploads, crop and focal point edits are not saved. Payload does not pass upload edits to a custom upload component. A fix depends on Payload, see [payloadcms/payload#18612](https://github.com/payloadcms/payload/pull/18612).
+- Bulk uploads and form saves cannot be cancelled and do not resume. Use TUS mode in the edit view for large files.
+- The size limit for TUS uploads relies on the 5-minute lifetime of the TUS headers and on the [size check after encoding](#size-check-after-encoding). Bunny accepts only the declared number of bytes for the upload that the plugin created. But until the headers expire, Bunny also accepts a new upload for the same video, also after the save, and replaces the video with it. After the upload is complete, `tus-auth` gives no new headers for the video. The size check after encoding then logs a warning when the encoded original has another size than the document. It does not block or delete the video.
+- When Bunny no longer knows a finished upload and reports no original file, the save trusts the declared size.
+- With Payload 4.0.0-beta.0 and 4.0.0-beta.1, the bulk upload drawer shows `Successfully saved N files` even when a video upload failed. Payload ignores the error. The plugin shows its own error notification, and the document is not created. The drawer also removes the file, so add it again to retry.
 
 </Warning>

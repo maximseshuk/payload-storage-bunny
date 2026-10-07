@@ -10,15 +10,15 @@ import {
   useUploadControls,
   useUploadEdits,
 } from '@payloadcms/ui'
-import {
-  FileManager as PayloadFileManager,
-  type FileManagerProps as PayloadFileManagerProps,
-} from '@payloadcms/ui/elements/FileManager'
 import type { ClientCollectionConfig } from 'payload'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
 import { ToggleButton } from '@/client/TusUpload/ToggleButton/ToggleButton.js'
+import {
+  FileManager as PayloadFileManager,
+  type FileManagerProps as PayloadFileManagerProps,
+} from '@/client/vendor/payload/elements/FileManager/index.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 
 import { FILE_FIELD_REMOVE_BUTTON_SELECTOR } from './TusUpload.constants.js'
@@ -28,7 +28,7 @@ export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' 
   UploadControls,
   UploadFilePreview,
 }) => {
-  const { collectionSlug: docSlug, initialState } = useDocumentInfo()
+  const { collectionSlug: docSlug, data: savedDoc, initialState } = useDocumentInfo()
   const { getEntityConfig } = useConfig()
   const { resetUploadEdits } = useUploadEdits()
   const { setUploadControlFile, setUploadControlFileName, setUploadControlFileUrl } = useUploadControls()
@@ -75,15 +75,26 @@ export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' 
     clearUploadControls()
   }, [clearUploadControls])
 
-  const handleDisableTus = useCallback(() => {
-    if (isAutoModeEnabled) {
-      fileManagerRef.current?.querySelector<HTMLButtonElement>(FILE_FIELD_REMOVE_BUTTON_SELECTOR)?.click()
-    }
+  const disableTus = useCallback(
+    (showSavedFile: boolean) => {
+      if (showSavedFile) {
+        fileManagerRef.current?.querySelector<HTMLButtonElement>(FILE_FIELD_REMOVE_BUTTON_SELECTOR)?.click()
+      }
 
-    setIsTusMode(false)
-    setSelectedFile(null)
-    clearUploadControls()
-  }, [clearUploadControls, isAutoModeEnabled])
+      setIsTusMode(false)
+      setSelectedFile(null)
+      clearUploadControls()
+    },
+    [clearUploadControls],
+  )
+
+  const handleDisableTus = useCallback(() => disableTus(isAutoModeEnabled), [disableTus, isAutoModeEnabled])
+
+  const handleCancelTus = useCallback(() => {
+    if (savedDoc?.filename) {
+      disableTus(true)
+    }
+  }, [disableTus, savedDoc?.filename])
 
   useEffect(() => {
     if (!(fileValue instanceof File) || isTusMode || !isAutoModeEnabled) {
@@ -143,6 +154,7 @@ export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' 
         <FileManager
           collectionSlug={collectionSlug}
           isAutoMode={isAutoModeEnabled}
+          onCancel={handleCancelTus}
           onDisableTus={handleDisableTus}
           preSelectedFile={fileValue instanceof File ? fileValue : selectedFile}
           UploadControls={UploadControls}

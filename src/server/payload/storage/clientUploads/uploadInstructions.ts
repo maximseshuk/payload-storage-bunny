@@ -1,38 +1,24 @@
-import { randomUUID } from 'node:crypto'
 import { posix } from 'node:path'
 
-import { buildUploadStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
+import { resolveSignedURLKey } from '@payloadcms/plugin-cloud-storage/utilities'
+import type { TFunction } from '@payloadcms/translations'
 import type { GenerateUploadInstructions, PayloadRequest, SanitizedCollectionConfig } from 'payload'
 import { APIError, Forbidden } from 'payload'
-import { assertClientUploadAccess, assertClientUploadAllowed } from 'payload/internal'
+import { assertClientUploadAccess, assertClientUploadAllowed, createClientUploadReceipt } from 'payload/internal'
 import sanitize from 'sanitize-filename'
 
-import { presignStoragePutUrl, storageObjectExistsS3 } from '@/server/bunny/s3.js'
-import { getSafeFileName } from '@/server/files.js'
-import { hasStreamClientUploads } from '@/server/payload/stream/clientUploads.js'
+import { presignStoragePutUrl } from '@/server/bunny/s3.js'
+import { signStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
+import {
+  createStreamTusUploadSession,
+  hasStreamClientUploads,
+  hasStreamTusAccess,
+} from '@/server/payload/stream/tusUpload.js'
 import { isRestrictedFileType, matchesMimeTypePattern } from '@/shared/mimeTypes.js'
-import type { CollectionContext } from '@/shared/types/index.js'
+import type { PluginStorageBunnyTranslationsKeys } from '@/shared/translations/index.js'
+import type { CollectionContext, StreamTusUploadData } from '@/shared/types/index.js'
 
 import { mintEdgeUploadUrl } from './mint.js'
-import { signClientUpload } from './receipt.js'
-
-const CLIENT_UPLOAD_HANDLER_NAME = 'bunny'
-
-type ResolveClientUploadPrefixArgs = {
-  collectionSlug: string
-  filename: string
-  req: PayloadRequest
-}
-
-export const resolveClientUploadPrefix = async (
-  context: CollectionContext,
-  { collectionSlug, filename, req }: ResolveClientUploadPrefixArgs,
-): Promise<string> => {
-  const clientUploads = context.storageOptions?.clientUploads
-  const docPrefix =
-    clientUploads && clientUploads.prefix ? await clientUploads.prefix({ collectionSlug, req }) : context.prefix
-  return buildUploadStoragePathData({ collectionPrefix: context.prefix, docPrefix, filename }).sanitizedDocPrefix
-}
 
 type AssertClientUploadFileArgs = {
   collection: SanitizedCollectionConfig
@@ -82,17 +68,94 @@ export const getGenerateUploadInstructions =
       throw new APIError(`Unknown collection "${collectionSlug}"`, 404)
     }
 
-    const storage = context.storageOptions
+    const { storageOptions: storage, streamOptions } = context
     const clientUploads = storage?.clientUploads
-    const isStreamUpload =
-      hasStreamClientUploads(context) &&
-      !!context.streamOptions?.mimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
-    if (!isStreamUpload && !clientUploads) {
+    const docPrefix = async () =>
+      clientUploads?.prefix ? await clientUploads.prefix({ collectionSlug, req }) : undefined
+
+    if (
+      streamOptions?.tus &&
+      hasStreamClientUploads(context, req.payload.config.upload.transformers) &&
+      streamOptions.mimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))
+    ) {
+      if (
+        !overrideAccess &&
+        !(await hasStreamTusAccess({
+          data: { collection: collectionSlug, filename, filesize, filetype: mimeType },
+          req,
+          streamOptions,
+        }))
+      ) {
+        throw new Forbidden(req.t)
+      }
+      assertClientUploadFile({ collection, filename, filesize, mimeType, req })
+
+      const { sanitizedDocPrefix, sanitizedFilename, storageFilePath } = await resolveSignedURLKey({
+        collectionPrefix: context.prefix,
+        collectionSlug,
+        docPrefix: await docPrefix(),
+        filename,
+        req,
+      })
+      const { expiresIn, headers, uploadUrl, videoId } = await createStreamTusUploadSession({
+        filesize,
+        filetype: mimeType,
+        req,
+        streamOptions,
+        title: sanitizedFilename,
+      })
+      const data: StreamTusUploadData = {
+        errorMessage: (req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>)(
+          '@seshuk/payload-storage-bunny:errorUploadFileFailed',
+          { filename: sanitizedFilename },
+        ),
+        expiresIn,
+        headers,
+        uploadUrl,
+        videoId,
+        videoToken: signStreamVideoToken({
+          collection: collectionSlug,
+          libraryId: streamOptions.libraryId,
+          secret: req.payload.secret,
+          user: req.user,
+          videoId,
+        }),
+      }
+
+      return {
+        name: 'bunny',
+        type: 'dispatch',
+        data,
+        file: {
+          filename: sanitizedFilename,
+          mimeType,
+          size: filesize,
+          uploadReference: {
+            _objectKey: videoId,
+            prefix: sanitizedDocPrefix,
+            signedReceipt: createClientUploadReceipt({
+              _objectKey: videoId,
+              collectionSlug,
+              filename: sanitizedFilename,
+              filePrefix: sanitizedDocPrefix,
+              req,
+              storageFilePath: posix.join(
+                posix.dirname(posix.dirname(storageFilePath)),
+                videoId,
+                posix.basename(storageFilePath),
+              ),
+            }),
+          },
+        },
+      }
+    }
+
+    if (!storage || !clientUploads) {
       throw new APIError(`Client uploads are not enabled for "${collectionSlug}"`, 403)
     }
 
     if (!overrideAccess) {
-      const hasAccess = clientUploads?.access
+      const hasAccess = clientUploads.access
         ? await clientUploads.access({ collectionSlug, req })
         : await assertClientUploadAccess({ collectionSlug, req }).then(
             () => true,
@@ -103,46 +166,38 @@ export const getGenerateUploadInstructions =
       }
     }
 
-    assertClientUploadFile({ collection, filename, filesize, mimeType, req })
-
-    if (isStreamUpload || !storage || !clientUploads) {
-      return {
-        name: CLIENT_UPLOAD_HANDLER_NAME,
-        type: 'dispatch',
-        file: { filename: sanitize(filename), mimeType, size: filesize, uploadReference: {} },
-      }
+    if (streamOptions?.mimeTypes.some((pattern) => matchesMimeTypePattern(mimeType, pattern))) {
+      throw new APIError(`File type "${mimeType}" uploads to Bunny Stream, not through client uploads`, 400)
     }
+
+    assertClientUploadFile({ collection, filename, filesize, mimeType, req })
 
     if (!storage.s3 && clientUploads.edge && filesize > clientUploads.edge.maxSize) {
       throw new APIError('File exceeds the configured size limit', 413)
     }
 
-    const safeFilename = await getSafeFileName({
-      collectionSlug,
-      desiredFilename: sanitize(filename),
-      req,
-      staticPath: '',
-    })
-
-    const basePrefix = await resolveClientUploadPrefix(context, { collectionSlug, filename: safeFilename, req })
-    const { sanitizedDocPrefix: prefix, storageFilePath: path } = buildUploadStoragePathData({
+    const {
+      sanitizedFilename,
+      storageFilePath: path,
+      uploadReference,
+    } = await resolveSignedURLKey({
       collectionPrefix: context.prefix,
-      docPrefix: posix.join(basePrefix, randomUUID()),
-      filename: safeFilename,
+      collectionSlug,
+      docPrefix: await docPrefix(),
+      filename,
+      req,
     })
 
     let url: string
     const headers: Record<string, string> = { 'Content-Type': mimeType }
     if (storage.s3) {
-      const credentials = { apiKey: storage.apiKey, region: storage.region, zoneName: storage.zoneName }
-      if (await storageObjectExistsS3({ ...credentials, path })) {
-        throw new APIError('A file already exists at this path', 409)
-      }
       url = await presignStoragePutUrl({
-        ...credentials,
+        apiKey: storage.apiKey,
         contentLength: filesize,
         contentType: mimeType,
         path,
+        region: storage.region,
+        zoneName: storage.zoneName,
       })
       headers['If-None-Match'] = '*'
     } else {
@@ -160,17 +215,9 @@ export const getGenerateUploadInstructions =
       })
     }
 
-    const signedReceipt = signClientUpload({
-      claims: { filesize, mimeType },
-      collectionSlug,
-      filename: safeFilename,
-      prefix,
-      req,
-    })
-
     return {
       type: 'http',
-      file: { filename: safeFilename, mimeType, size: filesize, uploadReference: { prefix, signedReceipt } },
+      file: { filename: sanitizedFilename, mimeType, size: filesize, uploadReference },
       request: { headers, method: 'PUT', url },
     }
   }

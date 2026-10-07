@@ -1,4 +1,4 @@
-import type { CollectionConfig, Field, GroupField, SelectField, TextField } from 'payload'
+import type { CollectionConfig, Field, GroupField, SanitizedUploadConfig, SelectField, TextField } from 'payload'
 
 import { bunnyGroupField } from '@/server/payload/fields/bunnyGroupField.js'
 import { getThumbnailURLAfterReadFieldHook, getUrlAfterReadFieldHook } from '@/server/payload/fields/hooks.js'
@@ -116,6 +116,7 @@ export const getFields = (
       type: 'text',
       access: { create: () => false, update: () => false },
       admin: {
+        disabled: { bulkEdit: true, column: true, filter: true, groupBy: true },
         hidden: true,
         readOnly: true,
       },
@@ -132,11 +133,14 @@ export const getFields = (
     fields.push(getStreamStatusField())
   }
 
-  if (typeof collection.upload === 'object' && collection.upload.imageSizes) {
+  const variants =
+    typeof collection.upload === 'object' ? (collection.upload as SanitizedUploadConfig).variants : undefined
+
+  if (variants) {
     let existingSizesFieldIndex = -1
 
     const existingSizesField = fields.find((existingField, i) => {
-      if ('name' in existingField && existingField.name === 'sizes') {
+      if ('name' in existingField && existingField.name === 'variants') {
         existingSizesFieldIndex = i
         return true
       }
@@ -150,12 +154,12 @@ export const getFields = (
 
     const sizesField: Field = {
       ...(existingSizesField && typeof existingSizesField === 'object' ? existingSizesField : {}),
-      name: 'sizes',
+      name: 'variants',
       type: 'group',
       admin: {
         hidden: true,
       },
-      fields: collection.upload.imageSizes.map((size) => {
+      fields: variants.map((size) => {
         const existingSizeField = existingSizesField?.fields.find(
           (existingField) => 'name' in existingField && existingField.name === size.name,
         ) as GroupField

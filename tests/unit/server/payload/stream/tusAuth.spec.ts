@@ -1,23 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { httpError } from '../../../../helpers/unit/httpError.js'
+
 const {
-  canUploadToVideoMock,
   createSessionMock,
+  createUploadMock,
   createVideoMock,
+  deleteVideoMock,
+  findOneMock,
   getAccessResultsMock,
+  getOffsetMock,
   getVideoMock,
-  isErrorMock,
-  isProcessedMock,
-  signMock,
 } = vi.hoisted(() => ({
-  canUploadToVideoMock: vi.fn(),
   createSessionMock: vi.fn(),
+  createUploadMock: vi.fn(),
   createVideoMock: vi.fn(),
+  deleteVideoMock: vi.fn(),
+  findOneMock: vi.fn(),
   getAccessResultsMock: vi.fn(),
+  getOffsetMock: vi.fn(),
   getVideoMock: vi.fn(),
-  isErrorMock: vi.fn(),
-  isProcessedMock: vi.fn(),
-  signMock: vi.fn(),
 }))
 
 vi.mock('payload', async (importOriginal) => {
@@ -25,30 +27,36 @@ vi.mock('payload', async (importOriginal) => {
   return { ...actual, getAccessResults: getAccessResultsMock }
 })
 
-vi.mock('@/server/bunny/stream.js', () => ({
-  canUploadToVideo: canUploadToVideoMock,
+vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/bunny/stream.js')>()),
+  createStreamTusUpload: createUploadMock,
   createStreamVideo: createVideoMock,
+  deleteStreamVideo: deleteVideoMock,
+  getStreamTusUploadOffset: getOffsetMock,
   getStreamVideo: getVideoMock,
-  getStreamVideoResolutions: vi.fn(),
-  isVideoInErrorState: isErrorMock,
-  isVideoProcessed: isProcessedMock,
-  parseMp4Resolutions: vi.fn(),
 }))
 
 vi.mock('@/server/payload/stream/sessionsCollection.js', () => ({
   createStreamVideoSession: createSessionMock,
 }))
 
-vi.mock('@/server/payload/stream/tusSignature.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/server/payload/stream/tusSignature.js')>()),
-  generateStreamTusUploadSignature: signMock,
-}))
-
-const { verifyClientUploadReceipt } = await import('payload/internal')
-const { readClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
 const { signStreamVideoToken } = await import('@/server/payload/stream/tusSignature.js')
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
+
+const UPLOAD_URL = 'https://video.bunnycdn.com/tusupload/upload-1'
+
+const tusVideo = (status: number, length = 1000, title = 'Draft') => ({
+  guid: 'video',
+  metaTags: [
+    { property: 'payload-storage-bunny:upload-url', value: UPLOAD_URL },
+    { property: 'payload-storage-bunny:upload-length', value: String(length) },
+  ],
+  status,
+  title,
+})
+
+const notFound = () => new Error('HTTP 404', { cause: httpError(404) })
 
 const collection = { slug: 'media', upload: { mimeTypes: ['video/mp4'] } }
 
@@ -71,7 +79,8 @@ const buildReq = (body: Record<string, unknown>, overrides: Record<string, unkno
     payload: {
       config: { upload: {} },
       collections: { media: { config: collection } },
-      logger: { debug: vi.fn(), error: vi.fn() },
+      db: { findOne: findOneMock },
+      logger: { debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
       secret: 'payload-secret',
     },
     t: (key: string) => key,
@@ -103,26 +112,55 @@ const validBody = {
 describe('TUS auth endpoint', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    signMock.mockReturnValue('signature-abc')
     createVideoMock.mockResolvedValue({ guid: 'new-video-1', videoLibraryId: 12345 })
+    createUploadMock.mockResolvedValue(UPLOAD_URL)
+    findOneMock.mockResolvedValue(null)
   })
 
-  it('creates a new video and returns a signed upload payload', async () => {
-    vi.useFakeTimers()
+  it('creates a new video and its upload, and returns the upload URL with short-lived headers', async () => {
+    vi.useFakeTimers({ now: 1_700_000_000_000 })
     try {
-      const handler = getTusHandler(buildOptions())
+      const handler = getTusHandler(buildOptions({ tus: { access: () => true, expiresIn: 7200 } }))
       const res = await handler(buildReq(validBody))
       const json = await res.json()
 
-      expect(json.type).toBe('upload')
-      expect(json.videoId).toBe('new-video-1')
-      expect(json.libraryId).toBe(12345)
-      expect(json.authorizationSignature).toBe('signature-abc')
-      expect(typeof json.authorizationExpire).toBe('number')
-      expect(json.videoToken).toBe(tokenFor('new-video-1'))
-      expect(json.signedReceipt).toBeUndefined()
+      expect(json).toMatchObject({
+        type: 'upload',
+        expiresIn: 300,
+        libraryId: 12345,
+        uploadUrl: UPLOAD_URL,
+        videoId: 'new-video-1',
+        videoToken: tokenFor('new-video-1'),
+      })
+      expect(json.headers).toMatchObject({
+        AuthorizationExpire: String(1_700_000_000 + 300),
+        AuthorizationSignature: expect.any(String),
+        LibraryId: '12345',
+        VideoId: 'new-video-1',
+      })
       expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'My Clip' }))
+      expect(createUploadMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: expect.objectContaining({ AuthorizationExpire: String(1_700_000_000 + 7200) }),
+          metadata: expect.objectContaining({ filetype: 'video/mp4', title: 'My Clip' }),
+          size: 1000,
+          videoId: 'new-video-1',
+        }),
+      )
       expect(createSessionMock).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives the browser headers that expire with tus.expiresIn when it is shorter than five minutes', async () => {
+    vi.useFakeTimers({ now: 1_700_000_000_000 })
+    try {
+      const handler = getTusHandler(buildOptions({ tus: { access: () => true, expiresIn: 120 } }))
+      const json = await (await handler(buildReq(validBody))).json()
+
+      expect(json.expiresIn).toBe(120)
+      expect(json.headers.AuthorizationExpire).toBe(String(1_700_000_000 + 120))
     } finally {
       vi.useRealTimers()
     }
@@ -165,34 +203,182 @@ describe('TUS auth endpoint', () => {
   })
 
   it('returns type "uploaded" at once when the video is already processed', async () => {
-    getVideoMock.mockResolvedValue({ status: 4, title: 'Existing Title' })
-    isErrorMock.mockReturnValue(false)
-    isProcessedMock.mockReturnValue(true)
+    getVideoMock.mockResolvedValue(tusVideo(4, 1000, 'Existing Title'))
 
     const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'existing-1', videoToken: tokenFor('existing-1') }))
     const json = await res.json()
 
-    expect(json.type).toBe('uploaded')
-    expect(json.videoId).toBe('existing-1')
-    expect(json.title).toBe('Existing Title')
-    expect(json.videoToken).toBe(tokenFor('existing-1'))
+    expect(json).toEqual({
+      type: 'uploaded',
+      libraryId: 12345,
+      title: 'Existing Title',
+      videoId: 'existing-1',
+      videoToken: tokenFor('existing-1'),
+    })
+    expect(getOffsetMock).not.toHaveBeenCalled()
     expect(createVideoMock).not.toHaveBeenCalled()
   })
 
-  it('reuses an existing uploadable video without creating a new one', async () => {
-    getVideoMock.mockResolvedValue({ status: 0, title: 'Draft' })
-    isErrorMock.mockReturnValue(false)
-    isProcessedMock.mockReturnValue(false)
-    canUploadToVideoMock.mockReturnValue(true)
+  it('returns type "uploaded" when the upload is complete but Bunny has not processed the video yet', async () => {
+    getVideoMock.mockResolvedValue(tusVideo(0))
+    getOffsetMock.mockResolvedValue({ length: 1000, offset: 1000 })
 
     const handler = getTusHandler(buildOptions())
-    const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }))
-    const json = await res.json()
+    const json = await (
+      await handler(buildReq({ ...validBody, videoId: 'done-1', videoToken: tokenFor('done-1') }))
+    ).json()
 
-    expect(json.type).toBe('upload')
-    expect(json.videoId).toBe('reuse-1')
+    expect(json.type).toBe('uploaded')
+    expect(json.videoId).toBe('done-1')
     expect(createVideoMock).not.toHaveBeenCalled()
+  })
+
+  it('renews the headers of an unfinished upload and keeps its upload URL', async () => {
+    getVideoMock.mockResolvedValue(tusVideo(0))
+    getOffsetMock.mockResolvedValue({ length: 1000, offset: 400 })
+
+    const handler = getTusHandler(buildOptions())
+    const json = await (
+      await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }))
+    ).json()
+
+    expect(json).toMatchObject({
+      type: 'upload',
+      expiresIn: 300,
+      headers: { LibraryId: '12345', VideoId: 'reuse-1' },
+      uploadUrl: UPLOAD_URL,
+      videoId: 'reuse-1',
+      videoToken: tokenFor('reuse-1'),
+    })
+    expect(getOffsetMock).toHaveBeenCalledWith(expect.objectContaining({ uploadUrl: UPLOAD_URL }))
+    expect(createVideoMock).not.toHaveBeenCalled()
+    expect(createUploadMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['the file size differs from the upload', tusVideo(0, 2000), { length: 2000, offset: 400 }, true],
+    ['the video has no upload created by the server', { ...tusVideo(0), metaTags: [] }, undefined, false],
+    ['the video failed', tusVideo(6), undefined, true],
+  ])('creates a new video when %s', async (_label, video, offset, deletesOld) => {
+    getVideoMock.mockResolvedValue(video)
+    getOffsetMock.mockResolvedValue(offset)
+
+    const handler = getTusHandler(buildOptions())
+    const json = await (
+      await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }))
+    ).json()
+
+    expect(json.videoId).toBe('new-video-1')
+    expect(createVideoMock).toHaveBeenCalled()
+    expect(deleteVideoMock).toHaveBeenCalledTimes(deletesOld ? 1 : 0)
+  })
+
+  it('creates a new video and deletes the old one when Bunny no longer knows the upload of an unprocessed video', async () => {
+    getVideoMock.mockResolvedValue(tusVideo(0))
+    getOffsetMock.mockRejectedValue(notFound())
+
+    const handler = getTusHandler(buildOptions())
+    const json = await (
+      await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }))
+    ).json()
+
+    expect(json.videoId).toBe('new-video-1')
+    expect(findOneMock).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'media', where: { 'bunnyData.stream.videoId': { equals: 'reuse-1' } } }),
+    )
+    expect(deleteVideoMock).toHaveBeenCalledExactlyOnceWith({
+      apiKey: 'stream-key',
+      libraryId: 12345,
+      videoId: 'reuse-1',
+    })
+  })
+
+  it('keeps the old video when a document references it', async () => {
+    getVideoMock.mockResolvedValue(tusVideo(0))
+    getOffsetMock.mockRejectedValue(notFound())
+    findOneMock.mockResolvedValue({ id: 'doc-1' })
+
+    const json = await (
+      await getTusHandler(buildOptions())(
+        buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }),
+      )
+    ).json()
+
+    expect(json.videoId).toBe('new-video-1')
+    expect(deleteVideoMock).not.toHaveBeenCalled()
+  })
+
+  it('still creates a new video when the old one cannot be deleted', async () => {
+    getVideoMock.mockResolvedValue(tusVideo(0))
+    getOffsetMock.mockRejectedValue(notFound())
+    deleteVideoMock.mockRejectedValueOnce(new Error('HTTP 500'))
+    const req = buildReq({ ...validBody, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') })
+
+    const json = await (await getTusHandler(buildOptions())(req)).json()
+
+    expect(json.videoId).toBe('new-video-1')
+    expect((req as { payload: { logger: { warn: unknown } } }).payload.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        msg: '[bunny:stream] tus-auth: failed to delete the replaced video',
+        videoId: 'reuse-1',
+      }),
+    )
+  })
+
+  describe('renew mode', () => {
+    const renewBody = { ...validBody, renew: true, videoId: 'reuse-1', videoToken: tokenFor('reuse-1') }
+
+    it('returns new headers for the same unfinished upload', async () => {
+      getVideoMock.mockResolvedValue(tusVideo(0))
+      getOffsetMock.mockResolvedValue({ length: 1000, offset: 400 })
+
+      const json = await (await getTusHandler(buildOptions())(buildReq(renewBody))).json()
+
+      expect(json).toMatchObject({ type: 'upload', expiresIn: 300, uploadUrl: UPLOAD_URL, videoId: 'reuse-1' })
+    })
+
+    it('returns uploaded without headers when the upload has finished', async () => {
+      getVideoMock.mockResolvedValue(tusVideo(0))
+      getOffsetMock.mockResolvedValue({ length: 1000, offset: 1000 })
+
+      const json = await (await getTusHandler(buildOptions())(buildReq(renewBody))).json()
+
+      expect(json.type).toBe('uploaded')
+      expect(json).not.toHaveProperty('headers')
+    })
+
+    it.each([
+      ['a bad token', { videoToken: 'f'.repeat(64) }, () => {}],
+      ['no token', { videoToken: undefined }, () => {}],
+      ['an unknown video', {}, () => getVideoMock.mockRejectedValue(notFound())],
+      [
+        'a dead upload',
+        {},
+        () => {
+          getVideoMock.mockResolvedValue(tusVideo(0))
+          getOffsetMock.mockRejectedValue(notFound())
+        },
+      ],
+      [
+        'another file size',
+        { filesize: 2000 },
+        () => {
+          getVideoMock.mockResolvedValue(tusVideo(0))
+          getOffsetMock.mockResolvedValue({ length: 1000, offset: 400 })
+        },
+      ],
+    ])('throws 409 and creates or deletes no video for %s', async (_label, overrides, setup) => {
+      setup()
+
+      await expect(getTusHandler(buildOptions())(buildReq({ ...renewBody, ...overrides }))).rejects.toMatchObject({
+        message: 'This upload cannot be renewed. Start a new upload.',
+        status: 409,
+      })
+      expect(createVideoMock).not.toHaveBeenCalled()
+      expect(createUploadMock).not.toHaveBeenCalled()
+      expect(deleteVideoMock).not.toHaveBeenCalled()
+    })
   })
 
   it.each([
@@ -203,8 +389,6 @@ describe('TUS auth endpoint', () => {
     ['a token for another video', tokenFor('other-video')],
     ['a token for another user', tokenFor('reuse-1', 'media', 12345, { collection: 'users', id: 'user-2' })],
   ])('creates a new video when the videoId comes with %s', async (_label, videoToken) => {
-    canUploadToVideoMock.mockReturnValue(true)
-
     const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
     const json = await res.json()
@@ -239,91 +423,6 @@ describe('TUS auth endpoint', () => {
     }
   })
 
-  it('returns a signed upload reference bound to the video and head when the file head is sent', async () => {
-    const handler = getTusHandler(buildOptions())
-    const req = buildReq(
-      { ...validBody, head: 'AAAA' },
-      {
-        payload: {
-          config: { upload: {} },
-          collections: { media: { config: collection } },
-          db: { findOne: async () => null },
-          logger: { debug: vi.fn(), error: vi.fn() },
-          secret: 'payload-secret',
-        },
-        user: { collection: 'users', id: 'user-1' },
-      },
-    )
-    const json = await (await handler(req)).json()
-
-    expect(json.filename).toBe('clip.mp4')
-    const receipt = verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt: json.signedReceipt })
-    expect(receipt.filename).toBe('clip.mp4')
-    expect(
-      readClientUpload({
-        collectionSlug: 'media',
-        filename: 'clip.mp4',
-        req,
-        uploadReference: { signedReceipt: json.signedReceipt },
-      }),
-    ).toEqual({ filesize: 1000, head: 'AAAA', mimeType: 'video/mp4', prefix: '', videoId: 'new-video-1' })
-  })
-
-  it('signs the collection prefix, never the zone root', async () => {
-    const options = createNormalizedOptions({
-      collections: { media: { disablePayloadAccessControl: true, prefix: 'media' } },
-      stream: {
-        apiKey: 'stream-key',
-        hostname: 'stream.b-cdn.net',
-        libraryId: 12345,
-        tus: { access: () => true },
-      },
-    } as never)
-    const req = buildReq(
-      { ...validBody, head: 'AAAA' },
-      {
-        payload: {
-          config: { upload: {} },
-          collections: { media: { config: collection } },
-          db: { findOne: async () => null },
-          logger: { debug: vi.fn(), error: vi.fn() },
-          secret: 'payload-secret',
-        },
-      },
-    )
-    const json = await (await getTusHandler(options)(req)).json()
-
-    expect(
-      verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt: json.signedReceipt }).filePrefix,
-    ).toBe('media')
-  })
-
-  it('binds the upload reference to a unique file name', async () => {
-    const handler = getTusHandler(buildOptions())
-    const taken = new Set(['clip.mp4'])
-    const req = buildReq(
-      { ...validBody, head: 'AAAA' },
-      {
-        payload: {
-          config: { upload: {} },
-          collections: { media: { config: collection } },
-          db: {
-            findOne: async ({ where }: { where: { filename: { equals: string } } }) =>
-              taken.has(where.filename.equals) || null,
-          },
-          logger: { debug: vi.fn(), error: vi.fn() },
-          secret: 'payload-secret',
-        },
-      },
-    )
-    const json = await (await handler(req)).json()
-
-    expect(json.filename).toBe('clip-1.mp4')
-    expect(
-      verifyClientUploadReceipt({ collectionSlug: 'media', req, signedReceipt: json.signedReceipt }).filename,
-    ).toBe('clip-1.mp4')
-  })
-
   describe('file checks', () => {
     const buildCheckReq = (body: Record<string, unknown>, upload: Record<string, unknown>, fileSize?: number) =>
       buildReq(body, {
@@ -355,9 +454,7 @@ describe('TUS auth endpoint', () => {
     })
 
     it('checks the file before returning an already processed video', async () => {
-      getVideoMock.mockResolvedValue({ status: 4, title: 'Existing Title' })
-      isErrorMock.mockReturnValue(false)
-      isProcessedMock.mockReturnValue(true)
+      getVideoMock.mockResolvedValue(tusVideo(4))
 
       const handler = getTusHandler(buildOptions())
       const body = { ...validBody, filetype: 'text/html', videoId: 'existing-1', videoToken: tokenFor('existing-1') }
@@ -366,27 +463,8 @@ describe('TUS auth endpoint', () => {
     })
   })
 
-  it('rejects an oversized file head', async () => {
-    const handler = getTusHandler(buildOptions())
-    await expect(handler(buildReq({ ...validBody, head: 'A'.repeat(8193) }))).rejects.toMatchObject({ status: 400 })
-    expect(createVideoMock).not.toHaveBeenCalled()
-  })
-
-  it('creates a fresh video when the existing one is in an error state', async () => {
-    getVideoMock.mockResolvedValue({ status: 5, title: 'Broken' })
-    isErrorMock.mockReturnValue(true)
-    isProcessedMock.mockReturnValue(false)
-
-    const handler = getTusHandler(buildOptions())
-    const res = await handler(buildReq({ ...validBody, videoId: 'broken-1', videoToken: tokenFor('broken-1') }))
-    const json = await res.json()
-
-    expect(json.videoId).toBe('new-video-1')
-    expect(createVideoMock).toHaveBeenCalled()
-  })
-
-  it('creates a fresh video when the lookup throws', async () => {
-    getVideoMock.mockRejectedValue(new Error('not found'))
+  it('creates a fresh video when Bunny no longer knows the video', async () => {
+    getVideoMock.mockRejectedValue(notFound())
 
     const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'missing-1', videoToken: tokenFor('missing-1') }))
@@ -394,6 +472,16 @@ describe('TUS auth endpoint', () => {
 
     expect(json.videoId).toBe('new-video-1')
     expect(createVideoMock).toHaveBeenCalled()
+  })
+
+  it('throws 500 when the video lookup fails for another reason', async () => {
+    getVideoMock.mockRejectedValue(new Error('HTTP 503', { cause: httpError(503) }))
+
+    const handler = getTusHandler(buildOptions())
+    await expect(
+      handler(buildReq({ ...validBody, videoId: 'missing-1', videoToken: tokenFor('missing-1') })),
+    ).rejects.toMatchObject({ status: 500 })
+    expect(createVideoMock).not.toHaveBeenCalled()
   })
 
   it('wraps an unexpected error as a 500', async () => {
@@ -574,15 +662,13 @@ describe('TUS auth endpoint', () => {
       const json = await res.json()
 
       expect(json.libraryId).toBe(111)
-      expect(signMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
+      expect(json.headers.LibraryId).toBe('111')
+      expect(createUploadMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
       expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
     })
 
     it('calls getStreamVideo with the collection credentials when reusing a video', async () => {
-      getVideoMock.mockResolvedValue({ status: 0, title: 'Draft' })
-      isErrorMock.mockReturnValue(false)
-      isProcessedMock.mockReturnValue(false)
-      canUploadToVideoMock.mockReturnValue(true)
+      getVideoMock.mockResolvedValue(tusVideo(4))
 
       const handler = getTusHandler(buildMultiOptions())
       await handler(buildMultiReq({ ...betaBody, videoId: 'reuse-b', videoToken: tokenFor('reuse-b', 'beta', 222) }))

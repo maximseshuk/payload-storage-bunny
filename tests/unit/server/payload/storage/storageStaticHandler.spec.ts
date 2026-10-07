@@ -223,4 +223,25 @@ describe('storageStaticHandler', () => {
     expect(res.status).toBe(304)
     expect(res.headers.get('etag')).toBe('"abc"')
   })
+
+  it('fetches the whole original for a transformer without redirect, query, Range or 304', async () => {
+    fetchMock.mockResolvedValue(new Response(streamBody('full'), { headers: { etag: '"abc"' }, status: 200 }))
+
+    const res = await storageStaticHandler({
+      collection,
+      filename: 'photo.jpg',
+      operation: 'transform',
+      req: makeReq({ 'if-none-match': '"abc"', range: 'bytes=0-99' }, '/api/media/file/photo.jpg?width=100'),
+      signedUrls: signed({ redirect: { status: 302 } }),
+      storageOptions: storageOptions(),
+      usePayloadAccessControl: true,
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }]
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('full')
+    expect(url).not.toContain('width=')
+    expect(url).toContain('token=')
+    expect(init.headers.get('Range')).toBeNull()
+  })
 })

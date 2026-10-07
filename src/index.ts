@@ -9,7 +9,7 @@ import type {
   GeneratedAdapter,
 } from '@payloadcms/plugin-cloud-storage/types'
 import type { AcceptedLanguages } from '@payloadcms/translations'
-import type { Config } from 'payload'
+import type { Config, UploadTransformer } from 'payload'
 
 import { getAfterReadHook, getStreamSelect } from '@/server/payload/fields/bunnyGroupField.js'
 import { getFields } from '@/server/payload/fields/getFields.js'
@@ -23,11 +23,8 @@ import {
   hasAnyStreamStatusSync,
   validateNormalizedOptions,
 } from '@/server/payload/options/index.js'
-import {
-  getBeforeChangeHook,
-  getBeforeOperationHook,
-} from '@/server/payload/storage/clientUploads/persistPrefixHook.js'
 import { getGenerateUploadInstructions } from '@/server/payload/storage/clientUploads/uploadInstructions.js'
+import { getCopyFile, getDeleteFile } from '@/server/payload/storage/fileOperations.js'
 import {
   getForgetStreamVideoHook,
   getGenerateUrl,
@@ -35,17 +32,24 @@ import {
   getHandleUpload,
   getStaticHandler,
 } from '@/server/payload/storage/index.js'
-import { hasStreamClientUploads } from '@/server/payload/stream/clientUploads.js'
 import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
-import { getAfterChangeHook, getBeforeValidateHook, getStreamBeforeChangeHook } from '@/server/payload/stream/hooks.js'
+import {
+  getAfterChangeHook,
+  getBeforeValidateHook,
+  getStreamBeforeChangeHook,
+  getStreamFileChangeBeforeOperationHook,
+  getStreamKeysBeforeChangeHook,
+  getStreamKeysBeforeDeleteHook,
+} from '@/server/payload/stream/hooks.js'
 import { getStreamUploadSessionsCollection } from '@/server/payload/stream/sessionsCollection.js'
+import { hasStreamClientUploads } from '@/server/payload/stream/tusUpload.js'
 import { getTasksEndpoints } from '@/server/payload/tasks/endpoint.js'
 import { getStreamCleanupTask, getStreamStatusSyncTask, warnIfTaskQueuesNotRun } from '@/server/payload/tasks/jobs.js'
 import { reportTelemetry } from '@/server/telemetry/index.js'
 import { PLUGIN_KEY } from '@/shared/constants.js'
 import { translations } from '@/shared/translations/index.js'
 import type { PluginDefaultTranslationsObject } from '@/shared/translations/types.js'
-import type { BunnyStorageOptions, BunnyStoragePlugin, CollectionContext } from '@/shared/types/index.js'
+import type { BunnyStorageOptions, BunnyStoragePlugin } from '@/shared/types/index.js'
 import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
 export {
@@ -65,8 +69,6 @@ export { syncStreamStatus } from '@/server/payload/tasks/syncStreamStatus.js'
 export type { StreamStatusSyncResult } from '@/server/payload/tasks/syncStreamStatus.js'
 export type { NormalizedBunnyStorageOptions, NormalizedCollectionOptions } from '@/shared/types/optionsNormalized.js'
 export type { BunnyStorageCollectionOptions, BunnyStorageOptions } from '@/shared/types/index.js'
-
-const CLIENT_UPLOAD_HANDLER_PATH = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
 
 const getCloudStorageCollections = (
   collections: BunnyStorageOptions['collections'],
@@ -104,7 +106,10 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
     const options = createNormalizedOptions(pluginOptions)
     validateNormalizedOptions(options)
 
-    const collectionsWithAdapter = getCloudStorageCollections(pluginOptions.collections, bunnyStorageInternal(options))
+    const collectionsWithAdapter = getCloudStorageCollections(
+      pluginOptions.collections,
+      bunnyStorageInternal(options, incomingConfig.upload?.transformers),
+    )
 
     const dirname = path.dirname(fileURLToPath(import.meta.url))
     const streamEndpoints = getStreamEndpoints(options)
@@ -122,13 +127,6 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
 
     const finalConfig: Config = {
       ...incomingConfig,
-      admin: {
-        ...incomingConfig.admin,
-        dependencies: {
-          ...incomingConfig.admin?.dependencies,
-          [CLIENT_UPLOAD_HANDLER_PATH]: { type: 'component', path: CLIENT_UPLOAD_HANDLER_PATH },
-        },
-      },
       cli:
         incomingConfig.cli === false || Object.keys(cliCommands).length === 0
           ? incomingConfig.cli
@@ -159,8 +157,6 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
           }
 
           const collectionContext = createCollectionContext(options, collection)
-          const usesClientUploadReceipt =
-            !!collectionContext.storageOptions?.clientUploads || collectionContext.isTusUploadSupported
 
           const originalFilesRequiredOnCreate =
             typeof collection.upload === 'object' ? (collection.upload.filesRequiredOnCreate ?? true) : true
@@ -221,15 +217,22 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
               ],
               beforeChange: [
                 ...(collection.hooks?.beforeChange || []),
-                ...(collectionContext.streamOptions ? [getForgetStreamVideoHook(collectionContext)] : []),
-                ...(usesClientUploadReceipt ? [getBeforeChangeHook(collectionContext)] : []),
+                ...(collectionContext.streamOptions
+                  ? [getForgetStreamVideoHook(collectionContext), getStreamKeysBeforeChangeHook(collectionContext)]
+                  : []),
                 ...(collectionContext.streamOptions?.status || collectionContext.streamOptions?.mp4Fallback
                   ? [getStreamBeforeChangeHook(collectionContext)]
                   : []),
               ],
               beforeOperation: [
                 ...(collection.hooks?.beforeOperation || []),
-                ...(usesClientUploadReceipt ? [getBeforeOperationHook(collectionContext)] : []),
+                ...(collectionContext.isTusUploadSupported
+                  ? [getStreamFileChangeBeforeOperationHook(collectionContext)]
+                  : []),
+              ],
+              beforeDelete: [
+                ...(collection.hooks?.beforeDelete || []),
+                ...(collectionContext.streamOptions ? [getStreamKeysBeforeDeleteHook(collectionContext)] : []),
               ],
               beforeValidate: [
                 ...(collection.hooks?.beforeValidate || []),
@@ -327,26 +330,31 @@ export const bunnyStorage: BunnyStoragePlugin = (pluginOptions: BunnyStorageOpti
   },
 })
 
-const hasClientUploads = (context: CollectionContext): boolean =>
-  !!context.storageOptions?.clientUploads || hasStreamClientUploads(context)
-
-const bunnyStorageInternal = (options: NormalizedBunnyStorageOptions): Adapter => {
+const bunnyStorageInternal = (
+  options: NormalizedBunnyStorageOptions,
+  transformers: undefined | UploadTransformer[],
+): Adapter => {
   return ({ collection, prefix }): GeneratedAdapter => {
     const collectionContext = createCollectionContext(options, collection, prefix)
+    const streamClientUploads = hasStreamClientUploads(collectionContext, transformers)
 
     return {
       name: 'bunny',
+      copyFile: getCopyFile(collectionContext),
+      deleteFile: getDeleteFile(collectionContext, options),
       fields: [],
       generateURL: getGenerateUrl(collectionContext),
       handleDelete: getHandleDelete(collectionContext),
       handleUpload: getHandleUpload(collectionContext),
       staticHandler: getStaticHandler(collectionContext),
       uploadInstructions: {
-        ...(hasStreamClientUploads(collectionContext) ? { adminHandler: { path: CLIENT_UPLOAD_HANDLER_PATH } } : {}),
+        ...(streamClientUploads && {
+          adminHandler: { path: '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler' },
+        }),
         enabled: true,
         generate: getGenerateUploadInstructions(collectionContext),
         requiresUploadReceipt: true,
-        useInAdmin: hasClientUploads(collectionContext),
+        useInAdmin: !!collectionContext.storageOptions?.clientUploads || streamClientUploads,
       },
     }
   }

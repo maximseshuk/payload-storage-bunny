@@ -6,7 +6,7 @@ import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDef
 import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
 
 export default buildConfigWithDefaults({
-  collections: [createMediaCollection({ slug: 'cleanup-test' })],
+  collections: [createMediaCollection({ slug: 'cleanup-test', versions: false })],
   storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',

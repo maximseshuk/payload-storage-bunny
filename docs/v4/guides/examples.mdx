@@ -328,19 +328,30 @@ See [URL transforms](/v4/configuration/url-transforms) and [Thumbnails](/v4/conf
 ### Named-size thumbnails
 
 ```ts payload.config.ts
+import { sharpTransformer } from '@payloadcms/transformer-sharp'
+
 export default buildConfig({
   collections: [
     {
       slug: 'media',
-      upload: {
-        imageSizes: [
-          { name: 'thumbnail', width: 150, height: 150 },
-          { name: 'preview', width: 400, height: 300 },
-        ],
-      },
+      upload: true,
       fields: [{ name: 'alt', type: 'text', required: true }],
     },
   ],
+  upload: {
+    transformers: [
+      sharpTransformer({
+        collections: {
+          media: {
+            variants: [
+              { name: 'thumbnail', width: 150, height: 150 },
+              { name: 'preview', width: 400, height: 300 },
+            ],
+          },
+        },
+      }),
+    ],
+  },
   storage: [
     bunnyStorage({
       collections: {

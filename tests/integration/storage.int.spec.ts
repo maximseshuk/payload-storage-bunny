@@ -36,7 +36,7 @@ describe.skipIf(!hasBunnyCredentials())('Storage', () => {
       filePath: imagePath,
       overrideAccess: true,
     })
-    const objectPath = `storage-basic/${doc.filename}`
+    const objectPath = `storage-basic/${doc._objectKey}/${doc.filename}`
 
     expect(doc.mimeType).toBe('image/jpeg')
     expect(doc.url).toContain('cdn=bunny')

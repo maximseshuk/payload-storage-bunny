@@ -37,4 +37,15 @@ minimumReleaseAgeExclude:
   - '@pnpm/exe.win32-x64@12.8.2'
   - pnpm@12.8.2
   - '@seshuk/payload-plugin-tooling'
-  - '@seshuk/payload-plugin-media-preview@2.0.0-beta.2'
+  - '@payloadcms/db-mongodb@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/db-postgres@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/db-sqlite@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/drizzle@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/graphql@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/next@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/plugin-cloud-storage@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/translations@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@payloadcms/ui@4.0.0-beta.0 || 4.0.0-beta.1'
+  - payload@4.0.0-beta.0 || 4.0.0-beta.1
+  - '@payloadcms/transformer-sharp@4.0.0-beta.0 || 4.0.0-beta.1'
+  - '@seshuk/payload-plugin-media-preview@2.0.0-beta.3'

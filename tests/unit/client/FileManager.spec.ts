@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
 import { findPreviousTusUploads } from '@/client/TusUpload/FileManager/FileManager.utils.js'
+import { TusRenewError } from '@/client/TusUpload/tusAuth.js'
 
 const state = vi.hoisted(() => ({
   backgroundProcessing: false,
@@ -13,6 +14,8 @@ const state = vi.hoisted(() => ({
   cleanups: [] as ((() => void) | undefined)[],
   cursor: 0,
   dispatchFields: vi.fn(),
+  drafts: undefined as undefined | { autosave: boolean },
+  documentEvents: {} as Record<string, unknown>,
   effectCursor: 0,
   effectDeps: [] as (undefined | unknown[])[],
   form: {} as Record<string, any>,
@@ -24,7 +27,12 @@ const state = vi.hoisted(() => ({
   setModified: vi.fn(),
   states: [] as unknown[],
   toastError: vi.fn(),
-  uploads: [] as { abort: ReturnType<typeof vi.fn>; opts: Record<string, any>; start: ReturnType<typeof vi.fn> }[],
+  uploads: [] as {
+    abort: ReturnType<typeof vi.fn>
+    findPreviousUploads: ReturnType<typeof vi.fn>
+    opts: Record<string, any>
+    start: ReturnType<typeof vi.fn>
+  }[],
 }))
 
 vi.mock('react', async (importOriginal) => {
@@ -76,9 +84,10 @@ vi.mock('@payloadcms/ui', () => ({
     config: { routes: { api: '/api' }, serverURL: '' },
     getEntityConfig: () => ({
       admin: { custom: { '@seshuk/payload-storage-bunny': { stream: { mimeTypes: ['video/*'] } } } },
+      versions: state.drafts ? { drafts: state.drafts } : false,
     }),
   }),
-  useDocumentEvents: () => ({}),
+  useDocumentEvents: () => state.documentEvents,
   useForm: () => ({
     dispatchFields: state.dispatchFields,
     getFields: () => state.form,
@@ -86,6 +95,7 @@ vi.mock('@payloadcms/ui', () => ({
     setModified: state.setModified,
   }),
   useFormBackgroundProcessing: () => state.backgroundProcessing,
+  useFormFields: (selector: (context: unknown) => unknown) => selector([state.form, state.dispatchFields]),
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 
@@ -119,6 +129,7 @@ const { fieldReducer } = await vi.importActual<typeof import('@payloadcms/ui')>(
     .replace('exports/client/index.js', 'forms/Form/fieldReducer.js'),
 )
 
+const onCancel = vi.fn()
 const onDisableTus = vi.fn()
 
 const render = (preSelectedFile: File | null, isAutoMode = false) => {
@@ -127,7 +138,7 @@ const render = (preSelectedFile: File | null, isAutoMode = false) => {
   state.buttons = []
   state.effectCursor = 0
   renderToStaticMarkup(
-    createElement(FileManager, { collectionSlug: 'media', isAutoMode, onDisableTus, preSelectedFile }),
+    createElement(FileManager, { collectionSlug: 'media', isAutoMode, onCancel, onDisableTus, preSelectedFile }),
   )
 }
 
@@ -139,10 +150,11 @@ const click = (match: (props: Record<string, unknown>) => boolean) =>
 const startUpload = () => click((props) => props.children === '@seshuk/payload-storage-bunny:tusUploadStartUpload')
 const cancel = () => click((props) => props.tooltip === 'general:cancel')
 const uploadAuth = {
-  authorizationExpire: 1,
-  authorizationSignature: 'signature',
+  expiresIn: 300,
+  headers: { AuthorizationExpire: '1', AuthorizationSignature: 'signature', LibraryId: '1', VideoId: 'video-x' },
   libraryId: 1,
   type: 'upload',
+  uploadUrl: 'https://video.bunnycdn.com/tusupload/upload-x',
   videoId: 'video-x',
   videoToken: 'token',
 }
@@ -152,9 +164,11 @@ const formState = (values: Record<string, unknown>) =>
 
 beforeEach(() => {
   state.backgroundProcessing = false
+  state.drafts = undefined
+  state.documentEvents = {}
   state.cleanups = []
   state.effectDeps = []
-  state.setBackgroundProcessing.mockClear()
+  state.setBackgroundProcessing.mockReset()
   state.refs = []
   state.states = []
   state.uploads = []
@@ -165,6 +179,7 @@ beforeEach(() => {
   state.dispatchFields.mockClear()
   state.dispatchFields.mockImplementation((action) => void (state.form = fieldReducer(state.form, action)))
   state.toastError.mockClear()
+  onCancel.mockClear()
   onDisableTus.mockClear()
   vi.mocked(findPreviousTusUploads).mockImplementation(async () => [])
   vi.stubGlobal('FileList', Array)
@@ -265,6 +280,86 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     expect(formValues()).toEqual({})
   })
 
+  it('sends the file to the upload that the server created and renews its headers before a request', async () => {
+    await prepare()
+    state.pendingAuth[0]!({ ...uploadAuth, expiresIn: 30 })
+    await flush()
+    const { opts } = state.uploads[0]!
+
+    expect(opts.uploadUrl).toBe(uploadAuth.uploadUrl)
+    expect(opts).not.toHaveProperty('headers')
+    expect(opts).not.toHaveProperty('endpoint')
+    expect(opts.metadata).toMatchObject({ videoId: 'video-x', videoToken: 'token' })
+
+    const setHeader = vi.fn()
+    const renewal = opts.onBeforeRequest({ setHeader })
+    await flush()
+    state.pendingAuth[1]!({ ...uploadAuth, headers: { ...uploadAuth.headers, AuthorizationSignature: 'renewed' } })
+    await renewal
+
+    expect(setHeader).toHaveBeenCalledWith('AuthorizationSignature', 'renewed')
+  })
+
+  it.each([
+    ['Bunny no longer knows', () => ({ originalResponse: { getStatus: () => 404 } })],
+    ['tus-auth cannot renew', () => ({ causingError: new TusRenewError() })],
+  ])('replaces an upload that %s with a new one from tus-auth, once', async (_label, cause) => {
+    await prepare()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+    const lost = Object.assign(new Error('tus: unexpected response'), cause())
+
+    state.uploads[0]!.opts.onError(lost)
+    await flush()
+    render(x)
+    expect(state.pendingAuth).toHaveLength(2)
+    const replacement = {
+      ...uploadAuth,
+      uploadUrl: `${uploadAuth.uploadUrl}-2`,
+      videoId: 'video-y',
+      videoToken: 'token-2',
+    }
+    state.pendingAuth[1]!(replacement)
+    await flush()
+
+    expect(state.uploads).toHaveLength(2)
+    expect(state.uploads[1]!.opts.uploadUrl).toBe(replacement.uploadUrl)
+    expect(state.uploads[1]!.start).toHaveBeenCalled()
+    expect(ui().uploadStatus).toBe('uploading')
+
+    state.uploads[1]!.opts.onError(lost)
+    await flush()
+    expect(state.pendingAuth).toHaveLength(2)
+    expect(ui().uploadStatus).toBe('error')
+  })
+
+  it('completes the upload when the renewal finds that the upload has already finished', async () => {
+    await prepare()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+    const finished = {
+      libraryId: 1,
+      requestedAt: 0,
+      title: 'x',
+      type: 'uploaded',
+      videoId: 'video-x',
+      videoToken: 'token',
+    }
+
+    state.uploads[0]!.opts.onError(
+      Object.assign(new Error('tus'), { causingError: new TusRenewError(finished as never) }),
+    )
+    await flush()
+    render(x)
+
+    expect(state.pendingAuth).toHaveLength(1)
+    expect(ui().uploadStatus).toBe('completed')
+    expect(formValues()).toMatchObject({
+      'bunnyData.stream.videoId': 'video-x',
+      'bunnyData.stream.videoToken': 'token',
+    })
+  })
+
   it('ignores the success of an upload whose file is no longer selected', async () => {
     await prepare()
     state.pendingAuth[0]!(uploadAuth)
@@ -314,10 +409,11 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     expect(formValues()).toMatchObject({ mimeType: 'video/mp4' })
   })
 
-  it('keeps the uploaded video in the form when an autosave that started before the end of the upload answers', async () => {
+  describe('after the upload', () => {
     const saved = {
       'bunnyData.stream.videoId': 'video-old',
       'bunnyData.stream.videoToken': null,
+      alt: 'old alt',
       filename: 'old.webm',
       filesize: 10,
       focalX: 50,
@@ -326,22 +422,10 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
       mimeType: 'video/webm',
       width: 640,
     }
-    state.form = formState(saved)
-    await prepare()
-    state.pendingAuth[0]!(uploadAuth)
-    await flush()
-    state.uploads[0]!.opts.onSuccess()
-    await flush()
-
-    state.dispatchFields({
-      type: 'MERGE_SERVER_STATE',
-      acceptValues: { overrideLocalChanges: false },
-      serverState: formState(saved),
-    })
-
-    expect(formValues()).toEqual({
+    const uploaded = {
       'bunnyData.stream.videoId': 'video-x',
       'bunnyData.stream.videoToken': 'token',
+      alt: 'new alt',
       filename: 'x.mp4',
       filesize: 1,
       focalX: null,
@@ -349,6 +433,117 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
       height: null,
       mimeType: 'video/mp4',
       width: null,
+    }
+
+    const upload = async () => {
+      state.form = formState(saved)
+      await prepare()
+      state.pendingAuth[0]!(uploadAuth)
+      await flush()
+      state.uploads[0]!.opts.onSuccess()
+      await flush()
+      render(x)
+    }
+
+    it('puts the uploaded video back when a stale autosave answer reverts the form after another field changes', async () => {
+      await upload()
+      state.dispatchFields({ type: 'UPDATE', path: 'alt', value: 'new alt' })
+
+      state.dispatchFields({
+        type: 'MERGE_SERVER_STATE',
+        acceptValues: { overrideLocalChanges: false },
+        serverState: formState({ ...saved, alt: 'new alt' }),
+      })
+      expect(formValues()).toMatchObject({ 'bunnyData.stream.videoId': 'video-old' })
+      render(x)
+
+      expect(formValues()).toEqual(uploaded)
+      expect(state.setModified).toHaveBeenLastCalledWith(true)
+    })
+
+    it('puts the uploaded file fields back when a stale autosave answer without a video clears them after another field changes', async () => {
+      await upload()
+      state.dispatchFields({ type: 'UPDATE', path: 'alt', value: 'new alt' })
+
+      state.dispatchFields({
+        type: 'MERGE_SERVER_STATE',
+        acceptValues: { overrideLocalChanges: false },
+        serverState: formState({ alt: 'new alt', filename: null, filesize: null, mimeType: null }),
+      })
+      expect(formValues()).toMatchObject({ filename: null, filesize: null, mimeType: null })
+      render(x)
+
+      expect(formValues()).toEqual(uploaded)
+      expect(state.setModified).toHaveBeenLastCalledWith(true)
+    })
+
+    it('marks the form as not modified when a save without autosave stores the uploaded video', async () => {
+      await upload()
+      state.setModified.mockClear()
+
+      state.documentEvents = {
+        mostRecentUpdate: { doc: { bunnyData: { stream: { videoId: 'video-x' } } }, updatedAt: '1' },
+      }
+      render(x)
+
+      expect(state.setModified).toHaveBeenCalledExactlyOnceWith(false)
+      expect(onDisableTus).toHaveBeenCalledOnce()
+    })
+
+    it('leaves the modified state to autosave when an autosave stores the uploaded video', async () => {
+      state.drafts = { autosave: true }
+      await upload()
+      state.setModified.mockClear()
+
+      state.documentEvents = {
+        mostRecentUpdate: { doc: { bunnyData: { stream: { videoId: 'video-x' } } }, updatedAt: '1' },
+      }
+      render(x)
+
+      expect(state.setModified).not.toHaveBeenCalled()
+      expect(onDisableTus).toHaveBeenCalledOnce()
+    })
+
+    it('keeps the TUS uploader when a save answers with another video', async () => {
+      await upload()
+
+      state.documentEvents = {
+        mostRecentUpdate: { doc: { bunnyData: { stream: { videoId: 'video-old' } } }, updatedAt: '1' },
+      }
+      render(x)
+      expect(onDisableTus).not.toHaveBeenCalled()
+
+      state.documentEvents = {
+        mostRecentUpdate: { doc: { bunnyData: { stream: { videoId: 'video-x' } } }, updatedAt: '2' },
+      }
+      render(x)
+      expect(onDisableTus).toHaveBeenCalledOnce()
+    })
+
+    it('enables Save only after it writes the uploaded video into the form', async () => {
+      state.form = formState(saved)
+      await prepare()
+      state.pendingAuth[0]!(uploadAuth)
+      await flush()
+      let pending: (value: unknown[]) => void = () => {}
+      state.uploads[0]!.findPreviousUploads.mockImplementationOnce(
+        () => new Promise<unknown[]>((resolve) => (pending = resolve)),
+      )
+      state.setBackgroundProcessing.mockClear()
+
+      state.uploads[0]!.opts.onSuccess()
+      expect(state.setBackgroundProcessing).not.toHaveBeenCalledWith(false)
+
+      let videoIdAtEnable: unknown
+      state.setBackgroundProcessing.mockImplementation((value: boolean) => {
+        if (!value) {
+          videoIdAtEnable = state.form['bunnyData.stream.videoId']?.value
+        }
+      })
+      pending([])
+      await flush()
+
+      expect(videoIdAtEnable).toBe('video-x')
     })
   })
 
@@ -415,6 +610,38 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     await flush()
 
     expect(state.setModified).toHaveBeenCalledExactlyOnceWith(true)
+  })
+
+  it('turns background processing off before it marks the form as modified, so the next Save clears the modified state', async () => {
+    await prepare()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+
+    state.uploads[0]!.opts.onSuccess()
+    await flush()
+
+    const enabled = state.setBackgroundProcessing.mock.calls.findLastIndex(([value]) => value === false)
+    expect(state.setBackgroundProcessing.mock.invocationCallOrder[enabled]).toBeLessThan(
+      state.setModified.mock.invocationCallOrder[0]!,
+    )
+  })
+
+  it('calls onCancel when Cancel runs outside auto mode', async () => {
+    await prepare()
+
+    cancel()
+
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(onDisableTus).not.toHaveBeenCalled()
+  })
+
+  it('turns TUS mode off instead of calling onCancel when Cancel runs in auto mode', async () => {
+    await prepare(true)
+
+    cancel()
+
+    expect(onDisableTus).toHaveBeenCalledOnce()
+    expect(onCancel).not.toHaveBeenCalled()
   })
 
   it('turns background processing off when the FileManager unmounts during the upload', async () => {

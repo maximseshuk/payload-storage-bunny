@@ -136,14 +136,14 @@ describe('generated options validation', () => {
 
 describe('buildInstallLines', () => {
   it('pins the plugin and the peer to the project payload version', () => {
-    expect(buildInstallLines('4.0.0-beta.1', '4.0.0-canary.37')).toEqual([
-      'pnpm add @seshuk/payload-storage-bunny@4.0.0-beta.1 @payloadcms/plugin-cloud-storage@4.0.0-canary.37',
+    expect(buildInstallLines('4.0.0-beta.1', '4.0.0-beta.0')).toEqual([
+      'npm install @seshuk/payload-storage-bunny@4.0.0-beta.1 @payloadcms/plugin-cloud-storage@4.0.0-beta.0',
     ])
   })
 
   it('asks to pin the peer when payload is not in package.json', () => {
     const lines = buildInstallLines('4.0.0-beta.1', undefined)
-    expect(lines[0]).toBe('pnpm add @seshuk/payload-storage-bunny@4.0.0-beta.1 @payloadcms/plugin-cloud-storage')
+    expect(lines[0]).toBe('npm install @seshuk/payload-storage-bunny@4.0.0-beta.1 @payloadcms/plugin-cloud-storage')
     expect(lines[1]).toContain('same version as your `payload` package')
   })
 })

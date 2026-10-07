@@ -11,7 +11,7 @@ import {
   useFormFields,
   useTranslation,
 } from '@payloadcms/ui'
-import type { DefaultCellComponentProps, SelectFieldClientComponent } from 'payload'
+import type { DefaultCellComponentProps, SelectFieldClientProps } from 'payload'
 import { useLayoutEffect, useRef, useState } from 'react'
 
 import { useStreamStatus } from '@/client/StreamStatus/streamStatusStore.js'
@@ -231,7 +231,7 @@ const toResolutions = (value: unknown): string[] => {
   return Array.isArray(available) ? available.filter((item): item is string => typeof item === 'string') : []
 }
 
-export const StreamStatusField: SelectFieldClientComponent = ({ path }) => {
+export const StreamStatusField = ({ path }: SelectFieldClientProps) => {
   const t = usePluginTranslation()
   const { id, collectionSlug, data } = useDocumentInfo()
   const stored = data?.bunnyData?.stream

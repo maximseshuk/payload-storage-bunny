@@ -98,6 +98,58 @@ describe('getHandleUpload', () => {
       expect(result).toBe(data)
     })
 
+    it('marks the new video as uploaded by the server, so field access lets the document store it', async () => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+      const req = createReq() as { context?: Record<string, unknown> }
+
+      await getHandleUpload(buildContext({ streamOptions } as unknown as Partial<CollectionContext>))({
+        collection: { slug: 'media' },
+        data: {},
+        file: createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' }),
+        req,
+      } as never)
+
+      expect(req.context!.bunnyServerStreamUpload).toBe('video-guid')
+    })
+
+    it.each([
+      ['clip-original.mp4', 'clip.mp4'],
+      ['clip-original-2.mp4', 'clip.mp4'],
+      ['clip-original', 'clip'],
+      ['clip-1.mp4', 'clip-1.mp4'],
+    ])('names the video %s as %s', async (filename, title) => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+
+      await getHandleUpload(buildContext({ streamOptions } as unknown as Partial<CollectionContext>))({
+        collection: { slug: 'media' },
+        data: {},
+        file: createFile({ filename, mimeType: 'video/mp4' }),
+        req: createReq(),
+      } as never)
+
+      expect(createStreamVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title }))
+    })
+
+    it('maps the storage key to the new video before the upload, so a failed upload can delete the video', async () => {
+      createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
+      uploadStreamVideoMock.mockRejectedValueOnce(new Error('network down'))
+      const req = createReq() as { context?: Record<string, unknown> }
+
+      await expect(
+        getHandleUpload(buildContext({ streamOptions } as unknown as Partial<CollectionContext>))({
+          collection: { slug: 'media' },
+          data: {},
+          file: createFile({ filename: 'clip.mp4', mimeType: 'video/mp4' }),
+          req,
+          storageFilePath: 'media/a/clip.mp4',
+        } as never),
+      ).rejects.toThrow('@seshuk/payload-storage-bunny:errorUploadFileFailed')
+
+      expect((req.context!.bunnyStreamKeys as Map<string, Map<string, string>>).get('media')).toEqual(
+        new Map([['media/a/clip.mp4', 'video-guid']]),
+      )
+    })
+
     it('stores the state Bunny reports after the upload', async () => {
       createStreamVideoMock.mockResolvedValue({ guid: 'video-guid', videoLibraryId: 12345 })
       getStreamVideoMock.mockResolvedValue({ guid: 'video-guid', status: 5 })
@@ -301,14 +353,9 @@ describe('getHandleUpload', () => {
 
     it('keeps an empty document prefix under the collection prefix', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
-      purgeCacheMock.mockResolvedValue(undefined)
 
       const handler = getHandleUpload(
-        buildContext({
-          prefix: 'media',
-          purgeOptions: { async: false },
-          storageOptions,
-        } as unknown as Partial<CollectionContext>),
+        buildContext({ prefix: 'media', storageOptions } as unknown as Partial<CollectionContext>),
       )
       const data = { prefix: '' }
 
@@ -322,99 +369,15 @@ describe('getHandleUpload', () => {
       } as never)
 
       expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('media/photo.jpg')
-      expect(purgeCacheMock).toHaveBeenCalledWith(
-        expect.objectContaining({ url: 'https://storage.b-cdn.net/media/photo.jpg*' }),
-      )
     })
   })
 
   describe('purge after upload', () => {
-    it('purges the cache when purgeOptions and accountApiKey are present', async () => {
+    it('does not purge the cache, because every upload writes a new key', async () => {
       uploadStorageFileMock.mockResolvedValue(undefined)
-      purgeCacheMock.mockResolvedValue(undefined)
 
-      const req = createReq()
       const handler = getHandleUpload(
         buildContext({ purgeOptions: { async: false }, storageOptions } as unknown as Partial<CollectionContext>),
-      )
-
-      const result = await handler({
-        collection: { slug: 'media' },
-        data: {},
-        file: createFile(),
-        req,
-        storageFilePath: 'photo.jpg',
-      } as never)
-
-      expect(purgeCacheMock).toHaveBeenCalledWith({
-        apiKey: 'account-key',
-        async: false,
-        url: 'https://storage.b-cdn.net/photo.jpg*',
-      })
-      expect(req.payload.logger.debug).toHaveBeenCalled()
-      expect(result).toBeTruthy()
-    })
-
-    it('logs purge failures without failing the upload', async () => {
-      uploadStorageFileMock.mockResolvedValue(undefined)
-      purgeCacheMock.mockRejectedValue(new Error('purge boom'))
-
-      const req = createReq()
-      const handler = getHandleUpload(
-        buildContext({ purgeOptions: { async: false }, storageOptions } as unknown as Partial<CollectionContext>),
-      )
-      const data: Record<string, unknown> = {}
-
-      const result = await handler({
-        collection: { slug: 'media' },
-        data,
-        file: createFile(),
-        req,
-        storageFilePath: 'photo.jpg',
-      } as never)
-
-      expect(result).toBe(data)
-      expect(purgeCacheMock).toHaveBeenCalled()
-      expect(req.payload.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ msg: '[bunny:storage] upload: cache purge failed' }),
-      )
-    })
-
-    it('purges the plain CDN URL, not the transformed or signed one', async () => {
-      uploadStorageFileMock.mockResolvedValue(undefined)
-      purgeCacheMock.mockResolvedValue(undefined)
-
-      const handler = getHandleUpload(
-        buildContext({
-          purgeOptions: { async: false },
-          signedUrls: { expiresIn: () => 3600 },
-          storageOptions,
-          urlTransform: { appendTimestamp: true, queryParams: { v: '2' } },
-        } as unknown as Partial<CollectionContext>),
-      )
-
-      await handler({
-        collection: { slug: 'media' },
-        data: { prefix: 'docs' },
-        file: createFile(),
-        req: createReq(),
-        storageFilePath: 'docs/photo.jpg',
-      } as never)
-
-      expect(purgeCacheMock).toHaveBeenCalledWith(
-        expect.objectContaining({ url: 'https://storage.b-cdn.net/docs/photo.jpg*' }),
-      )
-    })
-
-    it('does not purge when accountApiKey is missing even if purgeOptions is set', async () => {
-      uploadStorageFileMock.mockResolvedValue(undefined)
-
-      const handler = getHandleUpload(
-        buildContext({
-          accountApiKey: undefined,
-          purgeOptions: { async: false },
-          storageOptions,
-        } as unknown as Partial<CollectionContext>),
       )
 
       await handler({
@@ -425,6 +388,7 @@ describe('getHandleUpload', () => {
         storageFilePath: 'photo.jpg',
       } as never)
 
+      expect(uploadStorageFileMock).toHaveBeenCalled()
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
   })
@@ -500,6 +464,14 @@ describe('getForgetStreamVideoHook', () => {
     },
   )
 
+  it('forgets the old video when a client upload stores the file in Storage', () => {
+    const data = { ...oldVideo(), mimeType: 'image/jpeg' }
+
+    runHook(data, { name: 'photo.jpg', uploadReference: {} })
+
+    expect(data.bunnyData.stream.videoId).toBeNull()
+  })
+
   it('forgets the old video when Stream has no API key, because the file goes to Storage', () => {
     const data = { ...oldVideo(), mimeType: 'video/mp4' }
 
@@ -510,7 +482,6 @@ describe('getForgetStreamVideoHook', () => {
 
   it.each([
     ['a file that goes to Stream', { ...oldVideo(), mimeType: 'video/mp4' }, { name: 'clip.mp4' }],
-    ['a client upload', { ...oldVideo(), mimeType: 'image/jpeg' }, { name: 'photo.jpg', uploadReference: {} }],
     ['a save without a file', { ...oldVideo(), mimeType: 'image/jpeg' }, undefined],
   ])('keeps the stored video for %s', (_label, data, file) => {
     runHook(data, file)

@@ -1,14 +1,12 @@
 import type { StaticHandler } from '@payloadcms/plugin-cloud-storage/types'
+import { getFilePrefix } from '@payloadcms/plugin-cloud-storage/utilities'
 import { APIError } from 'payload'
 
 import { HTTPError } from '@/server/http/index.js'
 import { getBunnyData } from '@/server/payload/fields/bunnyGroupField.js'
-import { readClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
-import { resolveStoragePrefix } from '@/server/payload/storage/resolvePrefix.js'
 import { storageStaticHandler } from '@/server/payload/storage/serveFile.js'
-import { trimToCompleteIsoBoxes } from '@/server/payload/stream/clientUploads.js'
 import { streamStaticHandler } from '@/server/payload/stream/serveStream.js'
-import { streamThumbnailStaticHandler } from '@/server/payload/stream/serveThumbnail.js'
+import { getStreamUploadResponse, hasStreamClientUploads } from '@/server/payload/stream/tusUpload.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 
 export const getStaticHandler = (context: CollectionContext): StaticHandler => {
@@ -18,45 +16,47 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
     try {
       const {
         doc,
-        params: { filename, prefix: prefixQueryParam, uploadReference },
+        params: { filename, operation, prefix: prefixQueryParam, uploadReference },
       } = data
-      const clientUpload = readClientUpload({ collectionSlug: collection.slug, filename, req, uploadReference })
-      if (streamOptions) {
-        if (clientUpload?.videoId) {
-          return new Response(trimToCompleteIsoBoxes(Buffer.from(clientUpload.head ?? '', 'base64')))
-        }
-
-        if (filename?.startsWith('bunny:stream:')) {
-          const parts = filename.split(':')
-          if (parts.length === 4 && (parts[3] === 'thumbnail.jpg' || parts[3] === 'preview.webp')) {
-            const videoId = parts[2]
-            const thumbnailType = parts[3]
-
-            return await streamThumbnailStaticHandler({
-              collection,
-              req,
-              signedUrls: signedUrls || false,
-              streamOptions,
-              thumbnailType,
-              usePayloadAccessControl,
-              videoId,
-            })
+      const videoId = (uploadReference as undefined | { _objectKey?: unknown })?._objectKey
+      if (
+        streamOptions &&
+        typeof videoId === 'string' &&
+        hasStreamClientUploads(context, req.payload.config.upload.transformers)
+      ) {
+        try {
+          const response = await getStreamUploadResponse({ req, streamOptions, videoId })
+          if (response) {
+            return response
           }
+        } catch (err) {
+          if (!storageOptions?.clientUploads) {
+            throw err
+          }
+          req.payload.logger.warn({
+            err,
+            msg: '[bunny:stream] upload: Bunny Stream check failed, reading the file from Bunny Storage',
+            videoId,
+          })
         }
-
+      }
+      if (streamOptions) {
         let docId = doc?.id
         let bunnyData = getBunnyData(doc, filename, streamOptions?.mimeTypes)
         const docFilename = doc && 'filename' in doc ? (doc.filename as string) : undefined
 
-        if (!bunnyData?.stream || docFilename !== filename) {
+        const docOriginalFilename = (doc as { original?: { filename?: unknown } } | undefined)?.original?.filename
+        if (!bunnyData?.stream || (docFilename !== filename && docOriginalFilename !== filename)) {
           const result = await req.payload.find({
             collection: collection.slug,
             limit: 1,
             overrideAccess: true,
             req,
             where: {
-              'bunnyData.stream.videoId': { exists: true },
-              filename: { equals: filename },
+              and: [
+                { 'bunnyData.stream.videoId': { exists: true } },
+                { or: [{ filename: { equals: filename } }, { 'original.filename': { equals: filename } }] },
+              ],
             },
           })
 
@@ -84,20 +84,21 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
         return new Response('Storage not configured', { status: 404 })
       }
 
-      const resolvedPrefix = await resolveStoragePrefix({
+      const resolvedPrefix = await getFilePrefix({
         collection,
+        collectionPrefix: prefix,
         doc,
-        fallbackPrefix: prefix,
         filename,
         prefixQueryParam,
         req,
-        uploadPrefix: clientUpload?.prefix,
+        uploadReference,
       })
 
       return await storageStaticHandler({
         collection,
         collectionPrefix: prefix,
         filename,
+        operation,
         prefix: resolvedPrefix,
         req,
         signedUrls: signedUrls || false,

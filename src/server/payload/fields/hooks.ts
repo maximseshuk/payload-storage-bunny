@@ -3,7 +3,7 @@ import type { FieldHook, PayloadRequest } from 'payload'
 import { readStreamFileVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { getGenerateUrl } from '@/server/payload/storage/generateUrl.js'
 import { maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
-import { buildStorageCdnUrl, buildStreamCdnUrl } from '@/server/urls.js'
+import { buildStorageCdnUrl, buildStreamCdnUrl, getObjectFolder } from '@/server/urls.js'
 import { isImage } from '@/shared/mimeTypes.js'
 import type { CollectionContext } from '@/shared/types/index.js'
 import type { NormalizedThumbnailOptions } from '@/shared/types/optionsNormalized.js'
@@ -49,16 +49,16 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       thumbnail &&
       typeof thumbnail === 'object' &&
       thumbnail.sizeName &&
-      doc.sizes &&
-      typeof doc.sizes === 'object' &&
-      doc.sizes !== null
+      doc.variants &&
+      typeof doc.variants === 'object' &&
+      doc.variants !== null
     ) {
-      const sizes = doc.sizes as Record<string, { filename?: string }>
-      const requestedSize = sizes[thumbnail.sizeName]
+      const variants = doc.variants as Record<string, { filename?: string }>
+      const requestedSize = variants[thumbnail.sizeName]
 
       if (requestedSize && requestedSize.filename && typeof requestedSize.filename === 'string') {
         const sizeFilename = requestedSize.filename
-        const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
+        const prefix = getObjectFolder(doc, requestedSize)
 
         if (context.usePayloadAccessControl) {
           const internalUrl = `${req.payload.config.routes.api}/${collection.slug}/file/${encodeURIComponent(sizeFilename)}`
@@ -88,7 +88,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
     if (doc.mimeType && isImage(doc.mimeType as string) && doc.filename && typeof doc.filename === 'string') {
       const filename = doc.filename
-      const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
+      const prefix = getObjectFolder(doc)
 
       if (context.usePayloadAccessControl) {
         const internalUrl = `${req.payload.config.routes.api}/${collection.slug}/file/${encodeURIComponent(filename)}`
@@ -123,7 +123,10 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       const prefix = ''
 
       if (context.usePayloadAccessControl) {
-        const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(`bunny:stream:${videoId}:${thumbnailFile}`)}`
+        if (doc.id === undefined || doc.id === null) {
+          return null
+        }
+        const internalUrl = `${req.payload.config.routes.api}/storage-bunny/stream/thumbnail/${collection.slug}/${encodeURIComponent(String(doc.id))}/${encodeURIComponent(videoId)}/${thumbnailFile}`
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 
@@ -144,8 +147,8 @@ export const getAdminThumbnail = (context: CollectionContext) => {
 
 export const getUrlAfterReadFieldHook = ({ context, size }: FieldHookArgs): FieldHook => {
   return ({ data, req, value }) => {
-    const filename = size ? data?.sizes?.[size.name]?.filename : data?.filename
-    const prefix = data?.prefix
+    const filename = size ? data?.variants?.[size.name]?.filename : data?.filename
+    const prefix = getObjectFolder(data, size ? data?.variants?.[size.name] : data)
     let url = value
 
     if (!context.usePayloadAccessControl && !context.hasGenerateFileURL && context.signedUrls?.userIp && filename) {

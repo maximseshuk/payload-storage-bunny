@@ -130,10 +130,11 @@ export const getStreamStatusUrl = (
   serverURL: string | undefined,
   collection: string,
   id: number | string,
+  videoId: string,
 ): string =>
   formatAdminURL({
     apiRoute,
-    path: `/storage-bunny/stream/status/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`,
+    path: `/storage-bunny/stream/status/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/${encodeURIComponent(videoId)}`,
     serverURL,
   })
 
@@ -161,10 +162,15 @@ export const useStreamStatus = ({
   )
   const subscribe = useCallback(
     (listener: () => void) =>
-      key && collection && id !== undefined
-        ? subscribeStreamStatus(key, getStreamStatusUrl(api, serverURL, collection, id), initialStatus, listener)
+      key && collection && id !== undefined && videoId
+        ? subscribeStreamStatus(
+            key,
+            getStreamStatusUrl(api, serverURL, collection, id, videoId),
+            initialStatus,
+            listener,
+          )
         : () => {},
-    [api, collection, id, initialStatus, key, serverURL],
+    [api, collection, id, initialStatus, key, serverURL, videoId],
   )
   const getSnapshot = useCallback(() => entries.get(key)?.snapshot ?? fallback, [fallback, key])
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)

@@ -129,7 +129,7 @@ test.describe('Stream TUS uploads', () => {
     const doc = await readSavedDoc(page, 'stream-manual')
     expect(secondVideoId).not.toBe(firstVideoId)
     expect(doc.bunnyData.stream.videoId).toBe(secondVideoId)
-    expect(doc.filename).toBe('stream-replace-second.mp4')
+    expect(doc.filename).toBe('stream-replace-second-original.mp4')
 
     expect(await waitForVideoProcessed(secondVideoId, { timeout: 3 * 60_000 })).toBe(true)
 

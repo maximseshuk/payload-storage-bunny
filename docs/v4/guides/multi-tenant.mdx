@@ -127,7 +127,14 @@ Resolve the tenant server-side — here from the tenant the admin panel has sele
 
 The mint-time prefix decides where the file lands in the zone, and the plugin persists that same minted prefix onto the document automatically. It reads the prefix from the signed receipt that Payload verifies on the create request that follows the upload. Deletes, reads, and URL generation then resolve to the minted path with no matching `beforeChange` hook of your own.
 
-Each client upload also gets its own UUID folder, so the stored prefix is `tenants/<id>/media/<uuid>`. Match tenant folders with `like`, not `equals`, in access rules and queries. See [Querying by prefix](/v4/configuration/storage/client-uploads#querying-by-prefix).
+Each upload also gets its own UUID folder, so the file lands at `tenants/<id>/media/<uuid>/<name>-original.<ext>`. The stored prefix stays `tenants/<id>/media`, but client uploads from earlier plugin versions stored `tenants/<id>/media/<uuid>`. In access rules and queries, match the tenant folder with `equals` or with `like` and a trailing slash:
+
+```ts
+const base = `tenants/${tenantId}/media`
+const where = { or: [{ prefix: { equals: base } }, { prefix: { like: `${base}/` } }] }
+```
+
+`like` alone with `tenants/<id>/media/` matches no new upload, because a new prefix has no trailing slash. Keep the slash in `like`: when a folder ends with the tenant ID, `like` without it also matches another tenant, for example `tenants/12` matches `tenants/123`. See [Querying by prefix](/v4/configuration/storage/client-uploads#querying-by-prefix).
 
 ## Isolation: how the CDN enforces it
 
@@ -203,7 +210,10 @@ These are the plugin's public utilities. Avoid reaching for its internals (the `
 
 ## Caveats
 
-- **Filename collisions.** Two tenants uploading `logo.png` never overwrite each other — the prefixes alone keep the storage paths distinct. Note that Payload's filename dedupe is collection-wide, not per prefix: the second `logo.png` in the collection is renamed (`logo-1.png`) regardless of tenant.
+- **Filename collisions.** Two tenants uploading `logo.png` never overwrite each other — every upload goes to its own UUID folder. Payload still adds a number to a file name that is already used, but where it looks depends on the upload path:
+  - Client uploads, also videos from the bulk upload drawer, check the whole collection. The second `logo.png` becomes `logo-1.png`, whatever the tenant.
+  - TUS saves check only documents with the same prefix.
+  - Uploads through the Payload server check documents with the `prefix` that the request sends, or the whole collection when it sends none. A `prefix` that your `beforeChange` hook writes is set after this check.
 - **SVG and XML files.** The admin UI uploads SVG and XML files through the Payload server, not through client uploads, so `clientUploads.prefix` never runs for them. Keep the [`beforeChange` hook from the server-side recipe](#server-side-uploads-prefix-by-tenant) as well, so these files also land in the tenant folder.
 - **Static and mint-time prefix together.** If `clientUploads.prefix` returns a path outside the collection's static `prefix`, the plugin places it under the static prefix. `tenants` plus `acme/media` gives `tenants/acme/media`.
 - **Custom tenant field name.** The recipe reads `data.tenant`. If you set `multiTenantPlugin({ tenantField: { name: '...' } })`, use that name in the `beforeChange` hook.

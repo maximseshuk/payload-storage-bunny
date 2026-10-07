@@ -25,19 +25,20 @@
 - **Bunny Storage** — upload files, images, and documents to Bunny's global CDN.
 - **Bunny Stream** — video with HLS/MP4 streaming, adaptive bitrates, thumbnails, a built-in player, and TUS resumable uploads for large files.
 - **Stream status** — see in the admin whether each video is still encoding, ready, or failed.
+- **File versions** — with Payload `versions` (on by default in Payload 4), a replaced file or video stays in Bunny while a version uses it, so restoring a version brings back a working file. Set `versions: false` on a collection to delete the old file on replace.
 - **Client-direct uploads** — file bytes go straight from the browser to Bunny (presigned S3 or a Bunny Edge Script), bypassing serverless body-size limits.
 - **Signed URLs** — time-limited links with country restrictions and per-client IPv4 locking, for both Storage and Stream.
-- **CDN cache purging** — auto-invalidate on upload and delete so visitors always see the latest file.
+- **CDN cache purging** — auto-invalidate the CDN when a file is deleted. Every upload gets a new URL, so visitors never see an old copy of a replaced file.
 - **Thumbnails** — admin-panel and API previews, with on-the-fly resizing via Bunny Optimizer.
 - **Per-collection overrides** — tune any setting per collection, or point a collection at its own zone / library for multi-tenant setups.
 - **Setup wizard & CLI** — one command provisions your Bunny resources and prints ready-to-paste options; a second deploys the client-uploads Edge Script.
 
 ## Quick start
 
-Requires **Payload 4** and **Node.js 24.15 or later**. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
+Requires **Payload 4.0.0-beta.0 or later** (canary builds are not supported), **Next.js >=16.4 <17**, **React 19** and **Node.js 24.15 or later**. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
 
 > [!IMPORTANT]
-> **Upgrading from v3?** Register the adapter under `storage` instead of `plugins`. Some options are renamed, and the plugin throws at startup with the new name for each old key. Custom upload clients must move to Payload's `POST /api/upload-instructions` endpoint, and SQL databases need a migration for the new `prefix` column. Follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
+> **Upgrading from v3?** Register the adapter under `storage` instead of `plugins`. Some options are renamed, and the plugin throws at startup with the new name for each old key. Custom upload clients must move to Payload's `POST /api/upload-instructions` endpoint, and SQL databases need a migration for the new upload fields (`prefix`, the `original` group, and `prefix` and `_objectKey` on image variants). Every database, MongoDB too, first needs Payload's `sizes-to-variants` migration. Follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
 >
 > **Upgrading from v2?** Upgrade to v3 on Payload 3 first and run its one-time data migration. The migration helper ships only in v3 and is removed in v4. Back up your database, then follow the same [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
 
@@ -54,12 +55,10 @@ See the [Setup Wizard](https://payload-storage-bunny.seshuk.im/v4/cli/init) docs
 ### Install
 
 ```bash
-npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
-yarn add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
-pnpm add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.1 @payloadcms/translations@4.0.0-beta.1 @payloadcms/ui@4.0.0-beta.1 sanitize-filename@1.6.4
 ```
 
-v4 is in beta under the `beta` npm tag, and Payload 4 is published under `canary`. `@payloadcms/plugin-cloud-storage` is a peer dependency: pin it to the same version as your `payload` package. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
+v4 is in beta under the `beta` npm tag, and Payload 4 is published under `beta`. The command also installs the peer dependencies that a Payload app does not have yet. `payload` and React 19 are already in your app. Use the same exact version for `@payloadcms/plugin-cloud-storage`, `@payloadcms/translations`, `@payloadcms/ui` and your `payload` package. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
 
 ### Configure
 

@@ -13,16 +13,22 @@ bunnyStorage({
 })
 ```
 
-- **Images** — uses the original file, or a specific size if `sizeName` is set.
+- **Images** — uses the original file, or a specific variant if `sizeName` is set.
 - **Bunny Stream videos** — uses the frame captured at [`stream.thumbnailTime`](/v4/configuration/stream/overview#options).
 
-With Payload access control on, image thumbnail URLs start with the API route of your Payload config (`routes.api`, `/api` by default), for example `/api/<collection>/file/<filename>`.
+## Thumbnail URLs
+
+With Payload access control on (the default), an image thumbnail URL is Payload's `<routes.api>/<collection>/file/<filename>`, with the variant's file name when `sizeName` is set. A Stream video thumbnail URL is the plugin's own endpoint, `<routes.api>/storage-bunny/stream/thumbnail/<collection>/<id>/<videoId>/thumbnail.jpg` (`preview.webp` with `streamAnimated`). `<routes.api>` is the API route of your Payload config, `/api` by default. The endpoint reads the document with Payload access control and fetches the image from the Stream CDN, so Payload [upload transformers](https://payloadcms.com/docs/upload/overview) never handle it. See the [API reference](/v4/api-reference/overview).
+
+With `disablePayloadAccessControl: true`, both point straight at the Bunny CDN, signed when [`signedUrls`](/v4/configuration/signed-urls) is on.
+
+`thumbnailURL` is computed each time a document is read, so it always has the current form.
 
 ## Options
 
 | Option                         | Type                            | Default                     | Description                                                                                                                                                        |
 | ------------------------------ | ------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `sizeName`                     | `string`                        | –                           | Use a named image size from your collection's `imageSizes` instead of the original file. Falls back to the original if the size is missing on a given document.    |
+| `sizeName`                     | `string`                        | –                           | Use a named image variant of your collection instead of the original file. Falls back to the original if the variant is missing on a given document.               |
 | `streamAnimated`               | `boolean`                       | `false`                     | For Stream videos, use an animated WebP preview (`preview.webp`) instead of a static JPEG (`thumbnail.jpg`).                                                       |
 | `urlTransform`                 | `boolean \| object \| function` | `{ appendTimestamp: true }` | Same forms as [`urlTransform`](/v4/configuration/url-transforms), applied to the thumbnail URL. `false` turns the transform off.                                   |
 | `urlTransform.appendTimestamp` | `boolean`                       | `true`                      | Append a `t=<timestamp>` query parameter so browsers fetch the latest thumbnail after a file changes.                                                              |
@@ -61,13 +67,17 @@ thumbnail: {
 }
 ```
 
+With Payload access control on and Sharp [dynamic resizing](/v4/configuration/url-transforms#sharp-dynamic-resizing) turned on, Sharp takes an image thumbnail request when its URL has a `width`, `height` or `withoutEnlargement` parameter. It then resizes the image on your server, and none of the parameters reach Bunny. Stream video thumbnails always send them to Bunny.
+
 ## Using a named image size
 
 ```ts
 thumbnail: {
-  sizeName: 'thumbnail', // matches a size defined in upload.imageSizes
+  sizeName: 'thumbnail',
 }
 ```
+
+`sizeName` is the name of a variant that `sharpTransformer({ collections: { <slug>: { variants } } })` from `@payloadcms/transformer-sharp` generates for the collection.
 
 ## Custom transform function
 

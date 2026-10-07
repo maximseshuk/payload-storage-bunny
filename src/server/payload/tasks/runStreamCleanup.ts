@@ -1,9 +1,10 @@
 import type { Payload, PayloadRequest } from 'payload'
-import { createLocalReq } from 'payload'
+import { createPayloadRequest } from 'payload'
 
 import { BunnyStreamVideoStatus, deleteStreamVideo, getStreamVideo } from '@/server/bunny/stream.js'
 import { getBunnyOptions } from '@/server/payload/options/access.js'
 import { collectStreamOptions } from '@/server/payload/options/inspect.js'
+import { isVideoReferenced } from '@/server/payload/stream/references.js'
 import { streamUploadSessionsCollectionSlug } from '@/server/payload/stream/sessionsCollection.js'
 import { TIMEOUTS } from '@/shared/constants.js'
 import type { NormalizedStreamOptions } from '@/shared/types/index.js'
@@ -20,35 +21,6 @@ const MIN_TIME_LEFT_MS = 2_000
 type Deadline = {
   near: () => boolean
   timeLeft: () => number
-}
-
-const isVideoSaved = async ({
-  collectionSlugs,
-  req,
-  videoId,
-}: {
-  collectionSlugs: string[]
-  req: PayloadRequest
-  videoId: string
-}): Promise<boolean> => {
-  for (const collection of collectionSlugs) {
-    const { totalDocs } = await req.payload.count({
-      collection,
-      overrideAccess: true,
-      req,
-      where: {
-        'bunnyData.stream.videoId': {
-          equals: videoId,
-        },
-      },
-    })
-
-    if (totalDocs > 0) {
-      return true
-    }
-  }
-
-  return false
 }
 
 const processLibrarySessions = async ({
@@ -117,7 +89,7 @@ const processLibrarySessions = async ({
           video.status === BunnyStreamVideoStatus.Uploaded ||
           video.status === BunnyStreamVideoStatus.UploadFailed ||
           video.status === BunnyStreamVideoStatus.Error ||
-          !(await isVideoSaved({ collectionSlugs, req, videoId }))
+          !(await isVideoReferenced({ collectionSlugs, req, videoId }))
         ) {
           req.payload.logger.debug({ msg: `[bunny:stream] cleanup: deleting orphan video ${videoId}` })
           await deleteStreamVideo({
@@ -200,7 +172,7 @@ export const runStreamCleanup = async ({
     throw new Error('[bunny:tasks] cleanup: no stream library turns on `stream.cleanup`')
   }
 
-  const req = incomingReq ?? (await createLocalReq({}, payload))
+  const req = incomingReq ?? (await createPayloadRequest({ payload }))
   let deletedCount = 0
   let errorCount = 0
   let removed = 0

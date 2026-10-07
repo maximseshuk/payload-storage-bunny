@@ -4,31 +4,93 @@ description: 'Bunny.net storage adapter for Payload — Storage, Stream, signed 
 mode: 'custom'
 ---
 
-<div className="rp-home">
-  <div className="rp-home-grid" />
-  <div className="rp-hero">
-    <div className="rp-hero-inner">
-      <div className="rp-hero-mark">
-        <img src="/hero-mark.svg" alt="Payload Storage Bunny" noZoom />
-      </div>
-      <div className="rp-hero-copy">
-        <span className="rp-hero-badge">Payload storage</span>
-        <h1 className="rp-hero-title">
-          Ship media on <span className="rp-hero-accent">bunny.net</span>
-        </h1>
-        <p className="rp-hero-sub">
-          Send uploads, images, and video from your Payload collections straight to bunny.net Storage and Stream.
-          Delivered fast from the global Bunny CDN, and wired right into your admin panel.
-        </p>
-        <div className="rp-hero-actions">
-          <a className="rp-hero-btn rp-hero-btn-primary" href="/quick-start">
-            Get started
-          </a>
-          <a className="rp-hero-btn rp-hero-btn-ghost" href="/configuration/overview">
-            Read the docs
-          </a>
-        </div>
-      </div>
+export const InstallRow = () => {
+  const command = 'npm i @seshuk/payload-storage-bunny'
+  const [copied, setCopied] = useState(false)
+  const timer = useRef()
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const copy = () => {
+    if (!navigator.clipboard) return
+    navigator.clipboard.writeText(command).then(
+      () => {
+        clearTimeout(timer.current)
+        setCopied(true)
+        timer.current = setTimeout(() => setCopied(false), 1500)
+      },
+      () => {},
+    )
+  }
+  return (
+    <button
+      type="button"
+      className="sb-row sb-row-install"
+      onClick={copy}
+      aria-label={copied ? 'Copied' : `Copy: ${command}`}
+    >
+      <code>
+        <span aria-hidden="true">$ </span>
+        {command}
+      </code>
+      <span className="sb-row-icon" aria-hidden="true">
+        {copied ? (
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="m3 8.5 3 3 7-7" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="5.5" y="5.5" width="8" height="8" />
+            <path d="M10.5 3V2.5h-8v8H3" />
+          </svg>
+        )}
+      </span>
+    </button>
+  )
+}
+
+<div className="sb-home">
+  <section className="sb-hero">
+    <div className="sb-copy">
+      <h1 className="sb-title">
+        Ship media on
+        <br />
+        <span>bunny.net</span>
+      </h1>
+      <p className="sb-sub">
+        Send uploads, images, and video from your Payload collections straight to bunny.net Storage and Stream.
+        Delivered fast from the global Bunny CDN, and wired right into your admin panel.
+      </p>
     </div>
-  </div>
+    <div className="sb-actions">
+      <InstallRow />
+      <a className="sb-row" href="/quick-start">
+        Get started
+        <svg
+          className="sb-row-icon"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
+          <path d="M4.5 11.5l7-7M5.5 4.5h6v6" />
+        </svg>
+      </a>
+      <a className="sb-row" href="/configuration/overview">
+        Read docs
+        <svg
+          className="sb-row-icon"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
+          <path d="M4.5 11.5l7-7M5.5 4.5h6v6" />
+        </svg>
+      </a>
+    </div>
+    <div className="sb-mark">
+      <img src="/hero-mark.svg" alt="" noZoom />
+    </div>
+  </section>
 </div>

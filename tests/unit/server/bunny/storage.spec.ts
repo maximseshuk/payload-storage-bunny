@@ -5,14 +5,15 @@ import { httpError } from '../../../helpers/unit/httpError.js'
 const { kyMethods, mockKy } = await vi.hoisted(() => import('../../../helpers/unit/kyMock.js'))
 vi.mock('ky', mockKy)
 
-const { delete: deleteMock, put: putMock } = kyMethods
+const { delete: deleteMock, get: getMock, put: putMock } = kyMethods
 
-const { deleteStorageFile, uploadStorageFile } = await import('@/server/bunny/storage.js')
+const { copyStorageFile, deleteStorageFile, uploadStorageFile } = await import('@/server/bunny/storage.js')
 
 const creds = { apiKey: 'zone-pass', region: 'ny', zoneName: 'my-zone' }
 
 beforeEach(() => {
   deleteMock.mockReset()
+  getMock.mockReset()
   putMock.mockReset()
 })
 
@@ -47,6 +48,69 @@ describe('deleteStorageFile', () => {
     deleteMock.mockRejectedValue(httpError(401))
 
     await expect(deleteStorageFile({ ...creds, path: 'a.jpg' })).rejects.toThrow('Unable to delete file: a.jpg')
+  })
+
+  it('treats a missing object as deleted', async () => {
+    deleteMock.mockRejectedValue(httpError(404))
+
+    await expect(deleteStorageFile({ ...creds, path: 'a.jpg' })).resolves.toBeUndefined()
+  })
+})
+
+describe('copyStorageFile', () => {
+  it('streams the source into the target with its Content-Type when the target is free', async () => {
+    const body = new ReadableStream()
+    getMock
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(body, { headers: { 'content-type': 'image/png' } }))
+    putMock.mockResolvedValue(undefined)
+
+    await copyStorageFile({ ...creds, from: 'a/old.png', timeout: 60000, to: 'b/new.png' })
+
+    expect(getMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://ny.storage.bunnycdn.com/my-zone/b/new.png',
+      'https://ny.storage.bunnycdn.com/my-zone/a/old.png',
+    ])
+    expect(putMock).toHaveBeenCalledWith('https://ny.storage.bunnycdn.com/my-zone/b/new.png', {
+      body,
+      headers: { AccessKey: 'zone-pass', Accept: 'application/json', 'Content-Type': 'image/png' },
+      timeout: 60000,
+    })
+  })
+
+  it('throws EEXIST without reading the source when the target exists', async () => {
+    getMock.mockResolvedValueOnce(new Response('x'))
+
+    await expect(copyStorageFile({ ...creds, from: 'a.png', to: 'b.png' })).rejects.toMatchObject({
+      code: 'EEXIST',
+      message: 'Storage destination already exists',
+    })
+    expect(getMock).toHaveBeenCalledTimes(1)
+    expect(putMock).not.toHaveBeenCalled()
+  })
+
+  it('checks the target with a one-byte ranged GET and does not wait for its body', async () => {
+    const hangingBody = new ReadableStream({
+      cancel: () => new Promise<void>(() => {}),
+      pull: () => new Promise(() => {}),
+    })
+    getMock.mockResolvedValueOnce(new Response(hangingBody, { status: 206 }))
+
+    await expect(copyStorageFile({ ...creds, from: 'a.png', to: 'b.png' })).rejects.toMatchObject({ code: 'EEXIST' })
+    expect(getMock).toHaveBeenCalledWith('https://ny.storage.bunnycdn.com/my-zone/b.png', {
+      headers: { AccessKey: 'zone-pass', Range: 'bytes=0-0' },
+      throwHttpErrors: false,
+      timeout: 15000,
+    })
+  })
+
+  it('throws when the target check fails', async () => {
+    getMock.mockResolvedValueOnce(new Response(null, { status: 500 }))
+
+    await expect(copyStorageFile({ ...creds, from: 'a.png', to: 'b.png' })).rejects.toThrow(
+      'Unable to read file: b.png (500)',
+    )
+    expect(putMock).not.toHaveBeenCalled()
   })
 })
 

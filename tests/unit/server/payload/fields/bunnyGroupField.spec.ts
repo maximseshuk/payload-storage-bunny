@@ -7,6 +7,7 @@ import {
   getBunnyData,
   getAfterReadHook,
   getStreamSelect,
+  markServerStreamUpload,
   readStoredVideo,
   setStoredVideoId,
 } from '@/server/payload/fields/bunnyGroupField.js'
@@ -243,8 +244,35 @@ describe('bunnyGroupField', () => {
 
     it.each(['resolutions', 'status'])('does not accept %s from create or update input', (name) => {
       const field = findField(streamGroup, name)
-      expect(field.access.create()).toBe(false)
-      expect(field.access.update()).toBe(false)
+      expect(field.access.create({ req, siblingData: { videoId: 'v1' } })).toBe(false)
+      expect(field.access.update({ req, siblingData: { videoId: 'v1' } })).toBe(false)
+    })
+
+    it('accepts the video and state that this request uploaded on the server without a token', () => {
+      const uploading = { ...req, context: {} }
+      markServerStreamUpload(uploading as never, 'v1')
+      const siblingData = { status: 'processing', videoId: 'v1' }
+      for (const name of ['videoId', 'status', 'resolutions']) {
+        const field = findField(streamGroup, name)
+        expect(field.access.create({ req: uploading, siblingData })).toBe(true)
+        expect(field.access.update({ req: uploading, siblingData })).toBe(true)
+      }
+    })
+
+    it('rejects another video than the one this request uploaded on the server', () => {
+      const uploading = { ...req, context: {} }
+      markServerStreamUpload(uploading as never, 'v1')
+      for (const name of ['videoId', 'status', 'resolutions']) {
+        const field = findField(streamGroup, name)
+        expect(field.access.update({ req: uploading, siblingData: { videoId: 'v2' } })).toBe(false)
+      }
+    })
+
+    it('accepts the stored video of a restored version without a token', () => {
+      const restoring = { ...req, context: { isRestoringVersion: true } }
+      expect(videoId.access.update({ req: restoring, siblingData: { videoId: 'v1' } })).toBe(true)
+      expect(findField(streamGroup, 'status').access.update({ req: restoring })).toBe(true)
+      expect(findField(streamGroup, 'resolutions').access.update({ req: restoring })).toBe(true)
     })
 
     const validate = async (data: Record<string, any>, doc: Record<string, any>) => {
@@ -298,12 +326,12 @@ describe('bunnyGroupField', () => {
       expect(run({ bunnyData }).bunnyData).toBe(bunnyData)
     })
 
-    it('collapses nested sizes[].bunnyData', () => {
+    it('collapses nested variants[].bunnyData', () => {
       const result = run({
         bunnyData: { stream: { videoId: 'v1' } },
-        sizes: { thumbnail: { bunnyData: { stream: { videoId: null } } } },
+        variants: { thumbnail: { bunnyData: { stream: { videoId: null } } } },
       })
-      expect(result.sizes.thumbnail.bunnyData).toBeUndefined()
+      expect(result.variants.thumbnail.bunnyData).toBeUndefined()
     })
 
     it('leaves docs without bunnyData untouched', () => {

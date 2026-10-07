@@ -41,7 +41,7 @@ Entrypoints: `index.ts` (server), `client/index.ts` (admin UI), `rsc/index.ts` (
 src/
 ├── index.ts     # plugin entry
 ├── shared/      # isomorphic leaf: types/ (options.ts = public JSDoc API), translations/, constants, mimeTypes, http, urlTransform, zoneSecret
-├── client/      # 'use client' entry; TusUpload/*, ClientUploadHandler, StreamFilePreview/, StreamPreview/, StreamStatus/
+├── client/      # 'use client' entry; TusUpload/*, ClientUploadHandler, StreamFilePreview/, StreamPreview/, StreamStatus/, vendor/payload/ (vendored Payload code, MIT, see THIRD_PARTY_NOTICES.md; some lint rules off in oxlint.config.ts)
 ├── rsc/         # admin server components: TusUploadServer (edit.Upload of TUS collections)
 ├── edge/        # uploader.edge.js (Bunny Edge Script)
 ├── cli/         # bin (cac); commands/ (init/, deployEdgeScript.ts, task.ts); lib/ (Logger, bunnyFetch, envFile: reuse)

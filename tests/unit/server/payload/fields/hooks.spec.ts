@@ -115,9 +115,17 @@ describe('field hooks', () => {
           filename: 'orig.png',
           mimeType: 'image/png',
           prefix: '',
-          sizes: { card: { filename: 'card.png' } },
+          variants: { card: { filename: 'card.png' } },
         }
         expect(fn({ doc, req: {} as never })).toBe('https://storage.b-cdn.net/card.png')
+      })
+
+      it('uses the configured API route for the size when access control is on', () => {
+        const fn = getAdminThumbnail(
+          buildContext({ storageOptions, thumbnail: thumbnail({ sizeName: 'card' }), usePayloadAccessControl: true }),
+        )!
+        const doc = { filename: 'orig.png', mimeType: 'image/png', variants: { card: { filename: 'card.png' } } }
+        expect(fn({ doc, req: apiReq('/cms-api') })).toBe('/cms-api/media/file/card.png')
       })
     })
 
@@ -132,9 +140,46 @@ describe('field hooks', () => {
         expect(fn({ doc: streamDoc, req: {} as never })).toBe('https://stream.b-cdn.net/v-9/preview.webp')
       })
 
-      it('returns the internal API URL when access control is on', () => {
+      it('returns the plugin thumbnail endpoint when access control is on', () => {
         const fn = getAdminThumbnail(buildContext({ streamOptions, usePayloadAccessControl: true }))!
-        expect(fn({ doc: streamDoc, req: {} as never })).toBe('/api/media/file/bunny%3Astream%3Av-9%3Athumbnail.jpg')
+        expect(fn({ doc: { ...streamDoc, id: 7 }, req: apiReq() })).toBe(
+          '/api/storage-bunny/stream/thumbnail/media/7/v-9/thumbnail.jpg',
+        )
+      })
+
+      it('uses the configured API route for the plugin thumbnail endpoint', () => {
+        const fn = getAdminThumbnail(buildContext({ streamOptions, usePayloadAccessControl: true }))!
+        expect(fn({ doc: { ...streamDoc, id: 7 }, req: apiReq('/cms-api') })).toBe(
+          '/cms-api/storage-bunny/stream/thumbnail/media/7/v-9/thumbnail.jpg',
+        )
+      })
+
+      it('returns the animated preview from the endpoint with streamAnimated and query params', () => {
+        const fn = getAdminThumbnail(
+          buildContext({
+            streamOptions,
+            thumbnail: thumbnail({ queryParams: { width: '300' }, streamAnimated: true }),
+            usePayloadAccessControl: true,
+          }),
+        )!
+        expect(fn({ doc: { ...streamDoc, id: 'a/b' }, req: apiReq() })).toBe(
+          '/api/storage-bunny/stream/thumbnail/media/a%2Fb/v-9/preview.webp?width=300',
+        )
+      })
+
+      it('returns the endpoint, not a /file/ URL, when Payload has upload transformers', () => {
+        const fn = getAdminThumbnail(buildContext({ streamOptions, usePayloadAccessControl: true }))!
+        const req = {
+          payload: { config: { routes: { api: '/api' }, upload: { transformers: [{ name: 'sharp' }] } } },
+        } as never
+        expect(fn({ doc: { ...streamDoc, id: 7 }, req })).toBe(
+          '/api/storage-bunny/stream/thumbnail/media/7/v-9/thumbnail.jpg',
+        )
+      })
+
+      it('returns null before the document has an ID when access control is on', () => {
+        const fn = getAdminThumbnail(buildContext({ streamOptions, usePayloadAccessControl: true }))!
+        expect(fn({ doc: streamDoc, req: {} as never })).toBeNull()
       })
 
       it('returns null when a stale videoId remains on an application/pdf file', () => {
@@ -211,7 +256,7 @@ describe('field hooks', () => {
         context: buildContext({ urlTransform: transform, usePayloadAccessControl: true }),
         size: { name: 'card' },
       })
-      const data = { filename: 'orig.png', sizes: { card: { filename: 'card.png' } } }
+      const data = { filename: 'orig.png', variants: { card: { filename: 'card.png' } } }
       hook({ data, value: '/api/media/file/card.png' } as never)
       expect(seen).toEqual(['card.png'])
     })

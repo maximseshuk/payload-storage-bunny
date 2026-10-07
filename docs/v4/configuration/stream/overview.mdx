@@ -20,7 +20,7 @@ bunnyStorage({
 
 With Payload access control on (the default), a Stream collection needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/v4/configuration/stream/overview#access-control-and-mp4-fallback). Set `disablePayloadAccessControl: true` on the collection to serve straight from the CDN instead, where this requirement doesn't apply.
 
-Files whose MIME type matches `mimeTypes` are routed to Bunny Stream. Everything else goes to [Bunny Storage](/v4/configuration/storage/overview), if configured. When a document gets a new file that goes to Bunny Storage, the plugin removes its Stream video ID, and Payload deletes the old video. The file URL and the admin thumbnail come from Bunny Stream when the document has a Stream video ID and its file is a video or audio file, matches `mimeTypes` or has no MIME type. Other files get the Bunny Storage URL. Video metadata for each document lives in the [`bunnyData`](/v4/guides/stored-data) field.
+Files whose MIME type matches `mimeTypes` are routed to Bunny Stream. Everything else goes to [Bunny Storage](/v4/configuration/storage/overview), if configured. When a document gets a new file that goes to Bunny Storage, the plugin removes its Stream video ID. The old video then follows the rules in [Replaced videos and versions](#replaced-videos-and-versions). The plugin names a new video in Bunny after the uploaded file name, without Payload's `-original` suffix. The file URL and the admin thumbnail come from Bunny Stream when the document has a Stream video ID and its file is a video or audio file, matches `mimeTypes` or has no MIME type. Other files get the Bunny Storage URL. Video metadata for each document lives in the [`bunnyData`](/v4/guides/stored-data) field.
 
 ## Options
 
@@ -93,6 +93,17 @@ Set `preview: false` to turn the player off, globally or for one collection. The
 - Payload's upload area renders a hidden crop image with the file URL of a video. While Bunny has no MP4 rendition yet, this request fails, and the browser console shows `404` errors. The upload is not affected.
 
 </Warning>
+
+## Replaced videos and versions
+
+Stream videos follow the same rule as [files in Bunny Storage](/v4/configuration/storage/overview#files-versions-and-rename):
+
+- **With `versions`** (the Payload 4 default), a replaced video stays in your Stream library while any document or version references it. So restoring a version brings back a working video. The video is deleted when no document and no version references it any more, in any collection that uses the same library. This includes versions that Payload removes because of `maxPerDoc`, and an autosave version that a new video replaces. Payload overwrites the autosave version of a draft in place, so the old video loses that reference on the next autosave.
+- **With `versions: false`**, the old video is deleted when you replace it, as before. Set `versions: false` on the collection to get this behavior back.
+
+Only operations through Payload delete videos: replacing the file, deleting a document, changing a draft and removing versions. Changes made directly in the database, for example with SQL or `payload.db.*`, do not delete videos.
+
+Renaming a file (`payload.renameFile`, or the rename operation in REST and GraphQL) and restoring a version copy nothing in Stream. The old and the new key point to the same video.
 
 ## Cleanup
 

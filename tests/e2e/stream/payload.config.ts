@@ -16,9 +16,10 @@ export default buildConfigWithDefaults({
       slug: 'stream-only',
       upload: { mimeTypes: ['video/*'] },
     }),
+    createMediaCollection({ slug: 'stream-direct' }),
     {
       slug: 'posts',
-      fields: [{ name: 'video', type: 'upload', relationTo: 'stream-only' }],
+      fields: [{ name: 'video', type: 'upload', relationTo: 'stream-direct' }],
     },
   ],
   jobs: {
@@ -61,6 +62,18 @@ export default buildConfigWithDefaults({
           signedUrls: false,
           storage: false,
           stream: {
+            mp4Fallback: false,
+            tus: {
+              autoMode: false,
+            },
+          },
+        },
+        'stream-direct': {
+          disablePayloadAccessControl: true,
+          signedUrls: false,
+          storage: false,
+          stream: {
+            mimeTypes: ['video/*'],
             mp4Fallback: false,
             tus: {
               autoMode: false,

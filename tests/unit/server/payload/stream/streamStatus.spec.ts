@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { httpError } from '../../../../helpers/unit/httpError.js'
 
-const { findByIDMock, findOneMock, getVideoMock, listVideosMock, readyResolutionsMock, writeMock } = vi.hoisted(
+const { checkSizeMock, findByIDMock, getVideoMock, listVideosMock, readyResolutionsMock, writeMock } = vi.hoisted(
   () => ({
+    checkSizeMock: vi.fn(),
     findByIDMock: vi.fn(),
-    findOneMock: vi.fn(),
     getVideoMock: vi.fn(),
     listVideosMock: vi.fn(),
     readyResolutionsMock: vi.fn(),
@@ -22,6 +22,7 @@ vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
 
 vi.mock('@/server/payload/stream/storedStream.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/payload/stream/storedStream.js')>()),
+  checkStreamOriginalSize: checkSizeMock,
   writeStoredStream: writeMock,
 }))
 
@@ -42,19 +43,20 @@ const buildOptions = (webhook?: { secret: string }, status?: boolean, mp4Fallbac
   } as never)
 
 const getHandler = (options = buildOptions()) =>
-  getStreamEndpoints(options).find((endpoint) => endpoint.path === '/storage-bunny/stream/status/:collection/:id')!
-    .handler as (req: never) => Promise<Response>
+  getStreamEndpoints(options).find(
+    (endpoint) => endpoint.path === '/storage-bunny/stream/status/:collection/:id/:videoId',
+  )!.handler as (req: never) => Promise<Response>
 
 const buildReq = (routeParams: Record<string, unknown>, overrides: Record<string, unknown> = {}) =>
   buildStreamReq({
     collections: { docs: { upload: true }, media: { upload: true }, plain: { upload: true }, users: {} },
-    payload: { config: { admin: { user: 'users' } }, db: { defaultIDType: 'number', findOne: findOneMock }, findByID: findByIDMock },
+    payload: { config: { admin: { user: 'users' } }, db: { defaultIDType: 'number' }, findByID: findByIDMock },
     routeParams,
     user: { id: 1, collection: 'users' },
     ...overrides,
   })
 
-const mediaReq = () => buildReq({ collection: 'media', id: '1' })
+const mediaReq = (videoId = 'video-1') => buildReq({ collection: 'media', id: '1', videoId })
 
 const streamDoc = (stream: Record<string, unknown> = {}) => ({
   id: '1',
@@ -77,8 +79,7 @@ describe('stream status endpoint', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    findByIDMock.mockResolvedValue({ id: '1' })
-    findOneMock.mockResolvedValue(streamDoc({ status: 'processing' }))
+    findByIDMock.mockResolvedValue(streamDoc({ status: 'processing' }))
     listVideosMock.mockResolvedValue({ items: [] })
     readyResolutionsMock.mockImplementation(async ({ resolutions }) => resolutions)
     writeMock.mockResolvedValue(true)
@@ -94,14 +95,18 @@ describe('stream status endpoint', () => {
     ['a stored failed state', 'failed', undefined],
     ['a stored state with its resolutions', 'ready', { available: ['720p', '1080p'], highest: '1080p' }],
   ])('returns %s without calling Bunny', async (_label, status, resolutions) => {
-    findOneMock.mockResolvedValue(streamDoc({ resolutions, status }))
+    findByIDMock.mockResolvedValue(streamDoc({ resolutions, status }))
 
     expect(await readState(handler(mediaReq()))).toEqual({ resolutions, state: status })
-    expect(findByIDMock).toHaveBeenCalledWith(
-      expect.objectContaining({ id: '1', collection: 'media', overrideAccess: false, select: { id: true } }),
-    )
-    expect(findOneMock).toHaveBeenCalledWith(
-      expect.objectContaining({ collection: 'media', where: { id: { equals: '1' } } }),
+    expect(findByIDMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        id: '1',
+        collection: 'media',
+        draft: false,
+        overrideAccess: false,
+        select: { bunnyData: true, filesize: true, mimeType: true },
+        trash: true,
+      }),
     )
     expect(getVideoMock).not.toHaveBeenCalled()
     expect(writeMock).not.toHaveBeenCalled()
@@ -113,6 +118,17 @@ describe('stream status endpoint', () => {
     expect(await readState(handler(mediaReq()))).toEqual({ state: 'processing' })
     expect(getVideoMock).toHaveBeenCalledWith({ apiKey: 'stream-key', libraryId: 12345, videoId: 'video-1' })
     expect(writeMock).not.toHaveBeenCalled()
+  })
+
+  it('checks the size of the original file of a video that became ready', async () => {
+    getVideoMock.mockResolvedValue({ availableResolutions: '720p', status: 4 })
+    const doc = { ...streamDoc({ status: 'processing' }), filesize: 1000 }
+    findByIDMock.mockResolvedValue(doc)
+
+    expect(await readState(handler(mediaReq()))).toEqual({ state: 'ready' })
+    expect(checkSizeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ apiKey: 'stream-key', collection: 'media', doc, libraryId: 12345, videoId: 'video-1' }),
+    )
   })
 
   it('stores a changed state only while the stored state is still the one it read', async () => {
@@ -154,14 +170,14 @@ describe('stream status endpoint', () => {
     expect(await readState(mp4Handler(mediaReq()))).toEqual({ state: 'processing' })
     expect(writeMock).not.toHaveBeenCalled()
 
-    findOneMock.mockResolvedValue(streamDoc({ videoId: 'video-2' }))
-    expect(await readState(mp4Handler(mediaReq()))).toEqual({ state: 'processing' })
+    findByIDMock.mockResolvedValue(streamDoc({ videoId: 'video-2' }))
+    expect(await readState(mp4Handler(mediaReq('video-2')))).toEqual({ state: 'processing' })
     expectWrite({ status: 'processing', videoId: 'video-2' }, null)
   })
 
   it('asks Bunny for an old document without a stored state and keeps its resolutions', async () => {
     const resolutions = { available: ['720p'], highest: '720p' }
-    findOneMock.mockResolvedValue(streamDoc({ resolutions }))
+    findByIDMock.mockResolvedValue(streamDoc({ resolutions }))
     getVideoMock.mockResolvedValue({ availableResolutions: '720p', status: 4 })
 
     expect(await readState(handler(mediaReq()))).toEqual({ resolutions, state: 'ready' })
@@ -236,38 +252,44 @@ describe('stream status endpoint', () => {
   })
 
   it('throws 401 without a signed-in user', async () => {
-    await expect(handler(buildReq({ collection: 'media', id: '1' }, { user: null }))).rejects.toMatchObject({
+    await expect(
+      handler(buildReq({ collection: 'media', id: '1', videoId: 'video-1' }, { user: null })),
+    ).rejects.toMatchObject({
       status: 401,
     })
     expect(findByIDMock).not.toHaveBeenCalled()
   })
 
   it('throws 403 for a user who cannot open the admin panel, before any Bunny or database call', async () => {
-    const customer = buildReq({ collection: 'media', id: '1' }, { user: { id: 2, collection: 'customers' } })
+    const customer = buildReq(
+      { collection: 'media', id: '1', videoId: 'video-1' },
+      { user: { id: 2, collection: 'customers' } },
+    )
     await expect(handler(customer)).rejects.toMatchObject({ status: 403 })
 
-    const rejected = buildReq({ collection: 'media', id: '1' })
+    const rejected = buildReq({ collection: 'media', id: '1', videoId: 'video-1' })
     ;(rejected as any).payload.collections.users.config.access = { admin: () => false }
     await expect(handler(rejected)).rejects.toMatchObject({ status: 403 })
 
     expect(findByIDMock).not.toHaveBeenCalled()
-    expect(findOneMock).not.toHaveBeenCalled()
     expect(getVideoMock).not.toHaveBeenCalled()
   })
 
   it('throws 404 when the collection does not store the status', async () => {
-    await expect(handler(buildReq({ collection: 'plain', id: '1' }))).rejects.toMatchObject({ status: 404 })
+    await expect(handler(buildReq({ collection: 'plain', id: '1', videoId: 'video-1' }))).rejects.toMatchObject({
+      status: 404,
+    })
     expect(findByIDMock).not.toHaveBeenCalled()
     expect(getVideoMock).not.toHaveBeenCalled()
   })
 
   it('is not registered when no collection stores the status', () => {
     const paths = getStreamEndpoints(buildOptions(undefined, false)).map((endpoint) => endpoint.path)
-    expect(paths).not.toContain('/storage-bunny/stream/status/:collection/:id')
+    expect(paths).not.toContain('/storage-bunny/stream/status/:collection/:id/:videoId')
   })
 
   it('checks the id against the custom id type of the collection', async () => {
-    const req = buildReq({ collection: 'media', id: 'abc' })
+    const req = buildReq({ collection: 'media', id: 'abc', videoId: 'video-1' })
     ;(req as any).payload.collections.media.customIDType = 'text'
 
     expect(await readState(handler(req))).toEqual({ state: 'processing' })
@@ -275,7 +297,7 @@ describe('stream status endpoint', () => {
   })
 
   it('throws 500 and logs when the database fails', async () => {
-    findOneMock.mockRejectedValue(new Error('connection refused'))
+    findByIDMock.mockRejectedValue(new Error('connection refused'))
     const req = mediaReq()
 
     await expect(handler(req)).rejects.toMatchObject({ status: 500 })

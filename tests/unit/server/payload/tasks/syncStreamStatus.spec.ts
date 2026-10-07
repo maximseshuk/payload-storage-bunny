@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getVideoMock, listVideosMock, readyResolutionsMock, writeMock } = vi.hoisted(() => ({
+const { checkSizeMock, getVideoMock, listVideosMock, readyResolutionsMock, writeMock } = vi.hoisted(() => ({
+  checkSizeMock: vi.fn(),
   getVideoMock: vi.fn(),
   listVideosMock: vi.fn(),
   readyResolutionsMock: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('@/server/bunny/stream.js', async (importOriginal) => {
 
 vi.mock('@/server/payload/stream/storedStream.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/payload/stream/storedStream.js')>()),
+  checkStreamOriginalSize: checkSizeMock,
   writeStoredStream: writeMock,
 }))
 
@@ -75,6 +77,27 @@ describe('syncStreamStatus', () => {
     writeMock.mockResolvedValue(true)
   })
 
+  it('checks the size of the original file of each video that became ready', async () => {
+    getVideoMock.mockImplementation(async ({ videoId }: { videoId: string }) => ({
+      status: videoId === 'v-2' ? BunnyStreamVideoStatus.Processing : BunnyStreamVideoStatus.Finished,
+    }))
+    const docs = docsFor(3).map((doc) => ({ ...doc, filesize: 1000 }))
+    const { payload, req } = buildPayload(buildOptions(), docs)
+
+    await syncStreamStatus({ payload, req })
+
+    expect(checkSizeMock.mock.calls.map(([{ videoId }]) => videoId)).toEqual(['v-0', 'v-1'])
+    expect(checkSizeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'own-stream-key-111',
+        collection: 'videos',
+        doc: docs[0],
+        libraryId: 111,
+        videoId: 'v-0',
+      }),
+    )
+  })
+
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -92,7 +115,7 @@ describe('syncStreamStatus', () => {
         limit: 7,
         overrideAccess: true,
         pagination: false,
-        select: { bunnyData: true, updatedAt: true },
+        select: { bunnyData: true, filesize: true, updatedAt: true },
         sort: '-updatedAt',
       }),
     )

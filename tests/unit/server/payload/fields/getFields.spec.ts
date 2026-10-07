@@ -38,6 +38,17 @@ describe('getFields prefix injection', () => {
     expect(prefixField.defaultValue).toBe('')
   })
 
+  it('hides the injected prefix field from list columns, filters, group-by and bulk edit', () => {
+    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
+
+    expect((getField(fields, 'prefix') as { admin?: Record<string, unknown> }).admin?.disabled).toEqual({
+      bulkEdit: true,
+      column: true,
+      filter: true,
+      groupBy: true,
+    })
+  })
+
   it('does not accept a prefix from create or update input', () => {
     const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
 

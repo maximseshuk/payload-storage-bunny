@@ -1,4 +1,4 @@
-import type { Config } from 'payload'
+import type { CollectionConfig, Config } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import { bunnyStorage } from '@/index.js'
@@ -58,10 +58,10 @@ describe('upload.cacheTags wiring', () => {
   })
 })
 
-describe('client upload handler registration', () => {
+describe('upload instructions wiring', () => {
   const stream = { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, mp4Fallback: true, tus: true }
 
-  const getHandlerProviders = (media: MediaOptions): Array<{ clientProps: Record<string, unknown> }> => {
+  const getMedia = (media: MediaOptions) => {
     const incoming = {
       collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
     } as unknown as Config
@@ -72,50 +72,61 @@ describe('client upload handler registration', () => {
       stream,
     } as BunnyStorageOptions).init(incoming) as Config
 
-    return (result.admin?.components?.providers ?? []).filter(
-      (provider) =>
-        typeof provider === 'object' &&
-        provider.path === '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler',
-    ) as Array<{ clientProps: Record<string, unknown> }>
+    return { media: result.collections!.find((entry) => entry.slug === 'media')!, result }
   }
 
-  it('routes stream-only TUS collections through the handler with their video types', () => {
-    const [provider] = getHandlerProviders({ disablePayloadAccessControl: true, storage: false })
+  const instructionsOf = (media: CollectionConfig) =>
+    (media.upload as { uploadInstructions: UploadInstructions }).uploadInstructions
 
-    expect(provider?.clientProps.collectionSlug).toBe('media')
+  it('registers no client upload handler provider', () => {
+    expect(getMedia({ storage: { clientUploads: true } }).result.admin?.components?.providers ?? []).toEqual([])
+    expect(
+      getMedia({ disablePayloadAccessControl: true, storage: false }).result.admin?.components?.providers ?? [],
+    ).toEqual([])
   })
 
-  it('routes videos over TUS when the collection also has Storage client uploads', () => {
-    const [provider] = getHandlerProviders({ storage: { clientUploads: true } })
-
-    expect(provider?.clientProps.collectionSlug).toBe('media')
+  it('uses the instructions in the admin only with Storage client uploads', () => {
+    expect(instructionsOf(getMedia({ storage: { clientUploads: true } }).media).useInAdmin).toBe(true)
+    expect(instructionsOf(getMedia({ disablePayloadAccessControl: true, storage: false }).media).useInAdmin).toBe(false)
+    expect(instructionsOf(getMedia(true).media).useInAdmin).toBe(false)
   })
 
-  it('leaves storage and stream collections without client uploads on server uploads', () => {
-    expect(getHandlerProviders(true)).toEqual([])
-  })
-
-  it('dispatches only Stream videos to the handler of a stream-only TUS collection', async () => {
-    const incoming = {
-      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
-    } as unknown as Config
-    const result = bunnyStorage({
-      collections: { media: { disablePayloadAccessControl: true, storage: false } },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: true, zoneName: 'zone' },
-      stream,
-    } as BunnyStorageOptions).init(incoming) as Config
-    const media = result.collections?.find((entry) => entry.slug === 'media')
-    const { generate, useInAdmin } = (media!.upload as { uploadInstructions: UploadInstructions }).uploadInstructions
+  it('refuses client upload instructions for a stream-only TUS collection', async () => {
+    const { media } = getMedia({ disablePayloadAccessControl: true, storage: false })
     const req = {
       payload: { collections: { media: { config: media } }, config: { upload: {} } },
       t: (key: string) => key,
     }
-    const upload = (filename: string, mimeType: string) =>
-      generate({ collectionSlug: 'media', filename, filesize: 1000, mimeType, overrideAccess: true, req })
 
-    expect(useInAdmin).toBe(true)
-    expect(await upload('clip.mp4', 'video/mp4')).toMatchObject({ name: 'bunny', type: 'dispatch' })
-    await expect(upload('photo.jpg', 'image/jpeg')).rejects.toMatchObject({ status: 403 })
+    await expect(
+      instructionsOf(media).generate({
+        collectionSlug: 'media',
+        filename: 'clip.mp4',
+        filesize: 1000,
+        mimeType: 'video/mp4',
+        overrideAccess: true,
+        req,
+      }),
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('sends videos of a collection with Storage client uploads to Stream instead', async () => {
+    const { media } = getMedia({ storage: { clientUploads: true } })
+    const req = {
+      payload: { collections: { media: { config: media } }, config: { upload: {} } },
+      t: (key: string) => key,
+    }
+
+    await expect(
+      instructionsOf(media).generate({
+        collectionSlug: 'media',
+        filename: 'clip.mp4',
+        filesize: 1000,
+        mimeType: 'video/mp4',
+        overrideAccess: true,
+        req,
+      }),
+    ).rejects.toMatchObject({ status: 400 })
   })
 })
 
@@ -123,7 +134,7 @@ describe('schema when the plugin is disabled', () => {
   const fieldNames = (enabled: boolean): string[] => {
     const incoming = {
       collections: [
-        { slug: 'media', fields: [], upload: { imageSizes: [{ name: 'thumb', width: 100 }] } },
+        { slug: 'media', fields: [], upload: { variants: [{ name: 'thumb', width: 100 }] } },
         { slug: 'posts', fields: [] },
       ],
     } as unknown as Config
@@ -144,11 +155,11 @@ describe('schema when the plugin is disabled', () => {
   it('inserts the prefix and object key fields', () => {
     const fields = fieldNames(false)
 
-    expect(fields).toEqual(expect.arrayContaining(['prefix', '_objectKey', 'url', 'sizes']))
+    expect(fields).toEqual(expect.arrayContaining(['prefix', '_objectKey', 'url', 'variants']))
   })
 
   it('keeps the same storage columns as the enabled plugin', () => {
-    const storageFields = ['prefix', '_objectKey', 'url', 'sizes']
+    const storageFields = ['prefix', '_objectKey', 'url', 'variants']
 
     expect(fieldNames(false).filter((name) => storageFields.includes(name))).toEqual(
       fieldNames(true).filter((name) => storageFields.includes(name)),
@@ -338,7 +349,16 @@ describe('Stream status field', () => {
   }
 
   it('comes after the storage fields so it is not one of the default list columns', () => {
-    expect(fieldNames({})).toEqual(['bunnyData', 'alt', 'thumbnailURL', 'url', 'prefix', '_objectKey', 'bunnyStream'])
+    expect(fieldNames({})).toEqual([
+      'bunnyData',
+      'alt',
+      'thumbnailURL',
+      'url',
+      'original',
+      'prefix',
+      '_objectKey',
+      'bunnyStream',
+    ])
   })
 
   it('is not added when the status is turned off', () => {
@@ -358,9 +378,11 @@ describe('Stream status field', () => {
     return result.collections!.find((entry) => entry.slug === 'media')!
   }
 
-  it('adds the status select only when the status is on', () => {
-    expect(mediaCollection({ mp4Fallback: true }).select).toBeTypeOf('function')
-    expect(mediaCollection({ mp4Fallback: true, status: false }).select).toBeUndefined()
+  it('selects the stored video only when the status is on', () => {
+    const select = (stream: Record<string, unknown>) =>
+      mediaCollection(stream).select!({ select: { bunnyStream: true } } as never) as Record<string, unknown>
+    expect(select({ mp4Fallback: true }).bunnyData).toEqual({ stream: { status: true, videoId: true } })
+    expect(select({ mp4Fallback: true, status: false }).bunnyData).toBeUndefined()
   })
 
   it('adds the beforeChange hook that keeps the stored values when the status or mp4Fallback is on', () => {

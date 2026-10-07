@@ -1,6 +1,13 @@
-import type { PayloadRequest, Where } from 'payload'
+import type { Payload, PayloadRequest, Where } from 'payload'
 
-import { getStreamVideo, getStreamVideoState, isVideoEncoded, listStreamVideos } from '@/server/bunny/stream.js'
+import type { BunnyStreamCredentials } from '@/server/bunny/stream.js'
+import {
+  getStreamVideo,
+  getStreamVideoOriginalSize,
+  getStreamVideoState,
+  isVideoEncoded,
+  listStreamVideos,
+} from '@/server/bunny/stream.js'
 import { HTTPError } from '@/server/http/index.js'
 import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
 import type { BunnyStreamData, StreamVideoState } from '@/shared/types/index.js'
@@ -63,5 +70,39 @@ export const fetchStreamVideoState = async (
       return { encoded: false, state: 'failed' }
     }
     throw err
+  }
+}
+
+export const checkStreamOriginalSize = async ({
+  apiKey,
+  collection,
+  doc,
+  libraryId,
+  logger,
+  videoId,
+}: {
+  collection: string
+  doc: { filesize?: unknown; id: number | string }
+  logger: Payload['logger']
+  videoId: string
+} & BunnyStreamCredentials): Promise<void> => {
+  if (typeof doc.filesize !== 'number' || doc.filesize <= 0) {
+    return
+  }
+  let original: number
+  try {
+    original = await getStreamVideoOriginalSize({ apiKey, libraryId, videoId })
+  } catch {
+    return
+  }
+  if (original > 0 && original !== doc.filesize) {
+    logger.warn({
+      collection,
+      docId: doc.id,
+      filesize: doc.filesize,
+      msg: '[bunny:stream] the original file in Bunny Stream does not match the stored file size',
+      original,
+      videoId,
+    })
   }
 }

@@ -1,9 +1,11 @@
 ---
 title: 'Cache purge'
-description: "Invalidate Bunny's CDN edge cache automatically after every upload and delete."
+description: "Invalidate Bunny's CDN edge cache automatically after a file is deleted."
 ---
 
-The CDN caches your files at edge locations around the world. When you replace a file, visitors might still see the old cached copy. `purge` tells Bunny to invalidate the cached copy immediately after every upload and delete.
+The CDN caches your files at edge locations around the world. Every upload goes to a new folder, so it has a new URL, and visitors never see an old cached copy of a replaced file. A deleted file is different: the edge can still serve its cached copy until the cache expires. `purge` tells Bunny to invalidate the cached copy right after a file is deleted.
+
+The plugin does not purge after an upload, because the URL of a new upload is not in the cache yet. A file is deleted when you delete a document, and when Payload removes a file that no document or version uses any more. See [Files, versions and rename](/v4/configuration/storage/overview#files-versions-and-rename).
 
 ```ts payload.config.ts
 bunnyStorage({
@@ -16,9 +18,9 @@ bunnyStorage({
 
 ## Options
 
-| Option  | Type      | Default | Description                                                                |
-| ------- | --------- | ------- | -------------------------------------------------------------------------- |
-| `async` | `boolean` | `false` | If `true`, the upload/delete request doesn't wait for the purge to finish. |
+| Option  | Type      | Default | Description                                                         |
+| ------- | --------- | ------- | ------------------------------------------------------------------- |
+| `async` | `boolean` | `false` | If `true`, the delete request doesn't wait for the purge to finish. |
 
 Pass `purge: true` for defaults, `purge: false` to disable, or an object to customize:
 
@@ -49,7 +51,7 @@ If you don't want to manage an account API key, [`urlTransform.appendTimestamp`]
 
 | Approach                              | Setup                 | Effect                                                       |
 | ------------------------------------- | --------------------- | ------------------------------------------------------------ |
-| Cache purging (`purge`)               | Needs `accountApiKey` | Immediate, global invalidation on every change               |
+| Cache purging (`purge`)               | Needs `accountApiKey` | Immediate, global invalidation when a file is deleted        |
 | Timestamp busting (`appendTimestamp`) | No extra credentials  | Only helps once a client re-requests the (now different) URL |
 
 ## Collection overrides

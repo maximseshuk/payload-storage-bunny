@@ -7,16 +7,60 @@ This guide covers upgrading between versions of the Bunny Storage plugin.
 
 ## v4.0.0-beta.1 to v4.0.0-beta.2
 
-### 1. Add the `status` column (SQL databases)
+### 1. Update Payload to 4.0.0-beta.1
 
-Stream collections now store the encoding state of each video in `bunnyData.stream.status`. On Postgres, SQLite and D1, this is a new indexed column (`bunny_data_stream_status`) on each Stream collection's table. Create and run a migration:
+The plugin now needs Payload `4.0.0-beta.0` or later, and with it Next.js `>=16.4 <17`. Canary builds of Payload are not supported. Update `payload`, `@payloadcms/plugin-cloud-storage`, `@payloadcms/ui` and your other `@payloadcms/*` packages to `4.0.0-beta.1`, the same exact version for all of them. `@payloadcms/ui` and React 19 (`react`, `react-dom`) are new peer dependencies. If you use the [media preview plugin](/v4/guides/media-preview), update it to `2.0.0-beta.3` or later with `npm install @seshuk/payload-plugin-media-preview@beta`. Follow the [Payload 4 migration guide](https://payloadcms.com/docs/beta/migration-guide/v4) for the changes in Payload itself.
+
+Payload 4 removed the top-level `sharp` option. If your config still sets it, Payload stops at startup with ``The top-level `sharp` config option was removed in Payload 4.0.`` Remove the option, or run Payload's codemod:
+
+```bash
+npx @payloadcms/codemod --transform migrate-sharp-to-transformer
+```
+
+Payload renamed image sizes to variants. You declare them in `sharpTransformer({ collections: { <slug>: { variants } } })` from `@payloadcms/transformer-sharp` instead of `upload.imageSizes`, and documents store them under `variants` instead of `sizes`. The plugin follows this: `thumbnail.sizeName` names a variant, and the stored files of each variant are read from `variants`.
+
+With any upload transformer set, Payload sends every `/api/<collection>/file/` request through the transformers, which look the file up by document. So the `thumbnailURL` of a Stream video, with Payload access control on, now points to `<routes.api>/storage-bunny/stream/thumbnail/<collection>/<id>/<videoId>/thumbnail.jpg` instead of `/api/<collection>/file/bunny:stream:<videoId>:thumbnail.jpg`. With `streamAnimated`, both end with `preview.webp` instead. `<routes.api>` is the API route of your Payload config, `/api` by default. The old URL always started with `/api`. API responses get the new URL on their own, because `thumbnailURL` is computed on read. Old URLs that you copied somewhere else return `404`. Read `thumbnailURL` again to get the new ones. See [Thumbnail URLs](/v4/configuration/thumbnails#thumbnail-urls).
+
+Some plugin options are renamed or merged since beta.1. The plugin throws at startup and names the new key for each old one, for example `[@seshuk/payload-storage-bunny] storage.s3.region was removed, use storage.region with storage.s3: true`. It also checks every `collections.<slug>`, even with `enabled: false`.
+
+| v4.0.0-beta.1                                        | v4.0.0-beta.2                                              |
+| ---------------------------------------------------- | ---------------------------------------------------------- |
+| `storage.s3: { region }`                             | `storage.region` and `storage.s3: true`                    |
+| `urlTransform: { transformUrl }`                     | `urlTransform: fn`                                         |
+| `thumbnail.appendTimestamp`, `thumbnail.queryParams` | `thumbnail.urlTransform: { appendTimestamp, queryParams }` |
+| `thumbnail.transformUrl`                             | `thumbnail.urlTransform: fn`                               |
+| `signedUrls.expiresAt`                               | `signedUrls.expiresIn: fn` that returns a `Date`           |
+| `staticHandler.useRedirect`                          | `staticHandler.redirect`                                   |
+| `staticHandler.redirectStatus`                       | `staticHandler.redirect.status`, `302` or `307` only       |
+| `staticHandler.expiresIn`                            | `staticHandler.redirect.expiresIn`                         |
+| `stream.tus.checkAccess(req, body)`                  | `stream.tus.access({ req, data, defaultAccess })`          |
+| `telemetry.endpoint`                                 | `telemetry.url`                                            |
+
+See [Update the renamed options](#3-update-the-renamed-options) for the details of each change. These changes do not throw an error:
+
+- A collection `stream.tus: true` now turns TUS on for that collection. In beta.1, only `false` or an object was accepted.
+- `collections.<slug>: false` now leaves the collection out. In beta.1, a collection took options or `true`.
+- Exports and types ending in `Config` now end in `Options`, for example `getBunnyConfig()` is now `getBunnyOptions()` and `BunnyStorageConfig` is now `BunnyStorageOptions`. TypeScript shows an error for each old name.
+- New options: `stream.status`, `stream.preview` (also per collection) and `tasks.secret`. See [Background tasks](/v4/configuration/background-tasks).
+
+### 2. Create the migrations
+
+Payload 4.0.0-beta.0 stores image variants under `variants` instead of `sizes`. This rename comes from Payload, not from this plugin. Every database needs Payload's predefined `sizes-to-variants` migration for it, MongoDB too, even with `stream.status: false`. Create it first, with the package of your database adapter, for example on Postgres:
+
+```bash
+npx payload migrate:create --file @payloadcms/db-postgres/sizes-to-variants
+```
+
+On other databases, use your adapter's package instead, for example `@payloadcms/db-sqlite/sizes-to-variants`, `@payloadcms/db-d1-sqlite/sizes-to-variants` or `@payloadcms/db-mongodb/sizes-to-variants`. Do not replace this step with a plain `migrate:create` on SQL databases: it drops the `sizes_*` columns and adds empty `variants_*` columns, so the stored variants are lost. See the [Payload 4 migration guide](https://payloadcms.com/docs/beta/migration-guide/v4).
+
+Payload 4.0.0-beta.0 also adds the fields for [file versions](#3-every-upload-gets-its-own-folder): an `original` group on each upload collection, and `prefix` and `_objectKey` on each image variant. Stream collections now also store the encoding state of each video in `bunnyData.stream.status`. On Postgres, SQLite and D1, this is a new indexed column (`bunny_data_stream_status`) on each Stream collection's table. After the `sizes-to-variants` migration, create one migration for all these changes, then run both:
 
 ```bash
 npx payload migrate:create
 npx payload migrate
 ```
 
-In development, Payload pushes the schema for you. MongoDB needs no migration: Payload creates the index on startup. A collection with versions also gets `version_bunny_data_stream_status` in its `_<slug>_v` table. See [Database columns](/v4/guides/stored-data#database-columns) for the full list.
+If your project already has migrations, the `sizes-to-variants` migration also writes a new schema snapshot with the renamed columns. The second `migrate:create` then keeps them and adds the new columns. It also picks up the other schema changes of Payload 4.0.0-beta.0, so check the migration before you run it. On MongoDB, skip the second `migrate:create` and only run `npx payload migrate`: the new fields need no migration, and Payload creates the plugin's index on startup. In development, Payload pushes the new column for you. Run the `sizes-to-variants` migration first there too: without it, the push can offer to drop the `sizes_*` columns. On Postgres and SQLite, a database that Payload pushed in development makes `npx payload migrate` ask `It looks like you've run Payload in dev mode, meaning you've dynamically pushed changes to your database. If you'd like to run migrations, data loss will occur. Would you like to proceed?` The default is No. Run the command in a terminal to answer it. A script or CI job without a terminal cannot answer, so run your migrations against a database that Payload never pushed to. A collection with versions also gets `version_bunny_data_stream_status` in its `_<slug>_v` table. See [Database columns](/v4/guides/stored-data#database-columns) for the full list.
 
 If you use generated types, regenerate them. `bunnyData.stream.status` and the `bunnyStream` admin field are new in the types:
 
@@ -26,13 +70,67 @@ npx payload generate:types
 
 Existing videos have no `status` at first. In the list, they show **Unknown** and do not match the **Stream Status** filter. [Status sync](/v4/configuration/background-tasks#status-sync) skips them, because it checks only videos stored as `processing`. Saving such a document keeps the empty status. To store the state, open the document in the admin. The [media preview](/v4/guides/media-preview#processing-state) and the **Bunny Stream** card ask Bunny for the state and store it.
 
-To keep the old behavior, set `stream.status: false` and `stream.preview: false`. Then the plugin adds no column, and the edit view keeps Payload's own video and audio player. You still need to [regenerate the import map](#3-regenerate-the-import-map) for TUS uploads and for the media preview adapter.
+To keep the old behavior, set `stream.status: false` and `stream.preview: false`. Then the plugin adds no column, and the edit view keeps Payload's own video and audio player. You still need to [regenerate the import map](#8-regenerate-the-import-map) for TUS uploads and for the media preview adapter.
 
-### 2. Webhook writes skip collection hooks
+### 3. Every upload gets its own folder
+
+Payload now manages stored files by their storage key. Every upload through the Payload server or through [client uploads](/v4/configuration/storage/client-uploads) goes to a new folder:
+
+```text
+<prefix>/<uuid>/<name>-original.<ext>
+```
+
+`<prefix>` is the `prefix` stored on the document. It is the collection prefix, or the document prefix placed under the collection prefix. The processed file and the image variants go to the same folder. The document stores the folder in `prefix` and `_objectKey`, and the source file in the `original` group. Documents from earlier versions keep their keys. Payload starts to manage them the first time their file changes.
+
+- **Client uploads.** The stored `prefix` no longer includes the UUID. The UUID is stored in `_objectKey`. Documents from beta.1 keep the UUID in `prefix`. An access rule or query with `prefix: { like: 'tenants/acme/' }` now matches no new upload, because a new `prefix` has no trailing slash. Match both shapes with an `or` of `prefix: { equals: 'tenants/acme' }` and `prefix: { like: 'tenants/acme/' }`. See [Querying by prefix](/v4/configuration/storage/client-uploads#querying-by-prefix).
+- **Stream.** A new video in Bunny is named after the uploaded file, without Payload's `-original` suffix. A document saved with a TUS video gets the same fields: its file name is the video title with `-original`, for example `clip-original.mp4`.
+- **Duplicate names.** Payload adds a number to a file name that is already used. Client uploads, also videos from the bulk upload drawer, check the name in the whole collection. TUS saves check it only within the document's prefix.
+
+### 4. Replaced files stay while a version uses them
+
+What happens to a replaced file or video now depends on `versions`. Payload 4 turns `versions` on for every collection that does not set `versions: false`, with `maxPerDoc: 100`.
+
+- **With `versions: false`**, the old file or video is deleted when you replace it, as before.
+- **With `versions`**, a replaced file stays in Bunny Storage, and a replaced video stays in your Stream library, while any document or version references it. So restoring a version brings back a working file. It is deleted after its last reference is gone: when you replace the file, delete the document, change a draft, or when Payload removes old versions because of `maxPerDoc`. For videos, documents and versions in every collection that uses the same library count.
+
+Only operations through Payload delete files and videos. Changes made directly in the database, for example with SQL or `payload.db.*`, do not. Before, a TUS save deleted the old video right away, unless the published document still used it.
+
+`payload.renameFile`, the rename operation in REST and GraphQL, and restoring a version now copy the stored files to new keys. In [S3 mode](/v4/configuration/storage/overview#s3-mode), the plugin uses S3 `CopyObject`. Over the HTTP API, it downloads the file and uploads it again through your server. Bunny then sets the `Content-Type` from the file extension, so a custom type is not kept. Stream videos are not copied: the old and the new key point to the same video.
+
+The copy does not overwrite a file that exists at the new key when the copy starts. A rename then fails with `409`. A restore fails with a server error instead, because Payload maps only rename collisions to `409`. A restore rarely collides, because it gives the file a new name with a random ID. In S3 mode, `CopyObject` sends `If-None-Match: *`, so the check is atomic. Over the HTTP API, the plugin checks the key right before the upload. So two requests that copy to the same key at the same time can overwrite each other. See [Rename and restore](/v4/configuration/storage/overview#rename-and-restore).
+
+Payload names the renamed or restored file, not the plugin:
+
+- A rename adds Payload's `-original` suffix to a file that has no variants. Renaming to `x.jpg` stores `x-original.jpg`, also in `filename`.
+- A restore keeps the name of a file that the current document still uses. It copies every other file of the version to a new name with a random ID, for example `photo-original-<uuid>.jpg`.
+- Replacing the file of a document with a file of the same name adds a number, for example `clip-original-1.mp4`, because the document itself still uses the old name. The video title in Bunny stays `clip.mp4`.
+
+Rename can hang on Postgres or PGlite when the database pool has a single connection. This is a Payload issue, see [payloadcms/payload#18406](https://github.com/payloadcms/payload/issues/18406).
+
+### 5. No cache purge on upload
+
+The plugin no longer purges the CDN cache after an upload, because every upload writes a new key. It still purges the plain CDN URL with a trailing `*` when Payload deletes a file and `purge` is on. See [Cache purge](/v4/configuration/cache-purge).
+
+### 6. TUS saves send no file
+
+A collection with TUS now gets `upload.filesRequiredOnCreate: false`, because the admin saves a video ID instead of a file. The plugin checks the rule itself: a create needs a file or a verified TUS video. Draft saves skip this check. If your collection sets `filesRequiredOnCreate: false`, the plugin requires neither.
+
+Custom TUS clients create or update the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken`, and no file. `tus-auth` no longer accepts `head` and no longer returns `filename` or `signedReceipt`. See [TUS uploads](/v4/configuration/stream/tus).
+
+`tus-auth` now creates the TUS upload in Bunny with the declared `filesize`. It returns `uploadUrl`, `headers` and `expiresIn` instead of `authorizationSignature`, `authorizationExpire` and `thumbnailTime`. Send the file to `uploadUrl` with `PATCH` requests and these headers. Do not create an upload with `POST` to the Bunny TUS endpoint. The headers are valid for `expiresIn` seconds, at most 5 minutes. For a longer upload, call `tus-auth` again with `videoId`, `videoToken` and `renew: true` to get new headers for the same upload. In renew mode, `tus-auth` never creates a video and answers `409` when it cannot renew the upload. `stream.tus.expiresIn` is now the time that Bunny keeps an unfinished upload. The saved `filesize` is the size of the upload, and a save before the upload is complete fails with `400`.
+
+Videos saved from the bulk upload drawer, or from the edit view without TUS mode, still go to Bunny Stream over TUS, but only when Payload does not need to read the whole file. Payload reads the whole file when the collection sets `upload.mimeTypes`, to check the type. It also reads it when an upload transformer with `transformFile` handles video, for example with `mimeTypes: ['*/*']`. The `sharpTransformer` does not count. In these cases, the plugin does not take these videos:
+
+- A collection that stores files only in Stream (`storage: false`) uploads them through your server. Payload's request size limits apply.
+- A collection with [client uploads](/v4/configuration/storage/client-uploads) rejects them with `File type "<type>" uploads to Bunny Stream, not through client uploads`.
+
+To keep large videos off your server, use TUS mode in the edit view, or remove `upload.mimeTypes` and limit types with Stream `mimeTypes`. A document saved this way stores the Bunny video ID as its `_objectKey`. The plugin creates the TUS upload with the declared file size, so Bunny rejects a larger file. A save before the upload is complete, or with another size, fails with `400`. These uploads cannot be cancelled and do not resume. See [Bulk uploads and form saves](/v4/configuration/stream/tus#bulk-uploads-and-form-saves).
+
+### 7. Webhook writes skip collection hooks
 
 The [webhook](/v4/configuration/stream/webhooks) now writes `bunnyData.stream` straight to the database, also with `stream.status: false`, where it only updates `resolutions`. It no longer runs your collection hooks (`beforeChange`, `afterChange` and others), does not create a new version and does not change `updatedAt`. If a hook of yours reacted to the webhook's `resolutions` update, for example to revalidate a page, run that logic another way, for example in a job that reads `bunnyData.stream`.
 
-### 3. Regenerate the import map
+### 8. Regenerate the import map
 
 Stream collections now have a [Bunny Stream status field](/v4/guides/stored-data#bunny-stream-status-in-the-admin) with its own list cell and sidebar components. If you use the [media preview](/v4/guides/media-preview), the Bunny Stream adapter also uses its own preview component. Regenerate the import map, or the admin cannot find the components:
 
@@ -44,7 +142,7 @@ Collections with TUS uploads need it too. Their upload area now loads from `@ses
 
 The edit view of Stream video and audio files now shows the Bunny Stream player from `@seshuk/payload-storage-bunny/client#StreamFilePreview`, also without the media preview plugin. It needs the import map too. Set `stream.preview: false` to keep Payload's built-in video and audio player.
 
-### 4. Optional: background tasks
+### 9. Optional: background tasks
 
 You can now run the Stream tasks without Payload jobs, and keep the stored status up to date with the new `stream.status.sync` task. See [Background tasks](/v4/configuration/background-tasks).
 
@@ -53,16 +151,17 @@ You can now run the Stream tasks without Payload jobs, and keep the stored statu
 v4 supports Payload 4. It follows the new storage adapter API, so most changes come from Payload itself. Do steps 1 to 4 first. The later steps only apply to some apps.
 
 <Info>
-  **Requires Payload 4 and Node.js 24.15 or later.** Upgrade Node and Payload first. Follow the [Payload 4 migration
-  guide](https://payloadcms.com/docs/migration-guide/v4) for the changes in Payload itself.
+  **Requires Payload `4.0.0-beta.0` or later and Node.js 24.15 or later.** Canary builds of Payload are not supported.
+  Upgrade Node and Payload first. Follow the [Payload 4 migration
+  guide](https://payloadcms.com/docs/beta/migration-guide/v4) for the changes in Payload itself.
 </Info>
 
 ### 1. Update Node and the packages
 
-Payload 4 needs Node.js 24.15 or later. Then install v4 of the plugin and the matching cloud storage plugin:
+Payload 4 needs Node.js 24.15 or later. Then install v4 of the plugin and its peer dependencies. Use the same exact version for the `@payloadcms/*` packages and your `payload` package:
 
 ```bash
-pnpm add @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@canary
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.1 @payloadcms/translations@4.0.0-beta.1 @payloadcms/ui@4.0.0-beta.1 sanitize-filename@1.6.4
 ```
 
 ### 2. Register the adapter under `storage`
@@ -129,25 +228,29 @@ These changes do not throw an error. Check them if they apply to your app:
 
 - The `prefix` argument of a `urlTransform` function is now only the document's own `prefix` field. In v3 it also contained the collection `prefix`. If your function builds a path from `prefix`, add the collection prefix yourself.
 - A collection `thumbnail` now keeps the global `thumbnail.urlTransform` unless it sets its own. In v3, a collection that only set `sizeName` lost the global transform function.
+- `thumbnail.sizeName` now names a variant from `sharpTransformer({ collections: { <slug>: { variants } } })`, not an entry of `upload.imageSizes`. See [Using a named image size](/v4/configuration/thumbnails#using-a-named-image-size).
 - A collection set to `false` is now left out, together with its hidden `prefix` field, so the SQL schema changes. In v3, `false` turned the collection on. To switch the plugin with an environment variable, use `enabled`.
 - A collection `stream.tus: true` or `stream.tus: { ... }` now turns TUS on for that collection, even when the global `stream.tus` is off. In v3, it was ignored.
 - When a collection sets `generateFileURL` and `signedUrls.userIp` is set, the plugin now keeps the `generateFileURL` result. In v3, it replaced it with an IP-locked signed URL.
-- Cache purge now purges the plain CDN URL with a trailing `*`. This also clears cached copies with query strings, such as signed or transformed URLs.
+- Cache purge now purges the plain CDN URL with a trailing `*`. This also clears cached copies with query strings, such as signed or transformed URLs. The plugin purges only when Payload deletes a file, not after an upload, because every upload writes a new key.
+- Payload 4 turns `versions` on by default. With `versions`, a replaced file or Stream video stays in Bunny while a document or version references it. Set `versions: false` to delete it on replace, as before. See [Replaced files stay while a version uses them](#4-replaced-files-stay-while-a-version-uses-them).
+- A collection with TUS gets `upload.filesRequiredOnCreate: false`, and the plugin checks the rule itself. See [TUS saves send no file](#6-tus-saves-send-no-file).
 
 ### 4. Add the `prefix` column (SQL databases)
 
 Every upload collection that uses the plugin now has a hidden `prefix` field. Payload adds it even when the collection has no static `prefix`, and even when you set `enabled: false`. This keeps the schema the same in every environment.
 
-On Postgres, SQLite and D1, `prefix` is a new column on each upload collection's table. Payload also adds a hidden `_objectKey` field. Create and run a migration:
+On Postgres, SQLite and D1, `prefix` is a new column on each upload collection's table. Payload also adds a hidden `_objectKey` field, an `original` group, and `prefix` and `_objectKey` on each image variant. Payload 4.0.0-beta.0 also renames image `sizes` to `variants`. So on every database, MongoDB too, first create Payload's predefined `sizes-to-variants` migration with the package of your database adapter, as shown in [Create the migrations](#2-create-the-migrations). Then create a migration for the other changes and run both, for example on Postgres:
 
 ```bash
+npx payload migrate:create --file @payloadcms/db-postgres/sizes-to-variants
 npx payload migrate:create
 npx payload migrate
 ```
 
-In development, Payload pushes the schema for you. MongoDB needs no migration. The column defaults to the collection's static `prefix`, or an empty string, so existing rows keep resolving to the same files.
+In development, Payload pushes the schema for you. Run the `sizes-to-variants` migration first there too: without it, the push can offer to drop the `sizes_*` columns, and the stored image sizes are lost. On MongoDB, skip the second `migrate:create` and only run `npx payload migrate`: the new fields need no migration of their own. The column defaults to the collection's static `prefix`, or an empty string, so existing rows keep resolving to the same files.
 
-Stream collections also get an indexed `bunny_data_stream_status` column for the stored [encoding state](/v4/guides/stored-data). Payload 4 has more schema changes of its own, such as versions and job fields. One `migrate:create` run covers them all.
+Stream collections also get an indexed `bunny_data_stream_status` column for the stored [encoding state](/v4/guides/stored-data). Payload 4 has more schema changes of its own, such as versions and job fields. The plain `migrate:create` run covers them all.
 
 If you use Bunny Stream, run `npx payload generate:importmap` after the upgrade. Stream collections get a [Bunny Stream status field](/v4/guides/stored-data#bunny-stream-status-in-the-admin) with its own components, and the media preview adapter uses its own preview component.
 
@@ -195,7 +298,7 @@ await fetch('/api/media', { method: 'POST', credentials: 'include', body: formDa
 
 See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-upload-clients) for a version with error handling.
 
-For Stream client uploads, `tus-auth` no longer returns `clientUploadContext`. When you send `head`, it returns `filename` and `signedReceipt`. Send the file as `{ filename, mimeType, size, uploadReference: { signedReceipt } }` with the document.
+For Stream uploads, `tus-auth` no longer accepts `head` and no longer returns `clientUploadContext`. Upload the video over TUS, then save the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken` and no file. See [Custom TUS clients](/v4/configuration/stream/tus).
 
 ### 7. Read errors from `errors`
 
@@ -207,18 +310,9 @@ Client upload errors now use Payload's standard error format:
 
 v3 returned `{ "error": "..." }`. Read `errors[0].message` instead. Some status codes changed too, because Payload now runs its own checks first. For example, a file over `upload.limits.fileSize` gets `400`, and a file type the collection does not accept gets a validation error. Check `response.ok` rather than exact codes. The `tus-auth` endpoint already used this format.
 
-### 8. Client upload keys have a UUID folder
+### 8. Every upload has a UUID folder
 
-Client uploads now store each file under its own random folder: `<prefix>/<uuid>/<filename>`. The stored `prefix` includes the UUID, for example `uploads/tenants/acme/3f2a…`.
-
-If your access rules or queries match the stored `prefix` with `equals`, switch to `like`:
-
-```diff
-- prefix: { equals: `uploads/tenants/${tenant}` },
-+ prefix: { like: `uploads/tenants/${tenant}/` },
-```
-
-Files that are already stored keep their path. Server-side uploads do not get a UUID folder.
+Payload now stores each upload, from the server or from client uploads, under its own random folder: `<prefix>/<uuid>/<name>-original.<ext>`. The stored `prefix` stays the folder you configured, and the UUID is stored in `_objectKey`. Access rules and queries that match `prefix` with `equals` keep working. Files that are already stored keep their path. With `versions`, a replaced file stays in Bunny while a version uses it. See [Replaced files stay while a version uses them](#4-replaced-files-stay-while-a-version-uses-them).
 
 ### 9. `clientUploads.access` only narrows
 
@@ -301,7 +395,7 @@ v3.1.0 requires Payload 3.90.2 or later. If you are on v3.0.1 with an older Payl
 `@payloadcms/plugin-cloud-storage` is now a peer dependency. Add it next to the plugin, in the version that matches your Payload version:
 
 ```bash
-pnpm add @payloadcms/plugin-cloud-storage
+npm install @payloadcms/plugin-cloud-storage
 ```
 
 ### 2. Redeploy the Edge Script

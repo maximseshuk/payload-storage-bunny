@@ -34,7 +34,9 @@ describe('openapi metadata', () => {
     const endpoints = getStreamEndpoints(options)
     const tusAuth = endpoints.find((endpoint) => endpoint.path === '/storage-bunny/stream/tus-auth')
     const webhook = endpoints.find((endpoint) => endpoint.path === '/storage-bunny/stream/webhook')
-    const status = endpoints.find((endpoint) => endpoint.path === '/storage-bunny/stream/status/:collection/:id')
+    const status = endpoints.find(
+      (endpoint) => endpoint.path === '/storage-bunny/stream/status/:collection/:id/:videoId',
+    )
 
     expect(tusAuth?.custom?.openapi).toBe(tusAuthOperation)
     expect(webhook?.custom?.openapi).toBe(streamWebhookOperation)

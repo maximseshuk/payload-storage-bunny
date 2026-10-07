@@ -369,25 +369,46 @@ describe('runStreamCleanup', () => {
       getVideoMock.mockResolvedValue({ status: BunnyStreamVideoStatus.Finished })
     })
 
+    const buildDb = (docRef: unknown, versionDocs: unknown[] = []) => ({
+      collections: { alpha: { config: { versions: { maxPerDoc: 10 } } } },
+      db: {
+        findOne: vi.fn().mockResolvedValue(docRef),
+        findVersions: vi.fn().mockResolvedValue({ docs: versionDocs }),
+      },
+    })
+
     it('deletes a video that no document references', async () => {
-      const count = vi.fn().mockResolvedValue({ totalDocs: 0 })
       const deleteDoc = vi.fn().mockResolvedValue({})
+      const extras = buildDb(null)
 
-      await run(options, sessionFindImpl, { count, delete: deleteDoc })
+      await run(options, sessionFindImpl, { ...extras, delete: deleteDoc })
 
-      expect(count).toHaveBeenCalledTimes(1)
-      expect(count).toHaveBeenCalledWith(
+      expect(extras.db.findOne).toHaveBeenCalledWith(
         expect.objectContaining({ collection: 'alpha', where: { 'bunnyData.stream.videoId': { equals: 'v1' } } }),
+      )
+      expect(extras.db.findVersions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: 'alpha',
+          where: { 'version.bunnyData.stream.videoId': { equals: 'v1' } },
+        }),
       )
       expect(deleteVideoMock).toHaveBeenCalledWith(expect.objectContaining({ libraryId: 111, videoId: 'v1' }))
       expect(deleteDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 's-1' }))
     })
 
     it('keeps a video that a document references and drops only its session', async () => {
-      const count = vi.fn().mockResolvedValue({ totalDocs: 1 })
       const deleteDoc = vi.fn().mockResolvedValue({})
 
-      await run(options, sessionFindImpl, { count, delete: deleteDoc })
+      await run(options, sessionFindImpl, { ...buildDb({ id: 'doc-1' }), delete: deleteDoc })
+
+      expect(deleteVideoMock).not.toHaveBeenCalled()
+      expect(deleteDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 's-1' }))
+    })
+
+    it('keeps a video that only a version references', async () => {
+      const deleteDoc = vi.fn().mockResolvedValue({})
+
+      await run(options, sessionFindImpl, { ...buildDb(null, [{ id: 'version-1' }]), delete: deleteDoc })
 
       expect(deleteVideoMock).not.toHaveBeenCalled()
       expect(deleteDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 's-1' }))

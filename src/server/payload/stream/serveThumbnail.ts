@@ -50,10 +50,20 @@ export const streamThumbnailStaticHandler = async ({
   try {
     const fetchUrl = maybeGenerateSignedUrl(thumbnailUrl, context)
     const headers = new Headers()
+    for (const name of ['if-modified-since', 'if-none-match']) {
+      const value = req.headers.get(name)
+      if (value) {
+        headers.set(name, value)
+      }
+    }
     if (streamOptions.referer) {
       headers.set('Referer', streamOptions.referer)
     }
     const response = await httpFetch(fetchUrl, { headers, stream: true, throwHttpErrors: false })
+
+    if (response.status === 304) {
+      return new Response(null, { headers: copyHeaders(response.headers), status: 304 })
+    }
 
     if (response.status === 401 || response.status === 403) {
       return new Response(

@@ -68,6 +68,8 @@ A short video can finish encoding before your app saves the document. Bunny then
 
 When the status check or status sync stores `ready`, Bunny has finished encoding the video, `mp4Fallback` is on and the document has no `resolutions` yet, they fetch the MP4 `resolutions` and store them in the same write. If that fetch fails or Bunny returns no MP4 resolutions yet, they do not store `ready`: the document stays `processing`, so the next check or run tries again. A `429` answer during status sync also stops the run.
 
+When the webhook, the status check or status sync stores `ready`, the plugin also compares the size of the original file in Bunny with the stored `filesize`. Without `stream.status`, the webhook does this when it stores new MP4 resolutions. It logs a warning when the sizes differ. It runs the check once: a repeated webhook that changes nothing, or that another request has already stored, skips it. See [Size check after encoding](/v4/configuration/stream/tus#size-check-after-encoding).
+
 <Tip>
 
 When a video finishes encoding and `mp4Fallback` is enabled, the webhook looks up the matching document by `bunnyData.stream.videoId` and updates `bunnyData.stream.resolutions` with the available MP4 renditions. Until then, `resolutions` stays empty even if `mp4Fallback` is on, because encoding happens asynchronously on Bunny's side. With `stream.status` on, the webhook does not store `ready` before Bunny has MP4 resolutions. With `stream.status` on, the save-time check, the status check and status sync can also fill `resolutions`, but only when Bunny has already finished encoding the video at the moment they store the state. Otherwise the webhook or the first MP4 fallback request fills them.

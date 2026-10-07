@@ -1,25 +1,26 @@
-import { Forbidden, MissingFile, ValidationError } from 'payload'
-import { createClientUploadReceipt } from 'payload/internal'
+import { MissingFile, ValidationError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { deleteSessionMock, getSafeFileNameMock, getVideoMock, handleDeleteMock, isProcessedMock, saveStateMock } =
-  vi.hoisted(() => ({
-    deleteSessionMock: vi.fn(),
-    getSafeFileNameMock: vi.fn(),
-    getVideoMock: vi.fn(),
-    handleDeleteMock: vi.fn(),
-    isProcessedMock: vi.fn(),
-    saveStateMock: vi.fn(),
-  }))
+const { deleteSessionMock, getOffsetMock, getVideoMock, originalSizeMock, saveStateMock } = vi.hoisted(() => ({
+  deleteSessionMock: vi.fn(),
+  getOffsetMock: vi.fn(),
+  getVideoMock: vi.fn(),
+  originalSizeMock: vi.fn(async () => 0),
+  saveStateMock: vi.fn(),
+}))
 
 vi.mock('@/server/bunny/stream.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/server/bunny/stream.js')>()
   saveStateMock.mockImplementation(actual.getStreamSaveState)
   return {
     getStreamSaveState: saveStateMock,
+    getStreamTusUpload: actual.getStreamTusUpload,
+    getStreamTusUploadOffset: getOffsetMock,
     getStreamVideo: getVideoMock,
+    getStreamVideoOriginalSize: originalSizeMock,
     getStreamVideoState: actual.getStreamVideoState,
-    isVideoProcessed: isProcessedMock,
+    isVideoInErrorState: actual.isVideoInErrorState,
+    isVideoProcessed: actual.isVideoProcessed,
   }
 })
 
@@ -27,19 +28,14 @@ vi.mock('@/server/payload/stream/sessionsCollection.js', () => ({
   deleteStreamVideoSession: deleteSessionMock,
 }))
 
-vi.mock('@/server/payload/storage/handleDelete.js', () => ({
-  getHandleDelete: vi.fn(() => handleDeleteMock),
-}))
-
-vi.mock('@/server/files.js', () => ({
-  getSafeFileName: getSafeFileNameMock,
-}))
-
-const { getAfterChangeHook, getBeforeValidateHook, getStreamBeforeChangeHook } =
+const { getAfterChangeHook, getBeforeValidateHook, getStreamBeforeChangeHook, getStreamFileChangeBeforeOperationHook } =
   await import('@/server/payload/stream/hooks.js')
-const { signClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
 
 import type { CollectionContext } from '@/shared/types/index.js'
+
+import { httpError } from '../../../../helpers/unit/httpError.js'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionContext =>
   ({
@@ -49,20 +45,6 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
     usePayloadAccessControl: true,
     ...overrides,
   }) as unknown as CollectionContext
-
-const receiptFor = (videoId: string, { collectionSlug = 'media', filename = 'big.mp4' } = {}) =>
-  signClientUpload({
-    claims: { head: '', videoId },
-    collectionSlug,
-    filename,
-    prefix: '',
-    req: { payload: { secret: 'payload-secret' } } as never,
-  })
-
-const clientUpload = (signedReceipt?: string) => ({
-  name: 'big.mp4',
-  uploadReference: { prefix: '', ...(signedReceipt !== undefined && { signedReceipt }) },
-})
 
 const emptyOptions = { collections: new Map() } as never
 
@@ -95,6 +77,21 @@ describe('stream hooks', () => {
       )
     })
 
+    it('throws MissingFile when validating a new document without a file, but not an existing one', async () => {
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: true,
+      })
+      await expect(hook({ data: {}, operation: 'validate', req: buildReq() } as never)).rejects.toBeInstanceOf(
+        MissingFile,
+      )
+      await expect(
+        hook({ data: {}, operation: 'validate', originalDoc: { id: 1 }, req: buildReq() } as never),
+      ).resolves.toBeDefined()
+      expect(getVideoMock).not.toHaveBeenCalled()
+    })
+
     it('clears the videoId on a normal create with a file', async () => {
       const hook = getBeforeValidateHook({
         options: emptyOptions,
@@ -113,115 +110,20 @@ describe('stream hooks', () => {
       expect(getVideoMock).not.toHaveBeenCalled()
     })
 
-    it('stores the videoId of a client-direct TUS upload after checking it against the library', async () => {
-      getVideoMock.mockResolvedValue({ guid: 'v-client', status: 1 })
-
+    it('skips the file check for a draft create', async () => {
       const hook = getBeforeValidateHook({
         options: emptyOptions,
         context: buildContext(),
         filesRequiredOnCreate: true,
       })
-      const file = clientUpload(receiptFor('v-client'))
 
-      const result = (await hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)) as Record<
-        string,
-        any
-      >
-
-      expect(getVideoMock).toHaveBeenCalledWith({ apiKey: 'stream-key', libraryId: 12345, videoId: 'v-client' })
-      expect(result.bunnyData.stream).toEqual({ status: 'processing', videoId: 'v-client' })
+      await expect(
+        hook({ data: { _status: 'draft' }, operation: 'create', req: buildReq() } as never),
+      ).resolves.toBeDefined()
     })
 
-    it('stores the resolutions of a client-direct upload that is ready when mp4Fallback is on', async () => {
-      const video = { guid: 'v-client', status: 4 }
-      const resolutions = { available: ['720p', '360p'], highest: '720p' }
-      getVideoMock.mockResolvedValue(video)
-      saveStateMock.mockResolvedValueOnce({ resolutions, status: 'ready' })
-      const streamOptions = { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: true }
-
-      const hook = getBeforeValidateHook({
-        options: emptyOptions,
-        context: buildContext({ streamOptions } as never),
-        filesRequiredOnCreate: true,
-      })
-      const req = buildReq({ file: clientUpload(receiptFor('v-client')) })
-
-      const result = (await hook({ data: {}, operation: 'create', req } as never)) as Record<string, any>
-
-      expect(saveStateMock).toHaveBeenCalledWith({
-        apiKey: 'stream-key',
-        libraryId: 12345,
-        logger: (req as any).payload.logger,
-        mp4Fallback: true,
-        video,
-      })
-      expect(result.bunnyData.stream).toEqual({ resolutions, status: 'ready', videoId: 'v-client' })
-    })
-
-    it('clears the old resolutions on a client-direct upload when the status is turned off and mp4Fallback is on', async () => {
-      getVideoMock.mockResolvedValue({ guid: 'v-client', status: 4 })
-
-      const hook = getBeforeValidateHook({
-        options: emptyOptions,
-        context: buildContext({
-          streamOptions: { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: false },
-        } as never),
-        filesRequiredOnCreate: true,
-      })
-      const data = { bunnyData: { stream: { resolutions: { available: ['720p'] }, videoId: 'v-old' } } }
-      const req = buildReq({ file: clientUpload(receiptFor('v-client')) })
-
-      const result = (await hook({ data, operation: 'update', req } as never)) as Record<string, any>
-
-      expect(result.bunnyData.stream).toEqual({ resolutions: null, videoId: 'v-client' })
-    })
-
-    it('rejects a client-direct upload whose video is not in the library', async () => {
-      getVideoMock.mockRejectedValue(new Error('404'))
-
-      const hook = getBeforeValidateHook({
-        options: emptyOptions,
-        context: buildContext(),
-        filesRequiredOnCreate: true,
-      })
-      const file = clientUpload(receiptFor('missing'))
-
-      await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toThrow('404')
-    })
-
-    it.each([
-      ['no receipt', undefined],
-      ['a forged receipt', `${Buffer.from(JSON.stringify({ videoId: 'v-client' })).toString('base64url')}.forged`],
-      ['a receipt for another file', receiptFor('v-client', { filename: 'other.mp4' })],
-      ['a receipt for another collection', receiptFor('v-client', { collectionSlug: 'other' })],
-      [
-        'a receipt signed with another secret',
-        createClientUploadReceipt({
-          collectionSlug: 'media',
-          filename: 'big.mp4',
-          filePrefix: '',
-          req: { payload: { secret: 'other-secret' } } as never,
-          storageFilePath: JSON.stringify({ videoId: 'v-client' }),
-        }),
-      ],
-    ])('requires a valid signed receipt for a client-direct upload (%s)', async (_label, signedReceipt) => {
-      const hook = getBeforeValidateHook({
-        options: emptyOptions,
-        context: buildContext(),
-        filesRequiredOnCreate: true,
-      })
-      const file = clientUpload(signedReceipt)
-
-      await expect(hook({ data: {}, operation: 'create', req: buildReq({ file }) } as never)).rejects.toBeInstanceOf(
-        Forbidden,
-      )
-      expect(getVideoMock).not.toHaveBeenCalled()
-    })
-
-    it('processes a TUS video on create when a videoId is supplied without a file', async () => {
-      getVideoMock.mockResolvedValue({ guid: 'v-123', status: 4, storageSize: 4096, title: 'Great Video' })
-      isProcessedMock.mockReturnValue(true)
-      getSafeFileNameMock.mockResolvedValue('great-video.mp4')
+    it('fills the managed file fields of a TUS video saved by videoId without a file', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-123', status: 4, storageSize: 4096, title: 'great-video.mp4' })
 
       const hook = getBeforeValidateHook({
         options: emptyOptions,
@@ -232,18 +134,122 @@ describe('stream hooks', () => {
 
       const result = (await hook({ data, operation: 'create', req: buildReq() } as never)) as Record<string, any>
 
-      expect(result.filename).toBe('great-video.mp4')
-      expect(result.width).toBeNull()
-      expect(result.mimeType).toBe('video/mp4')
-      expect(result.filesize).toBe(4096)
+      expect(result).toMatchObject({
+        filename: 'great-video-original.mp4',
+        filesize: 4096,
+        focalX: null,
+        focalY: null,
+        height: null,
+        mimeType: 'video/mp4',
+        prefix: '',
+        width: null,
+      })
+      expect(result._objectKey).toMatch(UUID)
+      expect(result.original).toEqual({
+        _objectKey: result._objectKey,
+        filename: 'great-video-original.mp4',
+        filesize: 4096,
+        mimeType: 'video/mp4',
+        prefix: '',
+      })
       expect(result.bunnyData.stream).toEqual({ status: 'ready', videoId: 'v-123' })
+    })
+
+    it('stores the verified client upload video and keeps the file fields from Payload', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-123', status: 2, storageSize: 0, title: 'clip.mp4' })
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext({ streamOptions: { ...buildContext().streamOptions!, mimeTypes: ['video/*'] } }),
+        filesRequiredOnCreate: true,
+      })
+      const fileFields = { _objectKey: 'v-123', filename: 'clip-original.mp4', filesize: 10, prefix: 'media' }
+      const file = { mimetype: 'video/mp4', uploadReference: { _objectKey: 'v-123', signedReceipt: 'receipt' } }
+      const verified = { _objectKey: 'v-123', key: 'media/staged/clip-original.mp4', signedReceipt: 'receipt' }
+      const req = buildReq({
+        context: { _payloadVerifiedProviderOriginal: verified, bunnyVerifiedStreamUpload: 'v-123' },
+        file,
+      }) as { context: Record<string, unknown> }
+
+      const result = (await hook({ data: { ...fileFields }, operation: 'create', req } as never)) as Record<string, any>
+
+      expect(result).toMatchObject(fileFields)
+      expect(result.bunnyData.stream).toEqual({ status: 'processing', videoId: 'v-123' })
+      expect((req.context.bunnyStreamKeys as Map<string, Map<string, string>>).get('media')).toEqual(
+        new Map([['media/staged/clip-original.mp4', 'v-123']]),
+      )
+
+      const fromStorage = (await hook({
+        data: {},
+        operation: 'create',
+        req: buildReq({ context: { _payloadVerifiedProviderOriginal: verified }, file }),
+      } as never)) as Record<string, any>
+      expect(fromStorage.bunnyData.stream.videoId).toBeNull()
+
+      const forged = (await hook({
+        data: {},
+        operation: 'create',
+        req: buildReq({
+          context: {
+            _payloadVerifiedProviderOriginal: { ...verified, signedReceipt: 'other' },
+            bunnyVerifiedStreamUpload: 'v-123',
+          },
+          file,
+        }),
+      } as never)) as Record<string, any>
+      expect(forged.bunnyData.stream.videoId).toBeNull()
+    })
+
+    it('names the file after the video ID when the video has no title and keeps the collection prefix', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-123', status: 1, storageSize: 1, title: '' })
+
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext({ prefix: 'media' }),
+        filesRequiredOnCreate: true,
+      })
+      const data = { bunnyData: { stream: { videoId: 'v-123' } } }
+
+      const result = (await hook({ data, operation: 'create', req: buildReq() } as never)) as Record<string, any>
+
+      expect(result).toMatchObject({ filename: 'video-v-123-original', prefix: 'media' })
+      expect(result.original).toMatchObject({ filename: 'video-v-123-original', prefix: 'media' })
+    })
+
+    it('gives the file a unique name within its prefix', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-123', status: 4, storageSize: 1, title: 'clip.mp4' })
+      const findOne = vi.fn(async ({ where }: any) =>
+        where.and?.[0].or.some((clause: any) => clause.filename?.equals === 'clip-original.mp4')
+          ? { id: 'taken' }
+          : null,
+      )
+      const req = buildReq({
+        payload: {
+          collections: { media: { config: { slug: 'media', fields: [{ name: 'prefix', type: 'text' }] } } },
+          db: { findOne },
+          logger: { debug: vi.fn(), error: vi.fn() },
+        },
+      })
+
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext({ prefix: 'media' }),
+        filesRequiredOnCreate: true,
+      })
+      const data = { bunnyData: { stream: { videoId: 'v-123' } } }
+
+      const result = (await hook({ data, operation: 'create', req } as never)) as Record<string, any>
+
+      expect(result.filename).toBe('clip-original-1.mp4')
+      expect(findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ and: expect.arrayContaining([{ prefix: { equals: 'media' } }]) }),
+        }),
+      )
     })
 
     it('stores the resolutions of a ready video set by videoId when mp4Fallback is on', async () => {
       const resolutions = { available: ['1080p'], highest: '1080p' }
       getVideoMock.mockResolvedValue({ guid: 'v-123', status: 4, storageSize: 1, title: 'Ready' })
-      isProcessedMock.mockReturnValue(true)
-      getSafeFileNameMock.mockResolvedValue('ready.mp4')
       saveStateMock.mockResolvedValueOnce({ resolutions, status: 'ready' })
 
       const hook = getBeforeValidateHook({
@@ -261,10 +267,8 @@ describe('stream hooks', () => {
       expect(result.bunnyData.stream).toEqual({ resolutions, status: 'ready', videoId: 'v-123' })
     })
 
-    it('processes a changed videoId on update and keeps the old doc', async () => {
+    it('fills the file fields again when an update changes the videoId', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-new', status: 4, storageSize: 100, title: 'New' })
-      isProcessedMock.mockReturnValue(true)
-      getSafeFileNameMock.mockResolvedValue('new.mp4')
 
       const hook = getBeforeValidateHook({
         options: emptyOptions,
@@ -275,10 +279,11 @@ describe('stream hooks', () => {
       const originalDoc = { bunnyData: { stream: { videoId: 'v-old' } }, filename: 'old.mp4' }
       const req = buildReq()
 
-      await hook({ data, operation: 'update', originalDoc, req } as never)
+      const result = (await hook({ data, operation: 'update', originalDoc, req } as never)) as Record<string, any>
 
-      expect((req as any).context.oldDoc).toBe(originalDoc)
       expect(getVideoMock).toHaveBeenCalled()
+      expect(result.filename).toBe('New-original')
+      expect(result.original.filename).toBe('New-original')
     })
 
     it('does not treat the cloud-storage metadata update after a server upload as a replacement', async () => {
@@ -291,10 +296,10 @@ describe('stream hooks', () => {
       const originalDoc = { bunnyData: { stream: { videoId: null } }, filename: 'clip.mp4' }
       const req = buildReq({ context: { skipCloudStorage: true } })
 
-      await hook({ data, operation: 'update', originalDoc, req } as never)
+      const result = (await hook({ data, operation: 'update', originalDoc, req } as never)) as Record<string, any>
 
-      expect((req as any).context.oldDoc).toBeUndefined()
       expect(getVideoMock).not.toHaveBeenCalled()
+      expect(result.filename).toBeUndefined()
     })
 
     it('skips processing when the context has no stream options', async () => {
@@ -311,9 +316,8 @@ describe('stream hooks', () => {
       expect(result.filename).toBeUndefined()
     })
 
-    it('leaves filename untouched when the video is not yet processed', async () => {
+    it('names the file while the video is still encoding', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-123', status: 0, title: 'Pending' })
-      isProcessedMock.mockReturnValue(false)
 
       const hook = getBeforeValidateHook({
         options: emptyOptions,
@@ -325,13 +329,11 @@ describe('stream hooks', () => {
       const result = (await hook({ data, operation: 'create', req: buildReq() } as never)) as Record<string, any>
 
       expect(getVideoMock).toHaveBeenCalled()
-      expect(getSafeFileNameMock).not.toHaveBeenCalled()
-      expect(result.filename).toBeUndefined()
+      expect(result.filename).toBe('Pending-original')
     })
 
     it('gives a document with a non-Stream file the video type and size when a new video is set without a file', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-new', status: 1, storageSize: 0, title: 'Pending' })
-      isProcessedMock.mockReturnValue(false)
 
       const hook = getBeforeValidateHook({
         options: emptyOptions,
@@ -364,7 +366,6 @@ describe('stream hooks', () => {
 
     it('stores the state of a replacement video that is still encoding', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-new', status: 0, title: 'Pending' })
-      isProcessedMock.mockReturnValue(false)
 
       const hook = getBeforeValidateHook({
         options: emptyOptions,
@@ -384,7 +385,6 @@ describe('stream hooks', () => {
 
     it('clears the old resolutions when a replacement video is still encoding and mp4Fallback is on', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-new', status: 2, title: 'Pending' })
-      isProcessedMock.mockReturnValue(false)
       const oldResolutions = { available: ['720p'], highest: '720p' }
 
       const hook = getBeforeValidateHook({
@@ -430,8 +430,6 @@ describe('stream hooks', () => {
 
     it('stores no state when the collection has the status turned off', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-123', status: 4, storageSize: 4096, title: 'Great Video' })
-      isProcessedMock.mockReturnValue(true)
-      getSafeFileNameMock.mockResolvedValue('great-video.mp4')
 
       const hook = getBeforeValidateHook({
         options: emptyOptions,
@@ -448,7 +446,6 @@ describe('stream hooks', () => {
 
     it('clears the old resolutions of a replaced video when the status is turned off and mp4Fallback is on', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-new', status: 2, title: 'Pending' })
-      isProcessedMock.mockReturnValue(false)
       const oldResolutions = { available: ['720p'], highest: '720p' }
 
       const hook = getBeforeValidateHook({
@@ -479,11 +476,238 @@ describe('stream hooks', () => {
         filesRequiredOnCreate: false,
       })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-same' } } }
-      const originalDoc = { bunnyData: { stream: { videoId: 'v-same' } }, filename: 'same.mp4' }
+      const originalDoc = {
+        bunnyData: { stream: { videoId: 'v-same' } },
+        filename: 'same.mp4',
+        filesize: 10,
+        mimeType: 'video/mp4',
+      }
 
       await hook({ data, operation: 'update', originalDoc, req: buildReq() } as never)
 
       expect(getVideoMock).not.toHaveBeenCalled()
+    })
+
+    it('puts back the stored file fields when an update of the same video clears them', async () => {
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const data: Record<string, unknown> = {
+        bunnyData: { stream: { videoId: 'v-same' } },
+        filename: null,
+        filesize: null,
+        mimeType: null,
+      }
+      const originalDoc = {
+        bunnyData: { stream: { videoId: 'v-same' } },
+        filename: 'same.mp4',
+        filesize: 10,
+        mimeType: 'video/webm',
+      }
+
+      const result = (await hook({ data, operation: 'update', originalDoc, req: buildReq() } as never)) as Record<
+        string,
+        any
+      >
+
+      expect(result).toMatchObject({ filename: 'same.mp4', filesize: 10, mimeType: 'video/webm' })
+      expect(getVideoMock).not.toHaveBeenCalled()
+    })
+
+    it('fills missing file fields of the same video from Bunny and keeps its storage key', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-same', status: 1, storageSize: 0, title: 'clip.mp4' })
+      originalSizeMock.mockResolvedValueOnce(2048)
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const original = { _objectKey: 'key-1', filename: null, filesize: null, mimeType: null, prefix: 'videos' }
+      const data: Record<string, unknown> = {
+        bunnyData: { stream: { status: 'processing', videoId: 'v-same' } },
+        filename: null,
+        filesize: 0,
+        mimeType: null,
+      }
+      const originalDoc = {
+        _objectKey: 'key-1',
+        bunnyData: { stream: { status: 'processing', videoId: 'v-same' } },
+        original,
+        prefix: 'videos',
+      }
+
+      const result = (await hook({ data, operation: 'update', originalDoc, req: buildReq() } as never)) as Record<
+        string,
+        any
+      >
+
+      expect(result).toMatchObject({ filename: 'clip-original.mp4', filesize: 2048, mimeType: 'video/mp4' })
+      expect(result._objectKey).toBeUndefined()
+      expect(result.original).toEqual({
+        _objectKey: 'key-1',
+        filename: 'clip-original.mp4',
+        filesize: 2048,
+        mimeType: 'video/mp4',
+        prefix: 'videos',
+      })
+      expect(result.bunnyData.stream).toEqual({ status: 'processing', videoId: 'v-same' })
+      expect(originalSizeMock).toHaveBeenCalledWith({ apiKey: 'stream-key', libraryId: 12345, videoId: 'v-same' })
+      expect(saveStateMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the storage size when Bunny cannot report the original file size', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-123', status: 4, storageSize: 4096, title: 'clip.mp4' })
+      originalSizeMock.mockRejectedValueOnce(new Error('rate limited'))
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext({ streamOptions: { apiKey: 'stream-key', libraryId: 12345 } } as never),
+        filesRequiredOnCreate: true,
+      })
+
+      const result = (await hook({
+        data: { bunnyData: { stream: { videoId: 'v-123' } } },
+        operation: 'create',
+        req: buildReq(),
+      } as never)) as Record<string, any>
+
+      expect(result.filesize).toBe(4096)
+    })
+
+    it('saves an update of the same video without the missing file fields when Bunny cannot read the video', async () => {
+      const warn = vi.fn()
+      getVideoMock.mockRejectedValue(new Error('not found'))
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext(),
+        filesRequiredOnCreate: false,
+      })
+      const originalDoc = { bunnyData: { stream: { videoId: 'v-gone' } }, filename: 'gone.mp4', mimeType: 'video/mp4' }
+      const req = buildReq({ payload: { logger: { debug: vi.fn(), error: vi.fn(), warn } } })
+
+      const result = (await hook({
+        data: { alt: 'x', bunnyData: { stream: { videoId: 'v-gone' } } },
+        operation: 'update',
+        originalDoc,
+        req,
+      } as never)) as Record<string, any>
+
+      expect(result).toMatchObject({ alt: 'x', filename: 'gone.mp4', mimeType: 'video/mp4' })
+      expect(result.filesize).toBeUndefined()
+      expect(warn).toHaveBeenCalledOnce()
+    })
+
+    it('takes the file size of a new video from its original file', async () => {
+      getVideoMock.mockResolvedValue({ guid: 'v-123', status: 1, storageSize: 0, title: 'clip.mp4' })
+      originalSizeMock.mockResolvedValueOnce(2048)
+      const hook = getBeforeValidateHook({
+        options: emptyOptions,
+        context: buildContext({ streamOptions: { apiKey: 'stream-key', libraryId: 12345 } } as never),
+        filesRequiredOnCreate: true,
+      })
+
+      const result = (await hook({
+        data: { bunnyData: { stream: { videoId: 'v-123' } } },
+        operation: 'create',
+        req: buildReq(),
+      } as never)) as Record<string, any>
+
+      expect(result.filesize).toBe(2048)
+      expect(result.original.filesize).toBe(2048)
+    })
+
+    describe('a video uploaded over TUS', () => {
+      const tusVideo = (status: number) => ({
+        guid: 'v-tus',
+        metaTags: [
+          { property: 'payload-storage-bunny:upload-url', value: 'https://video.bunnycdn.com/tusupload/u-1' },
+          { property: 'payload-storage-bunny:upload-length', value: '4096' },
+        ],
+        status,
+        storageSize: 0,
+        title: 'clip.mp4',
+      })
+      const save = (filesize?: number) => {
+        const warn = vi.fn()
+        const hook = getBeforeValidateHook({
+          options: emptyOptions,
+          context: buildContext({ streamOptions: { apiKey: 'stream-key', libraryId: 12345 } } as never),
+          filesRequiredOnCreate: true,
+        })
+        const result = hook({
+          data: { bunnyData: { stream: { videoId: 'v-tus' } }, filesize, mimeType: 'video/mp4' },
+          operation: 'create',
+          req: buildReq({
+            payload: {
+              collections: { media: { config: { slug: 'media' } } },
+              db: { findOne: async () => null },
+              logger: { debug: vi.fn(), error: vi.fn(), warn },
+              secret: 'payload-secret',
+            },
+          }),
+        } as never) as Promise<Record<string, any>>
+        return { result, warn }
+      }
+
+      it('takes the file size from the finished upload, not from the request', async () => {
+        getVideoMock.mockResolvedValue(tusVideo(0))
+        getOffsetMock.mockResolvedValue({ length: 4096, offset: 4096 })
+
+        const doc = await save(1).result
+
+        expect(doc.filesize).toBe(4096)
+        expect(doc.original.filesize).toBe(4096)
+        expect(getOffsetMock).toHaveBeenCalledWith(
+          expect.objectContaining({ uploadUrl: 'https://video.bunnycdn.com/tusupload/u-1' }),
+        )
+        expect(originalSizeMock).not.toHaveBeenCalled()
+      })
+
+      it.each([
+        ['matches it', () => originalSizeMock.mockResolvedValueOnce(4096)],
+        ['is unknown', () => originalSizeMock.mockResolvedValueOnce(0)],
+        ['cannot be read', () => originalSizeMock.mockRejectedValueOnce(new Error('HTTP 500'))],
+      ])(
+        'takes the stored upload length when Bunny has forgotten the upload of a processed video and its original %s',
+        async (_label, arrange) => {
+          getVideoMock.mockResolvedValue(tusVideo(3))
+          getOffsetMock.mockRejectedValue(new Error('HTTP 404', { cause: httpError(404) }))
+          arrange()
+
+          expect((await save().result).filesize).toBe(4096)
+          expect(originalSizeMock).toHaveBeenCalledWith({ apiKey: 'stream-key', libraryId: 12345, videoId: 'v-tus' })
+        },
+      )
+
+      it.each([
+        ['the upload has not finished yet', 0, async () => ({ length: 4096, offset: 1024 }), undefined],
+        ['Bunny Stream marked the upload as failed', 6, async () => undefined, undefined],
+        [
+          'the original file in Bunny Stream does not match the upload size',
+          3,
+          async () => {
+            throw new Error('HTTP 404', { cause: httpError(404) })
+          },
+          5000,
+        ],
+      ])('rejects the save with 400 when %s', async (reason, status, offset, original) => {
+        getVideoMock.mockResolvedValue(tusVideo(status))
+        getOffsetMock.mockImplementation(offset)
+        if (original) {
+          originalSizeMock.mockResolvedValueOnce(original)
+        }
+
+        const { result, warn } = save(4096)
+
+        await expect(result).rejects.toMatchObject({
+          data: {
+            errors: [{ message: `The video upload is not usable: ${reason}.`, path: 'bunnyData.stream.videoId' }],
+          },
+          status: 400,
+        })
+        expect(warn).toHaveBeenCalledWith(expect.objectContaining({ msg: `[bunny:stream] save: ${reason}` }))
+      })
     })
   })
 
@@ -500,11 +724,11 @@ describe('stream hooks', () => {
 
     const buildOwnershipReq = (owners: Record<string, string>) => {
       const findOne = vi.fn(async ({ collection, where }: any) => {
-        const [videoClause, idClause] = where.and
+        const [videoClause, idClause] = where.and ?? [where]
         const ownerId = owners[collection]
         const matches =
           ownerId !== undefined &&
-          videoClause['bunnyData.stream.videoId'].equals === 'v-shared' &&
+          videoClause['bunnyData.stream.videoId']?.equals === 'v-shared' &&
           ownerId !== idClause?.id.not_equals
         return matches ? { id: ownerId } : null
       })
@@ -543,19 +767,6 @@ describe('stream hooks', () => {
       expect(getVideoMock).not.toHaveBeenCalled()
     })
 
-    it('rejects a client-direct upload of a video another document already uses', async () => {
-      getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 1 })
-      const hook = getBeforeValidateHook({
-        options: libraryOptions,
-        context: buildContext(),
-        filesRequiredOnCreate: true,
-      })
-      const { req } = buildOwnershipReq({ clips: 'doc-9' })
-      Object.assign(req, { file: clientUpload(receiptFor('v-shared')) })
-
-      await expect(hook({ data: {}, operation: 'create', req } as never)).rejects.toBeInstanceOf(ValidationError)
-    })
-
     it('searches only stream collections of the same library', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
       const hook = getBeforeValidateHook({
@@ -567,7 +778,8 @@ describe('stream hooks', () => {
 
       await hook({ data: sharedData(), operation: 'create', req } as never)
 
-      expect(findOne.mock.calls.map(([args]: any) => args.collection).toSorted()).toEqual(['clips', 'media'])
+      const videoLookups = findOne.mock.calls.filter(([args]: any) => !args.where.or && !args.where.and?.[0]?.or)
+      expect(videoLookups.map(([args]: any) => args.collection).toSorted()).toEqual(['clips', 'media'])
     })
 
     it('ignores the document being updated', async () => {
@@ -590,7 +802,13 @@ describe('stream hooks', () => {
         filesRequiredOnCreate: false,
       })
       const { findOne, req } = buildOwnershipReq({ media: 'doc-1' })
-      const originalDoc = { bunnyData: { stream: { videoId: 'v-shared' } }, id: 'doc-2' }
+      const originalDoc = {
+        bunnyData: { stream: { videoId: 'v-shared' } },
+        filename: 'shared.mp4',
+        filesize: 10,
+        id: 'doc-2',
+        mimeType: 'video/mp4',
+      }
 
       await hook({ data: sharedData(), operation: 'update', originalDoc, req } as never)
 
@@ -701,6 +919,47 @@ describe('stream hooks', () => {
       expect(findOne).not.toHaveBeenCalled()
     })
 
+    it('refreshes the status and resolutions from Bunny when a version is restored', async () => {
+      const findOne = vi.fn()
+      getVideoMock.mockResolvedValue({ availableResolutions: '720p', guid: 'v1', status: 4 })
+      saveStateMock.mockResolvedValueOnce({ resolutions, status: 'ready' })
+      const data = { bunnyData: { stream: { resolutions: null, status: 'processing', videoId: 'v1' } } }
+
+      const result = await getStreamBeforeChangeHook(mp4Context())({
+        data,
+        operation: 'update',
+        originalDoc: { id: 1 },
+        req: buildReq({
+          context: { isRestoringVersion: true },
+          payload: { db: { findOne }, logger: { debug: vi.fn(), error: vi.fn() } },
+        }),
+      } as never)
+
+      expect(getVideoMock).toHaveBeenCalledWith({ apiKey: 'k', libraryId: 12345, videoId: 'v1' })
+      expect(result).toEqual({ bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v1' } } })
+      expect(findOne).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the stored status when Bunny cannot be read during a restore', async () => {
+      const warn = vi.fn()
+      const findOne = vi.fn().mockResolvedValue(storedMain)
+      getVideoMock.mockRejectedValue(new Error('down'))
+      const data = { bunnyData: { stream: { status: 'processing', videoId: 'v1' } } }
+
+      const result = await getStreamBeforeChangeHook(mp4Context())({
+        data,
+        operation: 'update',
+        originalDoc: { id: 1 },
+        req: buildReq({
+          context: { isRestoringVersion: true },
+          payload: { db: { findOne }, logger: { debug: vi.fn(), error: vi.fn(), warn } },
+        }),
+      } as never)
+
+      expect(warn).toHaveBeenCalledOnce()
+      expect(result).toEqual({ bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v1' } } })
+    })
+
     it('copies only the resolutions when the status is turned off', async () => {
       const findOne = vi.fn().mockResolvedValue(storedMain)
       const data = { bunnyData: { stream: { videoId: 'v1' } } }
@@ -722,16 +981,6 @@ describe('stream hooks', () => {
       await hook({ data: { bunnyData: { stream: { videoId: 'v1' } } }, req } as never)
 
       expect(deleteSessionMock).toHaveBeenCalledWith({ libraryId: 12345, req, videoId: 'v1' })
-    })
-
-    it('deletes the old file after a TUS upload replaces it', async () => {
-      const req = buildReq({ context: { oldDoc: { filename: 'old.mp4', id: 'doc-1' } } })
-      const hook = getAfterChangeHook(buildContext({ isTusUploadSupported: true }))
-
-      await hook({ data: {}, req } as never)
-
-      expect(handleDeleteMock).toHaveBeenCalledWith(expect.objectContaining({ filename: 'old.mp4' }))
-      expect((req as any).payload.logger.debug).toHaveBeenCalled()
     })
 
     describe('the upload metadata of a draft save', () => {
@@ -788,28 +1037,78 @@ describe('stream hooks', () => {
       })
     })
 
-    it('does nothing for a TUS upload without a valid old doc', async () => {
+    it('does nothing when cleanup is off', async () => {
       const hook = getAfterChangeHook(buildContext({ isTusUploadSupported: true }))
-      await hook({ data: {}, req: buildReq({ context: {} }) } as never)
-
-      expect(handleDeleteMock).not.toHaveBeenCalled()
-    })
-
-    it('logs delete errors without throwing', async () => {
-      handleDeleteMock.mockRejectedValueOnce(new Error('boom'))
-      const req = buildReq({ context: { oldDoc: { filename: 'old.mp4', id: 'doc-1' } } })
-      const hook = getAfterChangeHook(buildContext({ isTusUploadSupported: true }))
-
-      await expect(hook({ data: {}, req } as never)).resolves.toBeUndefined()
-      expect((req as any).payload.logger.error).toHaveBeenCalled()
-    })
-
-    it('does nothing when TUS is not supported and cleanup is off', async () => {
-      const hook = getAfterChangeHook(buildContext())
-      await hook({ data: { bunnyData: { stream: { videoId: 'v1' } } }, req: buildReq() } as never)
+      await hook({ data: { bunnyData: { stream: { videoId: 'v1' } } }, doc: {}, req: buildReq() } as never)
 
       expect(deleteSessionMock).not.toHaveBeenCalled()
-      expect(handleDeleteMock).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('getStreamFileChangeBeforeOperationHook', () => {
+  const stored = (videoId: null | string) => ({ _objectKey: 'key-a', bunnyData: { stream: { videoId } } })
+  const run = ({
+    data,
+    drafts = false,
+    file,
+    latest = stored('v-a'),
+    operation = 'update',
+  }: {
+    data: Record<string, any>
+    drafts?: boolean
+    file?: unknown
+    latest?: unknown
+    operation?: string
+  }) => {
+    const findOne = vi.fn(async () => latest)
+    const findVersions = vi.fn(async () => ({ docs: latest ? [{ version: latest }] : [] }))
+    const req = {
+      context: {},
+      file,
+      payload: {
+        collections: { media: { config: { versions: drafts ? { drafts: { autosave: true } } : true } } },
+        db: { findOne, findVersions },
+      },
+    }
+    const hook = getStreamFileChangeBeforeOperationHook(buildContext())
+    return {
+      findOne,
+      findVersions,
+      result: hook({ args: { data, id: 1, req }, operation, req } as never) as Promise<{ data: Record<string, any> }>,
+    }
+  }
+
+  it('gives the update a new file key when a TUS video replaces the stored video, so Payload cleans up the old file', async () => {
+    const data = { bunnyData: { stream: { videoId: 'v-b' } } }
+    const { findOne, result } = run({ data })
+    await result
+
+    expect(findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { equals: 1 } } }))
+    expect((data as Record<string, unknown>)._objectKey).toMatch(/^[\da-f-]{36}$/)
+  })
+
+  it('compares with the latest version in a drafts collection', async () => {
+    const data = { bunnyData: { stream: { videoId: 'v-b' } } }
+    const { findOne, findVersions, result } = run({ data, drafts: true })
+    await result
+
+    expect(findOne).not.toHaveBeenCalled()
+    expect(findVersions).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { and: [{ parent: { equals: 1 } }, { latest: { equals: true } }] } }),
+    )
+    expect((data as Record<string, unknown>)._objectKey).toBeDefined()
+  })
+
+  it.each([
+    ['the same video', { data: { bunnyData: { stream: { videoId: 'v-a' } } } }],
+    ['no video', { data: { alt: 'x' } }],
+    ['a file upload', { data: { bunnyData: { stream: { videoId: 'v-b' } } }, file: { name: 'clip.mp4' } }],
+    ['a create', { data: { bunnyData: { stream: { videoId: 'v-b' } } }, operation: 'create' }],
+  ])('leaves the file key alone for %s', async (_label, args) => {
+    const { result } = run(args)
+    await result
+
+    expect(args.data).not.toHaveProperty('_objectKey')
   })
 })

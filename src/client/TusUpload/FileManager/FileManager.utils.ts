@@ -1,16 +1,11 @@
 import * as tus from 'tus-js-client'
 
-import { BUNNY_API } from '@/shared/constants.js'
-
 export const findPreviousTusUploads = async (
   file: File,
   metadata?: Record<string, string>,
 ): Promise<tus.PreviousUpload[]> => {
   try {
-    const tempUpload = new tus.Upload(file, {
-      endpoint: BUNNY_API.TUS_ENDPOINT,
-      metadata,
-    })
+    const tempUpload = new tus.Upload(file, { metadata })
 
     return await tempUpload.findPreviousUploads()
   } catch {
@@ -20,10 +15,7 @@ export const findPreviousTusUploads = async (
 
 export const cleanupTusLocalStorage = async (file: File, videoId: string): Promise<void> => {
   try {
-    const tempUpload = new tus.Upload(file, {
-      endpoint: BUNNY_API.TUS_ENDPOINT,
-      metadata: { videoId },
-    })
+    const tempUpload = new tus.Upload(file, { metadata: { videoId } })
 
     const { options } = tempUpload
     const { fingerprint, urlStorage } = options

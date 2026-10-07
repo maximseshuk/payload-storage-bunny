@@ -1,4 +1,5 @@
 import { bunnyRequest, isRateLimited } from '@/server/bunny/client.js'
+import { httpFetch } from '@/server/http/index.js'
 import { BUNNY_API, TIMEOUTS } from '@/shared/constants.js'
 import type { BunnyStreamData, StreamVideoState } from '@/shared/types/index.js'
 
@@ -223,6 +224,118 @@ export const createStreamVideo = async ({
   }
 }
 
+const STREAM_UPLOAD_URL_META_TAG = 'payload-storage-bunny:upload-url'
+const STREAM_UPLOAD_LENGTH_META_TAG = 'payload-storage-bunny:upload-length'
+const TUS_RESUMABLE = { 'Tus-Resumable': '1.0.0' }
+
+export const createStreamTusUpload = async ({
+  apiKey,
+  headers,
+  libraryId,
+  metadata,
+  size,
+  videoId,
+}: {
+  headers: Record<string, string>
+  metadata: Record<string, string>
+  size: number
+  videoId: string
+} & BunnyStreamCredentials): Promise<string> => {
+  let uploadUrl: string
+  try {
+    const res = await httpFetch(BUNNY_API.TUS_ENDPOINT, {
+      headers: {
+        ...headers,
+        ...TUS_RESUMABLE,
+        'Upload-Length': String(size),
+        'Upload-Metadata': Object.entries(metadata)
+          .map(([key, value]) => `${key} ${Buffer.from(value).toString('base64')}`)
+          .join(','),
+      },
+      method: 'post',
+      timeout: TIMEOUTS.DEFAULT,
+    })
+    const location = res.headers.get('Location')
+    if (!location) {
+      throw new Error('Bunny Stream: TUS response has no Location')
+    }
+    uploadUrl = new URL(location, BUNNY_API.TUS_ENDPOINT).toString()
+  } catch (err) {
+    throw new Error(`Unable to create TUS upload: ${videoId}`, { cause: err })
+  }
+
+  await bunnyRequest({
+    apiKey,
+    contentType: 'application/json',
+    genericError: `Unable to update video: ${videoId}`,
+    json: {
+      metaTags: [
+        { property: STREAM_UPLOAD_URL_META_TAG, value: uploadUrl },
+        { property: STREAM_UPLOAD_LENGTH_META_TAG, value: String(size) },
+      ],
+    },
+    method: 'post',
+    statusErrors: {
+      401: 'Bunny Stream: Invalid API key',
+      404: `Bunny Stream: Video not found: ${videoId}`,
+      500: 'Bunny Stream: Server error',
+    },
+    timeout: TIMEOUTS.DEFAULT,
+    url: `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}`,
+  })
+
+  return uploadUrl
+}
+
+export const getStreamTusUpload = ({
+  metaTags,
+}: Pick<BunnyStreamVideo, 'metaTags'>): undefined | { length: number; url: string } => {
+  const read = (name: string) => metaTags?.find(({ property }) => property === name)?.value
+  const url = read(STREAM_UPLOAD_URL_META_TAG)
+  const length = Number(read(STREAM_UPLOAD_LENGTH_META_TAG))
+  return url && length > 0 ? { length, url } : undefined
+}
+
+export const getStreamTusUploadOffset = async ({
+  headers,
+  uploadUrl,
+}: {
+  headers: Record<string, string>
+  uploadUrl: string
+}): Promise<{ length: number; offset: number }> => {
+  try {
+    const res = await httpFetch(uploadUrl, {
+      headers: { ...headers, ...TUS_RESUMABLE },
+      method: 'head',
+      timeout: TIMEOUTS.DEFAULT,
+    })
+    return { length: Number(res.headers.get('Upload-Length')), offset: Number(res.headers.get('Upload-Offset')) }
+  } catch (err) {
+    throw new Error(`Unable to read TUS upload: ${uploadUrl}`, { cause: err })
+  }
+}
+
+export const getStreamVideoOriginalSize = async ({
+  apiKey,
+  libraryId,
+  videoId,
+}: { videoId: string } & BunnyStreamCredentials): Promise<number> => {
+  const res = await bunnyRequest({
+    apiKey,
+    genericError: `Unable to get video storage: ${videoId}`,
+    method: 'get',
+    statusErrors: {
+      401: 'Bunny Stream: Invalid API key',
+      404: `Bunny Stream: Video not found: ${videoId}`,
+      500: 'Bunny Stream: Server error',
+    },
+    timeout: TIMEOUTS.DEFAULT,
+    url: `${BUNNY_API.STREAM_URL}/library/${libraryId}/videos/${videoId}/storage`,
+  })
+
+  return (await res.json<{ data?: { originals?: number } | null }>()).data?.originals ?? 0
+}
+
 export const deleteStreamVideo = async ({
   apiKey,
   libraryId,
@@ -378,10 +491,6 @@ export const getReadyResolutions = async ({
     }
   }
   return resolutions
-}
-
-export const canUploadToVideo = (status: BunnyStreamVideoStatus): boolean => {
-  return status === BunnyStreamVideoStatus.Created
 }
 
 export const isVideoInErrorState = (status: BunnyStreamVideoStatus): boolean => {

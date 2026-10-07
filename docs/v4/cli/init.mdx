@@ -37,7 +37,7 @@ The wizard is interactive and needs a TTY; it exits with a message if stdout isn
 - **Client uploads** — browser-direct uploads for large files or serverless body-size limits. For S3 zones this is a free `clientUploads: true`. For HTTP zones it needs a Bunny Edge Script (additional Edge Scripting cost); the wizard can deploy it now or you can run [`bunny:deploy-edge-script`](/v4/cli/deploy-edge-script) later.
 - **Video library name** — for the Stream library. Its main region is fixed at Frankfurt (DE) and can't be changed; only optional replication regions are configurable (same permanence warning).
 - **Signed URLs** — token-authenticated, time-limited links for storage and/or stream.
-- **CDN cache purge** — enables auto-purge on upload/delete (writes your account key into app env).
+- **CDN cache purge** — enables auto-purge when a file is deleted (writes your account key into app env).
 
 ## What it creates
 
@@ -85,7 +85,7 @@ If a call fails partway through, the wizard prints what was already created, the
 
 ## After running
 
-1. Install the plugin and its peer dependency with the printed `pnpm add` command. It pins the plugin to the version you ran and `@payloadcms/plugin-cloud-storage` to the `payload` version in your `package.json`.
+1. Install the plugin and its peer dependency with the printed `npm install` command. It pins the plugin to the version you ran and `@payloadcms/plugin-cloud-storage` to the `payload` version in your `package.json`.
 2. Paste the printed `bunnyStorage({ … })` block into your `payload.config.ts` `storage` array.
 3. Set the printed environment variables (or let the wizard append them to `./.env`).
 4. Restart your app.

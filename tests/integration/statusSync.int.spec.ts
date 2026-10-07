@@ -1,5 +1,5 @@
 import type { Payload } from 'payload'
-import { createLocalReq } from 'payload'
+import { createPayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { syncStreamStatus } from '@/index.js'
@@ -53,7 +53,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream status sync task', () => {
     if (!endpoint) {
       throw new Error('Tasks endpoint not found')
     }
-    const req = await createLocalReq({}, payload)
+    const req = await createPayloadRequest({ payload })
     Object.assign(req, {
       headers: new Headers({ authorization: 'Bearer status-sync-test-secret' }),
       routeParams: { task },
@@ -107,7 +107,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream status sync task', () => {
       collection: COLLECTION,
       data: { alt: 'Replaced video', bunnyData: { stream: { status: 'processing', videoId: 'old-video' } } },
     })
-    const req = await createLocalReq({}, payload)
+    const req = await createPayloadRequest({ payload })
     await setStoredStream(doc.id, { status: 'processing', videoId: 'new-video' })
 
     expect(

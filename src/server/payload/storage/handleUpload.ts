@@ -3,14 +3,13 @@ import type { TFunction } from '@payloadcms/translations'
 import type { CollectionBeforeChangeHook } from 'payload'
 import { APIError } from 'payload'
 
-import { purgeCache } from '@/server/bunny/cdn.js'
 import { uploadStorageFileS3 } from '@/server/bunny/s3.js'
 import { uploadStorageFile } from '@/server/bunny/storage.js'
 import { createStreamVideo, getStreamSaveState, getStreamVideo, uploadStreamVideo } from '@/server/bunny/stream.js'
-import { setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
+import { markServerStreamUpload, setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { getAdminThumbnail } from '@/server/payload/fields/hooks.js'
+import { setStreamKey } from '@/server/payload/storage/fileOperations.js'
 import { createStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
-import { buildStoragePurgeUrl } from '@/server/urls.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTranslationsKeys } from '@/shared/translations/index.js'
 import type { CollectionContext } from '@/shared/types/index.js'
@@ -24,7 +23,7 @@ export const getForgetStreamVideoHook =
   (context: CollectionContext): CollectionBeforeChangeHook =>
   ({ data, req }) => {
     const { streamOptions } = context
-    if (!streamOptions || !req.file || req.file.uploadReference || uploadsToStream(context, data.mimeType)) {
+    if (!streamOptions || !req.file || uploadsToStream(context, data.mimeType)) {
       return data
     }
     setStoredVideoId(
@@ -37,7 +36,7 @@ export const getForgetStreamVideoHook =
   }
 
 export const getHandleUpload = (context: CollectionContext): HandleUpload => {
-  const { accountApiKey, purgeOptions, storageOptions, streamOptions } = context
+  const { storageOptions, streamOptions } = context
 
   return async ({ data, file, req, storageFilePath: path }) => {
     const reqT = req.t as unknown as TFunction<PluginStorageBunnyTranslationsKeys>
@@ -50,8 +49,10 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
           apiKey: streamOptions.apiKey,
           libraryId: streamOptions.libraryId,
           thumbnailTime: streamOptions.thumbnailTime,
-          title: fileName,
+          title: fileName.replace(/-original(?:-\d+)?(\.[^.]*)?$/, '$1'),
         })
+        setStreamKey(req, context.collection.slug, path, video.guid)
+        markServerStreamUpload(req, video.guid)
         if (streamOptions.cleanup) {
           await createStreamVideoSession({
             libraryId: video.videoLibraryId,
@@ -109,28 +110,6 @@ export const getHandleUpload = (context: CollectionContext): HandleUpload => {
             timeout: storageOptions.uploadTimeout,
             zoneName: storageOptions.zoneName,
           })
-        }
-
-        if (purgeOptions && accountApiKey) {
-          const url = buildStoragePurgeUrl({
-            collectionPrefix: context.prefix,
-            filename: fileName,
-            hostname: storageOptions.hostname,
-            prefix: data.prefix,
-          })
-          try {
-            await purgeCache({ apiKey: accountApiKey, async: purgeOptions.async, url })
-            req.payload.logger.debug({
-              msg: '[bunny:storage] upload: cache purged',
-              url,
-            })
-          } catch (err) {
-            req.payload.logger.error({
-              err,
-              msg: '[bunny:storage] upload: cache purge failed',
-              url,
-            })
-          }
         }
       } else {
         throw new APIError(reqT('@seshuk/payload-storage-bunny:errorNoServiceConfigured'), 500, undefined, true)

@@ -12,22 +12,30 @@ import {
   useDocumentEvents,
   useForm,
   useFormBackgroundProcessing,
+  useFormFields,
   useTranslation,
 } from '@payloadcms/ui'
 import { VideoPreview } from '@payloadcms/ui/elements/FileManager/FilePreview/VideoPreview'
-import ky from 'ky'
 import type { FormState } from 'payload'
 import { formatFilesize } from 'payload/shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as tus from 'tus-js-client'
 
 import { ToggleButton } from '@/client/TusUpload/ToggleButton/ToggleButton.js'
-import { BUNNY_API, TUS_MIME_TYPES } from '@/shared/constants.js'
+import type { TusAuthResponse } from '@/client/TusUpload/tusAuth.js'
+import {
+  getFinishedTusUpload,
+  getTusAuthUrl,
+  isLostTusUpload,
+  renewTusHeaders,
+  requestTusAuth,
+  shouldRetryTusRequest,
+} from '@/client/TusUpload/tusAuth.js'
+import { TUS_MIME_TYPES } from '@/shared/constants.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys } from '@/shared/translations/index.js'
-import type { StreamTusAuthResponse } from '@/shared/types/index.js'
 
-import { BASE_CLASS, INITIAL_STATE, TUS_RETRY_DELAYS } from './FileManager.constants.js'
+import { BASE_CLASS, INITIAL_STATE, TUS_RETRY_DELAYS, UPLOADED_FILE_PATHS } from './FileManager.constants.js'
 import type { UploadState } from './FileManager.types.js'
 import './FileManager.css'
 import { cleanupTusLocalStorage, findPreviousTusUploads } from './FileManager.utils.js'
@@ -44,6 +52,7 @@ type StatusView = {
 type FileManagerProps = {
   collectionSlug: string
   isAutoMode?: boolean
+  onCancel?: () => void
   onDisableTus: () => void
   preSelectedFile?: File | null
   UploadControls?: React.ReactNode
@@ -52,6 +61,7 @@ type FileManagerProps = {
 export const FileManager: React.FC<FileManagerProps> = ({
   collectionSlug,
   isAutoMode = false,
+  onCancel,
   onDisableTus,
   preSelectedFile,
   UploadControls,
@@ -67,11 +77,17 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const selectedFileRef = useRef<File | null>(null)
   const mountedRef = useRef(false)
   const previousVideoFieldsRef = useRef<null | Partial<FormState>>(null)
+  const uploadedVideoFieldsRef = useRef<null | Record<string, unknown>>(null)
+  const replaceLostUploadRef = useRef<(videoId: string, videoToken: string) => void>(() => {})
 
   const { dispatchFields, getFields, setBackgroundProcessing, setModified } = useForm()
   const backgroundProcessing = useFormBackgroundProcessing()
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
   const { mostRecentUpdate } = useDocumentEvents()
+  const isUploadReverted = useFormFields(([fields]) => {
+    const uploaded = uploadedVideoFieldsRef.current
+    return !!uploaded && UPLOADED_FILE_PATHS.some((path) => fields[path]?.value !== uploaded[path])
+  })
   const {
     config: {
       routes: { api },
@@ -80,10 +96,11 @@ export const FileManager: React.FC<FileManagerProps> = ({
     getEntityConfig,
   } = useConfig()
 
-  const allowedMimeTypes = useMemo(() => {
-    const collectionConfig = getEntityConfig({ collectionSlug })
-    return collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.stream?.mimeTypes ?? TUS_MIME_TYPES
-  }, [collectionSlug, getEntityConfig])
+  const collectionConfig = useMemo(() => getEntityConfig({ collectionSlug }), [collectionSlug, getEntityConfig])
+  const allowedMimeTypes =
+    collectionConfig?.admin?.custom?.['@seshuk/payload-storage-bunny']?.stream?.mimeTypes ?? TUS_MIME_TYPES
+  const drafts = collectionConfig?.versions && collectionConfig.versions.drafts
+  const hasAutosave = typeof drafts === 'object' && !!drafts.autosave
 
   const acceptMimeTypes = allowedMimeTypes.join(', ')
 
@@ -97,8 +114,21 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
   const isSelected = (file: File) => mountedRef.current && selectedFileRef.current === file
 
+  const writeVideoFields = useCallback(
+    (values: Record<string, unknown>) => {
+      const fields = getFields()
+      dispatchFields({
+        type: 'UPDATE_MANY',
+        formState: Object.fromEntries(
+          Object.entries(values).map(([path, value]) => [path, { ...fields[path], isModified: true, value }]),
+        ),
+      })
+    },
+    [dispatchFields, getFields],
+  )
+
   const updateVideoFields = useCallback(
-    ({ videoId, videoToken }: StreamTusAuthResponse, file: File) => {
+    ({ videoId, videoToken }: TusAuthResponse, file: File) => {
       const values = {
         'bunnyData.stream.videoId': videoId,
         'bunnyData.stream.videoToken': videoToken,
@@ -112,39 +142,33 @@ export const FileManager: React.FC<FileManagerProps> = ({
       }
       const fields = getFields()
       previousVideoFieldsRef.current ??= Object.fromEntries(Object.keys(values).map((path) => [path, fields[path]]))
-
-      dispatchFields({
-        type: 'UPDATE_MANY',
-        formState: Object.fromEntries(
-          Object.entries(values).map(([path, value]) => [path, { ...fields[path], isModified: true, value }]),
-        ),
-      })
+      uploadedVideoFieldsRef.current = values
+      writeVideoFields(values)
+      setBackgroundProcessing(false)
       setModified(true)
     },
-    [dispatchFields, getFields, setModified, state.tusData],
+    [getFields, setBackgroundProcessing, setModified, state.tusData, writeVideoFields],
+  )
+
+  const tusAuthUrl = getTusAuthUrl(serverURL, api)
+
+  const getAuthRequest = useCallback(
+    (file: File, videoId?: string, videoToken?: string) => ({
+      collection: collectionSlug,
+      filename: file.name,
+      filesize: state.tusData?.size || file.size,
+      filetype: file.type,
+      title: state.fileName,
+      videoId,
+      videoToken,
+    }),
+    [collectionSlug, state.fileName, state.tusData],
   )
 
   const getAuthData = useCallback(
-    async (file: File, existingVideoId?: string, existingVideoToken?: string): Promise<StreamTusAuthResponse> => {
-      const filesize = state.tusData?.size || file.size
-
-      const response = await ky
-        .post(`${serverURL}${api}/storage-bunny/stream/tus-auth`, {
-          json: {
-            collection: collectionSlug,
-            filename: file.name,
-            filesize,
-            filetype: file.type,
-            title: state.fileName,
-            videoId: existingVideoId,
-            videoToken: existingVideoToken,
-          },
-        })
-        .json<StreamTusAuthResponse>()
-
-      return response
-    },
-    [api, collectionSlug, serverURL, state.fileName, state.tusData],
+    (file: File, existingVideoId?: string, existingVideoToken?: string): Promise<TusAuthResponse> =>
+      requestTusAuth(tusAuthUrl, getAuthRequest(file, existingVideoId, existingVideoToken)),
+    [getAuthRequest, tusAuthUrl],
   )
 
   const handleVideoIdMismatch = useCallback(
@@ -163,7 +187,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   )
 
   const handleUploadSuccess = useCallback(
-    (authData: StreamTusAuthResponse, file: File, upload: tus.Upload) => {
+    (authData: TusAuthResponse, file: File, upload: tus.Upload) => {
       if (!isSelected(file)) {
         return
       }
@@ -172,7 +196,6 @@ export const FileManager: React.FC<FileManagerProps> = ({
         uploadProgress: 100,
         uploadStatus: 'completed',
       })
-      setBackgroundProcessing(false)
 
       upload
         .findPreviousUploads()
@@ -197,31 +220,58 @@ export const FileManager: React.FC<FileManagerProps> = ({
           void cleanupTusLocalStorage(file, authData.videoId)
         })
     },
-    [setBackgroundProcessing, updateState, updateVideoFields],
+    [updateState, updateVideoFields],
+  )
+
+  const handleAlreadyUploadedVideo = useCallback(
+    (authData: TusAuthResponse, file: File) => {
+      if (authData.type !== 'uploaded') {
+        return
+      }
+
+      updateState({
+        authData,
+        fileName: authData.title,
+        isFileNameEditable: false,
+        uploadProgress: 100,
+        uploadStatus: 'completed',
+      })
+      updateVideoFields(authData, file)
+      void cleanupTusLocalStorage(file, authData.videoId)
+    },
+    [updateState, updateVideoFields],
   )
 
   const createTusUpload = useCallback(
-    (file: File, authData: StreamTusAuthResponse) => {
+    (file: File, authData: TusAuthResponse, isReplacement = false) => {
       if (authData.type !== 'upload') {
         throw new Error('Cannot create upload for already uploaded video')
       }
 
       const upload = new tus.Upload(file, {
-        endpoint: BUNNY_API.TUS_ENDPOINT,
-        headers: {
-          AuthorizationExpire: authData.authorizationExpire.toString(),
-          AuthorizationSignature: authData.authorizationSignature,
-          LibraryId: authData.libraryId.toString(),
-          VideoId: authData.videoId,
-        },
         metadata: {
           filetype: file.type,
           title: state.fileName || file.name,
           videoId: authData.videoId,
           videoToken: authData.videoToken,
-          ...(typeof authData.thumbnailTime === 'number' && { thumbnailTime: authData.thumbnailTime.toString() }),
         },
+        onBeforeRequest: renewTusHeaders({
+          auth: authData,
+          body: getAuthRequest(file, authData.videoId, authData.videoToken),
+          url: tusAuthUrl,
+        }),
         onError: (err) => {
+          const finished = getFinishedTusUpload(err)
+          if (finished) {
+            if (isSelected(file)) {
+              handleAlreadyUploadedVideo(finished, file)
+            }
+            return
+          }
+          if (!isReplacement && isLostTusUpload(err) && isSelected(file)) {
+            replaceLostUploadRef.current(authData.videoId, authData.videoToken)
+            return
+          }
           updateState({
             uploadError: err.message,
             uploadStatus: 'error',
@@ -248,34 +298,16 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
           updateState({ estimatedTimeRemaining, uploadProgress: percentage })
         },
+        onShouldRetry: shouldRetryTusRequest,
         onSuccess: () => handleUploadSuccess(authData, file, upload),
         removeFingerprintOnSuccess: true,
         retryDelays: TUS_RETRY_DELAYS,
+        uploadUrl: authData.uploadUrl,
       })
 
       return upload
     },
-    [state.fileName, updateState, handleUploadSuccess],
-  )
-
-  const handleAlreadyUploadedVideo = useCallback(
-    (authData: StreamTusAuthResponse, file: File) => {
-      if (authData.type !== 'uploaded') {
-        return
-      }
-
-      updateState({
-        authData,
-        fileName: authData.title,
-        isFileNameEditable: false,
-        uploadProgress: 100,
-        uploadStatus: 'completed',
-      })
-      setBackgroundProcessing(false)
-      updateVideoFields(authData, file)
-      void cleanupTusLocalStorage(file, authData.videoId)
-    },
-    [setBackgroundProcessing, updateState, updateVideoFields],
+    [getAuthRequest, handleAlreadyUploadedVideo, handleUploadSuccess, state.fileName, tusAuthUrl, updateState],
   )
 
   const checkPreviousUploads = useCallback(
@@ -368,7 +400,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   )
 
   const performUpload = useCallback(
-    async (existingVideoId?: string) => {
+    async (existingVideoId?: string, existingVideoToken?: string, isReplacement = false) => {
       const file = state.selectedFile
       if (!file) {
         return
@@ -382,11 +414,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
           uploadStatus: 'preparing',
         })
 
-        const authData = await getAuthData(
-          file,
-          existingVideoId,
-          existingVideoId ? state.tusData?.metadata?.videoToken : undefined,
-        )
+        const authData = await getAuthData(file, existingVideoId, existingVideoToken)
         if (!isSelected(file)) {
           return
         }
@@ -405,7 +433,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
         updateState({ authData })
 
-        const upload = createTusUpload(file, authData)
+        const upload = createTusUpload(file, authData, isReplacement)
         tusUploadRef.current = upload
         uploadStartTimeRef.current = Date.now()
         startingBytesRef.current = 0
@@ -439,7 +467,6 @@ export const FileManager: React.FC<FileManagerProps> = ({
     },
     [
       state.selectedFile,
-      state.tusData,
       getAuthData,
       createTusUpload,
       updateState,
@@ -497,6 +524,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
     }
 
     resetState()
+    uploadedVideoFieldsRef.current = null
 
     if (previousVideoFieldsRef.current) {
       for (const [path, field] of Object.entries(previousVideoFieldsRef.current)) {
@@ -507,6 +535,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
     if (isAutoMode) {
       onDisableTus()
+    } else {
+      onCancel?.()
     }
   }
 
@@ -516,8 +546,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
     }
   }
 
+  useEffect(() => {
+    replaceLostUploadRef.current = (videoId, videoToken) => void performUpload(videoId, videoToken, true)
+  }, [performUpload])
+
   const startNewUpload = () => performUpload()
-  const restoreUpload = () => performUpload(state.existingVideoId || undefined)
+  const restoreUpload = () =>
+    state.existingVideoId ? performUpload(state.existingVideoId, state.tusData?.metadata?.videoToken) : performUpload()
 
   const pauseUpload = () => {
     if (state.uploadProgress >= 99) {
@@ -598,18 +633,33 @@ export const FileManager: React.FC<FileManagerProps> = ({
   }, [preSelectedFile])
 
   useEffect(() => {
+    const savedVideoId = (mostRecentUpdate?.doc as undefined | { bunnyData?: { stream?: { videoId?: unknown } } })
+      ?.bunnyData?.stream?.videoId
     const isDocumentSavedAfterUpload =
       mostRecentUpdate &&
       mostRecentUpdate.updatedAt !== prevUpdatedAtRef.current &&
       state.uploadStatus === 'completed' &&
-      state.authData
+      state.authData &&
+      savedVideoId === state.authData.videoId
 
     if (isDocumentSavedAfterUpload) {
+      uploadedVideoFieldsRef.current = null
+      if (!hasAutosave) {
+        setModified(false)
+      }
       onDisableTus()
     }
 
     prevUpdatedAtRef.current = mostRecentUpdate?.updatedAt ?? null
-  }, [mostRecentUpdate, state.uploadStatus, state.authData, onDisableTus])
+  }, [hasAutosave, mostRecentUpdate, state.uploadStatus, state.authData, onDisableTus, setModified])
+
+  useEffect(() => {
+    const uploaded = uploadedVideoFieldsRef.current
+    if (uploaded && isUploadReverted) {
+      writeVideoFields(uploaded)
+      setModified(true)
+    }
+  }, [isUploadReverted, setModified, writeVideoFields])
 
   const [previewSrc, setPreviewSrc] = useState<null | string>(null)
 

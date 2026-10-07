@@ -1,32 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { existsMock, getSafeFileNameMock, presignMock } = vi.hoisted(() => ({
-  existsMock: vi.fn(),
-  getSafeFileNameMock: vi.fn(),
+const { findOneMock, presignMock } = vi.hoisted(() => ({
+  findOneMock: vi.fn(),
   presignMock: vi.fn(),
 }))
 
 vi.mock('@/server/bunny/s3.js', () => ({
   presignStoragePutUrl: presignMock,
-  storageObjectExistsS3: existsMock,
 }))
 
 const { verifyClientUploadReceipt } = await import('payload/internal')
-
-vi.mock('@/server/files.js', () => ({
-  getSafeFileName: getSafeFileNameMock,
-}))
 
 const { createCollectionContext } = await import('@/server/payload/options/context.js')
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 const { getGenerateUploadInstructions } = await import('@/server/payload/storage/clientUploads/uploadInstructions.js')
 const { verifyEdgeUploadUrl } = await import('@/server/payload/storage/clientUploads/mint.js')
-const { readClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
 const { getGenerateUrl } = await import('@/server/payload/storage/generateUrl.js')
-const { buildStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
+const { getObjectFolder } = await import('@/server/urls.js')
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-const keyed = (prefix: string, filename = 'photo.jpg') =>
+const keyed = (prefix: string, filename = 'photo-original.jpg') =>
   new RegExp(`^${prefix ? `${prefix}/` : ''}${UUID}${filename ? `/${filename.replace('.', '\\.')}` : ''}$`)
 
 const collection = {
@@ -42,6 +35,7 @@ const buildRequest = (
   payload: {
     collections: { [collectionConfig.slug as string]: { config: collectionConfig } },
     config: { upload: { limits: { fileSize: 5_000_000 } } },
+    db: { findOne: findOneMock },
     secret: 'payload-secret',
   },
   t: (key: string) => key,
@@ -79,10 +73,8 @@ const s3Options = () =>
 describe('client upload endpoint', () => {
   beforeEach(() => {
     presignMock.mockReset()
-    existsMock.mockReset()
-    existsMock.mockResolvedValue(false)
-    getSafeFileNameMock.mockReset()
-    getSafeFileNameMock.mockImplementation(async ({ desiredFilename }: { desiredFilename: string }) => desiredFilename)
+    findOneMock.mockReset()
+    findOneMock.mockResolvedValue(null)
     presignMock.mockResolvedValue('https://de-s3.storage.bunnycdn.com/zone/media/photo.jpg?X-Amz-Signature=abc')
   })
 
@@ -151,38 +143,36 @@ describe('client upload endpoint', () => {
     expect(instructions.type).toBe('http')
   })
 
-  it('returns 409 when an object already exists at the key', async () => {
-    existsMock.mockResolvedValue(true)
-    await expect(generate(s3Options(), photo)).rejects.toMatchObject({ status: 409 })
-    expect(existsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: expect.stringMatching(keyed('')), zoneName: 'zone' }),
+  it('renames the file when a document already uses the name', async () => {
+    findOneMock.mockResolvedValueOnce({ id: 'existing' })
+
+    const instructions = await generate(s3Options(), photo)
+
+    expect(instructions.file.filename).toBe('photo-1.jpg')
+    expect(presignMock).toHaveBeenCalledWith(
+      expect.objectContaining({ path: expect.stringMatching(keyed('', 'photo-1-original.jpg')) }),
     )
-    expect(presignMock).not.toHaveBeenCalled()
   })
 
-  it('returns a signed receipt bound to the prefix, size and type', async () => {
+  it('returns a signed receipt bound to the prefix and object key', async () => {
     const req = buildRequest()
     const { file } = await getGenerateUploadInstructions(createCollectionContext(s3Options(), collection as never))({
       ...photo,
       req,
     } as never)
 
-    expect(file.uploadReference.prefix).toMatch(keyed('', ''))
+    expect(file.uploadReference.prefix).toBe('')
+    expect(file.uploadReference._objectKey).toMatch(new RegExp(`^${UUID}$`))
     const receipt = verifyClientUploadReceipt({
       collectionSlug: 'media',
       req: req as never,
       signedReceipt: file.uploadReference.signedReceipt as string,
     })
-    expect(receipt.filename).toBe('photo.jpg')
-    expect(receipt.filePrefix).toBe(file.uploadReference.prefix)
-    expect(
-      readClientUpload({
-        collectionSlug: 'media',
-        filename: 'photo.jpg',
-        req: req as never,
-        uploadReference: file.uploadReference,
-      }),
-    ).toEqual({ filesize: 1000, mimeType: 'image/jpeg', prefix: file.uploadReference.prefix })
+    expect(receipt).toMatchObject({
+      _objectKey: file.uploadReference._objectKey,
+      filename: 'photo.jpg',
+      filePrefix: '',
+    })
   })
 
   it('gives Edge uploads of the same filename different keys', async () => {
@@ -225,20 +215,14 @@ describe('client upload endpoint', () => {
 
     const { file } = await getGenerateUploadInstructions(context)({ ...photo, req } as never)
     const signedPath = presignMock.mock.calls[0][0].path as string
-    const { prefix } = readClientUpload({
-      collectionSlug: 'media',
-      filename: file.filename,
-      req: req as never,
-      uploadReference: file.uploadReference,
-    })!
-    const doc = { filename: file.filename, prefix }
+    const { _objectKey, prefix } = file.uploadReference
+    const filename = 'photo-original.jpg'
+    const doc = { _objectKey, filename, original: { _objectKey, filename, prefix }, prefix }
 
-    expect(signedPath).toMatch(keyed('media'))
+    expect(prefix).toBe('media')
+    expect(signedPath).toBe(`media/${_objectKey}/${filename}`)
     expect(
-      buildStoragePathData({ collectionPrefix: 'media', docPrefix: doc.prefix, filename: doc.filename }),
-    ).toMatchObject({ storageFilePath: signedPath })
-    expect(
-      getGenerateUrl(context)({ collection: collection as never, data: doc, filename: doc.filename, prefix }),
+      getGenerateUrl(context)({ collection: collection as never, data: doc, filename, prefix: getObjectFolder(doc) }),
     ).toBe(`https://cdn.b-cdn.net/${signedPath}`)
   })
 
@@ -296,9 +280,9 @@ describe('client upload endpoint', () => {
 
     const instructions = await generate(options, photo)
 
-    expect(instructions.file.uploadReference.prefix).toMatch(keyed('tenants/acme', ''))
+    expect(instructions.file.uploadReference.prefix).toBe('tenants/acme')
     expect(presignMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: `${instructions.file.uploadReference.prefix}/photo.jpg` }),
+      expect.objectContaining({ path: expect.stringMatching(keyed('tenants/acme')) }),
     )
   })
 
@@ -316,9 +300,9 @@ describe('client upload endpoint', () => {
 
     const instructions = await generate(options, photo)
 
-    expect(instructions.file.uploadReference.prefix).toMatch(keyed('uploads/tenants/acme', ''))
+    expect(instructions.file.uploadReference.prefix).toBe('uploads/tenants/acme')
     expect(presignMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: `${instructions.file.uploadReference.prefix}/photo.jpg` }),
+      expect.objectContaining({ path: expect.stringMatching(keyed('uploads/tenants/acme')) }),
     )
   })
 
@@ -336,9 +320,9 @@ describe('client upload endpoint', () => {
 
     const instructions = await generate(options, photo)
 
-    expect(instructions.file.uploadReference.prefix).toMatch(keyed('uploads/acme', ''))
+    expect(instructions.file.uploadReference.prefix).toBe('uploads/acme')
     expect(presignMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: `${instructions.file.uploadReference.prefix}/photo.jpg` }),
+      expect.objectContaining({ path: expect.stringMatching(keyed('uploads/acme')) }),
     )
   })
 
@@ -364,7 +348,6 @@ describe('client upload endpoint', () => {
     expect(request.headers).toEqual({ 'Content-Type': 'image/jpeg' })
     expect(verifyEdgeUploadUrl(request.url, 'shared').valid).toBe(true)
     expect(presignMock).not.toHaveBeenCalled()
-    expect(existsMock).not.toHaveBeenCalled()
   })
 
   it('rejects a file over the Edge Script max size', async () => {
@@ -397,7 +380,7 @@ describe('client upload endpoint', () => {
     ).rejects.toMatchObject({ status: 403 })
   })
 
-  it('sends Stream videos to the TUS handler without creating a storage URL', async () => {
+  it('refuses Stream videos without creating a storage URL', async () => {
     const options = createNormalizedOptions({
       collections: { media: true },
       storage: {
@@ -411,14 +394,11 @@ describe('client upload endpoint', () => {
     } as never)
     const media = { ...collection, upload: { mimeTypes: ['image/*', 'video/*'] } }
 
-    const video = await generate(options, { ...photo, filename: 'clip.mp4', mimeType: 'video/mp4' }, {}, media)
+    await expect(
+      generate(options, { ...photo, filename: 'clip.mp4', mimeType: 'video/mp4' }, {}, media),
+    ).rejects.toMatchObject({ status: 400 })
     const image = await generate(options, photo, {}, media)
 
-    expect(video).toEqual({
-      name: 'bunny',
-      type: 'dispatch',
-      file: { filename: 'clip.mp4', mimeType: 'video/mp4', size: 1000, uploadReference: {} },
-    })
     expect(image.type).toBe('http')
     expect(presignMock).toHaveBeenCalledTimes(1)
   })

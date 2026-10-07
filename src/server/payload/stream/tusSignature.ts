@@ -20,6 +20,19 @@ export const generateStreamTusUploadSignature = ({
   return createHash('sha256').update(data).digest('hex')
 }
 
+export const getStreamTusHeaders = ({
+  expiresIn,
+  ...args
+}: { expiresIn: number } & Omit<Parameters<typeof generateStreamTusUploadSignature>[0], 'expirationTime'>) => {
+  const expirationTime = Math.floor(Date.now() / 1000) + expiresIn
+  return {
+    AuthorizationExpire: String(expirationTime),
+    AuthorizationSignature: generateStreamTusUploadSignature({ ...args, expirationTime }),
+    LibraryId: String(args.libraryId),
+    VideoId: args.videoId,
+  }
+}
+
 const STREAM_VIDEO_TOKEN_TTL_SECONDS = 24 * 60 * 60
 const STREAM_VIDEO_TOKEN_PATTERN = /^(\d+)\.([\da-f]{64})$/
 

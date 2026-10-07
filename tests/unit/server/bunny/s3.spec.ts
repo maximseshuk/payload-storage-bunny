@@ -1,27 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { ctorMock, deleteObjectMock, getPresignedUrlMock, objectExistsMock, putAnyObjectMock } = vi.hoisted(() => ({
-  ctorMock: vi.fn(),
-  deleteObjectMock: vi.fn(),
-  getPresignedUrlMock: vi.fn(),
-  objectExistsMock: vi.fn(),
-  putAnyObjectMock: vi.fn(),
-}))
+const { copyObjectMock, ctorMock, deleteObjectMock, getPresignedUrlMock, putAnyObjectMock, S3ServiceError } =
+  vi.hoisted(() => ({
+    copyObjectMock: vi.fn(),
+    ctorMock: vi.fn(),
+    deleteObjectMock: vi.fn(),
+    getPresignedUrlMock: vi.fn(),
+    putAnyObjectMock: vi.fn(),
+    S3ServiceError: class extends Error {
+      constructor(
+        message: string,
+        readonly status: number,
+      ) {
+        super(message)
+      }
+    },
+  }))
 
 vi.mock('s3mini', () => ({
   S3mini: class {
+    copyObject = copyObjectMock
     deleteObject = deleteObjectMock
     getPresignedUrl = getPresignedUrlMock
-    objectExists = objectExistsMock
     putAnyObject = putAnyObjectMock
 
     constructor(args: unknown) {
       ctorMock(args)
     }
   },
+  S3ServiceError,
 }))
 
-const { deleteStorageFileS3, getS3Endpoint, presignStoragePutUrl, storageObjectExistsS3, uploadStorageFileS3 } =
+const { copyStorageFileS3, deleteStorageFileS3, getS3Endpoint, presignStoragePutUrl, uploadStorageFileS3 } =
   await import('@/server/bunny/s3.js')
 
 const credentials = {
@@ -31,10 +41,10 @@ const credentials = {
 }
 
 beforeEach(() => {
+  copyObjectMock.mockReset()
   ctorMock.mockReset()
   deleteObjectMock.mockReset()
   getPresignedUrlMock.mockReset()
-  objectExistsMock.mockReset()
   putAnyObjectMock.mockReset()
 })
 
@@ -132,24 +142,33 @@ describe('Storage S3 backend', () => {
     })
   })
 
-  describe('storageObjectExistsS3', () => {
-    it('reports an existing object', async () => {
-      objectExistsMock.mockResolvedValue(true)
+  describe('copyStorageFileS3', () => {
+    it('copies server-side, keeps the metadata and refuses to overwrite', async () => {
+      copyObjectMock.mockResolvedValue({ etag: 'x' })
 
-      await expect(storageObjectExistsS3({ ...credentials, path: 'a.jpg' })).resolves.toBe(true)
-      expect(objectExistsMock).toHaveBeenCalledWith('a.jpg')
+      await copyStorageFileS3({ ...credentials, from: 'a/old.png', timeout: 60000, to: 'b/new.png' })
+
+      expect(copyObjectMock).toHaveBeenCalledWith('a/old.png', 'b/new.png', {
+        additionalHeaders: { 'If-None-Match': '*' },
+        metadataDirective: 'COPY',
+      })
+      expect(ctorMock.mock.calls[0][0]).toMatchObject({ requestAbortTimeout: 60000 })
     })
 
-    it('reports a missing object', async () => {
-      objectExistsMock.mockResolvedValue(false)
+    it('throws EEXIST when the target exists', async () => {
+      copyObjectMock.mockRejectedValue(new S3ServiceError('PreconditionFailed', 412))
 
-      await expect(storageObjectExistsS3({ ...credentials, path: 'a.jpg' })).resolves.toBe(false)
+      await expect(copyStorageFileS3({ ...credentials, from: 'a.png', to: 'b.png' })).rejects.toMatchObject({
+        code: 'EEXIST',
+      })
     })
 
-    it('treats an inconclusive answer as existing', async () => {
-      objectExistsMock.mockResolvedValue(null)
+    it('wraps other copy failures', async () => {
+      copyObjectMock.mockRejectedValue(new S3ServiceError('NoSuchKey', 404))
 
-      await expect(storageObjectExistsS3({ ...credentials, path: 'a.jpg' })).resolves.toBe(true)
+      await expect(copyStorageFileS3({ ...credentials, from: 'a.png', to: 'b.png' })).rejects.toThrow(
+        'Unable to copy file: a.png',
+      )
     })
   })
 

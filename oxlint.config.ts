@@ -41,6 +41,16 @@ export default defineConfig({
       },
     },
     {
+      files: ['src/client/vendor/**'],
+      rules: {
+        'jsx-a11y/no-aria-hidden-on-focusable': 'off',
+        'react/exhaustive-effect-dependencies': 'off',
+        'react/memo-dependencies': 'off',
+        'react/set-state-in-effect': 'off',
+        'unicorn/consistent-function-scoping': 'off',
+      },
+    },
+    {
       files: ['src/shared/**'],
       rules: {
         'no-restricted-imports': [

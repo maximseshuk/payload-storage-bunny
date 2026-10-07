@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import { createLocalReq, type Payload } from 'payload'
+import { createPayloadRequest, type Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { cleanupStreamVideos } from '../helpers/e2e/bunnyStream.js'
@@ -68,10 +68,11 @@ describe.skipIf(!(hasBunnyCredentials() && hasSignedBunnyCredentials()))('multi-
         filetype: 'video/mp4',
         title: `${collection} clip`,
       }
-      const req = await createLocalReq(
-        { req: { json: async () => body }, user: { ...user, collection: 'users' } },
+      const req = await createPayloadRequest({
         payload,
-      )
+        req: { json: async () => body },
+        user: { ...user, collection: 'users' },
+      })
       const response = await endpoint.handler(req)
       expect(response.status).toBe(200)
       return response.json()
@@ -81,12 +82,16 @@ describe.skipIf(!(hasBunnyCredentials() && hasSignedBunnyCredentials()))('multi-
     expect(signed.type).toBe('upload')
     expect(signed.libraryId).toBe(parseInt(process.env.BUNNY_SIGNED_STREAM_LIBRARY_ID || '0', 10))
     expect(signed.videoId).toBeTruthy()
-    expect(signed.authorizationSignature).toMatch(/^[a-f0-9]{64}$/)
-    expect(typeof signed.authorizationExpire).toBe('number')
+    expect(signed.uploadUrl).toMatch(/^https:\/\//)
+    expect(signed.headers).toMatchObject({
+      AuthorizationSignature: expect.stringMatching(/^[a-f0-9]{64}$/),
+      LibraryId: String(signed.libraryId),
+      VideoId: signed.videoId,
+    })
 
     const global = await requestTusAuth('mz-stream-global')
     expect(global.type).toBe('upload')
     expect(global.libraryId).toBe(parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0', 10))
-    expect(global.authorizationSignature).toMatch(/^[a-f0-9]{64}$/)
+    expect(global.headers.AuthorizationSignature).toMatch(/^[a-f0-9]{64}$/)
   })
 })

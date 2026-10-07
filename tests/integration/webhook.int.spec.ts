@@ -427,7 +427,9 @@ describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
   }, 60000)
 
   it('reports the encoding state through the status endpoint', async () => {
-    const endpoint = payload.config.endpoints?.find((e) => e.path === '/storage-bunny/stream/status/:collection/:id')
+    const endpoint = payload.config.endpoints?.find(
+      (e) => e.path === '/storage-bunny/stream/status/:collection/:id/:videoId',
+    )
     if (!endpoint) {
       throw new Error('Status endpoint not found')
     }
@@ -447,7 +449,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
       const callStatus = async (id = String(upload.id)) => {
         const response = await endpoint.handler({
           payload,
-          routeParams: { collection: 'webhook-test', id },
+          routeParams: { collection: 'webhook-test', id, videoId },
           t: (key: string) => key,
           user: { ...docs[0], collection: 'users' },
         } as any)

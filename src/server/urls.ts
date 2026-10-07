@@ -1,5 +1,23 @@
 import { buildStoragePathData } from '@payloadcms/plugin-cloud-storage/utilities'
 
+type StoredRepresentation = {
+  _objectKey?: unknown
+  original?: { filename?: unknown }
+  prefix?: unknown
+}
+
+export const getObjectFolder = (doc: unknown, representation: unknown = doc): string => {
+  const stored = (doc ?? {}) as StoredRepresentation
+  const file = (representation ?? {}) as StoredRepresentation
+  const isLegacy = typeof stored.original?.filename !== 'string'
+  return [
+    file.prefix ?? (isLegacy ? stored.prefix : undefined),
+    file._objectKey ?? (isLegacy ? stored._objectKey : undefined),
+  ]
+    .filter((segment): segment is string => typeof segment === 'string' && segment.length > 0)
+    .join('/')
+}
+
 type StorageCdnUrlArgs = {
   collectionPrefix?: string
   encode?: boolean

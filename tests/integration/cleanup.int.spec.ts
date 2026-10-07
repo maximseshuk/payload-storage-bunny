@@ -1,14 +1,15 @@
-import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import { resolveSignedURLKey } from '@payloadcms/plugin-cloud-storage/utilities'
 import type { Payload } from 'payload'
+import { createPayloadRequest } from 'payload'
+import { getFileFromUploadInstructions } from 'payload/internal'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { uploadStorageFile } from '@/server/bunny/storage.js'
 import { createStreamVideo, deleteStreamVideo, getStreamVideo } from '@/server/bunny/stream.js'
 import { HTTPError } from '@/server/http/index.js'
-import { signClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import { streamUploadSessionsCollectionSlug } from '@/server/payload/stream/sessionsCollection.js'
 import { getStorageUrl } from '@/shared/constants.js'
 
@@ -103,8 +104,17 @@ describe.skipIf(!hasBunnyCredentials())('Stream cleanup task', () => {
     expect(videoId).toBeTruthy()
 
     const image = await readFile(path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'))
-    const prefix = `replace-${randomUUID()}`
-    const objectPath = `cleanup-test/${prefix}/photo.jpg`
+    const req = await createPayloadRequest({ payload })
+    const {
+      sanitizedFilename,
+      storageFilePath: objectPath,
+      uploadReference,
+    } = await resolveSignedURLKey({
+      collectionPrefix: 'cleanup-test',
+      collectionSlug: 'cleanup-test',
+      filename: 'photo.jpg',
+      req,
+    })
     const storage = {
       apiKey: process.env.BUNNY_STORAGE_API_KEY || '',
       zoneName: process.env.BUNNY_STORAGE_ZONE_NAME || '',
@@ -117,26 +127,19 @@ describe.skipIf(!hasBunnyCredentials())('Stream cleanup task', () => {
       return response.status
     }
     await uploadStorageFile({ ...storage, buffer: image, mimeType: 'image/jpeg', path: objectPath })
-    const signedReceipt = signClientUpload({
-      claims: { filesize: image.length, mimeType: 'image/jpeg' },
+    const file = await getFileFromUploadInstructions({
       collectionSlug: 'cleanup-test',
-      filename: 'photo.jpg',
-      prefix,
-      req: { payload } as never,
+      file: { filename: sanitizedFilename, mimeType: 'image/jpeg', size: image.length, uploadReference },
+      req,
     })
 
     const updated = await payload.update({
       id: doc.id,
       collection: 'cleanup-test',
       data: {},
-      file: {
-        data: image,
-        mimetype: 'image/jpeg',
-        name: 'photo.jpg',
-        size: image.length,
-        uploadReference: { prefix, signedReceipt },
-      } as never,
+      file: file as never,
       overrideAccess: true,
+      req,
     })
 
     const stored = (await payload.db.findOne({ collection: 'cleanup-test', where: { id: { equals: doc.id } } })) as {
@@ -144,7 +147,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream cleanup task', () => {
     }
     expect(stored.bunnyData?.stream?.videoId ?? null).toBeNull()
     expect(updated.mimeType).toBe('image/jpeg')
-    expect(updated.url).toContain(`/cleanup-test/${prefix}/photo.jpg`)
+    expect(updated.url).toContain(`/${objectPath}`)
     expect(await isVideoDeleted(videoId)).toBe(true)
 
     await payload.delete({ id: doc.id, collection: 'cleanup-test', overrideAccess: true })

@@ -130,9 +130,9 @@ export const buildInitOutput = (answers: InitAnswers, result: ProvisionResult, a
 
 export const buildInstallLines = (pluginVersion: string, payloadVersion: string | undefined): string[] =>
   payloadVersion
-    ? [`pnpm add @seshuk/payload-storage-bunny@${pluginVersion} @payloadcms/plugin-cloud-storage@${payloadVersion}`]
+    ? [`npm install @seshuk/payload-storage-bunny@${pluginVersion} @payloadcms/plugin-cloud-storage@${payloadVersion}`]
     : [
-        `pnpm add @seshuk/payload-storage-bunny@${pluginVersion} @payloadcms/plugin-cloud-storage`,
+        `npm install @seshuk/payload-storage-bunny@${pluginVersion} @payloadcms/plugin-cloud-storage`,
         'Pin @payloadcms/plugin-cloud-storage to the same version as your `payload` package.',
       ]
 

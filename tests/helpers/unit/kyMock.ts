@@ -1,10 +1,11 @@
 import { type Mock, vi } from 'vitest'
 
-type KyMethods = Record<'delete' | 'get' | 'post' | 'put', Mock>
+type KyMethods = Record<'delete' | 'get' | 'head' | 'post' | 'put', Mock>
 
 export const kyMethods: KyMethods = {
   delete: vi.fn(),
   get: vi.fn(),
+  head: vi.fn(),
   post: vi.fn(),
   put: vi.fn(),
 }

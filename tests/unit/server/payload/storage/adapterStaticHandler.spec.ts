@@ -5,36 +5,36 @@ import type { CollectionContext } from '@/shared/types/index.js'
 
 import { httpError } from '../../../../helpers/unit/httpError.js'
 
-const { getBunnyDataMock, storageHandlerMock, streamHandlerMock, thumbnailHandlerMock } = vi.hoisted(() => ({
-  getBunnyDataMock: vi.fn(),
-  storageHandlerMock: vi.fn(),
-  streamHandlerMock: vi.fn(),
-  thumbnailHandlerMock: vi.fn(),
-}))
+const { getBunnyDataMock, getUploadOffsetMock, getVideoMock, storageHandlerMock, streamHandlerMock } = vi.hoisted(
+  () => ({
+    getBunnyDataMock: vi.fn(),
+    getUploadOffsetMock: vi.fn(),
+    getVideoMock: vi.fn(),
+    storageHandlerMock: vi.fn(),
+    streamHandlerMock: vi.fn(),
+  }),
+)
 
 vi.mock('@/server/payload/fields/bunnyGroupField.js', () => ({ getBunnyData: getBunnyDataMock }))
 vi.mock('@/server/payload/storage/serveFile.js', () => ({ storageStaticHandler: storageHandlerMock }))
 vi.mock('@/server/payload/stream/serveStream.js', () => ({ streamStaticHandler: streamHandlerMock }))
-vi.mock('@/server/payload/stream/serveThumbnail.js', () => ({ streamThumbnailStaticHandler: thumbnailHandlerMock }))
+vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/bunny/stream.js')>()),
+  getStreamTusUploadOffset: getUploadOffsetMock,
+  getStreamVideo: getVideoMock,
+}))
 
 type LooseReq = {
-  payload: { find: ReturnType<typeof vi.fn>; logger: { error: ReturnType<typeof vi.fn> }; secret: string }
+  context?: Record<string, unknown>
+  payload: {
+    config: { upload: { transformers?: unknown[] } }
+    find: ReturnType<typeof vi.fn>
+    logger: { error: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> }
+    secret: string
+  }
 }
 
 const { getStaticHandler: rawGetStaticHandler } = await import('@/server/payload/storage/staticHandler.js')
-const { signClientUpload } = await import('@/server/payload/storage/clientUploads/receipt.js')
-
-const signed = (filename: string, prefix: string, claims: Record<string, unknown> = {}) => ({
-  prefix,
-  signedReceipt: signClientUpload({
-    claims,
-    collectionSlug: 'media',
-    filename,
-    prefix,
-    req: { payload: { secret: 'payload-secret' } } as never,
-  }),
-})
-
 const getStaticHandler = rawGetStaticHandler as unknown as (ctx: CollectionContext) => (
   req: LooseReq,
   args: {
@@ -63,69 +63,141 @@ const context = (over: Partial<CollectionContext> = {}): CollectionContext =>
     ...over,
   }) as unknown as CollectionContext
 
-const makeReq = (findResult: { docs: unknown[] } = { docs: [] }): LooseReq => ({
-  payload: { find: vi.fn().mockResolvedValue(findResult), logger: { error: vi.fn() }, secret: 'payload-secret' },
+const makeReq = (findResult: { docs: unknown[] } = { docs: [] }, transformers?: unknown[]): LooseReq => ({
+  payload: {
+    config: { upload: { transformers } },
+    find: vi.fn().mockResolvedValue(findResult),
+    logger: { error: vi.fn(), warn: vi.fn() },
+    secret: 'payload-secret',
+  },
 })
 
 beforeEach(() => {
   getBunnyDataMock.mockReset().mockReturnValue(null)
   storageHandlerMock.mockReset().mockResolvedValue(new Response('storage', { status: 200 }))
   streamHandlerMock.mockReset().mockResolvedValue(new Response('stream', { status: 200 }))
-  thumbnailHandlerMock.mockReset().mockResolvedValue(new Response('thumb', { status: 200 }))
+})
+
+const uploadUrl = 'https://video.bunnycdn.com/tusupload/upload-token'
+const uploaded = (status: number) => ({
+  guid: 'vid1',
+  metaTags: [
+    { property: 'payload-storage-bunny:upload-url', value: uploadUrl },
+    { property: 'payload-storage-bunny:upload-length', value: '2048' },
+  ],
+  status,
 })
 
 describe('getStaticHandler dispatch', () => {
-  it('serves the complete boxes of the head the browser sent for a client-direct Stream upload, without a type', async () => {
-    const handler = getStaticHandler(context())
-    const ftyp = Buffer.from('00000010667479706973736f00000200', 'hex')
-    const truncatedMoov = Buffer.from(`000010006d6f6f76${'00'.repeat(32)}`, 'hex')
-    const res = await handler(makeReq(), {
-      params: {
-        filename: 'big.mp4',
-        uploadReference: signed('big.mp4', '', {
-          head: Buffer.concat([ftyp, truncatedMoov]).toString('base64'),
-          videoId: 'v1',
-        }),
-      },
+  it('answers the upload probe with the length of the finished server-created upload and falls back to storage for other references', async () => {
+    const streamClient = context({
+      isTusUploadSupported: true,
+      storageOptions: { ...context().storageOptions!, clientUploads: { edge: {} } } as never,
     })
+    const handler = getStaticHandler(streamClient)
+    const params = { filename: 'clip-original.mp4', uploadReference: { _objectKey: 'vid1', signedReceipt: 'r' } }
 
-    expect(Buffer.from(await res.arrayBuffer())).toEqual(Buffer.concat([ftyp, Buffer.from('0000000866726565', 'hex')]))
-    expect(res.headers.get('Content-Type')).toBeNull()
-    expect(streamHandlerMock).not.toHaveBeenCalled()
+    getVideoMock.mockResolvedValueOnce(uploaded(0))
+    getUploadOffsetMock.mockResolvedValueOnce({ length: 2048, offset: 2048 })
+    const req = makeReq()
+    const probe = await handler(req, { params })
+    expect(probe.status).toBe(206)
+    expect(probe.headers.get('Content-Range')).toBe('bytes 0-0/2048')
+    expect(getUploadOffsetMock).toHaveBeenCalledWith({
+      headers: expect.objectContaining({ LibraryId: '1', VideoId: 'vid1' }),
+      uploadUrl,
+    })
+    expect(req.context?.bunnyVerifiedStreamUpload).toBe('vid1')
     expect(storageHandlerMock).not.toHaveBeenCalled()
+
+    getVideoMock.mockResolvedValueOnce(uploaded(3))
+    getUploadOffsetMock.mockRejectedValueOnce(new Error('gone', { cause: httpError(404) }))
+    const expired = await handler(makeReq(), { params })
+    expect(expired.status).toBe(206)
+    expect(expired.headers.get('Content-Range')).toBe('bytes 0-0/2048')
+
+    getVideoMock.mockRejectedValueOnce(new Error('not found', { cause: httpError(404) }))
+    expect(await (await handler(makeReq(), { params })).text()).toBe('storage')
+
+    getVideoMock.mockClear()
+    await getStaticHandler(context())(makeReq(), { params })
+    expect(getVideoMock).not.toHaveBeenCalled()
   })
 
-  it('never serves a Stream head from an unsigned upload reference', async () => {
-    const handler = getStaticHandler(context())
-    const head = Buffer.from('00000010667479706973736f00000200', 'hex').toString('base64')
-    const res = await handler(makeReq(), {
-      params: {
-        filename: 'big.mp4',
-        uploadReference: { head, prefix: '', signedReceipt: 'forged.receipt', videoId: 'v1' },
-      },
+  it('rejects the upload probe when the upload is unfinished, failed, unknown or not created by the server', async () => {
+    const handler = getStaticHandler(context({ isTusUploadSupported: true, storageOptions: undefined }))
+    const params = { filename: 'clip-original.mp4', uploadReference: { _objectKey: 'vid1', signedReceipt: 'r' } }
+    const probe = async () => {
+      const req = makeReq()
+      const res = await handler(req, { params })
+      expect(req.context?.bunnyVerifiedStreamUpload).toBeUndefined()
+      return { msg: req.payload.logger.warn.mock.calls[0]?.[0]?.msg, status: res.status }
+    }
+
+    getVideoMock.mockResolvedValueOnce(uploaded(2))
+    getUploadOffsetMock.mockResolvedValueOnce({ length: 2048, offset: 1024 })
+    expect(await probe()).toEqual({ msg: '[bunny:stream] upload: the upload has not finished yet', status: 400 })
+
+    getUploadOffsetMock.mockClear()
+    getVideoMock.mockResolvedValueOnce(uploaded(6))
+    expect(await probe()).toEqual({
+      msg: '[bunny:stream] upload: Bunny Stream marked the upload as failed',
+      status: 400,
+    })
+    expect(getUploadOffsetMock).not.toHaveBeenCalled()
+
+    getVideoMock.mockResolvedValueOnce({ metaTags: null, status: 2 })
+    expect(await probe()).toEqual({
+      msg: '[bunny:stream] upload: the video has no upload created by the server',
+      status: 400,
     })
 
-    expect(res.status).toBe(403)
-    expect(streamHandlerMock).not.toHaveBeenCalled()
-    expect(storageHandlerMock).not.toHaveBeenCalled()
+    getVideoMock.mockResolvedValueOnce(uploaded(0))
+    getUploadOffsetMock.mockRejectedValueOnce(new Error('gone', { cause: httpError(404) }))
+    expect(await probe()).toEqual({ msg: '[bunny:stream] upload: Bunny Stream does not know the upload', status: 400 })
+
+    getVideoMock.mockResolvedValueOnce(uploaded(2))
+    getUploadOffsetMock.mockRejectedValueOnce(new Error('down', { cause: httpError(503) }))
+    expect((await handler(makeReq(), { params })).status).toBe(500)
   })
 
-  it('routes a bunny:stream thumbnail.jpg filename to the thumbnail handler', async () => {
-    const handler = getStaticHandler(context())
-    const res = await handler(makeReq(), { doc: undefined, params: { filename: 'bunny:stream:vid1:thumbnail.jpg' } })
-
-    expect(await res.text()).toBe('thumb')
-    expect(thumbnailHandlerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ thumbnailType: 'thumbnail.jpg', videoId: 'vid1' }),
+  it('reads the file from storage when the Stream check fails in a collection with storage client uploads', async () => {
+    const handler = getStaticHandler(
+      context({
+        isTusUploadSupported: true,
+        storageOptions: { ...context().storageOptions!, clientUploads: { edge: {} } } as never,
+      }),
     )
+    const params = { filename: 'photo.jpg', uploadReference: { _objectKey: 'key1', signedReceipt: 'r' } }
+
+    getVideoMock.mockRejectedValueOnce(new Error('bad request', { cause: httpError(400) }))
+    const req = makeReq()
+    expect(await (await handler(req, { params })).text()).toBe('storage')
+    expect(req.payload.logger.warn).toHaveBeenCalled()
   })
 
-  it('routes a bunny:stream preview.webp filename to the thumbnail handler', async () => {
-    const handler = getStaticHandler(context())
-    await handler(makeReq(), { doc: undefined, params: { filename: 'bunny:stream:vid9:preview.webp' } })
+  it('skips the Stream probe when an upload transformer needs the whole file', async () => {
+    const handler = getStaticHandler(
+      context({
+        isTusUploadSupported: true,
+        storageOptions: { ...context().storageOptions!, clientUploads: { edge: {} } } as never,
+      }),
+    )
+    const params = { filename: 'clip-original.mp4', uploadReference: { _objectKey: 'vid1', signedReceipt: 'r' } }
 
-    expect(thumbnailHandlerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ thumbnailType: 'preview.webp', videoId: 'vid9' }),
+    getVideoMock.mockClear()
+    const transformer = { mimeTypes: ['*/*'], name: 'watermark', transformFile: vi.fn() }
+    expect(await (await handler(makeReq({ docs: [] }, [transformer]), { params })).text()).toBe('storage')
+    expect(getVideoMock).not.toHaveBeenCalled()
+  })
+
+  it('no longer serves a synthetic bunny:stream thumbnail filename', async () => {
+    const handler = getStaticHandler(context())
+    await handler(makeReq(), { doc: undefined, params: { filename: 'bunny:stream:vid1:thumbnail.jpg' } })
+
+    expect(streamHandlerMock).not.toHaveBeenCalled()
+    expect(storageHandlerMock).toHaveBeenCalledWith(
+      expect.objectContaining({ filename: 'bunny:stream:vid1:thumbnail.jpg' }),
     )
   })
 
@@ -219,101 +291,93 @@ const prefixCollection = {
 } as unknown as CollectionConfig
 
 describe('getStaticHandler storage prefix resolution', () => {
-  it('uses params.prefix over everything else', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ streamOptions: undefined }))
+  const storageOnly = (over: Partial<CollectionContext> = {}) =>
+    getStaticHandler(context({ streamOptions: undefined, ...over }))
 
-    await handler(req, {
-      doc: { prefix: 'doc/pre' },
-      params: { filename: 'photo.jpg', prefix: 'query/pre', uploadReference: signed('photo.jpg', 'ctx/pre') },
+  it('uses the prefix and object key stored on the doc', async () => {
+    const req = makeReq()
+
+    await storageOnly()(req, {
+      doc: { _objectKey: 'k1', filename: 'photo.jpg', prefix: 'media' },
+      params: { filename: 'photo.jpg', prefix: 'query/pre' },
     })
 
-    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'query/pre' }))
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'media/k1' }))
     expect(req.payload.find).not.toHaveBeenCalled()
   })
 
-  it('reads back only the signed prefix, never the one sent next to it', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ streamOptions: undefined }))
+  it('uses the location of the representation that matches the filename', async () => {
+    const doc = {
+      _objectKey: 'k1',
+      filename: 'photo.jpg',
+      original: { _objectKey: 'k2', filename: 'photo-original.jpg', prefix: 'media' },
+      prefix: 'media',
+    }
 
-    await handler(req, {
+    await storageOnly()(makeReq(), { doc, params: { filename: 'photo-original.jpg' } })
+
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'media/k2' }))
+  })
+
+  it('uses the doc prefix alone for a legacy doc without an original', async () => {
+    await storageOnly()(makeReq(), {
+      doc: { filename: 'photo.jpg', prefix: 'legacy' },
+      params: { filename: 'photo.jpg' },
+    })
+
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'legacy' }))
+  })
+
+  it('reads back the prefix and object key of an upload reference', async () => {
+    const req = makeReq()
+
+    await storageOnly()(req, {
       doc: null,
-      params: {
-        filename: 'photo.jpg',
-        uploadReference: { ...signed('photo.jpg', 'tenants/acme'), prefix: 'tenants/other' },
-      },
+      params: { filename: 'photo.jpg', uploadReference: { _objectKey: 'k3', prefix: 'tenants/acme' } },
     })
 
-    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/acme' }))
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/acme/k3' }))
     expect(req.payload.find).not.toHaveBeenCalled()
   })
 
-  it('rejects a read-back with an unsigned upload reference', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ streamOptions: undefined }))
-
-    const res = await handler(req, {
+  it('sanitizes a traversal attempt in an upload reference prefix', async () => {
+    await storageOnly()(makeReq(), {
       doc: null,
-      params: { filename: 'photo.jpg', uploadReference: { prefix: 'tenants/acme' } },
+      params: { filename: 'photo.jpg', uploadReference: { prefix: '../%2e%2e/secret' } },
     })
 
-    expect(res.status).toBe(403)
-    expect(storageHandlerMock).not.toHaveBeenCalled()
+    const passedPrefix = storageHandlerMock.mock.calls[0][0].prefix as string
+    expect(passedPrefix).not.toContain('..')
   })
 
-  it('uses doc.prefix when no param or upload reference is present', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ streamOptions: undefined }))
+  it('finds the doc by filename and the prefix query param when the collection has a prefix field', async () => {
+    const req = makeReq({ docs: [{ _objectKey: 'k4', filename: 'photo.jpg', prefix: 'tenants/db/media' }] })
 
-    await handler(req, { doc: { prefix: 'tenants/beta/media' }, params: { filename: 'photo.jpg' } })
-
-    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/beta/media' }))
-    expect(req.payload.find).not.toHaveBeenCalled()
-  })
-
-  it('passes the collection prefix to the storage handler for an empty doc.prefix', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ prefix: 'media', streamOptions: undefined }))
-
-    await handler(req, { doc: { prefix: '' }, params: { filename: 'photo.jpg', prefix: '' } })
-
-    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ collectionPrefix: 'media', prefix: '' }))
-  })
-
-  it('falls back to a gated DB find when the collection has a prefix field', async () => {
-    const req = makeReq({ docs: [{ prefix: 'tenants/db/media' }] })
-    const handler = getStaticHandler(context({ collection: prefixCollection, streamOptions: undefined }))
-
-    await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
+    await storageOnly({ collection: prefixCollection })(req, {
+      doc: undefined,
+      params: { filename: 'photo.jpg', prefix: 'tenants/db/media' },
+    })
 
     expect(req.payload.find).toHaveBeenCalledWith(
       expect.objectContaining({
         collection: 'media',
         draft: true,
-        where: { or: expect.arrayContaining([{ filename: { equals: 'photo.jpg' } }]) },
+        where: {
+          and: [
+            { or: expect.arrayContaining([{ filename: { equals: 'photo.jpg' } }]) },
+            { prefix: { equals: 'tenants/db/media' } },
+          ],
+        },
       }),
     )
-    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/db/media' }))
+    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'tenants/db/media/k4' }))
   })
 
-  it('skips the DB find and uses the static fallback prefix when no prefix field exists', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ prefix: 'static-pre', streamOptions: undefined }))
+  it('passes an empty prefix next to the collection prefix when no doc matches', async () => {
+    await storageOnly({ prefix: 'static-pre' })(makeReq(), { doc: undefined, params: { filename: 'photo.jpg' } })
 
-    await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
-
-    expect(req.payload.find).not.toHaveBeenCalled()
-    expect(storageHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ prefix: 'static-pre' }))
-  })
-
-  it('sanitizes a traversal attempt in the prefix query param', async () => {
-    const req = makeReq()
-    const handler = getStaticHandler(context({ streamOptions: undefined }))
-
-    await handler(req, { doc: undefined, params: { filename: 'photo.jpg', prefix: '../%2e%2e/secret' } })
-
-    const passedPrefix = storageHandlerMock.mock.calls[0][0].prefix as string
-    expect(passedPrefix).not.toContain('..')
-    expect(passedPrefix).toBe('secret')
+    expect(storageHandlerMock).toHaveBeenCalledWith(
+      expect.objectContaining({ collectionPrefix: 'static-pre', prefix: '' }),
+    )
   })
 })

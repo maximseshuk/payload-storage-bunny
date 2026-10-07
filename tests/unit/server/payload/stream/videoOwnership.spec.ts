@@ -7,6 +7,7 @@ const { getStreamVideoMock } = vi.hoisted(() => ({ getStreamVideoMock: vi.fn() }
 vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   getStreamVideo: getStreamVideoMock,
+  getStreamVideoOriginalSize: async () => 0,
 }))
 
 const { bunnyStorage } = await import('@/index.js')

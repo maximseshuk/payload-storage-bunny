@@ -42,8 +42,8 @@ export type UrlTransformOptions = boolean | UrlTransformFunction | UrlTransformQ
 
 export type ThumbnailOptions = {
   /**
-   * Use a specific size from upload collection's sizes instead of original file
-   * Only works for image uploads that have sizes configured
+   * Use a specific image variant of the upload collection instead of original file
+   * Only works for image uploads that have variants configured
    */
   sizeName?: string
   /**
@@ -185,7 +185,8 @@ export type StreamTusOptions = {
     req: PayloadRequest
   }) => boolean | Promise<boolean>
   /**
-   * Time in seconds for TUS upload session to expire
+   * Seconds that Bunny keeps an unfinished TUS upload. Set it longer than your largest upload takes.
+   * The browser gets TUS headers that expire after at most 5 minutes, and gets new ones from `tus-auth`.
    * @default 3600
    */
   expiresIn?: number
@@ -447,7 +448,7 @@ export type CollectionStreamOverride = {
          * When false, user must manually click "Enable TUS mode" button.
          */
         autoMode?: boolean
-        /** Upload session expiry in seconds. */
+        /** Seconds that Bunny keeps an unfinished TUS upload. Set it longer than your largest upload takes. */
         expiresIn?: number
       }
   /** Upload timeout in milliseconds. */

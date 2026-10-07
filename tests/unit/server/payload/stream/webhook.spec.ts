@@ -87,7 +87,7 @@ const buildReq = (
       collections: { media: { config: collection } },
       db: { findOne, updateOne },
       find,
-      logger: { debug: vi.fn(), error: vi.fn() },
+      logger: { debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
       update,
     },
     text: async () => rawBody,
@@ -279,6 +279,33 @@ describe('Stream webhook endpoint', () => {
     )
   })
 
+  it('warns when the original file of a video that became ready differs from the stored file size', async () => {
+    const findOne = vi.fn().mockResolvedValue({ ...storedDoc({ status: 'processing' }), filesize: 1000 })
+    const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
+    requestMock.mockResolvedValue({ json: async () => ({ data: { originals: 999 } }) })
+    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
+
+    expect((await (await getWebhookHandler(buildOptions(false))(req)).json()).success).toBe(true)
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ url: expect.stringMatching(/\/library\/12345\/videos\/v1\/storage$/) }),
+    )
+    expect((req as { payload: { logger: { warn: unknown } } }).payload.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'media', docId: 'doc-1', filesize: 1000, original: 999, videoId: 'v1' }),
+    )
+  })
+
+  it('skips the size check when another request already stored the ready state', async () => {
+    const findOne = vi.fn().mockResolvedValue({ ...storedDoc({ status: 'processing' }), filesize: 1000 })
+    const updateOne = vi.fn().mockResolvedValue(null)
+    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
+
+    expect((await (await getWebhookHandler(buildOptions(false))(req)).json()).success).toBe(true)
+
+    expect(updateOne).toHaveBeenCalledOnce()
+    expect(requestMock).not.toHaveBeenCalled()
+  })
+
   it('keeps the stored resolutions and still stores the state when the resolution lookup throws', async () => {
     const resolutions = { available: ['720p'], highest: '720p' }
     const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions, status: 'processing' }))
@@ -361,6 +388,30 @@ describe('Stream webhook endpoint', () => {
         }),
       )
       expect(update).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['checks the file size when the resolutions change', undefined, 1],
+      ['skips the file size check when a repeated webhook brings the same resolutions', ['720p'], 0],
+    ])('%s', async (_label, stored, warnings) => {
+      const doc = {
+        ...storedDoc(stored ? { resolutions: { available: stored, highest: '720p' } } : {}),
+        filesize: 1000,
+      }
+      const find = vi.fn().mockResolvedValue({ docs: [doc] })
+      const findOne = vi.fn().mockResolvedValue(doc)
+      const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
+      requestMock.mockImplementation(async ({ url }: { url: string }) =>
+        url.endsWith('/storage') ? { json: async () => ({ data: { originals: 999 } }) } : mp4Resolutions('720p'),
+      )
+
+      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, updateOne })
+      await getWebhookHandler(buildOptions(true, false))(req)
+
+      expect(updateOne).toHaveBeenCalledOnce()
+      expect(
+        (req as { payload: { logger: { warn: ReturnType<typeof vi.fn> } } }).payload.logger.warn,
+      ).toHaveBeenCalledTimes(warnings)
     })
 
     it.each([

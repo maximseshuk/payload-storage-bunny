@@ -1,11 +1,11 @@
 import type * as tus from 'tus-js-client'
 
-import type { StreamTusAuthResponse } from '@/shared/types/index.js'
+import type { TusAuthResponse } from '@/client/TusUpload/tusAuth.js'
 
 export type UploadStatus = 'checking' | 'completed' | 'error' | 'idle' | 'paused' | 'preparing' | 'uploading'
 
 export type UploadState = {
-  authData: null | StreamTusAuthResponse
+  authData: null | TusAuthResponse
   canRestore: boolean
   estimatedTimeRemaining: null | number
   existingVideoId: null | string

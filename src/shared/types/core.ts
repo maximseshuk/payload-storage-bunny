@@ -29,7 +29,7 @@ export type StreamTusAuthRequest = {
   filename: string
   filesize: number
   filetype: string
-  head?: string
+  renew?: boolean
   thumbnailTime?: number
   title?: string
   videoId?: string
@@ -37,18 +37,16 @@ export type StreamTusAuthRequest = {
 }
 
 type StreamTusAuthBase = {
-  filename?: string
   libraryId: number
-  signedReceipt?: string
-  thumbnailTime?: number
   videoId: string
   videoToken: string
 }
 
 type StreamTusAuthUpload = {
-  authorizationExpire: number
-  authorizationSignature: string
+  expiresIn: number
+  headers: Record<string, string>
   type: 'upload'
+  uploadUrl: string
 } & StreamTusAuthBase
 
 type StreamTusAuthUploaded = {
@@ -57,6 +55,15 @@ type StreamTusAuthUploaded = {
 } & StreamTusAuthBase
 
 export type StreamTusAuthResponse = StreamTusAuthUpload | StreamTusAuthUploaded
+
+export type StreamTusUploadData = {
+  errorMessage: string
+  expiresIn: number
+  headers: Record<string, string>
+  uploadUrl: string
+  videoId: string
+  videoToken: string
+}
 
 export type StreamVideoState = 'failed' | 'processing' | 'ready'
 

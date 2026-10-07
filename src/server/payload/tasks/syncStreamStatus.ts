@@ -1,11 +1,15 @@
 import type { Payload, PayloadRequest } from 'payload'
-import { createLocalReq } from 'payload'
+import { createPayloadRequest } from 'payload'
 
 import { isRateLimited } from '@/server/bunny/client.js'
 import { getReadyResolutions, isMissingResolutions } from '@/server/bunny/stream.js'
 import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
 import { getBunnyOptions } from '@/server/payload/options/access.js'
-import { fetchStreamVideoState, writeStoredStream } from '@/server/payload/stream/storedStream.js'
+import {
+  checkStreamOriginalSize,
+  fetchStreamVideoState,
+  writeStoredStream,
+} from '@/server/payload/stream/storedStream.js'
 import { TIMEOUTS } from '@/shared/constants.js'
 
 export type StreamStatusSyncResult = {
@@ -42,7 +46,7 @@ export const syncStreamStatus = async ({
     throw new Error('[bunny:tasks] status-sync: no collection turns on `stream.status.sync`')
   }
 
-  const req = incomingReq ?? (await createLocalReq({}, payload))
+  const req = incomingReq ?? (await createPayloadRequest({ payload }))
   const deadline = Date.now() + maxDurationMs
   const timeLeft = () => Math.max(1, Math.min(TIMEOUTS.DEFAULT, deadline - Date.now()))
   const nearDeadline = () => deadline - Date.now() < MIN_TIME_LEFT_MS
@@ -77,7 +81,7 @@ export const syncStreamStatus = async ({
         overrideAccess: true,
         pagination: false,
         req,
-        select: { bunnyData: true, updatedAt: true },
+        select: { bunnyData: true, filesize: true, updatedAt: true },
         sort: '-updatedAt',
         where: {
           and: [
@@ -138,6 +142,16 @@ export const syncStreamStatus = async ({
             writes = write.catch(() => undefined)
             if (await write) {
               result.updated++
+              if (state === 'ready') {
+                await checkStreamOriginalSize({
+                  apiKey,
+                  collection: collectionSlug,
+                  doc,
+                  libraryId,
+                  logger: payload.logger,
+                  videoId,
+                })
+              }
             }
           } catch (err) {
             if (nearDeadline()) {

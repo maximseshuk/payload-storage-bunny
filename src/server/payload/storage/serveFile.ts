@@ -1,4 +1,4 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionConfig, FileHandlerOperation, PayloadRequest } from 'payload'
 
 import { httpFetch } from '@/server/http/index.js'
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
@@ -10,6 +10,7 @@ type Args = {
   collection: CollectionConfig
   collectionPrefix?: string
   filename: string
+  operation?: FileHandlerOperation
   prefix?: string
   req: PayloadRequest
   signedUrls: false | NormalizedSignedUrlsOptions
@@ -21,6 +22,7 @@ export const storageStaticHandler = async ({
   collection,
   collectionPrefix,
   filename,
+  operation,
   prefix,
   req,
   signedUrls,
@@ -29,7 +31,9 @@ export const storageStaticHandler = async ({
 }: Args): Promise<Response> => {
   let baseUrl = buildStorageCdnUrl({ collectionPrefix, filename, hostname: storageOptions.hostname, prefix })
 
-  if (req.url) {
+  const isTransformSource = operation === 'transform'
+
+  if (req.url && !isTransformSource) {
     const requestUrl = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`)
     requestUrl.searchParams.delete('prefix')
     const forwardedSearch = requestUrl.searchParams.toString()
@@ -46,12 +50,12 @@ export const storageStaticHandler = async ({
     usePayloadAccessControl,
   }
 
-  const redirect = maybeCreateRedirect(baseUrl, { ...context, req })
+  const redirect = isTransformSource ? null : maybeCreateRedirect(baseUrl, { ...context, req })
   if (redirect) {
     return redirect
   }
 
-  const rangeHeader = req.headers.get('range')
+  const rangeHeader = isTransformSource ? null : req.headers.get('range')
   const requestHeaders = new Headers()
   if (rangeHeader) {
     requestHeaders.set('Range', rangeHeader)
@@ -72,7 +76,7 @@ export const storageStaticHandler = async ({
   const etagFromHeaders = req.headers.get('etag') || req.headers.get('if-none-match')
   const objectEtag = response.headers.get('etag')
 
-  if (etagFromHeaders && objectEtag && etagFromHeaders === objectEtag) {
+  if (!isTransformSource && etagFromHeaders && objectEtag && etagFromHeaders === objectEtag) {
     return new Response(null, {
       headers: copyHeaders(response.headers),
       status: 304,

@@ -9,8 +9,10 @@ const state = vi.hoisted(() => ({
   cursor: 0,
   deps: [] as unknown[][],
   dispatchFields: vi.fn(),
+  doc: {} as Record<string, unknown>,
   effectCursor: 0,
   field: undefined as { value: File } | undefined,
+  onCancel: undefined as (() => void) | undefined,
   onDisableTus: undefined as (() => void) | undefined,
   preSelectedFile: undefined as File | null | undefined,
   ref: undefined as { current: unknown } | undefined,
@@ -49,7 +51,7 @@ vi.mock('@payloadcms/ui', () => ({
       upload: {},
     }),
   }),
-  useDocumentInfo: () => ({ collectionSlug: 'media', initialState: {} }),
+  useDocumentInfo: () => ({ collectionSlug: 'media', data: state.doc, initialState: {} }),
   useForm: () => ({ dispatchFields: state.dispatchFields }),
   useFormFields: (selector: (state: [Record<string, unknown>]) => unknown) => selector([{ file: state.field }]),
   useModal: () => ({ isModalOpen: () => true }),
@@ -57,17 +59,21 @@ vi.mock('@payloadcms/ui', () => ({
   useUploadEdits: () => ({ resetUploadEdits() {} }),
 }))
 
-const fileManager = vi.hoisted(() => async () => {
+vi.mock('@/client/vendor/payload/elements/FileManager/index.js', async () => {
   const { createElement: h } = await import('react')
   return {
     FileManager: ({ UploadControls }: { UploadControls?: ReactNode }) =>
       h('div', { 'data-controls': '' }, UploadControls),
   }
 })
-
-vi.mock('@payloadcms/ui/elements/FileManager', fileManager)
 vi.mock('@/client/TusUpload/FileManager/FileManager.js', () => ({
-  FileManager: (props: { onDisableTus: () => void; preSelectedFile?: File | null; UploadControls?: ReactNode }) => {
+  FileManager: (props: {
+    onCancel: () => void
+    onDisableTus: () => void
+    preSelectedFile?: File | null
+    UploadControls?: ReactNode
+  }) => {
+    state.onCancel = props.onCancel
     state.onDisableTus = props.onDisableTus
     state.preSelectedFile = props.preSelectedFile
     return props.UploadControls ?? null
@@ -121,6 +127,7 @@ describe('TusUpload form file', () => {
   beforeEach(() => {
     state.dispatchFields.mockClear()
     state.deps = []
+    state.doc = {}
     state.field = undefined
     state.ref = undefined
     state.states = []
@@ -206,5 +213,30 @@ describe('TusUpload form file', () => {
     state.onDisableTus!()
 
     expect(click).toHaveBeenCalledOnce()
+  })
+
+  it('turns TUS mode off and shows the saved file again when Cancel runs on a document with a file', () => {
+    const click = vi.fn()
+    state.doc = { filename: 'old.mp4' }
+    state.ref = { current: { querySelector: () => ({ click }) } }
+    state.states = [true, null]
+    render({})
+
+    state.onCancel!()
+
+    expect(click).toHaveBeenCalledOnce()
+    expect(state.states[0]).toBe(false)
+  })
+
+  it('keeps TUS mode on when Cancel runs on a document without a file', () => {
+    const click = vi.fn()
+    state.ref = { current: { querySelector: () => ({ click }) } }
+    state.states = [true, null]
+    render({})
+
+    state.onCancel!()
+
+    expect(click).not.toHaveBeenCalled()
+    expect(state.states[0]).toBe(true)
   })
 })

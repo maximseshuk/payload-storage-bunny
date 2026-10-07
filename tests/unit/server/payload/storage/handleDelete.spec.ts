@@ -257,6 +257,22 @@ describe('getHandleDelete', () => {
     })
   })
 
+  describe('collections with drafts', () => {
+    it('deletes the video of a draft document without reading the main document', async () => {
+      const draftsCollection = { slug: 'media', versions: { drafts: true } }
+      const req = createReq()
+      const findOne = vi.fn()
+      Object.assign(req.payload, { db: { findOne } })
+
+      await getHandleDelete(
+        buildContext({ collection: draftsCollection, streamOptions } as Partial<CollectionContext>),
+      )({ collection: draftsCollection, doc: { ...streamDoc, _status: 'draft' }, filename: 'clip.mp4', req } as never)
+
+      expect(findOne).not.toHaveBeenCalled()
+      expect(deleteStreamVideoMock).toHaveBeenCalledWith(expect.objectContaining({ videoId: 'video-guid' }))
+    })
+  })
+
   describe('no options', () => {
     it('logs a debug message and does nothing when neither storage nor stream is configured', async () => {
       const req = createReq()
