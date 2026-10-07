@@ -286,8 +286,8 @@ export type StreamOptions = {
    */
   preview?: boolean
   /**
-   * Referer header sent on server-side requests to Bunny when serving the MP4
-   * fallback through Payload access control. Set this only if your Stream library
+   * Referer header sent on server-side requests to Bunny when proxying the MP4
+   * fallback or a Stream thumbnail. Set this only if your Stream library
    * blocks requests without a referrer (BlockNoneReferrer); the value must satisfy
    * the library's allowed referrers. Leave unset for default libraries.
    */

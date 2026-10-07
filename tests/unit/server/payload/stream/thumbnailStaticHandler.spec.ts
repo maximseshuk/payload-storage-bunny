@@ -82,6 +82,17 @@ describe('streamThumbnailStaticHandler', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('sends the stream referer so BlockNoneReferrer libraries serve the thumbnail', async () => {
+    fetchMock.mockResolvedValue({ body: 'x', headers: new Headers(), ok: true, status: 200 })
+
+    await streamThumbnailStaticHandler({
+      ...baseArgs(),
+      streamOptions: streamOptions({ referer: 'https://app.local/' }),
+    })
+
+    expect((fetchMock.mock.calls[0][1].headers as Headers).get('referer')).toBe('https://app.local/')
+  })
+
   it('passes through the upstream status when the fetch is not ok', async () => {
     fetchMock.mockResolvedValue({ body: null, headers: new Headers(), ok: false, status: 404 })
 
@@ -89,6 +100,15 @@ describe('streamThumbnailStaticHandler', () => {
 
     expect(res.status).toBe(404)
     expect(await res.text()).toBe('Thumbnail not found')
+  })
+
+  it.each([401, 403])('answers 502 with a hint when the CDN refuses the thumbnail with %s', async (status) => {
+    fetchMock.mockResolvedValue({ body: null, headers: new Headers(), ok: false, status })
+
+    const res = await streamThumbnailStaticHandler(baseArgs())
+
+    expect(res.status).toBe(502)
+    expect(await res.text()).toContain('`stream.referer`')
   })
 
   it('returns 500 on a network error and logs it', async () => {

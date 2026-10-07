@@ -49,7 +49,18 @@ export const streamThumbnailStaticHandler = async ({
 
   try {
     const fetchUrl = maybeGenerateSignedUrl(thumbnailUrl, context)
-    const response = await httpFetch(fetchUrl, { stream: true, throwHttpErrors: false })
+    const headers = new Headers()
+    if (streamOptions.referer) {
+      headers.set('Referer', streamOptions.referer)
+    }
+    const response = await httpFetch(fetchUrl, { headers, stream: true, throwHttpErrors: false })
+
+    if (response.status === 401 || response.status === 403) {
+      return new Response(
+        'The Bunny CDN refused the thumbnail request. Set `stream.referer` when the library allows only some referrers, and `stream.tokenSecurityKey` when it uses token authentication.',
+        { status: 502 },
+      )
+    }
 
     if (!response.ok) {
       return new Response('Thumbnail not found', { status: response.status })

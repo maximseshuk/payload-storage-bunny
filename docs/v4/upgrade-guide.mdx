@@ -390,7 +390,7 @@ Per-service keys are unchanged: `storage.apiKey` and `stream.apiKey` stay as the
 - [Client uploads](/v4/configuration/storage/client-uploads) — browser-direct uploads, configured under `storage.clientUploads` (`storage.clientUploads: true` shorthand, or the full options). There is no `mode` option — the transport is chosen automatically (presigned S3 when the zone sets `storage.s3`, otherwise a deployed Edge Script).
 - [Per-collection zones and libraries](/v4/configuration/collection-overrides#own-zone-or-library-per-collection) — point a collection at its own storage zone / stream library with full options; the top-level `storage`/`stream` become optional.
 - [`storage.s3`](/v4/configuration/storage/overview#s3-mode) — S3-compatible zone access.
-- [`stream.referer`](/v4/configuration/stream/overview#options) — Referer header for MP4-fallback requests behind BlockNoneReferrer libraries.
+- [`stream.referer`](/v4/configuration/stream/overview#options) — Referer header for MP4-fallback and Stream thumbnail requests behind BlockNoneReferrer libraries.
 - Per-collection [`stream.tus: false`](/v4/configuration/collection-overrides) — disable TUS for one collection.
 - [Stream webhook](/v4/configuration/stream/webhooks) (`stream.webhook`) — v2 had no webhook; MP4-fallback resolutions were fetched lazily on the first serve (v3 still does this as a fallback). The optional webhook pre-populates `bunnyData.stream.resolutions` the moment encoding finishes instead. Set `webhook.secret` to the library's **Read-Only API key** (Bunny signs each callback with the `X-BunnyStream-Signature` HMAC header) and point your Bunny library's webhook at `/api/storage-bunny/stream/webhook`.
 
