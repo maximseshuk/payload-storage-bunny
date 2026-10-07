@@ -61,7 +61,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
         const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
 
         if (context.usePayloadAccessControl) {
-          const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(sizeFilename)}`
+          const internalUrl = `${req.payload.config.routes.api}/${collection.slug}/file/${encodeURIComponent(sizeFilename)}`
           return applyTransform(thumbnail, context, doc, sizeFilename, prefix, internalUrl)
         }
 
@@ -91,7 +91,7 @@ export const getAdminThumbnail = (context: CollectionContext) => {
       const prefix = typeof doc.prefix === 'string' ? doc.prefix : ''
 
       if (context.usePayloadAccessControl) {
-        const internalUrl = `/api/${collection.slug}/file/${encodeURIComponent(filename)}`
+        const internalUrl = `${req.payload.config.routes.api}/${collection.slug}/file/${encodeURIComponent(filename)}`
         return applyTransform(thumbnail, context, doc, filename, prefix, internalUrl)
       }
 

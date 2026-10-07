@@ -48,6 +48,8 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
     ...overrides,
   }) as unknown as CollectionContext
 
+const apiReq = (api = '/api') => ({ payload: { config: { routes: { api } } } }) as never
+
 const imageDoc = { filename: 'pic.png', mimeType: 'image/png', prefix: 'up' }
 const streamDoc = { bunnyData: { stream: { videoId: 'v-9' } }, filename: 'clip.mp4', mimeType: 'video/mp4' }
 
@@ -92,7 +94,12 @@ describe('field hooks', () => {
 
       it('returns the internal API URL when access control is on', () => {
         const fn = getAdminThumbnail(buildContext({ storageOptions, usePayloadAccessControl: true }))!
-        expect(fn({ doc: imageDoc, req: {} as never })).toBe('/api/media/file/pic.png')
+        expect(fn({ doc: imageDoc, req: apiReq() })).toBe('/api/media/file/pic.png')
+      })
+
+      it('uses the configured API route in the internal URL', () => {
+        const fn = getAdminThumbnail(buildContext({ storageOptions, usePayloadAccessControl: true }))!
+        expect(fn({ doc: imageDoc, req: apiReq('/cms-api') })).toBe('/cms-api/media/file/pic.png')
       })
 
       it('returns null when there are no storage options and access control is off', () => {

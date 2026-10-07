@@ -16,6 +16,8 @@ bunnyStorage({
 - **Images** — uses the original file, or a specific size if `sizeName` is set.
 - **Bunny Stream videos** — uses the frame captured at [`stream.thumbnailTime`](/v4/configuration/stream/overview#options).
 
+With Payload access control on, image thumbnail URLs start with the API route of your Payload config (`routes.api`, `/api` by default), for example `/api/<collection>/file/<filename>`.
+
 ## Options
 
 | Option                         | Type                            | Default                     | Description                                                                                                                                                        |
