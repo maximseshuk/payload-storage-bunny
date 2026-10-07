@@ -62,6 +62,21 @@ describe('streamThumbnailStaticHandler', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://stream.b-cdn.net/vid1/thumbnail.jpg')
   })
 
+  it('keeps the thumbnail out of shared caches', async () => {
+    fetchMock.mockResolvedValue({
+      body: 'jpeg-bytes',
+      headers: new Headers({ 'cache-control': 'public, max-age=31536000', 'set-cookie': 'cdn=1' }),
+      ok: true,
+      status: 200,
+    })
+
+    const res = await streamThumbnailStaticHandler(baseArgs())
+
+    expect(res.headers.get('cache-control')).toBe('private, max-age=31536000')
+    expect(res.headers.get('vary')).toBe('Cookie, Authorization')
+    expect(res.headers.get('set-cookie')).toBeNull()
+  })
+
   it('signs the fetch URL when signedUrls is enabled without redirect', async () => {
     fetchMock.mockResolvedValue({ body: 'x', headers: new Headers(), ok: true, status: 200 })
 

@@ -1,6 +1,10 @@
 export const copyHeaders = (from: Headers): Headers => {
   const headers = new Headers()
   from.forEach((value, key) => headers.set(key, value))
+  const maxAge = /(?:^|[\s,])max-age=(\d+)/i.exec(headers.get('cache-control') ?? '')?.[1] ?? '0'
+  headers.delete('set-cookie')
+  headers.set('cache-control', `private, max-age=${maxAge}`)
+  headers.append('vary', 'Cookie, Authorization')
   return headers
 }
 

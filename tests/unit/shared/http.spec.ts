@@ -24,6 +24,40 @@ describe('http utils', () => {
     })
   })
 
+  describe('copyHeaders privacy', () => {
+    it('keeps the upstream max-age but makes the response private and drops cookies', () => {
+      const copy = copyHeaders(
+        new Headers({
+          'cache-control': 'public, max-age=31536000',
+          'content-type': 'image/jpeg',
+          'set-cookie': 'cdn=1',
+          vary: 'Accept',
+        }),
+      )
+
+      expect(copy.get('cache-control')).toBe('private, max-age=31536000')
+      expect(copy.get('vary')).toBe('Accept, Cookie, Authorization')
+      expect(copy.get('set-cookie')).toBeNull()
+      expect(copy.get('content-type')).toBe('image/jpeg')
+    })
+
+    it.each([
+      ['no cache-control', {}],
+      ['only s-maxage', { 'cache-control': 'public, s-maxage=600' }],
+    ])('uses max-age=0 with %s', (_label, headers) => {
+      const copy = copyHeaders(new Headers(headers))
+
+      expect(copy.get('cache-control')).toBe('private, max-age=0')
+      expect(copy.get('vary')).toBe('Cookie, Authorization')
+    })
+
+    it('makes proxied responses private', () => {
+      const res = createProxyResponse(new Response('x', { headers: { 'cache-control': 'public, max-age=60' } }))
+
+      expect(res.headers.get('cache-control')).toBe('private, max-age=60')
+    })
+  })
+
   describe('jsonResponse', () => {
     it('serializes data with a JSON content-type and default 200 status', async () => {
       const res = jsonResponse({ hello: 'world' })

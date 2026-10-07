@@ -64,6 +64,32 @@ describe('storageStaticHandler', () => {
     expect(fetchedUrl).not.toContain('token=')
   })
 
+  it.each([
+    ['a 200', {}, 200],
+    ['a 304', { 'if-none-match': '"abc"' }, 304],
+  ])('keeps %s response out of shared caches', async (_label, headers, status) => {
+    fetchMock.mockResolvedValue(
+      new Response(streamBody('x'), {
+        headers: { 'cache-control': 'public, max-age=31536000', etag: '"abc"', 'set-cookie': 'cdn=1' },
+        status: 200,
+      }),
+    )
+
+    const res = await storageStaticHandler({
+      collection,
+      filename: 'photo.jpg',
+      req: makeReq(headers),
+      signedUrls: false,
+      storageOptions: storageOptions(),
+      usePayloadAccessControl: true,
+    })
+
+    expect(res.status).toBe(status)
+    expect(res.headers.get('cache-control')).toBe('private, max-age=31536000')
+    expect(res.headers.get('vary')).toBe('Cookie, Authorization')
+    expect(res.headers.get('set-cookie')).toBeNull()
+  })
+
   it('joins the prefix and appends the incoming query string to the upstream URL', async () => {
     fetchMock.mockResolvedValue(new Response(streamBody('x'), { status: 200 }))
 

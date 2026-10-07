@@ -34,6 +34,8 @@ collections: {
 
 `prefix` and `disablePayloadAccessControl` come from `@payloadcms/plugin-cloud-storage` and apply to every collection using this plugin. `disableLocalStorage` can't be passed here — the plugin always sets it to `true` on managed collections.
 
+With Payload access control on, every file that the plugin sends to a client through Payload gets `Cache-Control: private, max-age=<seconds>` and `Vary: Cookie, Authorization`, and loses any `Set-Cookie` header. `<seconds>` is the `max-age` that Bunny sent, or `0`. This covers storage files, including `304` answers, the MP4 fallback proxy and Stream thumbnails. The first bytes of a client upload are not covered: only Payload reads them on the server, to check the new file. So a CDN or proxy in front of Payload does not share these files between users. Collections with `disablePayloadAccessControl: true` are not affected, because their files come straight from the Bunny CDN.
+
 ## Override surface: partial vs full replacement
 
 Not every option can be tweaked in isolation. Some are **partially overridable** (merged onto the global zone/library); others exist **only inside full replacement options** and can never be set on their own. The plugin flips `storage`/`stream` into full-replacement mode the moment the object contains `apiKey` — see [Own zone or library per collection](#own-zone-or-library-per-collection).
