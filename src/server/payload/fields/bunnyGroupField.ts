@@ -203,6 +203,9 @@ export const getStreamSelect = (select?: SelectFn): SelectFn => {
   }
 }
 
+export const hasStatus = (status: unknown, value: 'draft' | 'published') =>
+  status === value || (!!status && typeof status === 'object' && Object.values(status).includes(value))
+
 export const readStoredVideo = (doc: unknown): StoredStream | undefined => {
   return (doc as { bunnyData?: StoredBunnyData } | undefined)?.bunnyData?.stream
 }

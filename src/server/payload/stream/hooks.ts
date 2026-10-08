@@ -16,7 +16,7 @@ import { MissingFile, ValidationError } from 'payload'
 
 import { getStreamSaveState, getStreamVideo, isVideoProcessed } from '@/server/bunny/stream.js'
 import { getSafeFileName } from '@/server/files.js'
-import { readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
+import { hasStatus, readStoredVideo, setStoredVideoId } from '@/server/payload/fields/bunnyGroupField.js'
 import { readClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import { getHandleDelete } from '@/server/payload/storage/handleDelete.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
@@ -226,13 +226,48 @@ export const getStreamBeforeChangeHook = (
 type AfterChangeData = FileData & JsonObject & TypeWithID
 
 export const getAfterChangeHook = (context: CollectionContext): CollectionAfterChangeHook<AfterChangeData> => {
-  return async ({ data, req }) => {
+  return async ({ data, doc: savedDoc, req }) => {
     const videoId = readStoredVideo(data)?.videoId
     if (context.streamOptions?.cleanup && videoId) {
       await deleteStreamVideoSession({
         libraryId: context.streamOptions.libraryId,
         req,
         videoId,
+      })
+    }
+
+    const draftStream = readStoredVideo(savedDoc)
+    if (
+      req.context?.skipCloudStorage &&
+      context.streamOptions &&
+      draftStream?.videoId &&
+      typeof savedDoc.filename === 'string' &&
+      hasStatus(savedDoc._status, 'draft')
+    ) {
+      await req.payload.db.updateOne({
+        collection: context.collection.slug,
+        data: {
+          bunnyData: {
+            stream: {
+              ...(draftStream.resolutions !== undefined && { resolutions: draftStream.resolutions }),
+              ...(draftStream.status !== undefined && { status: draftStream.status }),
+              videoId: draftStream.videoId,
+            },
+          },
+          updatedAt: null,
+        },
+        req,
+        select: { id: true },
+        where: {
+          and: [
+            { id: { equals: savedDoc.id } },
+            { _status: { equals: 'draft' } },
+            { filename: { equals: savedDoc.filename } },
+            {
+              or: [{ 'bunnyData.stream.videoId': { exists: false } }, { 'bunnyData.stream.videoId': { equals: null } }],
+            },
+          ],
+        },
       })
     }
 

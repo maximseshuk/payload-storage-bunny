@@ -734,6 +734,60 @@ describe('stream hooks', () => {
       expect((req as any).payload.logger.debug).toHaveBeenCalled()
     })
 
+    describe('the upload metadata of a draft save', () => {
+      const draftDoc = {
+        _status: 'draft',
+        bunnyData: { stream: { status: 'processing', videoId: 'vid-a' } },
+        filename: 'a.mp4',
+        id: 'doc-1',
+      }
+      const save = async (
+        doc: Record<string, unknown>,
+        context: Record<string, unknown> = { skipCloudStorage: true },
+      ) => {
+        const updateOne = vi.fn()
+        const req = buildReq({ context, payload: { db: { updateOne }, logger: { debug: vi.fn(), error: vi.fn() } } })
+        await getAfterChangeHook(buildContext())({ data: {}, doc, req } as never)
+        return updateOne
+      }
+
+      it('copies the video to a main document that has the same file and no video yet', async () => {
+        const updateOne = await save(draftDoc)
+
+        expect(updateOne).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            collection: 'media',
+            data: { bunnyData: { stream: { status: 'processing', videoId: 'vid-a' } }, updatedAt: null },
+            where: {
+              and: [
+                { id: { equals: 'doc-1' } },
+                { _status: { equals: 'draft' } },
+                { filename: { equals: 'a.mp4' } },
+                {
+                  or: [
+                    { 'bunnyData.stream.videoId': { exists: false } },
+                    { 'bunnyData.stream.videoId': { equals: null } },
+                  ],
+                },
+              ],
+            },
+          }),
+        )
+      })
+
+      it.each([
+        ['a published save', { ...draftDoc, _status: 'published' }, { skipCloudStorage: true }],
+        ['a save that is not the upload metadata write', draftDoc, {}],
+        [
+          'a draft without a video',
+          { ...draftDoc, bunnyData: { stream: { videoId: null } } },
+          { skipCloudStorage: true },
+        ],
+      ])('writes nothing for %s', async (_, doc, context) => {
+        expect(await save(doc, context)).not.toHaveBeenCalled()
+      })
+    })
+
     it('does nothing for a TUS upload without a valid old doc', async () => {
       const hook = getAfterChangeHook(buildContext({ isTusUploadSupported: true }))
       await hook({ data: {}, req: buildReq({ context: {} }) } as never)

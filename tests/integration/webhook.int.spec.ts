@@ -401,6 +401,31 @@ describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
     }
   }, 180000)
 
+  it('stores the video of a first draft save in the main document, so a delete removes it', async () => {
+    const upload = await payload.create({
+      collection: 'webhook-drafts',
+      data: { alt: 'First draft video' },
+      draft: true,
+      file: await videoFile('webhook-first-draft.mp4'),
+      overrideAccess: true,
+    })
+    const videoId = (upload.bunnyData as any).stream.videoId as string
+    expect(videoId).toBeTruthy()
+
+    const main = await payload.findByID({ id: upload.id, collection: 'webhook-drafts', overrideAccess: true })
+    expect(main._status).toBe('draft')
+    expect((main.bunnyData as any).stream).toMatchObject({ status: 'processing', videoId })
+
+    await payload.delete({ id: upload.id, collection: 'webhook-drafts', overrideAccess: true })
+    await expect(
+      getStreamVideo({
+        apiKey: process.env.BUNNY_STREAM_API_KEY || '',
+        libraryId: parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0'),
+        videoId,
+      }),
+    ).rejects.toThrow(`Bunny Stream: Video not found: ${videoId}`)
+  }, 60000)
+
   it('reports the encoding state through the status endpoint', async () => {
     const endpoint = payload.config.endpoints?.find((e) => e.path === '/storage-bunny/stream/status/:collection/:id')
     if (!endpoint) {
