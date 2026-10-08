@@ -33,6 +33,8 @@ Signed URLs secure **downloads** (how files are served). For securing **uploads*
 | `userIp`             | `(args: { collection, filename, req }) => string \| undefined` | –           | Lock links to the client's IPv4 address. See [IP locking](#ip-locking-userip).                     |
 | `staticHandler`      | `{ redirect?: boolean \| { expiresIn?, status? } }`            | –           | Controls how Payload serves files when its access control is on. See below.                        |
 
+In a Stream collection with Payload access control and without `mp4Fallback`, do not return `false` from `shouldUseSignedUrl` for a video. The file route then has no signed playlist to redirect to and answers `400`. See [Access control and MP4 fallback](/v4/configuration/stream/overview#access-control-and-mp4-fallback).
+
 ## Getting your token security keys
 
 <Tabs>

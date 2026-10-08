@@ -56,6 +56,8 @@ By default, files are served through Payload's access control (`disablePayloadAc
 - **`mp4Fallback: true`** — Payload proxies the MP4 rendition instead of HLS.
 - **Signed URLs with redirect** — set `signedUrls.staticHandler.redirect: true` (globally or on the collection) so Payload redirects straight to Bunny's HLS stream instead of proxying it. This is the faster option — see [Signed URLs](/v4/configuration/signed-urls).
 
+Without `mp4Fallback`, the redirect is the only way to serve the video. If `shouldUseSignedUrl` returns `false` for a file, there is no redirect, and the file route answers `400`.
+
 <Warning>
 
 The plugin's options validator rejects a collection at startup if neither is set and access control is on. If you set `disablePayloadAccessControl: true` on a collection instead, files are served directly from the Bunny CDN and this restriction doesn't apply.
@@ -63,6 +65,12 @@ The plugin's options validator rejects a collection at startup if neither is set
 </Warning>
 
 When Payload proxies the MP4 fallback or a Stream thumbnail, it fetches the file from Bunny server-side. If your Stream library uses a BlockNoneReferrer rule, set [`referer`](#options) to a value the library allows so those requests aren't rejected. Default libraries need nothing here.
+
+<Warning>
+
+**Known limitation.** Without `mp4Fallback`, the redirect to the HLS playlist (`playlist.m3u8`) drops the query string of the file request. The MP4 fallback keeps it.
+
+</Warning>
 
 ## Edit view player
 

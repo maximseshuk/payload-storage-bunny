@@ -86,6 +86,22 @@ describe('streamStaticHandler', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('redirects to the signed HLS playlist when mp4Fallback is disabled and signed redirect is enabled', async () => {
+    const res = await streamStaticHandler({
+      bunnyData: savedResolutions,
+      collection,
+      docId: 'doc1',
+      req: makeReq(),
+      signedUrls: signed({ redirect: { status: 302 } }),
+      streamOptions: streamOptions({ mp4Fallback: false }),
+      usePayloadAccessControl: true,
+    })
+
+    expect(res.status).toBe(302)
+    expect(res.headers.get('Location')).toMatch(/^https:\/\/stream\.b-cdn\.net\/bcdn_token=.+\/vid1\/playlist\.m3u8$/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('proxies the MP4 of the saved resolution and sets a video/mp4 content type', async () => {
     headThenGet()
 

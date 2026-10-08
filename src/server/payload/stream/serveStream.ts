@@ -27,10 +27,6 @@ export const streamStaticHandler = async ({
   streamOptions,
   usePayloadAccessControl,
 }: Args): Promise<Response> => {
-  if (!streamOptions.mp4Fallback) {
-    return new Response('MP4 fallback not configured.', { status: 400 })
-  }
-
   const videoId = bunnyData.stream?.videoId ?? ''
   const videoResolutions = bunnyData.stream?.resolutions
 
@@ -42,6 +38,16 @@ export const streamStaticHandler = async ({
     signedUrls,
     tokenSecurityKey: streamOptions.tokenSecurityKey,
     usePayloadAccessControl,
+  }
+
+  if (!streamOptions.mp4Fallback) {
+    return (
+      maybeCreateRedirect(
+        buildStreamCdnUrl(streamOptions.hostname, videoId, 'playlist.m3u8'),
+        { ...context, filename: `${videoId}/playlist.m3u8`, req },
+        { tokenPath: `/${videoId}/` },
+      ) ?? new Response('MP4 fallback not configured.', { status: 400 })
+    )
   }
 
   let fallbackQuality: string | undefined = undefined
