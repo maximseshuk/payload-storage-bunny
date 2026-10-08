@@ -18,6 +18,8 @@ type Args = {
   usePayloadAccessControl: boolean
 }
 
+const isRefused = (status: number) => status === 401 || status === 403
+
 export const streamStaticHandler = async ({
   bunnyData,
   collection,
@@ -53,6 +55,7 @@ export const streamStaticHandler = async ({
   let fallbackQuality: string | undefined = undefined
   let availableResolutions: string[] = []
   let metaNeedsUpdate = false
+  let refused = false
 
   if (videoResolutions?.highest) {
     const savedResolutionUrl = buildStreamCdnUrl(
@@ -77,6 +80,7 @@ export const streamStaticHandler = async ({
           availableResolutions = videoResolutions.available
         }
       } else {
+        refused = isRefused(headResponse.status)
         metaNeedsUpdate = true
       }
     } catch (err) {
@@ -121,6 +125,7 @@ export const streamStaticHandler = async ({
                 fallbackQuality = resolution
                 break
               }
+              refused ||= isRefused(headResponse.status)
             } catch (err) {
               req.payload.logger.error({
                 err,
@@ -147,6 +152,12 @@ export const streamStaticHandler = async ({
   }
 
   if (!fallbackQuality) {
+    if (refused) {
+      return new Response(
+        'The Bunny CDN refused the MP4 request. Set `stream.referer` when the library allows only some referrers, and `stream.tokenSecurityKey` when it uses token authentication.',
+        { status: 502 },
+      )
+    }
     return new Response('Could not determine a valid resolution for the video', { status: 404 })
   }
 

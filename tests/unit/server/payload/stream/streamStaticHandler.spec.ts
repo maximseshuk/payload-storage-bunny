@@ -220,6 +220,47 @@ describe('streamStaticHandler', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it.each([401, 403])('returns 502 with a hint when the CDN answers the MP4 check with %i', async (status) => {
+    fetchMock.mockResolvedValue(new Response(null, { status }))
+    getStreamVideoResolutionsMock.mockResolvedValue({
+      data: { mp4Resolutions: [{ path: null, resolution: '720p' }] },
+      success: true,
+    })
+
+    const res = await streamStaticHandler({
+      bunnyData: savedResolutions,
+      collection,
+      docId: 'doc1',
+      req: makeReq(),
+      signedUrls: false,
+      streamOptions: streamOptions(),
+      usePayloadAccessControl: false,
+    })
+
+    expect(res.status).toBe(502)
+    expect(await res.text()).toContain('`stream.referer`')
+  })
+
+  it('returns 404 when the CDN has no MP4 file', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }))
+    getStreamVideoResolutionsMock.mockResolvedValue({
+      data: { mp4Resolutions: [{ path: null, resolution: '720p' }] },
+      success: true,
+    })
+
+    const res = await streamStaticHandler({
+      bunnyData: savedResolutions,
+      collection,
+      docId: 'doc1',
+      req: makeReq(),
+      signedUrls: false,
+      streamOptions: streamOptions(),
+      usePayloadAccessControl: false,
+    })
+
+    expect(res.status).toBe(404)
+  })
+
   it('falls back to 404 when the HEAD check and the Stream API both throw', async () => {
     fetchMock.mockRejectedValue(new Error('network down'))
     getStreamVideoResolutionsMock.mockRejectedValue(new Error('api down'))
