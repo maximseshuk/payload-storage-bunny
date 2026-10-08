@@ -44,6 +44,7 @@ type FileManagerProps = {
   isAutoMode?: boolean
   onDisableTus: () => void
   preSelectedFile?: File | null
+  UploadControls?: React.ReactNode
 }
 
 export const FileManager: React.FC<FileManagerProps> = ({
@@ -51,11 +52,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
   isAutoMode = false,
   onDisableTus,
   preSelectedFile,
+  UploadControls,
 }) => {
   const [state, setState] = useState<UploadState>(INITIAL_STATE)
   const inputRef = useRef<HTMLInputElement>(null)
   const tusUploadRef = useRef<null | tus.Upload>(null)
   const processedFileRef = useRef<File | null>(null)
+  const preSelectedFilesRef = useRef(new WeakSet<File>())
   const uploadStartTimeRef = useRef<null | number>(null)
   const startingBytesRef = useRef<number>(0)
   const prevUpdatedAtRef = useRef<null | string>(null)
@@ -415,6 +418,11 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
     processedFileRef.current = fileToUpload
 
+    if (tusUploadRef.current) {
+      void tusUploadRef.current.abort()
+      tusUploadRef.current = null
+    }
+
     if (inputRef.current) {
       inputRef.current.value = ''
     }
@@ -509,15 +517,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
   }, [state.selectedFile, setBackgroundProcessing])
 
   useEffect(() => {
-    if (preSelectedFile && processedFileRef.current !== preSelectedFile) {
-      processedFileRef.current = preSelectedFile
-
-      updateState({
-        fileName: preSelectedFile.name,
-        selectedFile: preSelectedFile,
-      })
-
-      void checkPreviousUploads(preSelectedFile)
+    if (preSelectedFile && !preSelectedFilesRef.current.has(preSelectedFile)) {
+      preSelectedFilesRef.current.add(preSelectedFile)
+      void handleFileSelection(preSelectedFile)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preSelectedFile])
@@ -732,6 +734,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
                       ref={inputRef}
                       type="file"
                     />
+                    {UploadControls}
                     <ToggleButton isEnabled={true} onToggle={onDisableTus} />
                   </div>
                   <p className="upload-dropzone-content__drag-text">

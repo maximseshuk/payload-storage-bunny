@@ -4,6 +4,7 @@ import {
   useBulkUpload,
   useConfig,
   useDocumentInfo,
+  useForm,
   useFormFields,
   useModal,
   useUploadControls,
@@ -32,7 +33,9 @@ export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' 
   const { setUploadControlFile, setUploadControlFileName, setUploadControlFileUrl } = useUploadControls()
   const bulkUploadContext = useBulkUpload()
   const { isModalOpen } = useModal()
-  const fileValue = useFormFields(([fields]) => fields?.file?.value)
+  const { dispatchFields } = useForm()
+  const fileField = useFormFields(([fields]) => fields?.file)
+  const fileValue = fileField?.value
   const fileManagerRef = useRef<HTMLDivElement>(null)
 
   const [isTusMode, setIsTusMode] = useState(false)
@@ -101,6 +104,12 @@ export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' 
     }
   }, [allowedMimeTypes, fileValue, handleEnableTus, isAutoModeEnabled, isTusMode, removeFileManagerFile])
 
+  useEffect(() => {
+    if (isTusMode && fileField?.value) {
+      dispatchFields({ type: 'UPDATE', path: 'file', value: null })
+    }
+  }, [dispatchFields, fileField, isTusMode])
+
   const uploadControls = useMemo(() => {
     if (isBulkUpload) {
       return null
@@ -134,7 +143,8 @@ export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' 
           collectionSlug={collectionSlug}
           isAutoMode={isAutoModeEnabled}
           onDisableTus={handleDisableTus}
-          preSelectedFile={selectedFile}
+          preSelectedFile={fileValue instanceof File ? fileValue : selectedFile}
+          UploadControls={UploadControls}
         />
       )}
     </>
