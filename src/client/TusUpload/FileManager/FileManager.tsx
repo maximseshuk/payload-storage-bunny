@@ -557,11 +557,12 @@ export const FileManager: React.FC<FileManagerProps> = ({
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      setBackgroundProcessing(false)
       if (tusUploadRef.current) {
         void tusUploadRef.current.abort()
       }
     }
-  }, [])
+  }, [setBackgroundProcessing])
 
   useEffect(() => {
     setBackgroundProcessing(!!state.selectedFile)

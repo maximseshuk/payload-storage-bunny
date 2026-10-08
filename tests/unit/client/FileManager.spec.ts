@@ -327,4 +327,16 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
 
     expect(state.setBackgroundProcessing).toHaveBeenLastCalledWith(false)
   })
+
+  it('turns background processing off when the FileManager unmounts during the upload', async () => {
+    await prepare(true)
+    cancel()
+    state.setBackgroundProcessing.mockClear()
+
+    for (const cleanup of state.cleanups) {
+      cleanup?.()
+    }
+
+    expect(state.setBackgroundProcessing).toHaveBeenCalledExactlyOnceWith(false)
+  })
 })
