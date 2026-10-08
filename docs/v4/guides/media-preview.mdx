@@ -11,11 +11,22 @@ Without the media-preview plugin, the edit view of a Stream video or audio file 
 
 ## Install
 
-The media-preview plugin is an optional peer — install it alongside this plugin:
+The media-preview plugin is an optional peer — install it alongside this plugin. Its version for Payload 4 is in beta under the `beta` npm tag:
 
 <CodeGroup>
-  ```bash npm npm install @seshuk/payload-plugin-media-preview ``` ```bash pnpm pnpm add
-  @seshuk/payload-plugin-media-preview ``` ```bash yarn yarn add @seshuk/payload-plugin-media-preview ```
+
+```bash npm
+npm install @seshuk/payload-plugin-media-preview@beta
+```
+
+```bash pnpm
+pnpm add @seshuk/payload-plugin-media-preview@beta
+```
+
+```bash yarn
+yarn add @seshuk/payload-plugin-media-preview@beta
+```
+
 </CodeGroup>
 
 ## Wire it up
@@ -38,14 +49,17 @@ export default buildConfig({
     bunnyStorage({
       collections: { media: true },
       stream: {
-        apiKey: process.env.BUNNY_STREAM_API_KEY,
+        apiKey: process.env.BUNNY_STREAM_API_KEY!,
         hostname: 'vz-abc123def-456.b-cdn.net',
         libraryId: 123456,
+        mp4Fallback: true,
       },
     }),
   ],
 })
 ```
+
+This example sets only `stream`, so the `media` collection accepts only Stream files: the video and audio types in the Stream `mimeTypes`. The upload of any other file fails with a `500` error, `No service configured`. To accept other files too, add a [`storage`](/v4/configuration/storage/overview) block.
 
 <Warning>
 

@@ -124,7 +124,7 @@
                     "type": "string"
                   },
                   "title": {
-                    "description": "Video title. Required when creating a new video.",
+                    "description": "Title of a new video. Defaults to `filename`.",
                     "type": "string"
                   },
                   "videoId": {
@@ -172,6 +172,10 @@
                     "thumbnailTime": {
                       "description": "Thumbnail capture time (ms), when configured.",
                       "type": "number"
+                    },
+                    "title": {
+                      "description": "Returned with `uploaded`. Title of the video in Bunny, or `filename`.",
+                      "type": "string"
                     },
                     "type": {
                       "description": "`upload` returns a signature to proceed; `uploaded` means the video already exists.",

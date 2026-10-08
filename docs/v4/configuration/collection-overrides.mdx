@@ -95,12 +95,12 @@ collections: {
   // Full options → own storage zone + own stream library
   tenantA: {
     storage: {
-      apiKey: process.env.TENANT_A_STORAGE_API_KEY,
+      apiKey: process.env.TENANT_A_STORAGE_API_KEY!,
       hostname: 'tenant-a.b-cdn.net',
       zoneName: 'tenant-a-zone',
     },
     stream: {
-      apiKey: process.env.TENANT_A_STREAM_API_KEY,
+      apiKey: process.env.TENANT_A_STREAM_API_KEY!,
       hostname: 'vz-tenant-a-123.b-cdn.net',
       libraryId: 654321,
     },

@@ -18,7 +18,7 @@ The plugin registers four HTTP endpoints on your Payload app, under the `/api/st
 
 `upload-instructions` returns Bunny upload URLs only when `storage.clientUploads` is on. `stream/tus-auth` needs `stream.tus`, `stream/webhook` needs `stream.webhook`, `stream/status` needs `stream.status` (on by default), and `tasks` needs `tasks.secret`. See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-upload-clients) for a full example.
 
-Errors use Payload's standard format, `{ "errors": [{ "message": "..." }] }`. `tasks` returns `{ "error": "..." }` instead.
+Errors use Payload's standard format, `{ "errors": [{ "message": "..." }] }`. `stream/webhook` and `tasks` return `{ "error": "..." }` instead.
 
 ## Authentication
 

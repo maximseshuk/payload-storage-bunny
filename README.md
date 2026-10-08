@@ -79,9 +79,9 @@ export default buildConfig({
         },
       },
       storage: {
-        apiKey: process.env.BUNNY_STORAGE_API_KEY,
-        hostname: process.env.BUNNY_STORAGE_HOSTNAME, // your Pull Zone host, e.g. example.b-cdn.net
-        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,
+        apiKey: process.env.BUNNY_STORAGE_API_KEY!,
+        hostname: process.env.BUNNY_STORAGE_HOSTNAME!, // your Pull Zone host, e.g. example.b-cdn.net
+        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME!,
       },
     }),
   ],

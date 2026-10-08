@@ -10,8 +10,8 @@ Bunny Stream handles video and audio: adaptive HLS/MP4 playback, thumbnails, and
 bunnyStorage({
   collections: { media: true },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
-    hostname: process.env.BUNNY_STREAM_HOSTNAME, // e.g. vz-xxxx.b-cdn.net
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
+    hostname: process.env.BUNNY_STREAM_HOSTNAME!, // e.g. vz-xxxx.b-cdn.net
     libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID),
     mp4Fallback: true,
   },
@@ -125,12 +125,12 @@ collections: {
   // Full config — this collection uses its own library
   tenantA: {
     stream: {
-      apiKey: process.env.TENANT_A_STREAM_API_KEY,
+      apiKey: process.env.TENANT_A_STREAM_API_KEY!,
       hostname: 'vz-tenant-a-123.b-cdn.net',
       libraryId: 654321,
       mp4Fallback: true,
       tokenSecurityKey: process.env.TENANT_A_STREAM_TOKEN_KEY, // for signed URLs on this library
-      webhook: { secret: process.env.TENANT_A_STREAM_READONLY_API_KEY }, // this library's Read-Only API key
+      webhook: { secret: process.env.TENANT_A_STREAM_READONLY_API_KEY! }, // this library's Read-Only API key
       cleanup: { maxAge: 43200 }, // per-library cutoff; schedule stays global-only
     },
   },

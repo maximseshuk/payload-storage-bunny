@@ -25,7 +25,7 @@ export default buildConfig({
         media: true,
       },
       storage: {
-        apiKey: process.env.BUNNY_STORAGE_API_KEY,
+        apiKey: process.env.BUNNY_STORAGE_API_KEY!,
         hostname: 'example.b-cdn.net',
         zoneName: 'my-zone',
       },
@@ -43,7 +43,7 @@ bunnyStorage({
     media: true,
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
@@ -74,13 +74,13 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     region: 'ny',
     zoneName: 'my-zone',
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     thumbnailTime: 5000,
@@ -109,14 +109,14 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     region: 'ny',
     zoneName: 'my-zone',
     tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     thumbnailTime: 5000,
@@ -148,13 +148,13 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     uploadTimeout: 300000,
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     uploadTimeout: 600000,
@@ -181,7 +181,7 @@ bunnyStorage({
     },
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     mp4Fallback: true,
@@ -206,17 +206,17 @@ Bunny encodes MP4 renditions asynchronously. Point your Stream library's webhook
 bunnyStorage({
   collections: { media: true },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     mp4Fallback: true, // resolutions are populated once encoding completes
     webhook: {
-      secret: process.env.BUNNY_STREAM_READONLY_API_KEY, // library Read-Only API key
+      secret: process.env.BUNNY_STREAM_READONLY_API_KEY!, // library Read-Only API key
     },
   },
 })
@@ -243,7 +243,7 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
@@ -277,7 +277,7 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
@@ -311,7 +311,7 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
@@ -351,7 +351,7 @@ export default buildConfig({
         },
       },
       storage: {
-        apiKey: process.env.BUNNY_STORAGE_API_KEY,
+        apiKey: process.env.BUNNY_STORAGE_API_KEY!,
         hostname: 'example.b-cdn.net',
         zoneName: 'my-zone',
       },
@@ -375,7 +375,7 @@ Presigned PUT straight to Bunny's S3 endpoint. Requires a storage zone created w
 bunnyStorage({
   collections: { media: true },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     s3: true,
@@ -393,13 +393,13 @@ Proxies the upload through a Bunny Edge Script. Works with any storage zone.
 bunnyStorage({
   collections: { media: true },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     clientUploads: {
       edge: {
         scriptUrl: 'https://my-uploader.b-cdn.net',
-        secret: process.env.BUNNY_EDGE_UPLOAD_SECRET,
+        secret: process.env.BUNNY_EDGE_UPLOAD_SECRET!,
       },
     },
   },
@@ -423,22 +423,22 @@ bunnyStorage({
     media: true, // uses the global HTTP API zone below
     archive: {
       storage: {
-        apiKey: process.env.BUNNY_ARCHIVE_STORAGE_API_KEY,
+        apiKey: process.env.BUNNY_ARCHIVE_STORAGE_API_KEY!,
         hostname: 'archive.b-cdn.net',
         zoneName: 'archive-zone',
         clientUploads: {
           // same script + secret as the global zone
-          edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET },
+          edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET! },
         },
       },
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'main-zone',
     clientUploads: {
-      edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET },
+      edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET! },
     },
   },
 })
@@ -460,29 +460,29 @@ bunnyStorage({
     // Uses its own storage zone and stream library
     tenantA: {
       storage: {
-        apiKey: process.env.TENANT_A_STORAGE_API_KEY,
+        apiKey: process.env.TENANT_A_STORAGE_API_KEY!,
         hostname: 'tenant-a.b-cdn.net',
         zoneName: 'tenant-a-zone',
         tokenSecurityKey: process.env.TENANT_A_STORAGE_TOKEN_KEY,
       },
       stream: {
-        apiKey: process.env.TENANT_A_STREAM_API_KEY,
+        apiKey: process.env.TENANT_A_STREAM_API_KEY!,
         hostname: 'vz-tenant-a-123.b-cdn.net',
         libraryId: 654321,
         mp4Fallback: true,
         tokenSecurityKey: process.env.TENANT_A_STREAM_TOKEN_KEY, // required: signedUrls on this library
-        webhook: { secret: process.env.TENANT_A_WEBHOOK_SECRET },
+        webhook: { secret: process.env.TENANT_A_WEBHOOK_SECRET! },
       },
       signedUrls: { expiresIn: 3600 },
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'main-zone',
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     mp4Fallback: true, // media keeps Payload access control, so Stream needs this
@@ -515,12 +515,12 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'vz-abc123def-456.b-cdn.net',
     libraryId: 123456,
     mp4Fallback: true, // media keeps Payload access control, so Stream needs this
@@ -569,14 +569,14 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'cdn.example.com',
     region: 'ny',
     zoneName: 'main-storage',
     tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
   },
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
     hostname: 'video.example.com',
     libraryId: 123456,
     mp4Fallback: true,

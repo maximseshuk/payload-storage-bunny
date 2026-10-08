@@ -62,9 +62,9 @@ export default buildConfig({
         media: true,
       },
       storage: {
-        apiKey: process.env.BUNNY_STORAGE_API_KEY,
-        hostname: process.env.BUNNY_STORAGE_HOSTNAME, // e.g. my-zone.b-cdn.net
-        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,
+        apiKey: process.env.BUNNY_STORAGE_API_KEY!,
+        hostname: process.env.BUNNY_STORAGE_HOSTNAME!, // e.g. my-zone.b-cdn.net
+        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME!,
       },
     }),
   ],
@@ -72,6 +72,10 @@ export default buildConfig({
 ```
 
 Files uploaded to the `media` collection are now stored in Bunny Storage and served from the CDN.
+
+The `!` tells TypeScript that the variables are set, because the options need strings.
+
+The plugin adds components to the admin. In development, Payload adds them to the import map for you. Before a plain `next build`, run `npx payload generate:importmap`.
 
 </Step>
 
@@ -84,8 +88,8 @@ bunnyStorage({
   collections: { media: true },
   storage: {/* ... */},
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
-    hostname: process.env.BUNNY_STREAM_HOSTNAME, // e.g. vz-xxxx.b-cdn.net
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
+    hostname: process.env.BUNNY_STREAM_HOSTNAME!, // e.g. vz-xxxx.b-cdn.net
     libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID),
     mp4Fallback: true,
   },
@@ -93,6 +97,8 @@ bunnyStorage({
 ```
 
 With Payload access control on (the default), Stream needs `mp4Fallback: true` or signed URLs with redirect — otherwise the plugin throws at startup. See [Access control and mp4Fallback](/v4/configuration/stream/overview#access-control-and-mp4-fallback).
+
+If your Stream library blocks requests without a referrer, also set [`referer`](/v4/configuration/stream/overview#options). Otherwise Bunny refuses the MP4 fallback and thumbnail requests that Payload sends.
 
 Videos now upload to Bunny Stream and expose an HLS playlist through the [`bunnyData`](/v4/guides/stored-data) field.
 

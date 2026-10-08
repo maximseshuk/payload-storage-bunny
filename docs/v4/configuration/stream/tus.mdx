@@ -86,6 +86,8 @@ These uploads show Payload's own progress overlay and don't resume after a dropp
 
 If the save fails after the video has uploaded, the video stays in your Stream library. Enable [cleanup](/v4/configuration/stream/overview#cleanup) to remove such videos automatically.
 
+Do not send a file and a TUS `videoId` in the same request. The plugin uses the file and forgets the `videoId`: it uploads a Stream file as a new video, and any other file to Bunny Storage. In both cases the TUS video stays in your library unless cleanup is on.
+
 <Warning>
 
 **Known limitation.** In the bulk upload drawer of a collection with TUS uploads, crop and focal point edits are not saved. Payload does not pass upload edits to a custom upload component. A fix depends on Payload, see [payloadcms/payload#18612](https://github.com/payloadcms/payload/pull/18612).

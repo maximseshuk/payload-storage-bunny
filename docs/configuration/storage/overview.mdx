@@ -10,9 +10,9 @@ Bunny Storage holds regular files: images, documents, and anything that isn't ro
 bunnyStorage({
   collections: { media: true },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
-    hostname: process.env.BUNNY_STORAGE_HOSTNAME, // pull-zone host, e.g. my-zone.b-cdn.net
-    zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
+    hostname: process.env.BUNNY_STORAGE_HOSTNAME!, // pull-zone host, e.g. my-zone.b-cdn.net
+    zoneName: process.env.BUNNY_STORAGE_ZONE_NAME!,
   },
 })
 ```
@@ -80,7 +80,7 @@ No extra secrets are needed: the S3 access key is your `zoneName` and the secret
 
 ```ts payload.config.ts
 storage: {
-  apiKey: process.env.BUNNY_STORAGE_API_KEY,
+  apiKey: process.env.BUNNY_STORAGE_API_KEY!,
   hostname: 'example.b-cdn.net',
   zoneName: 'my-zone',
   s3: {
@@ -128,7 +128,7 @@ collections: {
   // Full config — this collection uses its own zone
   tenantA: {
     storage: {
-      apiKey: process.env.TENANT_A_STORAGE_API_KEY,
+      apiKey: process.env.TENANT_A_STORAGE_API_KEY!,
       hostname: 'tenant-a.b-cdn.net',
       zoneName: 'tenant-a-zone',
       region: 'de',

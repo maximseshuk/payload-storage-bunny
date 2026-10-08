@@ -30,7 +30,7 @@ export default buildConfig({
     bunnyStorage({
       collections: { media: true },
       stream: {
-        apiKey: process.env.BUNNY_STREAM_API_KEY,
+        apiKey: process.env.BUNNY_STREAM_API_KEY!,
         hostname: 'vz-abc123def-456.b-cdn.net',
         libraryId: 123456,
       },

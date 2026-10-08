@@ -9,7 +9,7 @@ Client uploads send the file bytes **straight from the browser to Bunny**. The P
 bunnyStorage({
   collections: { media: true },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     s3: true,
@@ -113,7 +113,7 @@ When the zone has [`storage.s3`](/v4/configuration/storage/overview#s3-mode), th
 bunnyStorage({
   collections: { media: true },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     s3: true,
@@ -132,13 +132,13 @@ Without `storage.s3`, the file is proxied through a [Bunny Edge Script](https://
 bunnyStorage({
   collections: { media: true },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     clientUploads: {
       edge: {
         scriptUrl: 'https://my-uploader.b-cdn.net',
-        secret: process.env.BUNNY_EDGE_UPLOAD_SECRET,
+        secret: process.env.BUNNY_EDGE_UPLOAD_SECRET!,
       },
     },
   },
@@ -269,11 +269,11 @@ collections: {
   archive: {
     // full per-collection zone with its own edge options
     storage: {
-      apiKey: process.env.BUNNY_ARCHIVE_STORAGE_API_KEY,
+      apiKey: process.env.BUNNY_ARCHIVE_STORAGE_API_KEY!,
       hostname: 'archive.b-cdn.net',
       zoneName: 'archive-zone',
       clientUploads: {
-        edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET },
+        edge: { scriptUrl: 'https://my-uploader.b-cdn.net', secret: process.env.BUNNY_EDGE_UPLOAD_SECRET! },
       },
     },
   },

@@ -17,7 +17,7 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
                 'Base64 of the first bytes of the file (at most 8192 characters). When sent, the response includes a `filename` and a `signedReceipt` for a client-direct upload.',
               type: 'string',
             },
-            title: { description: 'Video title. Required when creating a new video.', type: 'string' },
+            title: { description: 'Title of a new video. Defaults to `filename`.', type: 'string' },
             videoId: {
               description: 'Existing Bunny video GUID, to resume an upload. Used only with a matching `videoToken`.',
               type: 'string',
@@ -54,6 +54,10 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
                 type: 'string',
               },
               thumbnailTime: { description: 'Thumbnail capture time (ms), when configured.', type: 'number' },
+              title: {
+                description: 'Returned with `uploaded`. Title of the video in Bunny, or `filename`.',
+                type: 'string',
+              },
               type: {
                 description: '`upload` returns a signature to proceed; `uploaded` means the video already exists.',
                 enum: ['upload', 'uploaded'],

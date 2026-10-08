@@ -66,9 +66,9 @@ export default buildConfig({
         media: true,
       },
       storage: {
-        apiKey: process.env.BUNNY_STORAGE_API_KEY,
-        hostname: process.env.BUNNY_STORAGE_HOSTNAME, // e.g. my-zone.b-cdn.net
-        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME,
+        apiKey: process.env.BUNNY_STORAGE_API_KEY!,
+        hostname: process.env.BUNNY_STORAGE_HOSTNAME!, // e.g. my-zone.b-cdn.net
+        zoneName: process.env.BUNNY_STORAGE_ZONE_NAME!,
       },
     }),
   ],
@@ -88,8 +88,8 @@ bunnyStorage({
   collections: { media: true },
   storage: {/* ... */},
   stream: {
-    apiKey: process.env.BUNNY_STREAM_API_KEY,
-    hostname: process.env.BUNNY_STREAM_HOSTNAME, // e.g. vz-xxxx.b-cdn.net
+    apiKey: process.env.BUNNY_STREAM_API_KEY!,
+    hostname: process.env.BUNNY_STREAM_HOSTNAME!, // e.g. vz-xxxx.b-cdn.net
     libraryId: Number(process.env.BUNNY_STREAM_LIBRARY_ID),
     mp4Fallback: true,
   },

@@ -17,24 +17,24 @@ bunnyStorage({
   collections: {
     tenantAMedia: {
       storage: {
-        apiKey: process.env.TENANT_A_STORAGE_API_KEY,
+        apiKey: process.env.TENANT_A_STORAGE_API_KEY!,
         hostname: 'tenant-a.b-cdn.net',
         zoneName: 'tenant-a-zone',
         tokenSecurityKey: process.env.TENANT_A_TOKEN_KEY,
       },
       stream: {
-        apiKey: process.env.TENANT_A_STREAM_API_KEY,
+        apiKey: process.env.TENANT_A_STREAM_API_KEY!,
         hostname: 'vz-tenant-a-123.b-cdn.net',
         libraryId: 654321,
         tokenSecurityKey: process.env.TENANT_A_STREAM_TOKEN_KEY, // required: signedUrls on this library
-        webhook: { secret: process.env.TENANT_A_WEBHOOK_SECRET },
+        webhook: { secret: process.env.TENANT_A_WEBHOOK_SECRET! },
       },
       // access control is on, so the stream needs a redirect (or mp4Fallback: true)
       signedUrls: { expiresIn: 3600, staticHandler: { redirect: true } },
     },
     tenantBMedia: {
       storage: {
-        apiKey: process.env.TENANT_B_STORAGE_API_KEY,
+        apiKey: process.env.TENANT_B_STORAGE_API_KEY!,
         hostname: 'tenant-b.b-cdn.net',
         zoneName: 'tenant-b-zone',
         tokenSecurityKey: process.env.TENANT_B_TOKEN_KEY,
@@ -104,15 +104,15 @@ import { getTenantFromCookie } from '@payloadcms/plugin-multi-tenant/utilities'
 bunnyStorage({
   collections: { media: { prefix: 'tenants' } },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     clientUploads: {
       // HTTP (non-S3) zones upload through a deployed Edge Script, so `edge` is required.
       // On an S3-enabled zone (`storage.s3`), drop this block — presigned S3 is used instead.
       edge: {
-        scriptUrl: process.env.BUNNY_EDGE_SCRIPT_URL,
-        secret: process.env.BUNNY_EDGE_SECRET,
+        scriptUrl: process.env.BUNNY_EDGE_SCRIPT_URL!,
+        secret: process.env.BUNNY_EDGE_SECRET!,
       },
       prefix: ({ req }) => {
         const tenantId = getTenantFromCookie(req.headers, req.payload.db.defaultIDType)
@@ -143,7 +143,7 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
@@ -169,7 +169,7 @@ bunnyStorage({
     },
   },
   storage: {
-    apiKey: process.env.BUNNY_STORAGE_API_KEY,
+    apiKey: process.env.BUNNY_STORAGE_API_KEY!,
     hostname: 'example.b-cdn.net',
     zoneName: 'my-zone',
     tokenSecurityKey: process.env.BUNNY_STORAGE_TOKEN_SECURITY_KEY,
