@@ -3,20 +3,32 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
+import { findPreviousTusUploads } from '@/client/TusUpload/FileManager/FileManager.utils.js'
 
 const state = vi.hoisted(() => ({
+  buttons: [] as Record<string, unknown>[],
+  cleanups: [] as (() => void)[],
   cursor: 0,
+  dispatchFields: vi.fn(),
+  pendingAuth: [] as ((value: unknown) => void)[],
+  pendingPrevious: [] as ((value: unknown) => void)[],
   refCursor: 0,
   refs: [] as { current: unknown }[],
   states: [] as unknown[],
   toastError: vi.fn(),
+  uploads: [] as { abort: ReturnType<typeof vi.fn>; opts: Record<string, any>; start: ReturnType<typeof vi.fn> }[],
 }))
 
 vi.mock('react', async (importOriginal) => {
   const react = await importOriginal<typeof import('react')>()
   return {
     ...react,
-    useEffect: (effect: () => void) => effect(),
+    useEffect: (effect: () => (() => void) | void) => {
+      const cleanup = effect()
+      if (cleanup) {
+        state.cleanups.push(cleanup)
+      }
+    },
     useRef: <T>(initial: T) => {
       const index = state.refCursor++
       state.refs[index] ??= { current: initial }
@@ -38,7 +50,10 @@ vi.mock('react', async (importOriginal) => {
 })
 
 vi.mock('@payloadcms/ui', () => ({
-  Button: () => null,
+  Button: (props: Record<string, unknown>) => {
+    state.buttons.push(props)
+    return null
+  },
   Dropzone: () => null,
   ErrorIcon: () => null,
   Spinner: () => null,
@@ -52,8 +67,25 @@ vi.mock('@payloadcms/ui', () => ({
     }),
   }),
   useDocumentEvents: () => ({}),
-  useForm: () => ({ dispatchFields: vi.fn(), setBackgroundProcessing: vi.fn() }),
+  useForm: () => ({ dispatchFields: state.dispatchFields, setBackgroundProcessing: vi.fn() }),
   useTranslation: () => ({ t: (key: string) => key }),
+}))
+
+vi.mock('ky', () => ({
+  default: { post: () => ({ json: () => new Promise((resolve) => state.pendingAuth.push(resolve)) }) },
+}))
+
+vi.mock('tus-js-client', () => ({
+  Upload: class {
+    abort = vi.fn(async () => {})
+    findPreviousUploads = vi.fn(async () => [])
+    opts: Record<string, any>
+    start = vi.fn()
+    constructor(_file: File, opts: Record<string, any>) {
+      this.opts = opts
+      state.uploads.push(this as never)
+    }
+  },
 }))
 
 vi.mock('@payloadcms/ui/elements/FileManager/FilePreview/VideoPreview', () => ({ VideoPreview: () => null }))
@@ -63,23 +95,52 @@ vi.mock('@/client/TusUpload/FileManager/FileManager.utils.js', () => ({
   findPreviousTusUploads: vi.fn(async () => []),
 }))
 
-const render = (preSelectedFile: File) => {
+const onDisableTus = vi.fn()
+
+const render = (preSelectedFile: File, isAutoMode = false) => {
   state.cursor = 0
   state.refCursor = 0
-  renderToStaticMarkup(createElement(FileManager, { collectionSlug: 'media', onDisableTus() {}, preSelectedFile }))
+  state.buttons = []
+  state.cleanups = []
+  renderToStaticMarkup(
+    createElement(FileManager, { collectionSlug: 'media', isAutoMode, onDisableTus, preSelectedFile }),
+  )
 }
 
-const selectedFile = () => (state.states[0] as { selectedFile: File | null }).selectedFile
+const ui = () => state.states[0] as { fileName: string; selectedFile: File | null; uploadStatus: string }
+const selectedFile = () => ui().selectedFile
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+const click = (match: (props: Record<string, unknown>) => boolean) =>
+  void (state.buttons.find(match)!.onClick as () => unknown)()
+const startUpload = () => click((props) => props.children === '@seshuk/payload-storage-bunny:tusUploadStartUpload')
+const cancel = () => click((props) => props.tooltip === 'general:cancel')
+const uploadAuth = {
+  authorizationExpire: 1,
+  authorizationSignature: 'signature',
+  libraryId: 1,
+  type: 'upload',
+  videoId: 'video-x',
+  videoToken: 'token',
+}
+const videoIdWrites = () =>
+  state.dispatchFields.mock.calls.filter(([action]) => action.path === 'bunnyData.stream.videoId')
+
+beforeEach(() => {
+  state.refs = []
+  state.states = []
+  state.uploads = []
+  state.pendingAuth = []
+  state.pendingPrevious = []
+  state.dispatchFields.mockClear()
+  state.toastError.mockClear()
+  onDisableTus.mockClear()
+  vi.mocked(findPreviousTusUploads).mockImplementation(async () => [])
+  vi.stubGlobal('FileList', Array)
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:file', revokeObjectURL: () => {} }))
+})
 
 describe('TUS FileManager pre-selected file', () => {
   const first = new File(['first'], 'first.mp4', { type: 'video/mp4' })
-
-  beforeEach(() => {
-    state.refs = []
-    state.states = []
-    state.toastError.mockClear()
-    vi.stubGlobal('FileList', Array)
-  })
 
   it('replaces the selected file with a new pre-selected file but not with an earlier one', () => {
     const second = new File(['second'], 'second.mp4', { type: 'video/mp4' })
@@ -114,5 +175,92 @@ describe('TUS FileManager pre-selected file', () => {
     expect(selectedFile()).toBe(first)
     expect(upload.abort).not.toHaveBeenCalled()
     expect(state.toastError).toHaveBeenCalledWith('@seshuk/payload-storage-bunny:tusUploadErrorFileType')
+  })
+})
+
+describe('TUS FileManager when the file changes while the upload starts', () => {
+  const x = new File(['x'], 'x.mp4', { type: 'video/mp4' })
+  const y = new File(['y'], 'y.mp4', { type: 'video/mp4' })
+
+  const prepare = async (isAutoMode = false) => {
+    render(x, isAutoMode)
+    await flush()
+    render(x, isAutoMode)
+    startUpload()
+    render(x, isAutoMode)
+    expect(ui().uploadStatus).toBe('preparing')
+  }
+
+  it.each([false, true])(
+    'starts no upload when Cancel runs while tus-auth is pending (auto mode %s)',
+    async (isAutoMode) => {
+      await prepare(isAutoMode)
+
+      cancel()
+      state.pendingAuth[0]!(uploadAuth)
+      await flush()
+
+      expect(state.uploads).toHaveLength(0)
+      expect(ui().selectedFile).toBeNull()
+      expect(ui().uploadStatus).toBe('idle')
+      expect(videoIdWrites()).toHaveLength(0)
+    },
+  )
+
+  it('starts no upload for the old file when a new file is selected while tus-auth is pending', async () => {
+    await prepare()
+
+    render(y)
+    await flush()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+
+    expect(state.uploads).toHaveLength(0)
+    expect(ui().selectedFile).toBe(y)
+    expect(ui().uploadStatus).toBe('idle')
+  })
+
+  it('starts no upload after the FileManager unmounts while tus-auth is pending', async () => {
+    await prepare()
+
+    for (const cleanup of state.cleanups) {
+      cleanup()
+    }
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+
+    expect(state.uploads).toHaveLength(0)
+    expect(videoIdWrites()).toHaveLength(0)
+  })
+
+  it('ignores the success of an upload whose file is no longer selected', async () => {
+    await prepare()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+    expect(state.uploads[0]!.start).toHaveBeenCalled()
+
+    render(y)
+    expect(state.uploads[0]!.abort).toHaveBeenCalled()
+    state.uploads[0]!.opts.onSuccess()
+    await flush()
+
+    expect(videoIdWrites()).toHaveLength(0)
+    expect(ui().selectedFile).toBe(y)
+  })
+
+  it('ignores the previous-upload check of a file that is no longer selected', async () => {
+    vi.mocked(findPreviousTusUploads).mockImplementation(
+      (file: File) =>
+        (file === x ? new Promise((resolve) => state.pendingPrevious.push(resolve)) : Promise.resolve([])) as never,
+    )
+    render(x)
+    render(y)
+    await flush()
+
+    state.pendingPrevious[0]!([{ metadata: { title: 'old-x', videoId: 'video-old' } }])
+    await flush()
+
+    expect(ui()).toMatchObject({ canRestore: false, fileName: 'y.mp4', selectedFile: y, uploadStatus: 'idle' })
+    expect(state.pendingAuth).toHaveLength(0)
   })
 })

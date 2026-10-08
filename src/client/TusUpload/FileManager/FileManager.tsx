@@ -62,6 +62,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const uploadStartTimeRef = useRef<null | number>(null)
   const startingBytesRef = useRef<number>(0)
   const prevUpdatedAtRef = useRef<null | string>(null)
+  const selectedFileRef = useRef<File | null>(null)
+  const mountedRef = useRef(false)
 
   const { dispatchFields, setBackgroundProcessing } = useForm()
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
@@ -88,6 +90,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const resetState = useCallback(() => {
     setState(INITIAL_STATE)
   }, [])
+
+  const isSelected = (file: File) => mountedRef.current && selectedFileRef.current === file
 
   const updateVideoFields = useCallback(
     ({ videoId, videoToken }: StreamTusAuthResponse, file: File) => {
@@ -150,6 +154,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
   const handleUploadSuccess = useCallback(
     (authData: StreamTusAuthResponse, file: File, upload: tus.Upload) => {
+      if (!isSelected(file)) {
+        return
+      }
+
       updateState({
         uploadProgress: 100,
         uploadStatus: 'completed',
@@ -160,6 +168,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
         .findPreviousUploads()
         // eslint-disable-next-line promise/always-return
         .then((currentUploads) => {
+          if (!isSelected(file)) {
+            return
+          }
           if (currentUploads.length > 0) {
             updateState({ tusData: currentUploads[0] })
           }
@@ -169,6 +180,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
         .catch((err) => {
           // eslint-disable-next-line no-console
           console.error('Error getting upload data:', err)
+          if (!isSelected(file)) {
+            return
+          }
           updateVideoFields(authData, file)
           void cleanupTusLocalStorage(file, authData.videoId)
         })
@@ -268,6 +282,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
           filename: file.name,
           filetype: file.type,
         })
+        if (!isSelected(file)) {
+          return
+        }
 
         if (previousUploads.length === 0) {
           updateState({
@@ -303,8 +320,14 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
         try {
           const authData = await getAuthData(file, previousUpload.metadata.videoId, previousUpload.metadata.videoToken)
+          if (!isSelected(file)) {
+            return
+          }
 
           await handleVideoIdMismatch(file, previousUpload.metadata.videoId, authData.videoId)
+          if (!isSelected(file)) {
+            return
+          }
 
           if (authData.type === 'uploaded') {
             handleAlreadyUploadedVideo(authData, file)
@@ -313,12 +336,18 @@ export const FileManager: React.FC<FileManagerProps> = ({
         } catch (err) {
           // eslint-disable-next-line no-console
           console.warn('Could not fetch existing video data:', err)
+          if (!isSelected(file)) {
+            return
+          }
         }
 
         updateState({ uploadStatus: 'idle' })
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Error checking previous uploads:', err)
+        if (!isSelected(file)) {
+          return
+        }
         updateState({
           uploadError: t('@seshuk/payload-storage-bunny:tusUploadErrorPrevCheckFail'),
           uploadStatus: 'error',
@@ -330,7 +359,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
   const performUpload = useCallback(
     async (existingVideoId?: string) => {
-      if (!state.selectedFile) {
+      const file = state.selectedFile
+      if (!file) {
         return
       }
 
@@ -343,29 +373,38 @@ export const FileManager: React.FC<FileManagerProps> = ({
         })
 
         const authData = await getAuthData(
-          state.selectedFile,
+          file,
           existingVideoId,
           existingVideoId ? state.tusData?.metadata?.videoToken : undefined,
         )
+        if (!isSelected(file)) {
+          return
+        }
 
         if (existingVideoId) {
-          await handleVideoIdMismatch(state.selectedFile, existingVideoId, authData.videoId)
+          await handleVideoIdMismatch(file, existingVideoId, authData.videoId)
+          if (!isSelected(file)) {
+            return
+          }
         }
 
         if (authData.type === 'uploaded') {
-          handleAlreadyUploadedVideo(authData, state.selectedFile)
+          handleAlreadyUploadedVideo(authData, file)
           return
         }
 
         updateState({ authData })
 
-        const upload = createTusUpload(state.selectedFile, authData)
+        const upload = createTusUpload(file, authData)
         tusUploadRef.current = upload
         uploadStartTimeRef.current = Date.now()
         startingBytesRef.current = 0
 
         if (existingVideoId && authData.videoId === existingVideoId) {
           const previousUploads = await upload.findPreviousUploads()
+          if (!isSelected(file)) {
+            return
+          }
           if (previousUploads.length > 0) {
             upload.resumeFromPreviousUpload(previousUploads[0])
           }
@@ -376,6 +415,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Failed to start upload:', err)
+        if (!isSelected(file)) {
+          return
+        }
         updateState({
           isFileNameEditable: true,
           uploadError: existingVideoId
@@ -417,6 +459,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
     }
 
     processedFileRef.current = fileToUpload
+    selectedFileRef.current = fileToUpload
 
     if (tusUploadRef.current) {
       void tusUploadRef.current.abort()
@@ -439,6 +482,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   }
 
   const handleFileRemoval = () => {
+    selectedFileRef.current = null
     if (tusUploadRef.current) {
       void tusUploadRef.current.abort()
       tusUploadRef.current = null
@@ -474,12 +518,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
   }
 
   const resumeUpload = async () => {
-    if (!state.selectedFile || !state.authData || state.authData.type !== 'upload') {
+    const file = state.selectedFile
+    if (!file || !state.authData || state.authData.type !== 'upload') {
       return
     }
 
     try {
-      const upload = createTusUpload(state.selectedFile, state.authData)
+      const upload = createTusUpload(file, state.authData)
       tusUploadRef.current = upload
       uploadStartTimeRef.current = Date.now()
       startingBytesRef.current = 0
@@ -489,6 +534,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
       })
 
       const previousUploads = await upload.findPreviousUploads()
+      if (!isSelected(file)) {
+        return
+      }
       if (previousUploads.length > 0) {
         upload.resumeFromPreviousUpload(previousUploads[0])
       }
@@ -497,6 +545,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to resume upload:', err)
+      if (!isSelected(file)) {
+        return
+      }
       updateState({
         uploadError: 'Failed to resume upload',
         uploadStatus: 'error',
@@ -505,7 +556,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
   }
 
   useEffect(() => {
+    mountedRef.current = true
     return () => {
+      mountedRef.current = false
       if (tusUploadRef.current) {
         void tusUploadRef.current.abort()
       }
