@@ -1,4 +1,5 @@
 import type { TypeWithID } from 'payload'
+import { beforeValidateTraverseFields } from 'payload'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -244,6 +245,46 @@ describe('bunnyGroupField', () => {
       const field = findField(streamGroup, name)
       expect(field.access.create()).toBe(false)
       expect(field.access.update()).toBe(false)
+    })
+
+    const validate = async (data: Record<string, any>, doc: Record<string, any>) => {
+      await beforeValidateTraverseFields({
+        id: 1,
+        collection: null,
+        context: {},
+        data,
+        doc,
+        fields: [{ name: 'alt', type: 'text' }, bunnyGroupField(streamContext, true)],
+        global: null,
+        operation: 'update',
+        overrideAccess: false,
+        parentIndexPath: '',
+        parentPath: '',
+        parentSchemaPath: '',
+        req: { ...req, context: {}, t: (key: string) => key } as never,
+        siblingData: data,
+        siblingDoc: doc,
+      })
+      return data
+    }
+    const stored = () => ({
+      alt: 'a',
+      bunnyData: { stream: { resolutions: { available: ['720p'] }, status: 'ready', videoId: 'v-old' } },
+      id: 1,
+    })
+
+    it('keeps the stored video when an update with access control does not send bunnyData', async () => {
+      const doc = stored()
+      const data = await validate({ alt: 'b' }, doc)
+
+      expect(data.bunnyData.stream).toMatchObject(stored().bunnyData.stream)
+      expect(doc).toEqual(stored())
+    })
+
+    it('clears the videoId when an update with access control sets it to null', async () => {
+      const data = await validate({ bunnyData: { stream: { videoId: null } } }, stored())
+
+      expect(data.bunnyData.stream.videoId).toBeNull()
     })
   })
 

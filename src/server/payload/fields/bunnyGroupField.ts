@@ -110,7 +110,12 @@ export const bunnyGroupField = (context: CollectionContext, status: boolean): Gr
         },
         virtual: true,
       },
-      { name: 'stream', type: 'group', fields: streamFields },
+      {
+        name: 'stream',
+        type: 'group',
+        fields: streamFields,
+        hooks: { beforeValidate: [({ value }) => (value && typeof value === 'object' ? { ...value } : value)] },
+      },
     ],
     jsonSchema: [
       () => ({
