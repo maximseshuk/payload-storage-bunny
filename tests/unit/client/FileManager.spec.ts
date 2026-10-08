@@ -263,4 +263,21 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     expect(ui()).toMatchObject({ canRestore: false, fileName: 'y.mp4', selectedFile: y, uploadStatus: 'idle' })
     expect(state.pendingAuth).toHaveLength(0)
   })
+
+  it('keeps the form MIME type on select and Cancel and sets it after the upload', async () => {
+    const mimeTypeWrites = () => state.dispatchFields.mock.calls.filter(([action]) => action.path === 'mimeType')
+    await prepare()
+    cancel()
+    expect(mimeTypeWrites()).toHaveLength(0)
+
+    state.refs = []
+    state.states = []
+    await prepare()
+    state.pendingAuth[1]!(uploadAuth)
+    await flush()
+    state.uploads[0]!.opts.onSuccess()
+    await flush()
+
+    expect(mimeTypeWrites()).toEqual([[{ type: 'UPDATE', path: 'mimeType', value: 'video/mp4' }]])
+  })
 })
