@@ -6,14 +6,18 @@ import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
 import { findPreviousTusUploads } from '@/client/TusUpload/FileManager/FileManager.utils.js'
 
 const state = vi.hoisted(() => ({
+  backgroundProcessing: false,
   buttons: [] as Record<string, unknown>[],
-  cleanups: [] as (() => void)[],
+  cleanups: [] as ((() => void) | undefined)[],
   cursor: 0,
   dispatchFields: vi.fn(),
+  effectCursor: 0,
+  effectDeps: [] as (undefined | unknown[])[],
   pendingAuth: [] as ((value: unknown) => void)[],
   pendingPrevious: [] as ((value: unknown) => void)[],
   refCursor: 0,
   refs: [] as { current: unknown }[],
+  setBackgroundProcessing: vi.fn(),
   states: [] as unknown[],
   toastError: vi.fn(),
   uploads: [] as { abort: ReturnType<typeof vi.fn>; opts: Record<string, any>; start: ReturnType<typeof vi.fn> }[],
@@ -23,11 +27,15 @@ vi.mock('react', async (importOriginal) => {
   const react = await importOriginal<typeof import('react')>()
   return {
     ...react,
-    useEffect: (effect: () => (() => void) | void) => {
-      const cleanup = effect()
-      if (cleanup) {
-        state.cleanups.push(cleanup)
+    useEffect: (effect: () => (() => void) | void, deps?: unknown[]) => {
+      const index = state.effectCursor++
+      const previous = state.effectDeps[index]
+      if (previous && deps?.every((dep, position) => Object.is(dep, previous[position]))) {
+        return
       }
+      state.effectDeps[index] = deps
+      state.cleanups[index]?.()
+      state.cleanups[index] = effect() ?? undefined
     },
     useRef: <T>(initial: T) => {
       const index = state.refCursor++
@@ -67,7 +75,8 @@ vi.mock('@payloadcms/ui', () => ({
     }),
   }),
   useDocumentEvents: () => ({}),
-  useForm: () => ({ dispatchFields: state.dispatchFields, setBackgroundProcessing: vi.fn() }),
+  useForm: () => ({ dispatchFields: state.dispatchFields, setBackgroundProcessing: state.setBackgroundProcessing }),
+  useFormBackgroundProcessing: () => state.backgroundProcessing,
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 
@@ -97,11 +106,11 @@ vi.mock('@/client/TusUpload/FileManager/FileManager.utils.js', () => ({
 
 const onDisableTus = vi.fn()
 
-const render = (preSelectedFile: File, isAutoMode = false) => {
+const render = (preSelectedFile: File | null, isAutoMode = false) => {
   state.cursor = 0
   state.refCursor = 0
   state.buttons = []
-  state.cleanups = []
+  state.effectCursor = 0
   renderToStaticMarkup(
     createElement(FileManager, { collectionSlug: 'media', isAutoMode, onDisableTus, preSelectedFile }),
   )
@@ -126,6 +135,10 @@ const videoIdWrites = () =>
   state.dispatchFields.mock.calls.filter(([action]) => action.path === 'bunnyData.stream.videoId')
 
 beforeEach(() => {
+  state.backgroundProcessing = false
+  state.cleanups = []
+  state.effectDeps = []
+  state.setBackgroundProcessing.mockClear()
   state.refs = []
   state.states = []
   state.uploads = []
@@ -224,7 +237,7 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     await prepare()
 
     for (const cleanup of state.cleanups) {
-      cleanup()
+      cleanup?.()
     }
     state.pendingAuth[0]!(uploadAuth)
     await flush()
@@ -272,6 +285,7 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
 
     state.refs = []
     state.states = []
+    state.effectDeps = []
     await prepare()
     state.pendingAuth[1]!(uploadAuth)
     await flush()
@@ -279,5 +293,38 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     await flush()
 
     expect(mimeTypeWrites()).toEqual([[{ type: 'UPDATE', path: 'mimeType', value: 'video/mp4' }]])
+  })
+
+  it('turns background processing on again when an autosave turns it off during the upload', async () => {
+    await prepare()
+    state.backgroundProcessing = true
+    render(x)
+    state.setBackgroundProcessing.mockClear()
+
+    state.backgroundProcessing = false
+    render(x)
+
+    expect(state.setBackgroundProcessing).toHaveBeenCalledExactlyOnceWith(true)
+  })
+
+  it('leaves the background processing of an autosave alone when no file is selected', () => {
+    render(null)
+    state.setBackgroundProcessing.mockClear()
+
+    state.backgroundProcessing = true
+    render(null)
+
+    expect(state.setBackgroundProcessing).not.toHaveBeenCalled()
+  })
+
+  it('turns background processing off when the upload is complete', async () => {
+    await prepare()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+    state.uploads[0]!.opts.onSuccess()
+    await flush()
+    render(x)
+
+    expect(state.setBackgroundProcessing).toHaveBeenLastCalledWith(false)
   })
 })

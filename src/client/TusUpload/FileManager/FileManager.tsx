@@ -11,6 +11,7 @@ import {
   useConfig,
   useDocumentEvents,
   useForm,
+  useFormBackgroundProcessing,
   useTranslation,
 } from '@payloadcms/ui'
 import { VideoPreview } from '@payloadcms/ui/elements/FileManager/FilePreview/VideoPreview'
@@ -66,6 +67,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const mountedRef = useRef(false)
 
   const { dispatchFields, setBackgroundProcessing } = useForm()
+  const backgroundProcessing = useFormBackgroundProcessing()
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
   const { mostRecentUpdate } = useDocumentEvents()
   const {
@@ -564,6 +566,12 @@ export const FileManager: React.FC<FileManagerProps> = ({
   useEffect(() => {
     setBackgroundProcessing(!!state.selectedFile)
   }, [state.selectedFile, setBackgroundProcessing])
+
+  useEffect(() => {
+    if (!backgroundProcessing && state.selectedFile && state.uploadStatus !== 'completed') {
+      setBackgroundProcessing(true)
+    }
+  }, [backgroundProcessing, state.selectedFile, state.uploadStatus, setBackgroundProcessing])
 
   useEffect(() => {
     if (preSelectedFile && !preSelectedFilesRef.current.has(preSelectedFile)) {
