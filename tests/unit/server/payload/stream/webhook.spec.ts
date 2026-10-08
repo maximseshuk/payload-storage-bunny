@@ -331,32 +331,36 @@ describe('Stream webhook endpoint', () => {
   })
 
   describe('with the status turned off', () => {
-    it('stores the resolutions with payload.update on a finished webhook, as before the status', async () => {
+    it('stores the resolutions straight to the database on a finished webhook, without payload.update', async () => {
       const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-1' }] })
-      const update = vi.fn().mockResolvedValue({})
-      const findOne = vi.fn()
-      const updateOne = vi.fn()
+      const update = vi.fn()
+      const findOne = vi.fn().mockResolvedValue(storedDoc())
+      const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
       requestMock.mockResolvedValue(mp4Resolutions('720p'))
 
       const handler = getWebhookHandler(buildOptions(true, false))
-      await handler(
-        buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, update, updateOne }),
-      )
+      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, update, updateOne })
+      await handler(req)
 
       expect(find).toHaveBeenCalledWith({
         collection: 'media',
         limit: 1,
         overrideAccess: true,
+        req,
         where: { 'bunnyData.stream.videoId': { equals: 'v1' } },
       })
-      expect(update).toHaveBeenCalledWith({
-        id: 'doc-1',
-        collection: 'media',
-        data: { bunnyData: { stream: { resolutions: { available: ['720p'], highest: '720p' } } } },
-        overrideAccess: true,
-      })
-      expect(findOne).not.toHaveBeenCalled()
-      expect(updateOne).not.toHaveBeenCalled()
+      expect(updateOne).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          collection: 'media',
+          data: {
+            bunnyData: { stream: { resolutions: { available: ['720p'], highest: '720p' }, videoId: 'v1' } },
+            updatedAt: null,
+          },
+          req,
+          where: { and: [{ id: { equals: 'doc-1' } }, { 'bunnyData.stream.videoId': { equals: 'v1' } }] },
+        }),
+      )
+      expect(update).not.toHaveBeenCalled()
     })
 
     it.each([

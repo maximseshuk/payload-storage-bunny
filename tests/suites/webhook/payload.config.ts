@@ -10,6 +10,7 @@ export default buildConfigWithDefaults({
     createMediaCollection({ slug: 'webhook-test' }),
     createMediaCollection({ slug: 'webhook-drafts', versions: { drafts: true } }),
     createMediaCollection({ slug: 'webhook-plain' }),
+    createMediaCollection({ slug: 'webhook-plain-drafts', versions: { drafts: true } }),
   ],
   storage: [
     bunnyStorage({
@@ -34,6 +35,12 @@ export default buildConfigWithDefaults({
         'webhook-plain': {
           disablePayloadAccessControl: true,
           prefix: 'webhook-plain',
+          signedUrls: false,
+          stream: { status: false },
+        },
+        'webhook-plain-drafts': {
+          disablePayloadAccessControl: true,
+          prefix: 'webhook-plain-drafts',
           signedUrls: false,
           stream: { status: false },
         },

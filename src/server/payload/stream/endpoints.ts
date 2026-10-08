@@ -376,6 +376,7 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
                   collection: collectionSlug,
                   limit: 1,
                   overrideAccess: true,
+                  req,
                   where: {
                     'bunnyData.stream.videoId': {
                       equals: VideoGuid,
@@ -404,11 +405,11 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
                     continue
                   }
 
-                  await req.payload.update({
-                    id: doc.id,
+                  await writeStoredStream({
                     collection: collectionSlug,
-                    data: { bunnyData: { stream: { resolutions } } },
-                    overrideAccess: true,
+                    id: doc.id,
+                    req,
+                    stream: { resolutions, videoId: VideoGuid },
                   })
 
                   req.payload.logger.debug({

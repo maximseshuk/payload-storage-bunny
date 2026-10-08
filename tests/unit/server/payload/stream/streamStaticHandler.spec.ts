@@ -34,10 +34,11 @@ const streamOptions = (over: Partial<NormalizedStreamOptions> = {}): NormalizedS
     ...over,
   }) as NormalizedStreamOptions
 
-const makeReq = (): PayloadRequest =>
+const makeReq = (mainDoc: null | Record<string, unknown> = null): PayloadRequest =>
   ({
     headers: new Headers({ host: 'app.local' }),
     payload: {
+      db: { findOne: vi.fn().mockResolvedValue(mainDoc), updateOne: vi.fn().mockResolvedValue({ id: 'doc1' }) },
       logger: { debug: vi.fn(), error: vi.fn() },
       update: vi.fn().mockResolvedValue({}),
     },
@@ -123,7 +124,7 @@ describe('streamStaticHandler', () => {
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'head' })
     expect(fetchMock.mock.calls[0][0]).toContain('stream.b-cdn.net/vid1/play_720p.mp4')
     expect(getStreamVideoResolutionsMock).not.toHaveBeenCalled()
-    expect(req.payload.update).not.toHaveBeenCalled()
+    expect(req.payload.db.updateOne).not.toHaveBeenCalled()
   })
 
   it('sets the Referer header on the upstream requests when configured', async () => {
@@ -164,42 +165,83 @@ describe('streamStaticHandler', () => {
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'head' })
   })
 
-  it('discovers a resolution via the Stream API and persists it when metadata is missing', async () => {
-    headThenGet()
-    getStreamVideoResolutionsMock.mockResolvedValue({
-      data: {
-        mp4Resolutions: [
-          { path: null, resolution: '720p' },
-          { path: null, resolution: '480p' },
-        ],
-      },
-      success: true,
-    })
+  describe('when the metadata is missing', () => {
+    const discover = async (status: boolean, mainDoc: Record<string, unknown>) => {
+      headThenGet()
+      getStreamVideoResolutionsMock.mockResolvedValue({
+        data: {
+          mp4Resolutions: [
+            { path: null, resolution: '720p' },
+            { path: null, resolution: '480p' },
+          ],
+        },
+        success: true,
+      })
 
-    const req = makeReq()
-    const res = await streamStaticHandler({
-      bunnyData: { stream: { videoId: 'vid1' } },
-      collection,
-      docId: 'doc1',
-      req,
-      signedUrls: false,
-      streamOptions: streamOptions(),
-      usePayloadAccessControl: false,
-    })
+      const req = makeReq(mainDoc)
+      const res = await streamStaticHandler({
+        bunnyData: { stream: { videoId: 'vid1' } },
+        collection,
+        docId: 'doc1',
+        req,
+        signedUrls: false,
+        streamOptions: streamOptions({ status: status ? {} : false } as Partial<NormalizedStreamOptions>),
+        usePayloadAccessControl: false,
+      })
 
-    expect(res.status).toBe(200)
-    expect(getStreamVideoResolutionsMock).toHaveBeenCalledWith({
-      apiKey: 'stream-key',
-      libraryId: 12345,
-      videoId: 'vid1',
-    })
-    expect(req.payload.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        collection: 'media',
-        data: { bunnyData: { stream: { resolutions: expect.objectContaining({ highest: '720p' }) } } },
+      expect(res.status).toBe(200)
+      expect(getStreamVideoResolutionsMock).toHaveBeenCalledWith({
+        apiKey: 'stream-key',
+        libraryId: 12345,
+        videoId: 'vid1',
+      })
+      expect(req.payload.update).not.toHaveBeenCalled()
+      return req.payload.db.updateOne
+    }
+
+    it('stores the discovered resolution straight in the main document and keeps its stored status', async () => {
+      const updateOne = await discover(true, {
+        bunnyData: { stream: { status: 'ready', videoId: 'vid1' } },
         id: 'doc1',
-      }),
-    )
+      })
+
+      expect(updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: 'media',
+          data: {
+            bunnyData: {
+              stream: {
+                resolutions: { available: ['720p', '480p'], highest: '720p' },
+                status: 'ready',
+                videoId: 'vid1',
+              },
+            },
+            updatedAt: null,
+          },
+          where: {
+            and: [
+              { id: { equals: 'doc1' } },
+              { 'bunnyData.stream.videoId': { equals: 'vid1' } },
+              { 'bunnyData.stream.status': { equals: 'ready' } },
+            ],
+          },
+        }),
+      )
+    })
+
+    it('stores the discovered resolution without a status when the status is turned off', async () => {
+      const updateOne = await discover(false, { bunnyData: { stream: { videoId: 'vid1' } }, id: 'doc1' })
+
+      expect(updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            bunnyData: { stream: { resolutions: { available: ['720p', '480p'], highest: '720p' }, videoId: 'vid1' } },
+            updatedAt: null,
+          },
+          where: { and: [{ id: { equals: 'doc1' } }, { 'bunnyData.stream.videoId': { equals: 'vid1' } }] },
+        }),
+      )
+    })
   })
 
   it('returns 404 when the Stream API reports no MP4 resolutions', async () => {

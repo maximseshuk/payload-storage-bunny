@@ -29,7 +29,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
   })
 
   afterAll(async () => {
-    await cleanupStreamVideos(['webhook-test', 'webhook-drafts', 'webhook-plain'])
+    await cleanupStreamVideos(['webhook-test', 'webhook-drafts', 'webhook-plain', 'webhook-plain-drafts'])
     await payload.destroy()
   })
 
@@ -210,7 +210,121 @@ describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
     }
   })
 
-  it('updates the resolutions with payload.update when the collection has the status turned off', async () => {
+  it('keeps a published document published when the status is off and the document has a newer draft', async () => {
+    const videoId = `plain-draft-video-${Date.now()}`
+    const created = await payload.db.create({
+      collection: 'webhook-plain-drafts',
+      data: {
+        _status: 'published',
+        alt: 'Published alt',
+        bunnyData: { stream: { videoId } },
+        filename: `${videoId}.mp4`,
+        mimeType: 'video/mp4',
+      },
+    })
+
+    try {
+      await payload.update({
+        id: created.id,
+        collection: 'webhook-plain-drafts',
+        data: { alt: 'Draft alt' },
+        draft: true,
+        overrideAccess: true,
+      })
+      const beforeWebhook = await payload.findByID({
+        id: created.id,
+        collection: 'webhook-plain-drafts',
+        overrideAccess: true,
+      })
+      vi.mocked(getReadyResolutions).mockResolvedValueOnce({ available: ['720p'], highest: '720p' })
+
+      const response = await callWebhook({
+        Status: 3,
+        VideoGuid: videoId,
+        VideoLibraryId: parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0'),
+      })
+      expect(response.status).toBe(200)
+
+      const published = await payload.findByID({
+        id: created.id,
+        collection: 'webhook-plain-drafts',
+        overrideAccess: true,
+      })
+      expect(published).toMatchObject({ _status: 'published', alt: 'Published alt' })
+      expect((published.bunnyData as any).stream).toMatchObject({
+        resolutions: { available: ['720p'], highest: '720p' },
+        videoId,
+      })
+      expect(published.updatedAt).toBe(beforeWebhook.updatedAt)
+
+      const draft = await payload.findByID({
+        id: created.id,
+        collection: 'webhook-plain-drafts',
+        draft: true,
+        overrideAccess: true,
+      })
+      expect(draft.alt).toBe('Draft alt')
+    } finally {
+      vi.mocked(getReadyResolutions).mockReset()
+      await payload.db.deleteVersions({ collection: 'webhook-plain-drafts', where: { parent: { equals: created.id } } })
+      await payload.db.deleteOne({ collection: 'webhook-plain-drafts', where: { id: { equals: created.id } } })
+    }
+  }, 30000)
+
+  it('keeps the webhook resolutions when the status is off and a draft without them is published', async () => {
+    const videoId = `plain-publish-video-${Date.now()}`
+    const created = await payload.db.create({
+      collection: 'webhook-plain-drafts',
+      data: {
+        _status: 'published',
+        alt: 'Published alt',
+        bunnyData: { stream: { videoId } },
+        filename: `${videoId}.mp4`,
+        mimeType: 'video/mp4',
+      },
+    })
+
+    try {
+      await payload.update({
+        id: created.id,
+        collection: 'webhook-plain-drafts',
+        data: { alt: 'Draft alt' },
+        draft: true,
+        overrideAccess: true,
+      })
+      vi.mocked(getReadyResolutions).mockResolvedValueOnce({ available: ['720p'], highest: '720p' })
+      const response = await callWebhook({
+        Status: 3,
+        VideoGuid: videoId,
+        VideoLibraryId: parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0'),
+      })
+      expect(response.status).toBe(200)
+
+      await payload.update({
+        id: created.id,
+        collection: 'webhook-plain-drafts',
+        data: { _status: 'published', alt: 'Draft alt', bunnyData: { stream: { resolutions: null, videoId } } } as any,
+        overrideAccess: true,
+      })
+
+      const published = await payload.findByID({
+        id: created.id,
+        collection: 'webhook-plain-drafts',
+        overrideAccess: true,
+      })
+      expect(published).toMatchObject({ _status: 'published', alt: 'Draft alt' })
+      expect((published.bunnyData as any).stream).toMatchObject({
+        resolutions: { available: ['720p'], highest: '720p' },
+        videoId,
+      })
+    } finally {
+      vi.mocked(getReadyResolutions).mockReset()
+      await payload.db.deleteVersions({ collection: 'webhook-plain-drafts', where: { parent: { equals: created.id } } })
+      await payload.db.deleteOne({ collection: 'webhook-plain-drafts', where: { id: { equals: created.id } } })
+    }
+  }, 30000)
+
+  it('updates the resolutions straight in the database when the collection has the status turned off', async () => {
     const upload = await payload.create({
       collection: 'webhook-plain',
       data: { alt: 'Plain video' },
@@ -235,7 +349,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
       const stream = (updatedDoc.bunnyData as any).stream
       expect(stream.resolutions.highest).toMatch(/^\d+p$/)
       expect(stream.status).toBeUndefined()
-      expect(updatedDoc.updatedAt).not.toBe(beforeWebhook.updatedAt)
+      expect(updatedDoc.updatedAt).toBe(beforeWebhook.updatedAt)
     } finally {
       await payload.delete({ id: upload.id, collection: 'webhook-plain', overrideAccess: true })
     }

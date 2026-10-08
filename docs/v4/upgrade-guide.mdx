@@ -30,9 +30,7 @@ To keep the old behavior, set `stream.status: false` and `stream.preview: false`
 
 ### 2. Webhook writes skip collection hooks
 
-This applies only while `stream.status` is on, which is the default. With `stream.status: false`, the webhook updates `resolutions` with `payload.update` as before.
-
-The [webhook](/v4/configuration/stream/webhooks) now writes `bunnyData.stream` straight to the database. It no longer runs your collection hooks (`beforeChange`, `afterChange` and others), does not create a new version and does not change `updatedAt`. If a hook of yours reacted to the webhook's `resolutions` update, for example to revalidate a page, run that logic another way, for example in a job that reads `bunnyData.stream`.
+The [webhook](/v4/configuration/stream/webhooks) now writes `bunnyData.stream` straight to the database, also with `stream.status: false`, where it only updates `resolutions`. It no longer runs your collection hooks (`beforeChange`, `afterChange` and others), does not create a new version and does not change `updatedAt`. If a hook of yours reacted to the webhook's `resolutions` update, for example to revalidate a page, run that logic another way, for example in a job that reads `bunnyData.stream`.
 
 ### 3. Regenerate the import map
 

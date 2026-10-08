@@ -1,7 +1,9 @@
-import { type CollectionConfig, NotFound, type PayloadRequest } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
 
 import { getStreamVideoResolutions, parseMp4Resolutions } from '@/server/bunny/stream.js'
 import { httpFetch } from '@/server/http/index.js'
+import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
+import { writeStoredStream } from '@/server/payload/stream/storedStream.js'
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStreamCdnUrl } from '@/server/urls.js'
 import { createProxyResponse } from '@/shared/http.js'
@@ -163,26 +165,25 @@ export const streamStaticHandler = async ({
 
   if (metaNeedsUpdate && fallbackQuality && docId && collection) {
     try {
-      await req.payload.update({
-        id: docId,
+      const stored = readStoredVideo(
+        await req.payload.db.findOne({ collection: collection.slug, req, where: { id: { equals: docId } } }),
+      )
+      await writeStoredStream({
         collection: collection.slug,
-        data: {
-          bunnyData: {
-            stream: {
-              resolutions: {
-                available: availableResolutions.length > 0 ? availableResolutions : undefined,
-                highest: fallbackQuality,
-              },
-            },
-          },
-        },
-        overrideAccess: true,
+        id: docId,
         req,
+        stream: {
+          resolutions: {
+            available: availableResolutions.length > 0 ? availableResolutions : undefined,
+            highest: fallbackQuality,
+          },
+          status: stored?.status,
+          videoId,
+        },
+        whenStatus: streamOptions.status ? (stored?.status ?? null) : undefined,
       })
     } catch (err) {
-      if (!(err instanceof NotFound)) {
-        req.payload.logger.error({ err, msg: '[bunny:stream] mp4-fallback: failed to update bunnyData resolutions' })
-      }
+      req.payload.logger.error({ err, msg: '[bunny:stream] mp4-fallback: failed to update bunnyData resolutions' })
     }
   }
 

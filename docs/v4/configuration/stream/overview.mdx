@@ -53,7 +53,7 @@ The top-level `stream` block is optional. If every collection points at [its own
 
 By default, files are served through Payload's access control (`disablePayloadAccessControl` isn't set on the collection). For Stream videos in this mode, Bunny can't serve HLS directly through Payload's proxy, so you need one of:
 
-- **`mp4Fallback: true`** — Payload proxies the MP4 rendition instead of HLS.
+- **`mp4Fallback: true`** — Payload proxies the MP4 rendition instead of HLS. When the stored `resolutions` are missing or wrong, the first request stores the rendition it found. Like the status writes, this goes straight to the database: it does not run your collection hooks, does not create a version and does not change `updatedAt`.
 - **Signed URLs with redirect** — set `signedUrls.staticHandler.redirect: true` (globally or on the collection) so Payload redirects straight to Bunny's HLS stream instead of proxying it. This is the faster option — see [Signed URLs](/v4/configuration/signed-urls).
 
 Without `mp4Fallback`, the redirect is the only way to serve the video. If `shouldUseSignedUrl` returns `false` for a file, there is no redirect, and the file route answers `400`.

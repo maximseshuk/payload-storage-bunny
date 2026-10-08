@@ -55,7 +55,7 @@ In a library with JIT encoding, the status check and status sync store `processi
 
 </Note>
 
-With `stream.status: false`, the webhook stores no state. It only updates `resolutions` when `mp4Fallback` is on, with `payload.update` as in earlier versions, so your collection hooks run and `updatedAt` changes. When Bunny has no MP4 resolutions yet, fetching them fails or reading the document fails, the webhook answers `500`, so Bunny sends it again.
+With `stream.status: false`, the webhook stores no state. It only updates `resolutions` when `mp4Fallback` is on. Like the state writes, this goes straight to the database: it does not run your collection hooks, does not create a version and does not change `updatedAt`. When Bunny has no MP4 resolutions yet, fetching them fails or reading the document fails, the webhook answers `500`, so Bunny sends it again.
 
 ## When the webhook arrives before the document
 
