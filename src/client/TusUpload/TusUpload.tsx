@@ -21,6 +21,7 @@ import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
 import { ToggleButton } from '@/client/TusUpload/ToggleButton/ToggleButton.js'
 import { matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 
+import { FILE_FIELD_REMOVE_BUTTON_SELECTOR } from './TusUpload.constants.js'
 import { clickFileFieldRemoveButton } from './TusUpload.utils.js'
 
 export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' | 'UploadFilePreview'>> = ({
@@ -76,13 +77,13 @@ export const TusUpload: React.FC<Pick<PayloadFileManagerProps, 'UploadControls' 
 
   const handleDisableTus = useCallback(() => {
     if (isAutoModeEnabled) {
-      void removeFileManagerFile()
+      fileManagerRef.current?.querySelector<HTMLButtonElement>(FILE_FIELD_REMOVE_BUTTON_SELECTOR)?.click()
     }
 
     setIsTusMode(false)
     setSelectedFile(null)
     clearUploadControls()
-  }, [clearUploadControls, isAutoModeEnabled, removeFileManagerFile])
+  }, [clearUploadControls, isAutoModeEnabled])
 
   useEffect(() => {
     if (!(fileValue instanceof File) || isTusMode || !isAutoModeEnabled) {

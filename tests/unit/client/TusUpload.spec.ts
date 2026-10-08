@@ -11,7 +11,9 @@ const state = vi.hoisted(() => ({
   dispatchFields: vi.fn(),
   effectCursor: 0,
   field: undefined as { value: File } | undefined,
+  onDisableTus: undefined as (() => void) | undefined,
   preSelectedFile: undefined as File | null | undefined,
+  ref: undefined as { current: unknown } | undefined,
   states: [] as unknown[],
   tus: undefined as Record<string, unknown> | undefined,
 }))
@@ -27,6 +29,7 @@ vi.mock('react', async (importOriginal) => {
         effect()
       }
     },
+    useRef: <T>(initial: T) => state.ref ?? { current: initial },
     useState: <T>(initial: T) => {
       const index = state.cursor++
       if (!(index in state.states)) {
@@ -64,7 +67,8 @@ const fileManager = vi.hoisted(() => async () => {
 
 vi.mock('@payloadcms/ui/elements/FileManager', fileManager)
 vi.mock('@/client/TusUpload/FileManager/FileManager.js', () => ({
-  FileManager: (props: { preSelectedFile?: File | null; UploadControls?: ReactNode }) => {
+  FileManager: (props: { onDisableTus: () => void; preSelectedFile?: File | null; UploadControls?: ReactNode }) => {
+    state.onDisableTus = props.onDisableTus
     state.preSelectedFile = props.preSelectedFile
     return props.UploadControls ?? null
   },
@@ -118,7 +122,9 @@ describe('TusUpload form file', () => {
     state.dispatchFields.mockClear()
     state.deps = []
     state.field = undefined
+    state.ref = undefined
     state.states = []
+    vi.unstubAllGlobals()
   })
 
   it('clears the form file when auto mode switches to TUS and the remove button is not found', async () => {
@@ -176,5 +182,29 @@ describe('TusUpload form file', () => {
     render({})
 
     expect(state.dispatchFields).not.toHaveBeenCalled()
+  })
+
+  it('turns TUS mode off in auto mode without waiting for a remove button that is not there', () => {
+    const observer = vi.fn()
+    vi.stubGlobal('MutationObserver', observer)
+    state.ref = { current: { querySelector: () => null } }
+    state.states = [true, null]
+    render({ autoMode: true })
+
+    state.onDisableTus!()
+
+    expect(observer).not.toHaveBeenCalled()
+    expect(state.states[0]).toBe(false)
+  })
+
+  it('removes the file of the form when TUS mode turns off in auto mode', () => {
+    const click = vi.fn()
+    state.ref = { current: { querySelector: () => ({ click }) } }
+    state.states = [true, null]
+    render({ autoMode: true })
+
+    state.onDisableTus!()
+
+    expect(click).toHaveBeenCalledOnce()
   })
 })
