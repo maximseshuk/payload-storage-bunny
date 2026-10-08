@@ -283,10 +283,7 @@
             "description": "Invalid payload."
           },
           "401": {
-            "description": "Missing or invalid signature, or unsupported signature version/algorithm."
-          },
-          "403": {
-            "description": "Library ID not configured on this app."
+            "description": "Missing or invalid signature, unsupported signature version/algorithm, or a library without a configured webhook secret."
           },
           "500": {
             "description": "Reading or storing the document failed, or Bunny has no MP4 resolutions yet, so Bunny can send the webhook again."

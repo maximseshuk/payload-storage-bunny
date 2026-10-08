@@ -135,8 +135,10 @@ export const streamWebhookOperation: OpenAPIV3_1.OperationObject = {
   responses: {
     '200': { description: 'Acknowledged.' },
     '400': { description: 'Invalid payload.' },
-    '401': { description: 'Missing or invalid signature, or unsupported signature version/algorithm.' },
-    '403': { description: 'Library ID not configured on this app.' },
+    '401': {
+      description:
+        'Missing or invalid signature, unsupported signature version/algorithm, or a library without a configured webhook secret.',
+    },
     '500': {
       description:
         'Reading or storing the document failed, or Bunny has no MP4 resolutions yet, so Bunny can send the webhook again.',

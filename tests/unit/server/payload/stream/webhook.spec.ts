@@ -142,11 +142,11 @@ describe('Stream webhook endpoint', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 403 on a library id mismatch', async () => {
+  it('returns 401 for an unknown library id', async () => {
     const handler = getWebhookHandler(buildOptions())
     const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 99999 }))
 
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(401)
   })
 
   it('stores the resolutions and the ready state on a finished (Status 3) webhook', async () => {
@@ -640,10 +640,10 @@ describe('Stream webhook endpoint', () => {
       expect(res.status).toBe(401)
     })
 
-    it('returns 403 for a library not in the configured set', async () => {
+    it('returns 401 for a library not in the configured set', async () => {
       const handler = getWebhookHandler(buildMultiOptions())
       const res = await handler(buildMultiReq({ Status: 3, VideoGuid: 'v', VideoLibraryId: 555 }))
-      expect(res.status).toBe(403)
+      expect(res.status).toBe(401)
     })
 
     it('searches only collections of the incoming library', async () => {

@@ -20,7 +20,7 @@ import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
 import { streamStatusOperation, streamWebhookOperation, tusAuthOperation } from '@/server/payload/openapi.js'
 import { isAdminUser } from '@/server/payload/options/access.js'
 import { createCollectionContext } from '@/server/payload/options/context.js'
-import { collectStreamOptions, collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/options/inspect.js'
+import { collectWebhookSecrets, hasAnyStreamTus } from '@/server/payload/options/inspect.js'
 import { signClientUpload } from '@/server/payload/storage/clientUploads/receipt.js'
 import {
   assertClientUploadFile,
@@ -62,7 +62,6 @@ type StatusCacheEntry = {
 
 export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endpoint[] => {
   const webhookSecrets = collectWebhookSecrets(options)
-  const streamOptionsByLibrary = collectStreamOptions(options)
   const statusCache = new Map<string, StatusCacheEntry>()
 
   const endpoints: Endpoint[] = []
@@ -262,10 +261,6 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
 
           if (!VideoLibraryId || !VideoGuid || Status === undefined) {
             return jsonResponse({ error: 'Invalid webhook payload' }, 400)
-          }
-
-          if (!streamOptionsByLibrary.has(VideoLibraryId)) {
-            return jsonResponse({ error: 'Library ID mismatch' }, 403)
           }
 
           const signingSecret = webhookSecrets.get(VideoLibraryId)

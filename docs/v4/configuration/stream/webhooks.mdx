@@ -20,7 +20,7 @@ Set the webhook URL in your Bunny Stream library settings to the plain endpoint 
 https://your-site.com/api/storage-bunny/stream/webhook
 ```
 
-Each request carries an `X-BunnyStream-Signature` header — a lowercase-hex HMAC-SHA256 of the exact raw request body, keyed by the library's Read-Only API key — alongside `X-BunnyStream-Signature-Version` (`v1`) and `X-BunnyStream-Signature-Algorithm` (`hmac-sha256`). The plugin requires the version and algorithm to match before it verifies anything, finds the library by the payload's `VideoLibraryId`, recomputes the HMAC with that library's `webhook.secret`, and rejects the request (`401`) on a mismatch; a payload naming an unconfigured library is rejected (`403`).
+Each request carries an `X-BunnyStream-Signature` header — a lowercase-hex HMAC-SHA256 of the exact raw request body, keyed by the library's Read-Only API key — alongside `X-BunnyStream-Signature-Version` (`v1`) and `X-BunnyStream-Signature-Algorithm` (`hmac-sha256`). The plugin requires the version and algorithm to match before it verifies anything, finds the library by the payload's `VideoLibraryId`, recomputes the HMAC with that library's `webhook.secret`, and rejects the request (`401`) on a mismatch. A payload that names a library without a `webhook.secret` gets the same `401`, so the answer does not show which libraries the app uses.
 
 <Info>
 
