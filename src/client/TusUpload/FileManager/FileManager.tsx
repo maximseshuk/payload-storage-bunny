@@ -66,7 +66,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const selectedFileRef = useRef<File | null>(null)
   const mountedRef = useRef(false)
 
-  const { dispatchFields, getFields, setBackgroundProcessing } = useForm()
+  const { dispatchFields, getFields, setBackgroundProcessing, setModified } = useForm()
   const backgroundProcessing = useFormBackgroundProcessing()
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
   const { mostRecentUpdate } = useDocumentEvents()
@@ -116,8 +116,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
           Object.entries(values).map(([path, value]) => [path, { ...fields[path], isModified: true, value }]),
         ),
       })
+      setModified(true)
     },
-    [dispatchFields, getFields, state.tusData],
+    [dispatchFields, getFields, setModified, state.tusData],
   )
 
   const getAuthData = useCallback(

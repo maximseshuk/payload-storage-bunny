@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
   refCursor: 0,
   refs: [] as { current: unknown }[],
   setBackgroundProcessing: vi.fn(),
+  setModified: vi.fn(),
   states: [] as unknown[],
   toastError: vi.fn(),
   uploads: [] as { abort: ReturnType<typeof vi.fn>; opts: Record<string, any>; start: ReturnType<typeof vi.fn> }[],
@@ -82,6 +83,7 @@ vi.mock('@payloadcms/ui', () => ({
     dispatchFields: state.dispatchFields,
     getFields: () => state.form,
     setBackgroundProcessing: state.setBackgroundProcessing,
+    setModified: state.setModified,
   }),
   useFormBackgroundProcessing: () => state.backgroundProcessing,
   useTranslation: () => ({ t: (key: string) => key }),
@@ -159,6 +161,7 @@ beforeEach(() => {
   state.pendingAuth = []
   state.pendingPrevious = []
   state.form = {}
+  state.setModified.mockClear()
   state.dispatchFields.mockClear()
   state.dispatchFields.mockImplementation((action) => void (state.form = fieldReducer(state.form, action)))
   state.toastError.mockClear()
@@ -380,6 +383,18 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     render(x)
 
     expect(state.setBackgroundProcessing).toHaveBeenLastCalledWith(false)
+  })
+
+  it('marks the form as modified when the upload is complete, so Save and autosave see the new video', async () => {
+    await prepare()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+    expect(state.setModified).not.toHaveBeenCalled()
+
+    state.uploads[0]!.opts.onSuccess()
+    await flush()
+
+    expect(state.setModified).toHaveBeenCalledExactlyOnceWith(true)
   })
 
   it('turns background processing off when the FileManager unmounts during the upload', async () => {
