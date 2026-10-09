@@ -16,6 +16,7 @@ import {
 } from '@payloadcms/ui'
 import { VideoPreview } from '@payloadcms/ui/elements/FileManager/FilePreview/VideoPreview'
 import ky from 'ky'
+import type { FormState } from 'payload'
 import { formatFilesize } from 'payload/shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as tus from 'tus-js-client'
@@ -65,6 +66,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const prevUpdatedAtRef = useRef<null | string>(null)
   const selectedFileRef = useRef<File | null>(null)
   const mountedRef = useRef(false)
+  const previousVideoFieldsRef = useRef<null | Partial<FormState>>(null)
 
   const { dispatchFields, getFields, setBackgroundProcessing, setModified } = useForm()
   const backgroundProcessing = useFormBackgroundProcessing()
@@ -109,6 +111,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
         width: null,
       }
       const fields = getFields()
+      previousVideoFieldsRef.current ??= Object.fromEntries(Object.keys(values).map((path) => [path, fields[path]]))
 
       dispatchFields({
         type: 'UPDATE_MANY',
@@ -494,6 +497,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
     }
 
     resetState()
+
+    if (previousVideoFieldsRef.current) {
+      for (const [path, field] of Object.entries(previousVideoFieldsRef.current)) {
+        dispatchFields(field ? { type: 'UPDATE_MANY', formState: { [path]: field } } : { type: 'REMOVE', path })
+      }
+      previousVideoFieldsRef.current = null
+    }
 
     if (isAutoMode) {
       onDisableTus()

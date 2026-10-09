@@ -385,6 +385,26 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     expect(state.setBackgroundProcessing).toHaveBeenLastCalledWith(false)
   })
 
+  it.each([false, true])(
+    'puts the previous video back into the form when Cancel runs after the upload (auto mode %s)',
+    async (isAutoMode) => {
+      const saved = { 'bunnyData.stream.videoId': 'video-old', filename: 'old.webm', mimeType: 'video/webm' }
+      state.form = formState(saved)
+      await prepare(isAutoMode)
+      state.pendingAuth[0]!(uploadAuth)
+      await flush()
+      state.uploads[0]!.opts.onSuccess()
+      await flush()
+      render(x, isAutoMode)
+      expect(formValues()).toMatchObject({ 'bunnyData.stream.videoId': 'video-x' })
+
+      cancel()
+
+      expect(formValues()).toEqual(saved)
+      expect(state.form).toEqual(formState(saved))
+    },
+  )
+
   it('marks the form as modified when the upload is complete, so Save and autosave see the new video', async () => {
     await prepare()
     state.pendingAuth[0]!(uploadAuth)
