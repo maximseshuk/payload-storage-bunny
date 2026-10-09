@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module'
+
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,6 +15,7 @@ const state = vi.hoisted(() => ({
   dispatchFields: vi.fn(),
   effectCursor: 0,
   effectDeps: [] as (undefined | unknown[])[],
+  form: {} as Record<string, any>,
   pendingAuth: [] as ((value: unknown) => void)[],
   pendingPrevious: [] as ((value: unknown) => void)[],
   refCursor: 0,
@@ -75,7 +78,11 @@ vi.mock('@payloadcms/ui', () => ({
     }),
   }),
   useDocumentEvents: () => ({}),
-  useForm: () => ({ dispatchFields: state.dispatchFields, setBackgroundProcessing: state.setBackgroundProcessing }),
+  useForm: () => ({
+    dispatchFields: state.dispatchFields,
+    getFields: () => state.form,
+    setBackgroundProcessing: state.setBackgroundProcessing,
+  }),
   useFormBackgroundProcessing: () => state.backgroundProcessing,
   useTranslation: () => ({ t: (key: string) => key }),
 }))
@@ -104,6 +111,12 @@ vi.mock('@/client/TusUpload/FileManager/FileManager.utils.js', () => ({
   findPreviousTusUploads: vi.fn(async () => []),
 }))
 
+const { fieldReducer } = await vi.importActual<typeof import('@payloadcms/ui')>(
+  createRequire(import.meta.url)
+    .resolve('@payloadcms/ui')
+    .replace('exports/client/index.js', 'forms/Form/fieldReducer.js'),
+)
+
 const onDisableTus = vi.fn()
 
 const render = (preSelectedFile: File | null, isAutoMode = false) => {
@@ -131,8 +144,9 @@ const uploadAuth = {
   videoId: 'video-x',
   videoToken: 'token',
 }
-const videoIdWrites = () =>
-  state.dispatchFields.mock.calls.filter(([action]) => action.path === 'bunnyData.stream.videoId')
+const formValues = () => Object.fromEntries(Object.entries(state.form).map(([path, field]) => [path, field.value]))
+const formState = (values: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(values).map(([path, value]) => [path, { initialValue: value, value }]))
 
 beforeEach(() => {
   state.backgroundProcessing = false
@@ -144,7 +158,9 @@ beforeEach(() => {
   state.uploads = []
   state.pendingAuth = []
   state.pendingPrevious = []
+  state.form = {}
   state.dispatchFields.mockClear()
+  state.dispatchFields.mockImplementation((action) => void (state.form = fieldReducer(state.form, action)))
   state.toastError.mockClear()
   onDisableTus.mockClear()
   vi.mocked(findPreviousTusUploads).mockImplementation(async () => [])
@@ -216,7 +232,7 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
       expect(state.uploads).toHaveLength(0)
       expect(ui().selectedFile).toBeNull()
       expect(ui().uploadStatus).toBe('idle')
-      expect(videoIdWrites()).toHaveLength(0)
+      expect(formValues()).toEqual({})
     },
   )
 
@@ -243,7 +259,7 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     await flush()
 
     expect(state.uploads).toHaveLength(0)
-    expect(videoIdWrites()).toHaveLength(0)
+    expect(formValues()).toEqual({})
   })
 
   it('ignores the success of an upload whose file is no longer selected', async () => {
@@ -257,7 +273,7 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     state.uploads[0]!.opts.onSuccess()
     await flush()
 
-    expect(videoIdWrites()).toHaveLength(0)
+    expect(formValues()).toEqual({})
     expect(ui().selectedFile).toBe(y)
   })
 
@@ -278,10 +294,10 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
   })
 
   it('keeps the form MIME type on select and Cancel and sets it after the upload', async () => {
-    const mimeTypeWrites = () => state.dispatchFields.mock.calls.filter(([action]) => action.path === 'mimeType')
+    state.form = formState({ mimeType: 'image/png' })
     await prepare()
     cancel()
-    expect(mimeTypeWrites()).toHaveLength(0)
+    expect(formValues()).toEqual({ mimeType: 'image/png' })
 
     state.refs = []
     state.states = []
@@ -292,7 +308,45 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     state.uploads[0]!.opts.onSuccess()
     await flush()
 
-    expect(mimeTypeWrites()).toEqual([[{ type: 'UPDATE', path: 'mimeType', value: 'video/mp4' }]])
+    expect(formValues()).toMatchObject({ mimeType: 'video/mp4' })
+  })
+
+  it('keeps the uploaded video in the form when an autosave that started before the end of the upload answers', async () => {
+    const saved = {
+      'bunnyData.stream.videoId': 'video-old',
+      'bunnyData.stream.videoToken': null,
+      filename: 'old.webm',
+      filesize: 10,
+      focalX: 50,
+      focalY: 50,
+      height: 360,
+      mimeType: 'video/webm',
+      width: 640,
+    }
+    state.form = formState(saved)
+    await prepare()
+    state.pendingAuth[0]!(uploadAuth)
+    await flush()
+    state.uploads[0]!.opts.onSuccess()
+    await flush()
+
+    state.dispatchFields({
+      type: 'MERGE_SERVER_STATE',
+      acceptValues: { overrideLocalChanges: false },
+      serverState: formState(saved),
+    })
+
+    expect(formValues()).toEqual({
+      'bunnyData.stream.videoId': 'video-x',
+      'bunnyData.stream.videoToken': 'token',
+      filename: 'x.mp4',
+      filesize: 1,
+      focalX: null,
+      focalY: null,
+      height: null,
+      mimeType: 'video/mp4',
+      width: null,
+    })
   })
 
   it('turns background processing on again when an autosave turns it off during the upload', async () => {

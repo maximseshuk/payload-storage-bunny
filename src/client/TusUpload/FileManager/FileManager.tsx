@@ -66,7 +66,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const selectedFileRef = useRef<File | null>(null)
   const mountedRef = useRef(false)
 
-  const { dispatchFields, setBackgroundProcessing } = useForm()
+  const { dispatchFields, getFields, setBackgroundProcessing } = useForm()
   const backgroundProcessing = useFormBackgroundProcessing()
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
   const { mostRecentUpdate } = useDocumentEvents()
@@ -97,23 +97,27 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
   const updateVideoFields = useCallback(
     ({ videoId, videoToken }: StreamTusAuthResponse, file: File) => {
-      const fields = [
-        { path: 'bunnyData.stream.videoId', value: videoId },
-        { path: 'bunnyData.stream.videoToken', value: videoToken },
-        { path: 'mimeType', value: state.tusData?.metadata?.filetype || file.type },
-        { path: 'filesize', value: state.tusData?.size || file.size },
-        { path: 'filename', value: state.tusData?.metadata?.title || file.name },
-        { path: 'focalX', value: null },
-        { path: 'focalY', value: null },
-        { path: 'width', value: null },
-        { path: 'height', value: null },
-      ]
+      const values = {
+        'bunnyData.stream.videoId': videoId,
+        'bunnyData.stream.videoToken': videoToken,
+        filename: state.tusData?.metadata?.title || file.name,
+        filesize: state.tusData?.size || file.size,
+        focalX: null,
+        focalY: null,
+        height: null,
+        mimeType: state.tusData?.metadata?.filetype || file.type,
+        width: null,
+      }
+      const fields = getFields()
 
-      fields.forEach(({ path, value }) => {
-        dispatchFields({ type: 'UPDATE', path, value })
+      dispatchFields({
+        type: 'UPDATE_MANY',
+        formState: Object.fromEntries(
+          Object.entries(values).map(([path, value]) => [path, { ...fields[path], isModified: true, value }]),
+        ),
       })
     },
-    [dispatchFields, state.tusData],
+    [dispatchFields, getFields, state.tusData],
   )
 
   const getAuthData = useCallback(
