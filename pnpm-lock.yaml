@@ -192,10 +192,10 @@ importers:
         version: 1.8.1
       cac:
         specifier: ^7.0.0
-        version: 7.0.0
+        version: 7.0.1
       ky:
-        specifier: 2.1.0
-        version: 2.1.0
+        specifier: 2.2.0
+        version: 2.2.0
       s3mini:
         specifier: 1.0.2
         version: 1.0.2
@@ -3373,8 +3373,8 @@ packages:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
 
-  cac@7.0.0:
-    resolution: {integrity: sha512-tixWYgm5ZoOD+3g6UTea91eow5z6AAHaho3g0V9CNSNb45gM8SmflpAc+GRd1InC4AqN/07Unrgp56Y94N9hJQ==}
+  cac@7.0.1:
+    resolution: {integrity: sha512-86diuUyeeWM8CrqhpGCaDafrzjS1s++7sWy2AbAPoFNz/xKv7ID57CR4pZsMuGCh60PtsnEx4z68b+Vgt07VPw==}
     engines: {node: '>=20.19.0'}
 
   cacheable-lookup@7.0.0:
@@ -5002,8 +5002,8 @@ packages:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
 
-  ky@2.1.0:
-    resolution: {integrity: sha512-nIKwelw+7qVqKOlX4Eht6GXfEXlDHcdIjyLWV3s119kYt5s+70ayTnYS+0fRNmtgGRRAfqdeWQbh8YizqkS0ng==}
+  ky@2.2.0:
+    resolution: {integrity: sha512-4+B63kyZt+Y8snQiUGydK1vgY9xYQJZEh9K/nIAIEts+gYJzy1EiAw3BbK8xpWRuWUpN70SNCMjqRGTm75xxIA==}
     engines: {node: '>=22'}
 
   lcm@0.0.3:
@@ -10293,7 +10293,7 @@ snapshots:
 
   bytes@3.1.2: {}
 
-  cac@7.0.0: {}
+  cac@7.0.1: {}
 
   cacheable-lookup@7.0.0: {}
 
@@ -12181,7 +12181,7 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  ky@2.1.0: {}
+  ky@2.2.0: {}
 
   lcm@0.0.3:
     dependencies:
@@ -14839,7 +14839,7 @@ snapshots:
 
   tsdown@0.23.0(oxc-resolver@11.23.0)(tsx@4.23.15)(typescript@7.0.2):
     dependencies:
-      cac: 7.0.0
+      cac: 7.0.1
       defu: 6.1.7
       empathic: 2.0.1
       hookable: 6.1.1
