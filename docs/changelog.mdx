@@ -5,6 +5,48 @@ description: 'Release history for the Bunny Storage plugin for Payload.'
 
 Notable changes per release. For the full commit-level history, see the [GitHub releases](https://github.com/maximseshuk/payload-storage-bunny/releases).
 
+<Update label="v4.0.0-beta.2" description="October 13, 2026" tags={['Beta']}>
+  This beta moves to the Payload 4 beta and its file versions. Install Payload `4.0.0-beta.1`. It has breaking changes, so follow the [upgrade guide](/v4/upgrade-guide#v400-beta1-to-v400-beta2).
+
+**Breaking**
+
+- Requires Payload `4.0.0-beta.0` or later and Next.js `>=16.4 <17`. Canary builds are not supported. `@payloadcms/ui`, `react` and `react-dom` are new peer dependencies.
+- Databases need Payload's `sizes-to-variants` migration. SQL databases then need one more migration for the new columns.
+- Every upload goes to its own folder. The stored `prefix` of a client upload no longer includes the UUID, so access rules on `prefix` must match the folder and its subfolders.
+- `tus-auth` creates the TUS upload itself and returns `uploadUrl` and `headers`. Custom TUS clients send `PATCH` requests to `uploadUrl`. TUS saves send no file.
+- The Bunny Stream encoding status is stored on the document.
+- Collections on the same Stream library need the same `cleanup` setting.
+- Redeploy the Edge Script if you use client uploads over the HTTP API.
+
+**Security**
+
+- A Stream video requested by file name is served only from the document that Payload checked. Before, another document with the same file name could be served.
+- `tus-auth` rejects collections that the plugin does not manage.
+
+**Changes**
+
+- Replaced files and videos stay while a document or a version uses them. Restore and rename copy files to new keys.
+- No CDN purge on upload, because every upload has a new URL.
+- Videos from the bulk upload drawer and from form saves go to Bunny Stream over TUS when the collection allows it.
+- The saved `filesize` of a TUS video is the size of the upload. A save before the upload is complete fails.
+- The TUS view renews short-lived upload headers and resumes after a page reload.
+- The admin shows the encoding status of a video. An optional task syncs the status and fills it for videos uploaded before this release.
+
+**Fixes**
+
+- Many fixes for TUS uploads with drafts, autosave, Cancel and file changes.
+- The Stream webhook, the status check and status sync now update a video that only a draft uses.
+- Thumbnails use the configured API route and send the Stream referer.
+- Access-controlled files are kept out of shared caches.
+- The storage hostname is checked by host, not by substring.
+- CDN errors on proxied files, videos and thumbnails return `502`. A `404` stays `404`.
+- TUS Retry continues the same upload. Start over forgets the old one and lets you edit the file name again. The admin asks before you leave a page during an upload.
+- The IP lock warning no longer logs the client IP.
+- `bunny:deploy-edge-script` keeps the secret of an existing script, prints it only when it creates one, and exits with `1` when the Pull Zone rules fail.
+- `init` creates `.env` readable only by you, stops on Ctrl+C, uses the region of an existing storage zone and shows the cause of errors. CLI requests time out after 30 seconds.
+
+</Update>
+
 <Update label="v4.0.0-beta.1" description="October 1, 2026" tags={['Beta']}>
   The first beta for Payload 4. It has breaking changes, so follow the [upgrade guide](/v4/upgrade-guide#v3-to-v4). v3 keeps getting critical and high-severity security fixes.
 

@@ -142,7 +142,21 @@ Collections with TUS uploads need it too. Their upload area now loads from `@ses
 
 The edit view of Stream video and audio files now shows the Bunny Stream player from `@seshuk/payload-storage-bunny/client#StreamFilePreview`, also without the media preview plugin. It needs the import map too. Set `stream.preview: false` to keep Payload's built-in video and audio player.
 
-### 9. Optional: background tasks
+### 9. Redeploy the Edge Script
+
+If you use [client uploads](/v4/configuration/storage/client-uploads) with an Edge Script (HTTP API zones), redeploy it. The new script answers `503` when its `SHARED_SECRET` is missing, and `502` with CORS headers when Bunny Storage fails. Until you redeploy, `bunny:deploy-edge-script --check` reports the script as outdated.
+
+```bash
+npx payload bunny:deploy-edge-script
+```
+
+A deploy to an existing script without `--secret` now keeps its `SHARED_SECRET`. Before, a deploy with `--zones-file` replaced it with a new one.
+
+### 10. One cleanup setting per library
+
+Collections that use the same Stream library must now have the same `cleanup` setting, also when one of them uses the global `stream` options. Otherwise the plugin throws at startup with ``stream library <id> is configured with conflicting `cleanup` options across collections``. Turn `cleanup` on for all of them, or for none, with the same `maxAge`.
+
+### 11. Optional: background tasks
 
 You can now run the Stream tasks without Payload jobs, and keep the stored status up to date with the new `stream.status.sync` task. See [Background tasks](/v4/configuration/background-tasks).
 
