@@ -123,7 +123,7 @@ How it behaves:
 **Bunny-side requirements**
 
 - Enforcement requires **Token IP Validation** to be enabled on Bunny: Pull Zone → **Security** → **Token Authentication** for Storage, or the equivalent setting on your Stream library. Without it, Bunny ignores the IP in the hash — but a token signed _with_ an IP won't validate, so only enable `userIp` together with the Bunny-side setting.
-- Only **IPv4** is supported; enabling Token IP Validation disables IPv6 routing on the Pull Zone. Values that aren't a plain IPv4 address are ignored (the link is signed without a lock) and a warning is logged.
+- Only **IPv4** is supported; enabling Token IP Validation disables IPv6 routing on the Pull Zone. Bunny can only lock a link to an IPv4 address. So for an IPv6 client, or when the callback returns a value that isn't a plain IPv4 address, the link is signed without the IP lock and a warning is logged. The warning names the file, not the address.
 
 </Warning>
 

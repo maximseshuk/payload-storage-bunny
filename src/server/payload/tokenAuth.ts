@@ -179,8 +179,8 @@ const resolveUserIp = (signedUrls: NormalizedSignedUrlsOptions, args: SignedUrls
 
   if (!match || match.slice(1).some((octet) => Number(octet) > 255)) {
     args.req.payload?.logger?.warn({
+      file: args.filename,
       msg: '[bunny:storage] signed-urls: userIp returned a value that is not a valid IPv4 address, signing without IP lock',
-      userIp: value,
     })
     return undefined
   }

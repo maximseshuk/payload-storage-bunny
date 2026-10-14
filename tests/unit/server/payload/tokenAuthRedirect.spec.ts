@@ -169,13 +169,14 @@ describe('maybeGenerateSignedUrl with userIp', () => {
   it.each([
     ['a non-IPv4 value', '2001:db8::1'],
     ['an IPv4 with out-of-range octets', '300.1.1.1'],
-  ])('rejects %s, warns, and signs without an IP lock', (_, ip) => {
+  ])('rejects %s, warns without the IP, and signs without an IP lock', (_, ip) => {
     const req = createReq()
     const userIp = vi.fn().mockReturnValue(ip)
 
     const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
 
     expect(req.payload.logger.warn).toHaveBeenCalledOnce()
+    expect(JSON.stringify(vi.mocked(req.payload.logger.warn).mock.calls)).not.toContain(ip)
     expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result))
   })
 
@@ -325,6 +326,18 @@ describe('maybeCreateRedirect with userIp and an absolute expiry', () => {
     expect(location.searchParams.get('token')).toBe(
       generateSignedToken('security-key', '/path/to/photo.jpg', expires, undefined, '203.0.113.7'),
     )
+  })
+
+  it('redirects to a URL signed without the IP lock when the client IP is not IPv4', () => {
+    const req = createReq()
+    const res = maybeCreateRedirect(
+      baseUrl,
+      redirectContext({ req, signedUrls: signed({ redirect: { status: 302 }, userIp: () => '2001:db8::1' }) }),
+    )
+
+    const location = res!.headers.get('Location')!
+    expect(new URL(location).searchParams.get('token')).toBe(tokenLockedTo(location))
+    expect(req.payload.logger.warn).toHaveBeenCalledOnce()
   })
 
   it('uses an absolute Date from redirect.expiresIn', () => {

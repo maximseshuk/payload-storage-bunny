@@ -403,7 +403,8 @@ export type SignedUrlsOptions = {
   staticHandler?: StaticHandlerOptions
   /**
    * Lock signed URLs to the client's IPv4 address, for example from `x-forwarded-for`.
-   * Return a falsy value to sign without the lock. Values that are not IPv4 are ignored with a warning.
+   * Return a falsy value to sign without the lock. Bunny can only lock to IPv4, so for an IPv6 client
+   * (or a value that is not an IPv4 address) the URL is signed without the IP lock and a warning is logged.
    * Needs Token IP Validation on the pull zone or stream library, which turns off IPv6 routing on the zone.
    * Applies to url fields, admin thumbnails and redirects, not to `generateFileURL`, proxied downloads or purges.
    */
