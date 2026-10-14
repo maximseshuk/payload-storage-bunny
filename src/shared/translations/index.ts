@@ -48,7 +48,7 @@ import { zhTw } from '@/shared/translations/locales/zhTw.js'
 import type { PluginDefaultTranslationsObject } from './types.js'
 
 export const translations: {
-  [key in AcceptedLanguages]?: PluginDefaultTranslationsObject
+  [key in AcceptedLanguages]: PluginDefaultTranslationsObject
 } = {
   id,
   ar,
