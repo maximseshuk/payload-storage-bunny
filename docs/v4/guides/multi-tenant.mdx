@@ -48,7 +48,7 @@ Because each collection carries its whole zone/library, the top-level `storage`/
 
 ## Registration
 
-Register `bunnyStorage` under `storage` and `multiTenantPlugin` under `plugins`. Payload wires storage adapters before any plugin runs, so the order between them no longer matters.
+Register `bunnyStorage` under `storage` and `multiTenantPlugin` under `plugins`. Payload runs everything in `plugins` before the adapters in `storage`, whatever the array order, so `multiTenantPlugin` always runs first.
 
 ```ts payload.config.ts
 export default buildConfig({
