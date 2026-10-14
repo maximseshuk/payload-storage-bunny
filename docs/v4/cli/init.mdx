@@ -81,7 +81,7 @@ Every step is ensure-style. Before creating anything the wizard runs read-only c
 - A storage zone, pull zone, or video library that already exists **with the same name** is reused, not duplicated.
 - If a name is taken by an unrelated resource (or globally taken by another account), the wizard stops and asks you to pick a different name — it never mutates something it didn't create.
 
-If a call fails partway through, the wizard prints what was already created, then exits. Re-running `init` with the same names is safe: existing resources are reused.
+If a call fails partway through, or you press Ctrl+C while it provisions, the wizard prints what was already created, then exits (with `130` after Ctrl+C). Re-running `init` with the same names is safe: existing resources are reused.
 
 ## After running
 

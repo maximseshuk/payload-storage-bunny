@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ProvisionResult } from '@/cli/lib/provision.js'
+import type { Ledger, ProvisionResult } from '@/cli/lib/provision.js'
 
 import { initAnswers } from '../../../../helpers/unit/initAnswers.js'
 
@@ -76,6 +76,7 @@ const warnings = (): string => mocks.log.warn.mock.calls.map((call) => String(ca
 
 describe('runInit', () => {
   const isTTY = process.stdout.isTTY
+  const sigintListeners = process.listenerCount('SIGINT')
 
   beforeEach(() => {
     process.stdout.isTTY = true
@@ -130,5 +131,19 @@ describe('runInit', () => {
     expect(mocks.provisionInit).toHaveBeenCalledWith(
       expect.objectContaining({ edge: { reuseScript: true, sharedSecret: 'typed-secret' } }),
     )
+  })
+
+  it('prints what was created and exits with 130 on Ctrl+C during provisioning', async () => {
+    mocks.provisionInit.mockImplementation(async ({ ledger }: { ledger: Ledger }) => {
+      ledger.created.push({ id: 100, kind: 'storage zone', name: 'my-app' })
+      process.emit('SIGINT')
+      return new Promise(() => {})
+    })
+
+    await run()
+
+    expect(process.exit).toHaveBeenCalledWith(130)
+    expect(mocks.log.info).toHaveBeenCalledWith('Created so far: storage zone "my-app" (id 100)')
+    expect(process.listenerCount('SIGINT')).toBe(sigintListeners)
   })
 })

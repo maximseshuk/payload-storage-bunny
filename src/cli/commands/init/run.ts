@@ -117,7 +117,7 @@ const buildPlanSummary = (plan: InitPlan, preflight: PreflightResult): string =>
 
 const printLedger = (ledger: Ledger): void => {
   if (ledger.created.length === 0 && ledger.reused.length === 0) {
-    logger.info('No resources were created before the failure.')
+    logger.info('No resources were created.')
     return
   }
   for (const entry of ledger.created) {
@@ -127,6 +127,8 @@ const printLedger = (ledger: Ledger): void => {
     logger.info(`Reused: ${entry.kind} "${entry.name}" (id ${entry.id})`)
   }
 }
+
+const RERUN_HINT = 'Re-running bunny init with the same names is safe — every step reuses existing resources.'
 
 const readProjectPayloadVersion = (): string | undefined => {
   try {
@@ -230,8 +232,14 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
   }
 
   const ledger = createLedger()
-  const provisionSpinner = spinner()
-  provisionSpinner.start('Provisioning…')
+  const onInterrupt = (): void => {
+    logger.warn('Provisioning interrupted.')
+    printLedger(ledger)
+    logger.info(RERUN_HINT)
+    process.exit(130)
+  }
+  process.once('SIGINT', onInterrupt)
+  logger.info('Provisioning…')
 
   try {
     const result = await provisionInit({
@@ -239,10 +247,10 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
       edge: edgeInput,
       ledger,
       logger,
-      onStep: (message) => provisionSpinner.message(message),
+      onStep: (message) => logger.info(message),
       plan,
     })
-    provisionSpinner.stop('Provisioning complete.')
+    logger.info('Provisioning complete.')
 
     const output = buildInitOutput(answers, result, accountApiKey)
     for (const warning of output.warnings) {
@@ -271,12 +279,13 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
       }
     }
   } catch (err) {
-    provisionSpinner.stop('Provisioning failed.')
-    logger.error((err as Error).message)
+    logger.error(`Provisioning failed: ${(err as Error).message}`)
     printLedger(ledger)
-    logger.info('Re-running bunny init with the same names is safe — every step reuses existing resources.')
+    logger.info(RERUN_HINT)
     process.exit(1)
     return
+  } finally {
+    process.removeListener('SIGINT', onInterrupt)
   }
 
   outro('Done — paste the plugin block into payload.config.ts and restart. See /cli/init for details.')
