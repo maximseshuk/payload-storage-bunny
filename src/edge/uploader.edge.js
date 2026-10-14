@@ -61,13 +61,17 @@ const withCors = (response, request) => {
 const isUnsafePath = (path) =>
   !path || path.startsWith('/') || path.split('/').some((segment) => segment === '..' || segment === '.')
 
-BunnySDK.net.http.serve(async (request) => {
+const handleUpload = async (request) => {
   if (request.method === 'OPTIONS') {
     return withCors(new Response(null, { status: 204 }), request)
   }
 
   if (request.method !== 'PUT') {
     return withCors(new Response('Method Not Allowed', { status: 405 }), request)
+  }
+
+  if (!SHARED_SECRET) {
+    return withCors(new Response('Edge Script not configured', { status: 503 }), request)
   }
 
   const url = new URL(request.url)
@@ -175,4 +179,12 @@ BunnySDK.net.http.serve(async (request) => {
   }
 
   return withCors(new Response(upstream.body, { status: upstream.status }), request)
+}
+
+BunnySDK.net.http.serve(async (request) => {
+  try {
+    return await handleUpload(request)
+  } catch {
+    return withCors(new Response('Upload failed', { status: 502 }), request)
+  }
 })

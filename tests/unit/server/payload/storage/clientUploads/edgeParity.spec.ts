@@ -78,3 +78,26 @@ describe('Edge Script parity with mint.ts', () => {
     expect((await put(handler, mintEdgeUploadUrl({ ...base, nonce: 'n' }))).status).toBe(401)
   })
 })
+
+describe('Edge Script errors', () => {
+  it('answers 503 without checking the signature when SHARED_SECRET is empty', async () => {
+    const { fetchMock, handler } = setup('')
+    const res = await put(handler, mintEdgeUploadUrl({ ...base, nonce: 'n', secret: '' }))
+
+    expect(res.status).toBe(503)
+    expect(await res.text()).toBe('Edge Script not configured')
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('answers 502 with CORS headers when the storage request throws', async () => {
+    const { fetchMock, handler } = setup()
+    fetchMock.mockReset().mockRejectedValue(new Error('network down'))
+
+    const res = await put(handler, mintEdgeUploadUrl({ ...base, nonce: 'n' }))
+
+    expect(res.status).toBe(502)
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*')
+    expect(res.headers.get('X-Edge-Version')).toBeTruthy()
+  })
+})
