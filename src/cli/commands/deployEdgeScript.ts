@@ -130,9 +130,15 @@ export const deployEdgeScriptCommand = defineCLICommand({
         logger.error('--check needs --script-url or storage.clientUploads.edge.scriptUrl.')
         return 1
       }
-      const deployed = await checkEdgeScriptVersion(scriptUrl)
       logger.info(`bundled Edge Script version: ${EDGE_SCRIPT_VERSION}`)
-      logger.info(`deployed Edge Script version: ${deployed ?? '(unknown — unreachable or pre-versioning)'}`)
+      let deployed: string | undefined
+      try {
+        deployed = await checkEdgeScriptVersion(scriptUrl)
+      } catch (err) {
+        logger.error(`Edge Script unreachable at ${scriptUrl}: ${(err as Error).message}`)
+        return 1
+      }
+      logger.info(`deployed Edge Script version: ${deployed ?? '(unknown — pre-versioning)'}`)
       if (deployed === EDGE_SCRIPT_VERSION) {
         logger.info('Up to date.')
         return

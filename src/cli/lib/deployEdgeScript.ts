@@ -158,16 +158,12 @@ export const edgeScriptExists = async (accountApiKey: string, name: string): Pro
   Boolean(await findScriptByName(accountApiKey, name))
 
 export const checkEdgeScriptVersion = async (scriptUrl: string): Promise<string | undefined> => {
-  try {
-    const res = await httpFetch(`${trimTrailingSlashes(scriptUrl)}/upload`, {
-      method: 'options',
-      throwHttpErrors: false,
-      timeout: REQUEST_TIMEOUT_MS,
-    })
-    return res.headers.get('X-Edge-Version') ?? undefined
-  } catch {
-    return undefined
-  }
+  const res = await httpFetch(`${trimTrailingSlashes(scriptUrl)}/upload`, {
+    method: 'options',
+    throwHttpErrors: false,
+    timeout: REQUEST_TIMEOUT_MS,
+  })
+  return res.headers.get('X-Edge-Version') ?? undefined
 }
 
 const getScript = async (accountApiKey: string, scriptId: number): Promise<ScriptSummary> => {

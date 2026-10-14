@@ -71,7 +71,7 @@ npx payload bunny:deploy-edge-script --new                                      
 
 Pair each invocation with the matching `--api-key`/`--env-file` for that account. Each deploy writes only the selected group's zones as per-zone `ZONE_*` secrets; the `ZONE_*` secrets for other groups/accounts aren't touched. If several separate Payload configs intentionally share **one** script and each deploys its own zones, pass `--no-prune` so a deploy only upserts its zones and never removes the others' `ZONE_*` secrets.
 
-Pass `--check` (optionally with `--script-url`) to compare the deployed script version against the bundled one instead of deploying:
+Pass `--check` (optionally with `--script-url`) to compare the deployed script version against the bundled one instead of deploying. It exits with `1` when the script is outdated or unreachable, and says which:
 
 ```bash
 BUNNY_ACCOUNT_API_KEY=your-account-key npx payload bunny:deploy-edge-script --check

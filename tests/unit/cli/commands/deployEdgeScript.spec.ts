@@ -1,13 +1,20 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 
 import { deployEdgeScriptCommand, reloadNormalizedOptions } from '@/cli/commands/deployEdgeScript.js'
+import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
+import { PLUGIN_KEY } from '@/shared/constants.js'
 
 import { useTmpDir } from '../../../helpers/unit/tmpDir.js'
 
 const hoisted = vi.hoisted(() => ({ configPath: '' }))
+const consoleSpy = vi.hoisted(() => ({
+  error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+  log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+  warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+}))
 
 vi.mock('payload/node', () => ({
   findConfig: () => hoisted.configPath,
@@ -95,5 +102,52 @@ describe('reloadNormalizedOptions', () => {
     await expect(reloadNormalizedOptions()).rejects.toThrow(
       /does not include the @seshuk\/payload-storage-bunny plugin/,
     )
+  })
+})
+
+const pluginConfig = createNormalizedOptions({
+  collections: { media: true },
+  storage: {
+    apiKey: 'media-key',
+    clientUploads: { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'configured' } },
+    hostname: 'media.b-cdn.net',
+    zoneName: 'media',
+  },
+} as never)
+
+const runDeploy = async (input: Record<string, unknown>) => {
+  consoleSpy.error.mockClear()
+  consoleSpy.log.mockClear()
+  const exitCode = await deployEdgeScriptCommand.handler({
+    args: (await validate(input)) as never,
+    getConfig: vi.fn().mockResolvedValue({ custom: { [PLUGIN_KEY]: { config: pluginConfig } } }),
+    getPayload: vi.fn(),
+    help: {} as never,
+    isJSON: false,
+  })
+  const lines = (spy: typeof consoleSpy.log) => spy.mock.calls.map((call) => String(call[0]))
+  return { errors: lines(consoleSpy.error), exitCode, output: lines(consoleSpy.log) }
+}
+
+describe('bunny:deploy-edge-script --check', () => {
+  afterEach(() => vi.mocked(globalThis.fetch).mockRestore())
+
+  it('reports an unreachable script apart from an outdated one', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'))
+
+    const { errors, exitCode, output } = await runDeploy({ check: true })
+
+    expect(exitCode).toBe(1)
+    expect(errors.join('\n')).toMatch(/unreachable at https:\/\/uploader\.b-cdn\.net/)
+    expect(output.join('\n')).not.toMatch(/Outdated/)
+  })
+
+  it('reports an outdated script that answers without a version', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
+
+    const { exitCode, output } = await runDeploy({ check: true })
+
+    expect(exitCode).toBe(1)
+    expect(output.join('\n')).toMatch(/Outdated/)
   })
 })
