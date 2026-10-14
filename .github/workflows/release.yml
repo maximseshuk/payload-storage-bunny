@@ -54,6 +54,13 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org/
 
+      - name: Check release notes
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.0\.0(-[a-z]+\.1)?$ && ! -f ".github/releases/$GITHUB_REF_NAME.md" ]]; then
+            echo "::error::$GITHUB_REF_NAME needs release notes in .github/releases/$GITHUB_REF_NAME.md"
+            exit 1
+          fi
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
@@ -81,6 +88,17 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compose release notes
+        env:
+          CHANGELOG: ${{ steps.changelog.outputs.content }}
+        run: |
+          printf '%s\n' "$CHANGELOG" | awk -v notes=".github/releases/$GITHUB_REF_NAME.md" '
+            function emit(  line) { if ((getline line < notes) > 0) { print ""; print line; while ((getline line < notes) > 0) print line; print "" } }
+            { print }
+            /^## / && !done { done = 1; emit() }
+            END { if (!done) emit() }
+          ' > "$RUNNER_TEMP/release-notes.md"
+
       - name: Resolve npm dist-tag
         id: dist
         run: |
@@ -99,7 +117,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          body: ${{ steps.changelog.outputs.content }}
+          body_path: ${{ runner.temp }}/release-notes.md
           make_latest: ${{ steps.dist.outputs.tag == 'latest' }}
           prerelease: ${{ contains(github.ref_name, '-') }}
 
