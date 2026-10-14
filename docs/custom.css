@@ -325,3 +325,25 @@ a.sb-row:hover .sb-row-icon {
     left: calc(100% - 5px);
   }
 }
+
+.sb-bunny-card {
+  display: block;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.sb-bunny-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.sb-bunny-card-dark,
+.dark .sb-bunny-card-light {
+  display: none !important;
+}
+
+.dark .sb-bunny-card-dark {
+  display: block !important;
+}
