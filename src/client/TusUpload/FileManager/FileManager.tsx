@@ -881,6 +881,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
             {state.selectedFile && (
               <>
                 <Button
+                  aria-label={t('general:cancel')}
                   buttonStyle="secondary"
                   className={`file-manager__remove ${BASE_CLASS}__remove`}
                   icon="x"

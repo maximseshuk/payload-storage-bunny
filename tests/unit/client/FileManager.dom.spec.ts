@@ -48,8 +48,15 @@ vi.mock('@payloadcms/ui', async () => {
   const { createElement: h, useSyncExternalStore } = await import('react')
   const useStore = <T>(select: () => T) => useSyncExternalStore(state.subscribe, select)
   return {
-    Button: ({ children, onClick, tooltip }: { children?: string; onClick: () => void; tooltip?: string }) =>
-      h('button', { 'aria-label': tooltip, onClick, type: 'button' }, children),
+    Button: ({
+      'aria-label': ariaLabel,
+      children,
+      onClick,
+    }: {
+      'aria-label'?: string
+      children?: string
+      onClick: () => void
+    }) => h('button', { 'aria-label': ariaLabel, onClick, type: 'button' }, children),
     Dropzone: ({ children }: { children: ReactNode }) => h('div', null, children),
     ErrorIcon: () => null,
     Spinner: () => null,
