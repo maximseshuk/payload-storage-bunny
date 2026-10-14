@@ -102,7 +102,7 @@ describe('syncStreamStatus', () => {
     vi.restoreAllMocks()
   })
 
-  it('queries processing documents of collections with the status sync, last saved first', async () => {
+  it('queries recent processing documents and videos with no status of collections with the status sync, last saved first', async () => {
     const { find, payload, req } = buildPayload(buildOptions({ limit: 7, maxAge: 60 }), [])
     const before = Date.now()
 
@@ -116,14 +116,75 @@ describe('syncStreamStatus', () => {
         overrideAccess: true,
         pagination: false,
         select: { bunnyData: true, filesize: true, updatedAt: true },
-        sort: '-updatedAt',
+        sort: ['-updatedAt', '-id'],
       }),
     )
-    const [processing, saved] = find.mock.calls[0]![0].where.and
+    const { and } = find.mock.calls[0]![0].where
+    expect(and).toHaveLength(1)
+    const [recent, missing] = and[0].or
+    const [processing, saved] = recent.and
     expect(processing).toEqual({ 'bunnyData.stream.status': { equals: 'processing' } })
     const cutoff = new Date(saved.updatedAt.greater_than).getTime()
     expect(cutoff).toBeGreaterThanOrEqual(before - 60_000)
     expect(cutoff).toBeLessThanOrEqual(Date.now() - 60_000)
+    expect(missing).toEqual({
+      and: [{ 'bunnyData.stream.status': { exists: false } }, { 'bunnyData.stream.videoId': { exists: true } }],
+    })
+  })
+
+  it.each([
+    ['the Bunny state', BunnyStreamVideoStatus.Finished, 'ready', {}, 1],
+    ['processing while Bunny still encodes', BunnyStreamVideoStatus.Processing, 'processing', { status: null }, 0],
+  ])(
+    'stores %s for a video with no stored status, only while the status is still empty',
+    async (_, status, stored, storedStatus, sizeChecks) => {
+      getVideoMock.mockResolvedValue({ status })
+      const doc = {
+        id: 'old',
+        bunnyData: { stream: { ...storedStatus, videoId: 'v-old' } },
+        filesize: 1000,
+        updatedAt: '2020-01-01T00:00:00.000Z',
+      }
+      const { payload, req } = buildPayload(buildOptions(), [doc])
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 1, failed: 0, hasMore: false, updated: 1 })
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'videos',
+        id: 'old',
+        req,
+        stream: { resolutions: undefined, status: stored, videoId: 'v-old' },
+        whenStatus: null,
+      })
+      expect(checkSizeMock).toHaveBeenCalledTimes(sizeChecks)
+    },
+  )
+
+  it('counts an error for a video with no stored status as failed and keeps the status empty', async () => {
+    getVideoMock.mockRejectedValue(wrapped(500))
+    const doc = { id: 'old', bunnyData: { stream: { videoId: 'v-old' } }, updatedAt: '2020-01-01T00:00:00.000Z' }
+    const { logger, payload, req } = buildPayload(buildOptions(), [doc])
+
+    expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 0, failed: 1, hasMore: false, updated: 0 })
+    expect(writeMock).not.toHaveBeenCalled()
+    expect(logger.error).toHaveBeenCalled()
+  })
+
+  it('stores processing for a video with no stored status while mp4Fallback is on and Bunny has no MP4 resolutions yet', async () => {
+    readyResolutionsMock.mockResolvedValue(undefined)
+    const doc = { id: 'old', bunnyData: { stream: { videoId: 'v-old' } }, updatedAt: '2020-01-01T00:00:00.000Z' }
+    const { payload, req } = buildPayload(buildOptions(true, true), [doc])
+
+    expect(await syncStreamStatus({ payload, req })).toMatchObject({ checked: 1, updated: 1 })
+    expect(writeMock.mock.calls[0]![0]).toMatchObject({ stream: { status: 'processing' }, whenStatus: null })
+  })
+
+  it('stores failed for a video with no stored status that Bunny no longer has', async () => {
+    getVideoMock.mockRejectedValue(wrapped(404))
+    const doc = { id: 'old', bunnyData: { stream: { videoId: 'v-old' } }, updatedAt: '2020-01-01T00:00:00.000Z' }
+    const { payload, req } = buildPayload(buildOptions(), [doc])
+
+    expect(await syncStreamStatus({ payload, req })).toMatchObject({ checked: 1, updated: 1 })
+    expect(writeMock.mock.calls[0]![0]).toMatchObject({ stream: { status: 'failed' }, whenStatus: null })
   })
 
   it('stores a changed state only while the stored status is still processing and keeps the resolutions', async () => {
@@ -239,10 +300,15 @@ describe('syncStreamStatus', () => {
       updated: 7,
     })
     expect(find).toHaveBeenCalledTimes(3)
-    expect(find.mock.calls[0]![0].where.and).toHaveLength(2)
-    expect(find.mock.calls[1]![0].where.and.slice(2)).toEqual([
-      { updatedAt: { less_than_equal: docsFor(1, 2)[0]!.updatedAt } },
-      { id: { not_in: ['doc-2'] } },
+    expect(find.mock.calls[0]![0].where.and).toHaveLength(1)
+    const lastUpdatedAt = docsFor(1, 2)[0]!.updatedAt
+    expect(find.mock.calls[1]![0].where.and.slice(1)).toEqual([
+      {
+        or: [
+          { updatedAt: { less_than: lastUpdatedAt } },
+          { and: [{ updatedAt: { equals: lastUpdatedAt } }, { id: { less_than: 'doc-2' } }] },
+        ],
+      },
     ])
   })
 
@@ -253,7 +319,7 @@ describe('syncStreamStatus', () => {
     expect(find).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps every id of a shared updatedAt in the cursor', async () => {
+  it('pages through a shared updatedAt by the last id only', async () => {
     const updatedAt = '2026-01-01T00:00:00.000Z'
     const { find, payload, req } = buildPayload(
       buildOptions(),
@@ -263,9 +329,13 @@ describe('syncStreamStatus', () => {
     )
 
     expect(await syncStreamStatus({ limit: 2, payload, req })).toMatchObject({ checked: 5, hasMore: false })
-    expect(find.mock.calls[2]![0].where.and.slice(2)).toEqual([
-      { updatedAt: { less_than_equal: updatedAt } },
-      { id: { not_in: ['doc-0', 'doc-1', 'doc-2', 'doc-3'] } },
+    expect(find.mock.calls[2]![0].where.and.slice(1)).toEqual([
+      {
+        or: [
+          { updatedAt: { less_than: updatedAt } },
+          { and: [{ updatedAt: { equals: updatedAt } }, { id: { less_than: 'doc-3' } }] },
+        ],
+      },
     ])
   })
 

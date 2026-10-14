@@ -68,7 +68,7 @@ If you use generated types, regenerate them. `bunnyData.stream.status` and the `
 npx payload generate:types
 ```
 
-Existing videos have no `status` at first. In the list, they show **Unknown** and do not match the **Stream Status** filter. [Status sync](/v4/configuration/background-tasks#status-sync) skips them, because it checks only videos stored as `processing`. Saving such a document keeps the empty status. To store the state, open the document in the admin. The [media preview](/v4/guides/media-preview#processing-state) and the **Bunny Stream** card ask Bunny for the state and store it.
+Existing videos have no `status` at first. In the list, they show **Unknown** and do not match the **Stream Status** filter. Saving such a document keeps the empty status. Turn on [status sync](/v4/configuration/background-tasks#status-sync) to fill it: each run asks Bunny for the state of these videos and stores it, at any age. Without status sync, open the document in the admin. The [media preview](/v4/guides/media-preview#processing-state) and the **Bunny Stream** card ask Bunny for the state and store it.
 
 To keep the old behavior, set `stream.status: false` and `stream.preview: false`. Then the plugin adds no column, and the edit view keeps Payload's own video and audio player. You still need to [regenerate the import map](#8-regenerate-the-import-map) for TUS uploads and for the media preview adapter.
 

@@ -143,6 +143,48 @@ describe.skipIf(!hasBunnyCredentials())('Stream status sync task', () => {
     await payload.db.deleteOne({ collection: COLLECTION, where: { id: { equals: doc.id } } })
   })
 
+  it('fills the status of videos stored without one, also when they were saved before maxAge', async () => {
+    const oldDate = '2020-01-01T00:00:00.000Z'
+    const missing = await payload.db.create({
+      collection: COLLECTION,
+      data: {
+        alt: 'No status',
+        bunnyData: { stream: { videoId: '00000000-0000-0000-0000-000000000011' } },
+        updatedAt: oldDate,
+      },
+    })
+    const staleProcessing = await payload.db.create({
+      collection: COLLECTION,
+      data: {
+        alt: 'Old processing',
+        bunnyData: { stream: { status: 'processing', videoId: '00000000-0000-0000-0000-000000000012' } },
+        updatedAt: oldDate,
+      },
+    })
+    const noVideo = await payload.db.create({ collection: COLLECTION, data: { alt: 'No video', updatedAt: oldDate } })
+    const actual = await vi.importActual<typeof import('@/server/bunny/stream.js')>('@/server/bunny/stream.js')
+    const lookups: string[] = []
+    vi.mocked(getStreamVideo).mockImplementation(async ({ videoId }) => {
+      lookups.push(videoId)
+      return { status: BunnyStreamVideoStatus.Finished } as never
+    })
+
+    try {
+      expect(await syncStreamStatus({ payload })).toEqual({ checked: 1, failed: 0, hasMore: false, updated: 1 })
+      expect(lookups).toEqual(['00000000-0000-0000-0000-000000000011'])
+      expect((await storedStream(missing.id))?.status).toBe('ready')
+      expect((await storedStream(staleProcessing.id))?.status).toBe('processing')
+
+      expect(await syncStreamStatus({ payload })).toEqual({ checked: 0, failed: 0, hasMore: false, updated: 0 })
+    } finally {
+      vi.mocked(getStreamVideo).mockImplementation(actual.getStreamVideo)
+      await payload.db.deleteMany({
+        collection: COLLECTION,
+        where: { id: { in: [missing.id, staleProcessing.id, noVideo.id] } },
+      })
+    }
+  })
+
   it('checks every document once when they share an updatedAt and the page holds one', async () => {
     const updatedAt = new Date().toISOString()
     const videoIds = [

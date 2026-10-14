@@ -66,7 +66,7 @@ export const syncStreamStatus = async ({
     const { apiKey, libraryId, mp4Fallback } = stream
     const pageSize = limit ?? sync.limit
     const updatedAfter = new Date(Date.now() - sync.maxAge * 1000).toISOString()
-    let cursor: { ids: (number | string)[]; updatedAt: string } | undefined
+    let cursor: { id: number | string; updatedAt: string } | undefined
 
     while (!stopped) {
       if (nearDeadline()) {
@@ -82,12 +82,35 @@ export const syncStreamStatus = async ({
         pagination: false,
         req,
         select: { bunnyData: true, filesize: true, updatedAt: true },
-        sort: '-updatedAt',
+        sort: ['-updatedAt', '-id'],
         where: {
           and: [
-            { 'bunnyData.stream.status': { equals: 'processing' } },
-            { updatedAt: { greater_than: updatedAfter } },
-            ...(cursor ? [{ updatedAt: { less_than_equal: cursor.updatedAt } }, { id: { not_in: cursor.ids } }] : []),
+            {
+              or: [
+                {
+                  and: [
+                    { 'bunnyData.stream.status': { equals: 'processing' } },
+                    { updatedAt: { greater_than: updatedAfter } },
+                  ],
+                },
+                {
+                  and: [
+                    { 'bunnyData.stream.status': { exists: false } },
+                    { 'bunnyData.stream.videoId': { exists: true } },
+                  ],
+                },
+              ],
+            },
+            ...(cursor
+              ? [
+                  {
+                    or: [
+                      { updatedAt: { less_than: cursor.updatedAt } },
+                      { and: [{ updatedAt: { equals: cursor.updatedAt } }, { id: { less_than: cursor.id } }] },
+                    ],
+                  },
+                ]
+              : []),
           ],
         },
       })
@@ -114,20 +137,25 @@ export const syncStreamStatus = async ({
           try {
             const { encoded, state } = await fetchStreamVideoState({ apiKey, libraryId, timeout: timeLeft(), videoId })
             result.checked++
-            if (state === 'processing') {
-              continue
+            const whenStatus = stored.status ?? null
+            let status = state
+            let resolutions = stored.resolutions
+            if (state !== 'processing') {
+              resolutions = await getReadyResolutions({
+                apiKey,
+                encoded,
+                libraryId,
+                logger: payload.logger,
+                mp4Fallback,
+                resolutions: stored.resolutions,
+                timeout: timeLeft(),
+                videoId,
+              })
+              if (isMissingResolutions({ encoded, mp4Fallback, resolutions })) {
+                status = 'processing'
+              }
             }
-            const resolutions = await getReadyResolutions({
-              apiKey,
-              encoded,
-              libraryId,
-              logger: payload.logger,
-              mp4Fallback,
-              resolutions: stored.resolutions,
-              timeout: timeLeft(),
-              videoId,
-            })
-            if (isMissingResolutions({ encoded, mp4Fallback, resolutions })) {
+            if (status === whenStatus) {
               continue
             }
             const write = writes.then(() =>
@@ -135,14 +163,14 @@ export const syncStreamStatus = async ({
                 collection: collectionSlug,
                 id: doc.id,
                 req,
-                stream: { resolutions, status: state, videoId },
-                whenStatus: 'processing',
+                stream: { resolutions, status, videoId },
+                whenStatus,
               }),
             )
             writes = write.catch(() => undefined)
             if (await write) {
               result.updated++
-              if (state === 'ready') {
+              if (status === 'ready') {
                 await checkStreamOriginalSize({
                   apiKey,
                   collection: collectionSlug,
@@ -174,9 +202,8 @@ export const syncStreamStatus = async ({
       if (docs.length < pageSize) {
         break
       }
-      const last = docs.at(-1)!.updatedAt as string
-      const idsAtLast = docs.filter((doc) => doc.updatedAt === last).map((doc) => doc.id)
-      cursor = { ids: cursor?.updatedAt === last ? [...cursor.ids, ...idsAtLast] : idsAtLast, updatedAt: last }
+      const last = docs.at(-1)!
+      cursor = { id: last.id, updatedAt: last.updatedAt as string }
     }
   }
 

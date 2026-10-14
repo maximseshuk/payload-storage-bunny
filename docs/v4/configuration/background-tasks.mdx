@@ -8,7 +8,7 @@ The plugin has two background tasks. Both are off by default.
 | Task          | Option               | Payload task slug              | Default schedule | What it does                                                                                                                                 |
 | ------------- | -------------------- | ------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cleanup`     | `stream.cleanup`     | `StorageBunnyStreamCleanup`    | `0 2 * * *`      | Deletes videos from uploads that never finished or whose document was never saved. See [Cleanup](/v4/configuration/stream/overview#cleanup). |
-| `status-sync` | `stream.status.sync` | `StorageBunnyStreamStatusSync` | `*/5 * * * *`    | Asks Bunny for the state of videos stored as `processing` and stores the new state. See [Status sync](#status-sync).                         |
+| `status-sync` | `stream.status.sync` | `StorageBunnyStreamStatusSync` | `*/5 * * * *`    | Asks Bunny for the state of videos stored as `processing` or with no status and stores the new state. See [Status sync](#status-sync).       |
 
 By default, both schedules use the `storage-bunny` queue. You can change the schedule of each task in the global `stream` options only.
 
@@ -241,20 +241,22 @@ stream: {
 }
 ```
 
-| Option     | Type     | Default                                           | Description                                                                |
-| ---------- | -------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
-| `limit`    | `number` | `50`                                              | Documents loaded per database query, per collection. A positive integer.   |
-| `maxAge`   | `number` | `604800` (7 days)                                 | Seconds. Documents last saved earlier are not checked. A positive integer. |
-| `schedule` | object   | `{ cron: '*/5 * * * *', queue: 'storage-bunny' }` | Schedule of the Payload task. Global only.                                 |
+| Option     | Type     | Default                                           | Description                                                                                                                                  |
+| ---------- | -------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `limit`    | `number` | `50`                                              | Documents loaded per database query, per collection. A positive integer.                                                                     |
+| `maxAge`   | `number` | `604800` (7 days)                                 | Seconds. `processing` documents last saved earlier are not checked. Videos with no stored status are checked at any age. A positive integer. |
+| `schedule` | object   | `{ cron: '*/5 * * * *', queue: 'storage-bunny' }` | Schedule of the Payload task. Global only.                                                                                                   |
 
 A collection can set `status: { sync: true }`, `{ sync: false }` or `{ sync: { limit, maxAge } }`. In a partial stream override, it inherits the other values from the global `stream.status.sync`. With full stream options for its own library, it inherits nothing, and status sync is off unless you set it. `status: true` keeps the global sync, and `status: false` turns the status and its sync off for that collection.
 
 How a run works:
 
-1. For each collection with status sync, it finds documents whose stored status is `processing` and that were saved in the last `maxAge` seconds, last saved first, `limit` at a time, until none are left or the run stops.
+1. For each collection with status sync, it finds two kinds of documents, last saved first, `limit` at a time, until none are left or the run stops: documents whose stored status is `processing` and that were saved in the last `maxAge` seconds, and documents with a Stream video but no stored status, at any age. Videos uploaded before the status existed have no status, so the sync fills it for them.
 2. It asks the Bunny API for each video, four at a time.
-3. When the state is no longer `processing`, it stores the new state. The write happens only if the stored status is still `processing` and the document still points at the same video, so it never overwrites a newer state from the webhook or the state of a replaced video. It keeps the stored MP4 `resolutions`. When the video becomes `ready`, Bunny has finished encoding it, `mp4Fallback` is on and the document has no `resolutions` yet, it fetches them and stores them in the same write. If that fetch fails or Bunny returns no MP4 resolutions yet, it does not store `ready`, so the document stays `processing` and the next run tries again. If Bunny answers that fetch with `429`, the run stops as described below and the document stays `processing` for the next run. `updated` counts only the writes that changed a document.
-4. A video that Bunny no longer has becomes `failed`, but only when the library itself still answers. Other errors count in `failed`, and the document stays `processing` for the next run. A call that the run deadline cuts off does not count in `failed`.
+3. When the state differs from the stored one, it stores the new state. A video with no stored status gets `processing` while Bunny still encodes it. The write happens only if the stored status has not changed since the query and the document still points at the same video, so it never overwrites a newer state from the webhook or the state of a replaced video. It keeps the stored MP4 `resolutions`. When the video becomes `ready`, Bunny has finished encoding it, `mp4Fallback` is on and the document has no `resolutions` yet, it fetches them and stores them in the same write. If that fetch fails or Bunny returns no MP4 resolutions yet, it does not store `ready`. The document stays or becomes `processing`, and a later run tries again while the document was saved in the last `maxAge` seconds. If Bunny answers that fetch with `429`, the run stops as described below and the document keeps its stored status for the next run. `updated` counts only the writes that changed a document.
+4. A video that Bunny no longer has becomes `failed`, but only when the library itself still answers. Other errors count in `failed`, and the document keeps its stored status for the next run. So a video with no status is checked again on every run until Bunny answers for it. A call that the run deadline cuts off does not count in `failed`.
+
+A status write does not change `updatedAt`. So a video with no status that gets `processing` and was last saved more than `maxAge` seconds ago is not checked again by status sync. The webhook or the media preview updates it.
 
 Status sync skips a collection with a `[bunny:tasks]` warning when Payload does not have it or when it has `timestamps: false`, because the sync needs `updatedAt`.
 
@@ -262,7 +264,7 @@ Like webhook writes, these writes go straight to the database. They do not run y
 
 <Warning>
 
-Bunny does not publish rate limits for the Stream API, so the plugin cannot stay under them for sure. Each run makes one API call per `processing` document, plus one for the MP4 resolutions of a video that became `ready` while `mp4Fallback` is on, four at a time, for up to 25 seconds. When Bunny answers `429`, the run stops and returns `hasMore: true`. If you see `429` often, lower `maxAge`, pass a shorter `maxDurationMs` or run the task less often.
+Bunny does not publish rate limits for the Stream API, so the plugin cannot stay under them for sure. Each run makes one API call per `processing` document or document with no status, plus one for the MP4 resolutions of a video that became `ready` while `mp4Fallback` is on, four at a time, for up to 25 seconds. When Bunny answers `429`, the run stops and returns `hasMore: true`. If you see `429` often, lower `maxAge`, pass a shorter `maxDurationMs` or run the task less often. `maxAge` does not limit videos with no status: on a large library from before beta.2, the first runs fill their status over several runs, so pass a shorter `maxDurationMs` or run the task less often until they are done.
 
 </Warning>
 

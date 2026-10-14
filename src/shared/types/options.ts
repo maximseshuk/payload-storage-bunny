@@ -200,7 +200,8 @@ export type StreamStatusSyncOptions = {
    */
   limit?: number
   /**
-   * Time in seconds. Documents last saved earlier are not checked. Status writes do not count as saves.
+   * Time in seconds. `processing` documents last saved earlier are not checked. Videos with no stored status
+   * are checked at any age. Status writes do not count as saves.
    * @default 604800
    */
   maxAge?: number
@@ -215,7 +216,7 @@ export type StreamStatusOptions = {
    */
   link?: boolean
   /**
-   * A background task that asks Bunny for the state of videos stored as `processing`
+   * A background task that asks Bunny for the state of videos stored as `processing` or with no stored status
    * and stores the new state. Use it when the library has no webhook or a webhook can be missed.
    * @default false
    */
