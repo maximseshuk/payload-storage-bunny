@@ -195,6 +195,24 @@ describe('TUS auth endpoint', () => {
     await expect(handler(buildReq({ ...validBody, collection: 'ghost' }))).rejects.toMatchObject({ status: 404 })
   })
 
+  it.each([
+    ['is not in the plugin collections', { media: { disablePayloadAccessControl: true } }],
+    ['is turned off in the plugin collections', { media: { disablePayloadAccessControl: true }, other: false }],
+  ])('throws 404 when the requested collection %s', async (_label, collections) => {
+    const options = createNormalizedOptions({
+      collections,
+      stream: { ...createBaseStream(), tus: { access: () => true } },
+    } as never)
+    const handler = getTusHandler(options)
+    const req = buildReq(
+      { ...validBody, collection: 'other' },
+      { collections: { media: multiCollections.alpha, other: multiCollections.alpha } },
+    )
+
+    await expect(handler(req)).rejects.toMatchObject({ status: 404 })
+    expect(createVideoMock).not.toHaveBeenCalled()
+  })
+
   it('throws 400 when the resolved title is empty', async () => {
     const handler = getTusHandler(buildOptions())
     await expect(handler(buildReq({ ...validBody, filename: '   ', title: '' }))).rejects.toMatchObject({ status: 400 })

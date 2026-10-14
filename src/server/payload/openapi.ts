@@ -87,7 +87,7 @@ export const tusAuthOperation: OpenAPIV3_1.OperationObject = {
         'Missing required fields, an invalid file name, MIME type or size, an SVG or XML file, a missing title for a new video, or Stream TUS uploads not enabled for the collection.',
     },
     '403': { description: 'Access denied.' },
-    '404': { description: 'The collection does not exist.' },
+    '404': { description: 'The collection does not exist or is not managed by the plugin.' },
     '409': {
       description:
         'Renew mode only: the upload cannot be renewed. The video token is invalid, the video or its upload is gone, or `filesize` differs from the upload. Start a new upload without `renew`.',

@@ -166,7 +166,9 @@ export const getStreamEndpoints = (options: NormalizedBunnyStorageOptions): Endp
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorMissingRequiredFields'), 400, undefined, true)
           }
 
-          const collection = req.payload.collections[body.collection]?.config
+          const collection = options.collections.has(body.collection)
+            ? req.payload.collections[body.collection]?.config
+            : undefined
           if (!collection) {
             throw new APIError(reqT('@seshuk/payload-storage-bunny:errorAccessDenied'), 404, undefined, true)
           }
