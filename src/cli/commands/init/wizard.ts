@@ -160,7 +160,12 @@ export const resolveAccountApiKey = async (apiKey: string | undefined, logger: L
       await bunnyJson<unknown>(candidate, '/pullzone?page=1&perPage=5')
       s.stop(`Account API key verified (${maskKey(candidate)}).`)
       return candidate
-    } catch {
+    } catch (err) {
+      const status = (err as { status?: number }).status
+      if (status !== 401 && status !== 403) {
+        s.stop('Could not verify the account API key.')
+        throw err
+      }
       s.stop('Bunny rejected that account API key.')
       logger.error('Could not authenticate with that key. Check it in the Bunny dashboard and try again.')
       candidate = undefined

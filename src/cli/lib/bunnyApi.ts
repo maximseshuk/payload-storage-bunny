@@ -21,7 +21,9 @@ export const bunnyFetch = async (accountApiKey: string, path: string, init: Bunn
 
   if (!response.ok) {
     const text = await response.text().catch(() => '')
-    throw new Error(`Bunny API ${init.method ?? 'GET'} ${path} failed (${response.status}): ${text}`)
+    throw Object.assign(new Error(`Bunny API ${init.method ?? 'GET'} ${path} failed (${response.status}): ${text}`), {
+      status: response.status,
+    })
   }
 
   return response
