@@ -19,6 +19,7 @@ export type DeployEdgeScriptOptions = {
   dryRun: boolean
   logger: Logger
   name: string
+  onScript?: (script: { created: boolean; id: number }) => void
   requestLimit: number
   sharedSecret: string
   skipHarden: boolean
@@ -140,6 +141,7 @@ export type DeployEdgeScriptResult = {
   scriptId: number
   scriptUrl: string
   sharedSecret: string
+  sharedSecretWritten: boolean
 }
 
 type ScriptSummary = {
@@ -181,8 +183,8 @@ const upsertSecrets = async (
   accountApiKey: string,
   scriptId: number,
   secrets: Array<{ Name: string; Secret: string }>,
+  idByName: Map<string, number>,
 ): Promise<void> => {
-  const idByName = await listSecretIds(accountApiKey, scriptId)
   for (const secret of secrets) {
     const id = idByName.get(secret.Name)
     const path = id === undefined ? `/compute/script/${scriptId}/secrets` : `/compute/script/${scriptId}/secrets/${id}`
@@ -352,6 +354,10 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
       scriptId: existing?.Id ?? 0,
       scriptUrl: existing ? toScriptUrl(hostnameOf(existing)) : '',
       sharedSecret,
+      sharedSecretWritten:
+        !existing ||
+        writeSharedSecret !== false ||
+        !(await listSecretIds(accountApiKey, existing.Id)).has('SHARED_SECRET'),
     }
   }
 
@@ -369,14 +375,17 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
   } else {
     logger.info(`Reusing existing Edge Script "${name}" (id ${script.Id}).`)
   }
+  options.onScript?.({ created, id: script.Id })
 
   await bunnyFetch(accountApiKey, `/compute/script/${script.Id}/code`, {
     body: { Code: code },
     method: 'POST',
   })
 
+  const idByName = await listSecretIds(accountApiKey, script.Id)
+  const sharedSecretWritten = writeSharedSecret !== false || !idByName.has('SHARED_SECRET')
   const secrets: Array<{ Name: string; Secret: string }> = []
-  if (writeSharedSecret !== false) {
+  if (sharedSecretWritten) {
     secrets.push({ Name: 'SHARED_SECRET', Secret: sharedSecret })
   }
   if (allowedOrigins) {
@@ -386,7 +395,7 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
     secrets.push({ Name: zoneSecretName(zoneName), Secret: JSON.stringify(zone) })
   }
 
-  await upsertSecrets(accountApiKey, script.Id, secrets)
+  await upsertSecrets(accountApiKey, script.Id, secrets, idByName)
 
   await bunnyFetch(accountApiKey, `/compute/script/${script.Id}/publish`, {
     body: { Note: 'payload-storage-bunny' },
@@ -413,5 +422,6 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
     scriptId: script.Id,
     scriptUrl: toScriptUrl(hostname),
     sharedSecret,
+    sharedSecretWritten,
   }
 }

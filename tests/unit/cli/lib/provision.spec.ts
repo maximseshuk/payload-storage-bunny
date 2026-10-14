@@ -328,6 +328,22 @@ describe('provisionInit — edge reuse path', () => {
     expect(result.storage?.edge?.secretKnown).toBe(true)
   })
 
+  it('writes a new SHARED_SECRET to a reused script that has none', async () => {
+    const calls = installFetch({
+      computeScript: { Id: 777, Name: 'payload-storage-bunny-uploader' },
+      pullZones: {},
+      scriptSecrets: [],
+    })
+    const ledger = createLedger()
+
+    const result = await runProvision(buildInitPlan(edgeAnswers), ledger, { reuseScript: true })
+
+    const sharedPost = calls.find((c) => c.method === 'POST' && c.body?.Name === 'SHARED_SECRET')
+    expect(sharedPost?.body?.Secret).toMatch(/^[0-9a-f]{32}$/)
+    expect(result.storage?.edge).toMatchObject({ secret: sharedPost?.body?.Secret, secretKnown: true })
+    expect(ledger.reused).toContainEqual({ id: 777, kind: 'edge script', name: 'payload-storage-bunny-uploader' })
+  })
+
   it('marks the secret unknown when reusing a script without a provided secret', async () => {
     installFetch({
       computeScript: { Id: 777, Name: 'payload-storage-bunny-uploader' },
@@ -417,6 +433,22 @@ describe('provisionInit — conflicts and failures', () => {
     await expect(runProvision(buildInitPlan(initAnswers({ service: 'storage' })), ledger)).rejects.toThrow(/Bunny API/)
 
     expect(ledger.created).toEqual([{ id: 100, kind: 'storage zone', name: 'my-app' }])
+  })
+})
+
+describe('provisionInit — edge script ledger', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('keeps a created Edge Script in the ledger when its code upload fails', async () => {
+    installFetch({ pullZones: {}, rejectPathname: '/compute/script/501/code' })
+    const ledger = createLedger()
+    const plan = buildInitPlan(
+      initAnswers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' }),
+    )
+
+    await expect(runProvision(plan, ledger)).rejects.toThrow(/Bunny API/)
+
+    expect(ledger.created).toContainEqual({ id: 501, kind: 'edge script', name: 'payload-storage-bunny-uploader' })
   })
 })
 

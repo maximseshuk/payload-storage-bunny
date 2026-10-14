@@ -370,10 +370,23 @@ describe('deployEdgeScript secrets', () => {
     expect(deletes).not.toContain('https://api.bunny.net/compute/script/7/secrets/11')
   })
 
-  it('omits the SHARED_SECRET write when writeSharedSecret is false', async () => {
-    const calls = mockSecrets([])
+  it('writes SHARED_SECRET when writeSharedSecret is false but the script has none', async () => {
+    const calls = mockSecrets([{ Id: 10, Name: 'ZONE_MEDIA' }])
 
-    await deployEdgeScript({
+    const result = await deployEdgeScript({
+      ...baseDeploy,
+      writeSharedSecret: false,
+      zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
+    })
+
+    expect(postedSecrets(calls).get('SHARED_SECRET')).toBe('the-secret')
+    expect(result.sharedSecretWritten).toBe(true)
+  })
+
+  it('keeps an existing SHARED_SECRET when writeSharedSecret is false', async () => {
+    const calls = mockSecrets([{ Id: 12, Name: 'SHARED_SECRET' }])
+
+    const result = await deployEdgeScript({
       ...baseDeploy,
       writeSharedSecret: false,
       zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
@@ -382,6 +395,32 @@ describe('deployEdgeScript secrets', () => {
     const written = postedSecrets(calls)
     expect(written.has('SHARED_SECRET')).toBe(false)
     expect(written.has('ZONE_MEDIA')).toBe(true)
+    expect(result.sharedSecretWritten).toBe(false)
+  })
+
+  it('reports in a dry run whether writeSharedSecret false keeps the SHARED_SECRET of the existing script', async () => {
+    const dryRun = { ...baseDeploy, dryRun: true, writeSharedSecret: false, zones: {} }
+
+    const withoutSecret = mockSecrets([{ Id: 10, Name: 'ZONE_MEDIA' }])
+    expect((await deployEdgeScript(dryRun)).sharedSecretWritten).toBe(true)
+    expect(withoutSecret.filter((c) => c.method !== 'GET')).toEqual([])
+
+    vi.restoreAllMocks()
+    mockSecrets([{ Id: 12, Name: 'SHARED_SECRET' }])
+    expect((await deployEdgeScript(dryRun)).sharedSecretWritten).toBe(false)
+  })
+
+  it('reports the script to onScript before uploading the code', async () => {
+    const calls = mockSecrets([])
+    const onScript = vi.fn(() => expect(calls.some((c) => c.url.endsWith('/code'))).toBe(false))
+
+    await deployEdgeScript({
+      ...baseDeploy,
+      onScript,
+      zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
+    })
+
+    expect(onScript).toHaveBeenCalledWith({ created: false, id: 7 })
   })
 
   it('prunes only after the script is published', async () => {

@@ -54,7 +54,7 @@ type AvailabilityResponse = {
   Available?: boolean
 }
 
-export type ResourceKind = 'pull zone' | 'storage zone' | 'video library'
+export type ResourceKind = 'edge script' | 'pull zone' | 'storage zone' | 'video library'
 
 export type LedgerEntry = {
   id: number
@@ -333,9 +333,7 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
   let edge: { scriptUrl: string; secret: string; secretKnown?: boolean } | undefined
   if (step.deployEdge) {
     onStep?.('Deploying the Edge Script for client uploads…')
-    const reuseScript = input.edge?.reuseScript ?? false
-    const secretKnown = !reuseScript || input.edge?.sharedSecret !== undefined
-    const secret = input.edge?.sharedSecret ?? (reuseScript ? '' : randomBytes(16).toString('hex'))
+    const providedSecret = input.edge?.sharedSecret
     const host = storageHostFor(step.region === 'DE' ? undefined : step.region.toLowerCase())
     const deployed = await deployEdgeScript({
       accountApiKey,
@@ -346,13 +344,19 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
       dryRun: false,
       logger,
       name: EDGE_SCRIPT_NAME,
+      onScript: ({ created, id }) =>
+        (created ? ledger.created : ledger.reused).push({ id, kind: 'edge script', name: EDGE_SCRIPT_NAME }),
       requestLimit: 30,
-      sharedSecret: secret,
+      sharedSecret: providedSecret ?? randomBytes(16).toString('hex'),
       skipHarden: false,
-      writeSharedSecret: !reuseScript,
+      writeSharedSecret: !(input.edge?.reuseScript ?? false),
       zones: { [step.zoneName]: { accessKey: zone.Password ?? '', host } },
     })
-    edge = { scriptUrl: deployed.scriptUrl, secret: deployed.sharedSecret, secretKnown }
+    edge = {
+      scriptUrl: deployed.scriptUrl,
+      secret: deployed.sharedSecret,
+      secretKnown: providedSecret !== undefined || deployed.sharedSecretWritten,
+    }
   }
 
   return {
