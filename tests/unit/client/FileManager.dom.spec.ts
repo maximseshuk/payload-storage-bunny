@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -758,6 +758,25 @@ describe('TUS FileManager resume, retry and start over', () => {
     await flush()
 
     expect(state.authBodies[2]).toMatchObject({ videoId: 'video-x', videoToken: 'token' })
+  })
+
+  it('keeps the upload actions out of the progress bar and announces status changes but not progress', async () => {
+    mount(x)
+    await flush()
+    startUpload()
+    await resolveAuth(0, uploadAuth)
+    run(() => state.uploads[0]!.opts.onProgress(420, 1000))
+
+    const bar = screen.getByRole<HTMLProgressElement>('progressbar')
+    expect(bar.value).toBe(42)
+    expect(within(bar).queryAllByRole('button')).toEqual([])
+    expect(screen.getByRole('button', { name: '@seshuk/payload-storage-bunny:tusUploadPause' })).not.toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('')
+
+    click('tusUploadPause')
+    expect(screen.getByRole('status').textContent).toBe(
+      '@seshuk/payload-storage-bunny:tusUploadStatusPaused {"progress":42}',
+    )
   })
 
   it('forgets the previous upload when Start over runs', async () => {

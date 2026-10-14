@@ -794,24 +794,21 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
     return (
       <div className={`${BASE_CLASS}__status-field`}>
-        <div
-          aria-label={text}
-          aria-valuemax={progress === undefined ? undefined : 100}
-          aria-valuemin={progress === undefined ? undefined : 0}
-          aria-valuenow={progress}
-          className={`${BASE_CLASS}__status-box${tone === 'danger' ? ` ${BASE_CLASS}__status-box--danger` : ''}`}
-          role={progress === undefined ? 'group' : 'progressbar'}
-        >
+        <div className={`${BASE_CLASS}__status-box${tone === 'danger' ? ` ${BASE_CLASS}__status-box--danger` : ''}`}>
           {progress !== undefined && (
-            <div
-              className={`${BASE_CLASS}__status-fill${tone === 'danger' || tone === 'success' ? ` ${BASE_CLASS}__status-fill--${tone}` : ''}`}
-              style={{ width: `${progress}%` }}
-            />
+            <>
+              <progress aria-label={text} className="sr-only" max={100} value={progress} />
+              <div
+                className={`${BASE_CLASS}__status-fill${tone === 'danger' || tone === 'success' ? ` ${BASE_CLASS}__status-fill--${tone}` : ''}`}
+                style={{ width: `${progress}%` }}
+              />
+            </>
           )}
-          <output className={`${BASE_CLASS}__status${tone ? ` ${BASE_CLASS}__status--${tone}` : ''}`}>
+          <span className={`${BASE_CLASS}__status${tone ? ` ${BASE_CLASS}__status--${tone}` : ''}`}>
             {icon}
-            {text}
-          </output>
+            {state.uploadStatus === 'uploading' && text}
+            <output>{state.uploadStatus !== 'uploading' && text}</output>
+          </span>
           {actions && <div className={`${BASE_CLASS}__actions`}>{actions}</div>}
         </div>
         <span className={`${BASE_CLASS}__meta${tone === 'danger' ? ` ${BASE_CLASS}__meta--danger` : ''}`}>{meta}</span>
