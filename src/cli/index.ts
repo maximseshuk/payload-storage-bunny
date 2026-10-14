@@ -41,7 +41,22 @@ const main = async (): Promise<void> => {
   await cli.runMatchedCommand()
 }
 
+const describeError = (err: unknown): string => {
+  if (err instanceof Error) {
+    return err.message
+  }
+  if (typeof err === 'object' && err !== null) {
+    try {
+      return JSON.stringify(err) ?? String(err)
+    } catch {
+      return String(err)
+    }
+  }
+  return String(err)
+}
+
 main().catch((err: unknown) => {
-  process.stderr.write(`${(err as Error).message}\n`)
+  const cause = err instanceof Error && err.cause !== undefined ? ` (cause: ${describeError(err.cause)})` : ''
+  process.stderr.write(`${describeError(err)}${cause}\n`)
   process.exit(1)
 })
