@@ -87,6 +87,7 @@
     "lint:fix": "oxlint --fix",
     "prepublishOnly": "pnpm clean && pnpm build",
     "runts": "dotenv -e .env -v NODE_OPTIONS=--no-deprecation -- tsx",
+    "screenshots": "playwright test -c tests/playwright.screenshots.config.ts",
     "test": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.config.ts",
     "test:coverage": "dotenv -e .env -v NODE_ENV=development -- vitest run -c tests/vitest.config.ts --coverage",
     "test:deploy-edge": "pnpm runts tests/manual/deployEdge.ts",

@@ -33,6 +33,24 @@
 - **Per-collection overrides** — tune any setting per collection, or point a collection at its own zone / library for multi-tenant setups.
 - **Setup wizard & CLI** — one command provisions your Bunny resources and prints ready-to-paste options; a second deploys the client-uploads Edge Script.
 
+## Screenshots
+
+A resumable TUS upload straight from the browser to Bunny Stream:
+
+![A video uploading over TUS in the edit view](media/screenshots/tus-upload.png)
+
+The Stream status in the list view, with a filter:
+
+![The list view filtered by Stream status, with a ready and a processing video](media/screenshots/list-status.png)
+
+The Bunny Stream player and the status card in the edit view:
+
+![A ready video with the Bunny Stream player and the status card](media/screenshots/edit-stream.png)
+
+An image served from Bunny Storage:
+
+![An image document stored in Bunny Storage](media/screenshots/edit-image.png)
+
 ## Quick start
 
 Requires **Payload 4.0.0-beta.0 or later** (canary builds are not supported), **Next.js >=16.4 <17**, **React 19** and **Node.js 24.15 or later**. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
