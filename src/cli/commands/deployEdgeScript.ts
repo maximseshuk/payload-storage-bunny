@@ -208,7 +208,7 @@ export const deployEdgeScriptCommand = defineCLICommand({
     }
 
     const cdnTier = asString(options.cdnTier) === 'standard' ? 'standard' : 'volume'
-    const sharedSecret = asString(options.secret) ?? group.sharedSecret ?? randomBytes(16).toString('hex')
+    const knownSecret = asString(options.secret) ?? group.sharedSecret
     const name = asString(options.name) ?? 'payload-storage-bunny-uploader'
 
     logger.info(`Deploying Edge Script "${name}"`)
@@ -226,8 +226,9 @@ export const deployEdgeScriptCommand = defineCLICommand({
         logger,
         name,
         requestLimit: Number(options.requestLimit ?? 30),
-        sharedSecret,
+        sharedSecret: knownSecret ?? randomBytes(16).toString('hex'),
         skipHarden: Boolean(options.skipHarden),
+        writeSharedSecret: knownSecret !== undefined,
         zones: group.zones,
       })
 
@@ -237,16 +238,22 @@ export const deployEdgeScriptCommand = defineCLICommand({
         logger.info('')
         logger.info('Add this to storage.clientUploads of every non-s3 zone that enables client uploads')
         logger.info('(the same scriptUrl and secret are shared by all of them):')
-        if (!options.printSecret) {
-          logger.info(
-            `  ${key('edge')}${punc(': { ')}${key('scriptUrl')}${punc(': ')}${str(`'${result.scriptUrl}'`)}${punc(', ')}${key('secret')}${punc(': ')}${str("'<hidden — --no-print-secret>'")}${punc(' },')}`,
-          )
+        const generated = knownSecret === undefined && result.sharedSecretWritten
+        const secretText = generated
+          ? options.printSecret
+            ? result.sharedSecret
+            : '<hidden — --no-print-secret>'
+          : asString(options.secret)
+            ? '<the --secret value>'
+            : '<your existing edge.secret>'
+        logger.info(
+          `  ${key('edge')}${punc(': { ')}${key('scriptUrl')}${punc(': ')}${str(`'${result.scriptUrl}'`)}${punc(', ')}${key('secret')}${punc(': ')}${str(`'${secretText}'`)}${punc(' },')}`,
+        )
+        if (!result.sharedSecretWritten) {
+          logger.info("(kept the script's existing SHARED_SECRET; pass --secret to rotate it.)")
+        } else if (generated && !options.printSecret) {
           logger.info(
             '(secret withheld from output; read it from the script secrets in the Bunny dashboard if needed.)',
-          )
-        } else {
-          logger.info(
-            `  ${key('edge')}${punc(': { ')}${key('scriptUrl')}${punc(': ')}${str(`'${result.scriptUrl}'`)}${punc(', ')}${key('secret')}${punc(': ')}${str(`'${result.sharedSecret}'`)}${punc(' },')}`,
           )
         }
         logger.info('')

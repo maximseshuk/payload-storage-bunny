@@ -11,7 +11,7 @@ BUNNY_ACCOUNT_API_KEY=your-account-key npx payload bunny:deploy-edge-script
 
 The plugin registers this command in Payload's `cli.commands`, so `payload` runs it like a built-in command. It is available when your config uses Bunny Storage and does not set `cli: false`. A `cli.commands['bunny:deploy-edge-script']` entry of your own takes precedence.
 
-The CLI enumerates every non-s3 zone in your config (global and per-collection) and writes each one's credentials into its own `ZONE_<NAME>` script secret. On success it prints **one** shared `edge` block:
+The CLI enumerates every non-s3 zone in your config (global and per-collection) and writes each one's credentials into its own `ZONE_<NAME>` script secret. On success it prints **one** shared `edge` block. It prints the secret in clear text only when it generated a new one; a secret from `--secret` or your config stays out of the output:
 
 ```text
 Serving zones: media, archives
@@ -58,7 +58,7 @@ For CI or config-free deploys, `--zones-file zones.json` bypasses config entirel
 }
 ```
 
-Each entry supplies its access key inline (`accessKey`) or indirectly from an env var (`accessKeyEnv`, so keys stay out of the file). Combine with `--secret`, `--name`, and `--api-key`. `--zones-file` and `--env-file` can't be combined.
+Each entry supplies its access key inline (`accessKey`) or indirectly from an env var (`accessKeyEnv`, so keys stay out of the file). Combine with `--secret`, `--name`, and `--api-key`. Without `--secret`, an existing script keeps its `SHARED_SECRET`, so apps that use the current `edge.secret` keep working; only a new script gets a random secret. `--zones-file` and `--env-file` can't be combined.
 
 ## Multiple Edge Scripts (multi-account)
 
@@ -88,7 +88,7 @@ npx payload bunny:deploy-edge-script --help
 | `--api-key`          | `BUNNY_ACCOUNT_API_KEY` env            | Bunny account API key. Required to deploy (flag or env var). Resolved **after** `--env-file`.                                                                         |
 | `--env-file`         | –                                      | Load this env file (override semantics) and rebuild the deploy plan from it. Missing file fails closed. Can't combine with `--zones-file`.                            |
 | `--zones-file`       | –                                      | Config-free deploy: take the zone map from a JSON file (`{ "zone": { "accessKey" \| "accessKeyEnv", "region" } }`). Can't combine with `--env-file`.                  |
-| `--secret`           | configured or random                   | Explicit shared secret for the script. Overrides the configured or generated one.                                                                                     |
+| `--secret`           | configured or random                   | Explicit shared secret for the script. Overrides the configured one. With neither, an existing script keeps its secret and a new script gets a random one.            |
 | `--check`            | –                                      | Compare deployed vs. bundled script version instead of deploying.                                                                                                     |
 | `--script-url`       | `storage.clientUploads.edge.scriptUrl` | Inspect this URL with `--check`; also selects a deploy group when several are configured.                                                                             |
 | `--new`              | –                                      | Select the unassigned group (zones not yet on a script) when several groups exist.                                                                                    |
@@ -98,6 +98,6 @@ npx payload bunny:deploy-edge-script --help
 | `--connection-limit` | `10`                                   | Per-IP connection limit on the script's Pull Zone.                                                                                                                    |
 | `--request-limit`    | `30`                                   | Per-IP request limit on the script's Pull Zone.                                                                                                                       |
 | `--dry-run`          | –                                      | Print what would be deployed without making changes.                                                                                                                  |
-| `--no-print-secret`  | –                                      | Omit the cleartext shared secret from the success output (useful on shared CI logs).                                                                                  |
+| `--no-print-secret`  | –                                      | The command prints the shared secret only when it generates a new one. This flag hides that one too (useful on shared CI logs).                                       |
 | `--no-prune`         | –                                      | Additive deploy: upsert this deploy's `ZONE_*` secrets only, without removing `ZONE_*` secrets for zones not in this config. For multiple configs sharing one script. |
 | `--skip-harden`      | –                                      | Skip the Pull Zone hardening step (rate limits, origin rules).                                                                                                        |
