@@ -291,7 +291,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
             if (elapsed > 0 && realBytesUploaded > 0) {
               const uploadSpeed = realBytesUploaded / elapsed
-              const remainingBytes = bytesTotal - realBytesUploaded
+              const remainingBytes = bytesTotal - bytesUploaded
               estimatedTimeRemaining = remainingBytes / uploadSpeed
             }
           }

@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { BASE_CLASS } from '@/client/TusUpload/FileManager/FileManager.constants.js'
 import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
 import { findPreviousTusUploads } from '@/client/TusUpload/FileManager/FileManager.utils.js'
 import { TusRenewError } from '@/client/TusUpload/tusAuth.js'
@@ -73,7 +74,9 @@ vi.mock('@payloadcms/ui', async () => {
     useFormBackgroundProcessing: () => useStore(() => state.store.backgroundProcessing),
     useFormFields: (selector: (context: unknown) => unknown) =>
       useStore(() => selector([state.store.form, state.dispatchFields])),
-    useTranslation: () => ({ t: (key: string) => key }),
+    useTranslation: () => ({
+      t: (key: string, args?: Record<string, unknown>) => (args ? `${key} ${JSON.stringify(args)}` : key),
+    }),
   }
 })
 
@@ -530,6 +533,22 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
 
       expect(videoIdAtEnable).toBe('video-x')
     })
+  })
+
+  it('estimates the time left from the bytes that are not uploaded yet', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    await prepare()
+    await resolveAuth(0, uploadAuth)
+    const { onProgress } = state.uploads[0]!.opts
+
+    run(() => onProgress(100, 1000))
+    now.mockReturnValue(11_000)
+    run(() => onProgress(300, 1000))
+    now.mockRestore()
+
+    expect(document.querySelector(`.${BASE_CLASS}__meta`)!.textContent).toContain(
+      'tusUploadTimeLeft {"time":"35@seshuk/payload-storage-bunny:tusUploadTimeSeconds"}',
+    )
   })
 
   it('turns background processing on again when an autosave turns it off during the upload', async () => {
