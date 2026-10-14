@@ -7,7 +7,7 @@ import { appendEnvLines } from '@/cli/lib/envFile.js'
 import type { Logger } from '@/cli/lib/logger.js'
 import type { InitPlan } from '@/cli/lib/plan.js'
 import { buildInitPlan, PRICING, PRICING_NOTE } from '@/cli/lib/plan.js'
-import type { EdgeProvisionInput, Ledger, PreflightResult } from '@/cli/lib/provision.js'
+import type { EdgeProvisionInput, Ledger, PreflightResult, ProvisionResult } from '@/cli/lib/provision.js'
 import { createLedger, preflightInit, provisionInit } from '@/cli/lib/provision.js'
 
 import { buildInitOutput, buildInstallLines, EDGE_SECRET_PLACEHOLDER } from './output.js'
@@ -241,8 +241,9 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
   process.once('SIGINT', onInterrupt)
   logger.info('Provisioning…')
 
+  let result: ProvisionResult
   try {
-    const result = await provisionInit({
+    result = await provisionInit({
       accountApiKey,
       edge: edgeInput,
       ledger,
@@ -251,17 +252,27 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
       plan,
     })
     logger.info('Provisioning complete.')
+  } catch (err) {
+    logger.error(`Provisioning failed: ${(err as Error).message}`)
+    printLedger(ledger)
+    logger.info(RERUN_HINT)
+    process.exit(1)
+    return
+  } finally {
+    process.removeListener('SIGINT', onInterrupt)
+  }
 
-    const output = buildInitOutput(answers, result, accountApiKey)
-    for (const warning of output.warnings) {
-      logger.warn(warning)
-    }
-    const envBlock = output.env.map((entry) => `${entry.name}=${entry.value}`).join('\n')
-    const installLines = buildInstallLines(options.version, readProjectPayloadVersion())
-    note(renderOutput(installLines, envBlock, output.optionsBlock), 'Your options')
+  const output = buildInitOutput(answers, result, accountApiKey)
+  for (const warning of output.warnings) {
+    logger.warn(warning)
+  }
+  const envBlock = output.env.map((entry) => `${entry.name}=${entry.value}`).join('\n')
+  const installLines = buildInstallLines(options.version, readProjectPayloadVersion())
+  note(renderOutput(installLines, envBlock, output.optionsBlock), 'Your options')
 
-    const doAppend = await confirm({ initialValue: false, message: 'Append these lines to ./.env?' })
-    if (!isCancel(doAppend) && doAppend) {
+  const doAppend = await confirm({ initialValue: false, message: 'Append these lines to ./.env?' })
+  if (!isCancel(doAppend) && doAppend) {
+    try {
       const appendResult = appendEnvLines(
         '.env',
         output.env.filter((entry) => entry.value !== EDGE_SECRET_PLACEHOLDER),
@@ -277,15 +288,10 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
       if (output.env.some((entry) => entry.value === EDGE_SECRET_PLACEHOLDER)) {
         logger.warn('BUNNY_EDGE_SECRET was not written: add it to .env with your existing Edge Script secret.')
       }
+    } catch (err) {
+      logger.error(`Could not write .env: ${(err as Error).message}`)
+      logger.warn('Your Bunny resources are ready. Copy the environment variables printed above into .env yourself.')
     }
-  } catch (err) {
-    logger.error(`Provisioning failed: ${(err as Error).message}`)
-    printLedger(ledger)
-    logger.info(RERUN_HINT)
-    process.exit(1)
-    return
-  } finally {
-    process.removeListener('SIGINT', onInterrupt)
   }
 
   outro('Done — paste the plugin block into payload.config.ts and restart. See /cli/init for details.')

@@ -146,4 +146,16 @@ describe('runInit', () => {
     expect(mocks.log.info).toHaveBeenCalledWith('Created so far: storage zone "my-app" (id 100)')
     expect(process.listenerCount('SIGINT')).toBe(sigintListeners)
   })
+
+  it('keeps a successful run when writing .env fails and asks to copy the lines', async () => {
+    mocks.provisionInit.mockResolvedValue(provisioned({ secret: 'known-secret', secretKnown: true }))
+    mocks.appendEnvLines.mockImplementation(() => {
+      throw new Error('EACCES: permission denied')
+    })
+
+    expect(await run()).toBeUndefined()
+    expect(mocks.log.error).toHaveBeenCalledWith('Could not write .env: EACCES: permission denied')
+    expect(warnings()).toMatch(/Copy the environment variables printed above/)
+    expect(mocks.log.error).not.toHaveBeenCalledWith(expect.stringMatching(/Provisioning failed/))
+  })
 })
