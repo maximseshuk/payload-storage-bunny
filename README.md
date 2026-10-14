@@ -83,8 +83,8 @@ v4 is in beta under the `beta` npm tag, and Payload 4 is published under `beta`.
 Add the adapter to the `storage` array of your Payload config, pointing it at an upload collection:
 
 ```typescript
-import { buildConfig } from 'payload'
 import { bunnyStorage } from '@seshuk/payload-storage-bunny'
+import { buildConfig } from 'payload'
 
 export default buildConfig({
   storage: [
