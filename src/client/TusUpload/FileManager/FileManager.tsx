@@ -526,6 +526,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
   }, [state.tusData])
 
   const startNewUpload = () => performUpload()
+  const startOver = () => {
+    if (state.selectedFile && state.existingVideoId) {
+      void cleanupTusLocalStorage(state.selectedFile, state.existingVideoId)
+      updateState({ canRestore: false, existingVideoId: null, tusData: null })
+    }
+    return performUpload()
+  }
   const restoreUpload = () =>
     state.existingVideoId ? performUpload(state.existingVideoId, state.tusData?.metadata?.videoToken) : performUpload()
   const retryUpload = () =>
@@ -717,7 +724,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
           ? {
               actions: (
                 <>
-                  <Button buttonStyle="ghost" margin={false} onClick={startNewUpload}>
+                  <Button buttonStyle="ghost" margin={false} onClick={startOver}>
                     {t('@seshuk/payload-storage-bunny:tusUploadStartOver')}
                   </Button>
                   <Button buttonStyle="primary" margin={false} onClick={restoreUpload}>

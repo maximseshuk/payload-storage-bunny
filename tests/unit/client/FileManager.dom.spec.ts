@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BASE_CLASS } from '@/client/TusUpload/FileManager/FileManager.constants.js'
 import { FileManager } from '@/client/TusUpload/FileManager/FileManager.js'
-import { findPreviousTusUploads } from '@/client/TusUpload/FileManager/FileManager.utils.js'
+import { cleanupTusLocalStorage, findPreviousTusUploads } from '@/client/TusUpload/FileManager/FileManager.utils.js'
 import { TusRenewError } from '@/client/TusUpload/tusAuth.js'
 
 const state = vi.hoisted(() => {
@@ -192,6 +192,7 @@ beforeEach(() => {
   state.toastError.mockClear()
   onCancel.mockClear()
   onDisableTus.mockClear()
+  vi.mocked(cleanupTusLocalStorage).mockClear()
   vi.mocked(findPreviousTusUploads).mockImplementation(async () => [])
   vi.spyOn(URL, 'createObjectURL').mockImplementation((file) => `blob:${(file as File).name}`)
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
@@ -757,6 +758,16 @@ describe('TUS FileManager resume, retry and start over', () => {
     await flush()
 
     expect(state.authBodies[2]).toMatchObject({ videoId: 'video-x', videoToken: 'token' })
+  })
+
+  it('forgets the previous upload when Start over runs', async () => {
+    await restorable()
+
+    click('tusUploadStartOver')
+    await flush()
+
+    expect(cleanupTusLocalStorage).toHaveBeenCalledExactlyOnceWith(x, 'video-x')
+    expect(state.authBodies[1]).toMatchObject({ videoId: undefined, videoToken: undefined })
   })
 })
 
