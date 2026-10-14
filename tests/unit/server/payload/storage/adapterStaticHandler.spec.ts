@@ -45,6 +45,11 @@ const getStaticHandler = rawGetStaticHandler as unknown as (ctx: CollectionConte
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
+const prefixCollection = {
+  slug: 'media',
+  fields: [{ name: 'prefix', type: 'text' }],
+} as unknown as CollectionConfig
+
 const context = (over: Partial<CollectionContext> = {}): CollectionContext =>
   ({
     collection,
@@ -203,7 +208,7 @@ describe('getStaticHandler dispatch', () => {
     expect(streamHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ docId: 'doc1' }))
   })
 
-  it('looks up the video by filename when the doc has no bunnyData', async () => {
+  it('looks up the video by filename without a second access check when Payload granted static file reads and passed no doc', async () => {
     getBunnyDataMock.mockReturnValueOnce(null).mockReturnValueOnce({ stream: { videoId: 'vid2' } })
     const req = makeReq({ docs: [{ filename: 'video.mp4', id: 'found1' }] })
     const handler = getStaticHandler(context())
@@ -211,8 +216,31 @@ describe('getStaticHandler dispatch', () => {
     const res = await handler(req, { doc: undefined, params: { filename: 'video.mp4' } })
 
     expect(await res.text()).toBe('stream')
-    expect(req.payload.find).toHaveBeenCalled()
+    expect(req.payload.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        depth: 0,
+        overrideAccess: true,
+        req,
+        where: {
+          and: [
+            { 'bunnyData.stream.videoId': { exists: true } },
+            { or: [{ filename: { equals: 'video.mp4' } }, { 'original.filename': { equals: 'video.mp4' } }] },
+          ],
+        },
+      }),
+    )
     expect(streamHandlerMock).toHaveBeenCalledWith(expect.objectContaining({ docId: 'found1' }))
+  })
+
+  it('serves only the doc Payload passed and never looks up another video with the same filename', async () => {
+    const req = makeReq({ docs: [{ filename: 'video.mp4', id: 'other' }] })
+    const handler = getStaticHandler(context())
+
+    const res = await handler(req, { doc: { filename: 'video.mp4', id: 'doc1' }, params: { filename: 'video.mp4' } })
+
+    expect(await res.text()).toBe('storage')
+    expect(streamHandlerMock).not.toHaveBeenCalled()
+    expect(req.payload.find).not.toHaveBeenCalled()
   })
 
   it('falls back to storage when no Stream video is found', async () => {
@@ -257,11 +285,6 @@ describe('getStaticHandler dispatch', () => {
     expect(req.payload.logger.error).toHaveBeenCalled()
   })
 })
-
-const prefixCollection = {
-  slug: 'media',
-  fields: [{ name: 'prefix', type: 'text' }],
-} as unknown as CollectionConfig
 
 describe('getStaticHandler storage prefix resolution', () => {
   const storageOnly = (over: Partial<CollectionContext> = {}) =>

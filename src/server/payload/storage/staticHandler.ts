@@ -42,13 +42,12 @@ export const getStaticHandler = (context: CollectionContext): StaticHandler => {
       }
       if (streamOptions) {
         let docId = doc?.id
-        let bunnyData = getBunnyData(doc, filename, streamOptions?.mimeTypes)
-        const docFilename = doc && 'filename' in doc ? (doc.filename as string) : undefined
+        let bunnyData = getBunnyData(doc, filename, streamOptions.mimeTypes)
 
-        const docOriginalFilename = (doc as { original?: { filename?: unknown } } | undefined)?.original?.filename
-        if (!bunnyData?.stream || (docFilename !== filename && docOriginalFilename !== filename)) {
+        if (!doc) {
           const result = await req.payload.find({
             collection: collection.slug,
+            depth: 0,
             limit: 1,
             overrideAccess: true,
             req,
