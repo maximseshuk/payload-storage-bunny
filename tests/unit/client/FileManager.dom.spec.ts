@@ -714,6 +714,50 @@ describe('TUS FileManager resume, retry and start over', () => {
     expect(resumed.start).toHaveBeenCalled()
     expect(uploadStatus()).toBe('uploading')
   })
+
+  it('retries a failed upload on the same video', async () => {
+    mount(x)
+    await flush()
+    startUpload()
+    await resolveAuth(0, uploadAuth)
+    run(() => state.uploads[0]!.opts.onError(new Error('tus: failed to upload chunk')))
+    expect(uploadStatus()).toBe('error')
+
+    click('tusUploadRetry')
+    await resolveAuth(1, uploadAuth)
+
+    expect(state.authBodies[1]).toMatchObject({ videoId: 'video-x', videoToken: 'token' })
+    expect(state.uploads[1]!.opts.uploadUrl).toBe(uploadAuth.uploadUrl)
+    expect(state.uploads[1]!.start).toHaveBeenCalled()
+    expect(uploadStatus()).toBe('uploading')
+  })
+
+  it('retries with a new upload when tus-auth failed before any upload existed', async () => {
+    mount(x)
+    await flush()
+    startUpload()
+    state.failAuth[0]!(new Error('tus-auth failed'))
+    await flush()
+    expect(uploadStatus()).toBe('error')
+
+    click('tusUploadRetry')
+    await flush()
+
+    expect(state.authBodies[1]).toMatchObject({ videoId: undefined, videoToken: undefined })
+  })
+
+  it('retries a failed restore on the previous video', async () => {
+    await restorable()
+    click('tusUploadResume')
+    state.failAuth[1]!(new Error('tus-auth failed'))
+    await flush()
+    expect(uploadStatus()).toBe('error')
+
+    click('tusUploadRetry')
+    await flush()
+
+    expect(state.authBodies[2]).toMatchObject({ videoId: 'video-x', videoToken: 'token' })
+  })
 })
 
 describe('TUS FileManager form values after the upload', () => {

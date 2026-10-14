@@ -528,6 +528,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const startNewUpload = () => performUpload()
   const restoreUpload = () =>
     state.existingVideoId ? performUpload(state.existingVideoId, state.tusData?.metadata?.videoToken) : performUpload()
+  const retryUpload = () =>
+    state.authData?.type === 'upload'
+      ? performUpload(state.authData.videoId, state.authData.videoToken)
+      : restoreUpload()
 
   const pauseUpload = () => {
     if (state.uploadProgress >= 99) {
@@ -695,7 +699,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
       case 'error':
         return {
           actions: (
-            <Button buttonStyle="primary" margin={false} onClick={startNewUpload}>
+            <Button buttonStyle="primary" margin={false} onClick={retryUpload}>
               {t('@seshuk/payload-storage-bunny:tusUploadRetry')}
             </Button>
           ),
