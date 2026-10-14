@@ -551,6 +551,23 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     )
   })
 
+  it('asks before the page unloads only while the upload is preparing or running', async () => {
+    const leave = () => !window.dispatchEvent(new Event('beforeunload', { cancelable: true }))
+    mount(x)
+    await flush()
+    expect(leave()).toBe(false)
+
+    startUpload()
+    expect(leave()).toBe(true)
+    await resolveAuth(0, uploadAuth)
+    expect(uploadStatus()).toBe('uploading')
+    expect(leave()).toBe(true)
+
+    run(() => state.uploads[0]!.opts.onSuccess())
+    await flush()
+    expect(leave()).toBe(false)
+  })
+
   it('turns background processing on again when an autosave turns it off during the upload', async () => {
     await prepare()
     act(() => state.set({ backgroundProcessing: true }))

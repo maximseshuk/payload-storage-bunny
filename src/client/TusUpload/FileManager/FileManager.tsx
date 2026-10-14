@@ -624,6 +624,17 @@ export const FileManager: React.FC<FileManagerProps> = ({
     }
   }, [backgroundProcessing, state.selectedFile, state.uploadStatus, setBackgroundProcessing])
 
+  const isUploadRunning = state.uploadStatus === 'preparing' || state.uploadStatus === 'uploading'
+
+  useEffect(() => {
+    if (!isUploadRunning) {
+      return
+    }
+    const preventLeave = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', preventLeave)
+    return () => window.removeEventListener('beforeunload', preventLeave)
+  }, [isUploadRunning])
+
   useEffect(() => {
     if (preSelectedFile && !preSelectedFilesRef.current.has(preSelectedFile)) {
       preSelectedFilesRef.current.add(preSelectedFile)
