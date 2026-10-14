@@ -53,8 +53,8 @@ src/
     ├── urls.ts
     └── files.ts
 tests/
-├── vitest.config.ts # projects: unit, int
-├── unit/            # mirror src/
+├── vitest.config.ts # projects: unit, unit-dom, int
+├── unit/            # mirror src/; *.dom.spec.ts render React in happy-dom (unit-dom)
 ├── integration/     # *.int.spec.ts, DB from tooling testDatabase()
 ├── e2e/             # live Bunny, Playwright
 └── helpers/, suites/, fixtures/, manual/
