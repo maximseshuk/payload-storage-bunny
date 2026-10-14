@@ -2,6 +2,8 @@ import { type HttpMethod, httpFetch } from '@/server/http/index.js'
 
 const BUNNY_API_BASE = 'https://api.bunny.net'
 
+export const REQUEST_TIMEOUT_MS = 30_000
+
 export type BunnyFetchInit = { body?: unknown; method?: string }
 
 export const bunnyFetch = async (accountApiKey: string, path: string, init: BunnyFetchInit = {}): Promise<Response> => {
@@ -14,6 +16,7 @@ export const bunnyFetch = async (accountApiKey: string, path: string, init: Bunn
     },
     method: (init.method?.toLowerCase() ?? 'get') as HttpMethod,
     throwHttpErrors: false,
+    timeout: REQUEST_TIMEOUT_MS,
   })
 
   if (!response.ok) {

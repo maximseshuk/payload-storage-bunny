@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import nodePath from 'node:path'
 
-import { bunnyFetch } from '@/cli/lib/bunnyApi.js'
+import { bunnyFetch, REQUEST_TIMEOUT_MS } from '@/cli/lib/bunnyApi.js'
 import type { Logger } from '@/cli/lib/logger.js'
 import { httpFetch } from '@/server/http/index.js'
 import { collectStorageOptions } from '@/server/payload/options/inspect.js'
@@ -162,6 +162,7 @@ export const checkEdgeScriptVersion = async (scriptUrl: string): Promise<string 
     const res = await httpFetch(`${trimTrailingSlashes(scriptUrl)}/upload`, {
       method: 'options',
       throwHttpErrors: false,
+      timeout: REQUEST_TIMEOUT_MS,
     })
     return res.headers.get('X-Edge-Version') ?? undefined
   } catch {
