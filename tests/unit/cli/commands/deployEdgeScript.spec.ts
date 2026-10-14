@@ -153,8 +153,11 @@ describe('bunny:deploy-edge-script --check', () => {
   })
 })
 
-const mockBunny = (script: { secrets: string[] } | undefined): FetchCall[] =>
+const mockBunny = (script: { secrets: string[] } | undefined, pullZoneStatus = 200): FetchCall[] =>
   spyFetch(({ method, pathname }) => {
+    if (pathname.startsWith('/pullzone/3') && pullZoneStatus !== 200) {
+      return new Response('nope', { status: pullZoneStatus })
+    }
     if (pathname === '/compute/script' && method === 'GET') {
       return jsonResponse({ Items: script ? [{ Id: 7, Name: 'payload-storage-bunny-uploader' }] : [] })
     }
@@ -248,5 +251,24 @@ describe('bunny:deploy-edge-script secret output', () => {
 
     expect(output.join('\n')).toContain('<hidden — --no-print-secret>')
     expect(output.join('\n')).not.toMatch(/[0-9a-f]{32}/)
+  })
+})
+
+describe('bunny:deploy-edge-script hardening', () => {
+  afterEach(() => vi.mocked(globalThis.fetch).mockRestore())
+
+  it('exits with 1 when hardening the Pull Zone fails', async () => {
+    mockBunny({ secrets: ['SHARED_SECRET'] }, 500)
+
+    const { errors, exitCode } = await runDeploy({ apiKey: 'account-key', zonesFile: writeZonesFile() })
+
+    expect(exitCode).toBe(1)
+    expect(errors.join('\n')).toMatch(/hardening its Pull Zone failed/)
+  })
+
+  it('exits with 0 when hardening the Pull Zone succeeds', async () => {
+    mockBunny({ secrets: ['SHARED_SECRET'] })
+
+    expect((await runDeploy({ apiKey: 'account-key', zonesFile: writeZonesFile() })).exitCode).toBeUndefined()
   })
 })

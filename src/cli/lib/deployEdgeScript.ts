@@ -138,6 +138,7 @@ export const loadZonesFileGroup = (filePath: string): EdgeDeployGroup => {
 
 export type DeployEdgeScriptResult = {
   created: boolean
+  hardeningFailed: boolean
   scriptId: number
   scriptUrl: string
   sharedSecret: string
@@ -237,7 +238,7 @@ const toScriptUrl = (host?: string): string => {
   return /^https?:\/\//i.test(host) ? trimTrailingSlashes(host) : `https://${host}`
 }
 
-const hardenPullZone = async (options: DeployEdgeScriptOptions, pullZoneId: number): Promise<void> => {
+const hardenPullZone = async (options: DeployEdgeScriptOptions, pullZoneId: number): Promise<boolean> => {
   const { accountApiKey, cdnTier, connectionLimit, logger, requestLimit } = options
 
   try {
@@ -324,9 +325,11 @@ const hardenPullZone = async (options: DeployEdgeScriptOptions, pullZoneId: numb
     }
 
     logger.info('Hardened the linked Pull Zone (SSL, PUT/OPTIONS + /upload only, root/POST blocked, req/conn limits).')
+    return true
   } catch (err) {
     logger.warn(`Pull Zone hardening was partially applied: ${(err as Error).message}`)
     logger.warn('Review the linked Pull Zone settings in the Bunny dashboard.')
+    return false
   }
 }
 
@@ -351,6 +354,7 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
     logger.info(`Dry run: would ${verb} script "${name}" serving zones [${Object.keys(zones).join(', ')}].`)
     return {
       created: !existing,
+      hardeningFailed: false,
       scriptId: existing?.Id ?? 0,
       scriptUrl: existing ? toScriptUrl(hostnameOf(existing)) : '',
       sharedSecret,
@@ -411,14 +415,14 @@ export const deployEdgeScript = async (options: DeployEdgeScriptOptions): Promis
 
   const pullZoneId =
     script.LinkedPullZones?.[0]?.Id ?? (await getScript(accountApiKey, script.Id)).LinkedPullZones?.[0]?.Id
-  if (!options.skipHarden && typeof pullZoneId === 'number') {
-    await hardenPullZone(options, pullZoneId)
-  }
+  const hardeningFailed =
+    !options.skipHarden && typeof pullZoneId === 'number' && !(await hardenPullZone(options, pullZoneId))
 
   const hostname = hostnameOf(script) ?? hostnameOf(await getScript(accountApiKey, script.Id))
 
   return {
     created,
+    hardeningFailed,
     scriptId: script.Id,
     scriptUrl: toScriptUrl(hostname),
     sharedSecret,

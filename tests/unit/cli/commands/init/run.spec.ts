@@ -43,7 +43,7 @@ const { runInit } = await import('@/cli/commands/init/run.js')
 
 const edgeAnswers = initAnswers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' })
 
-const provisioned = (edge: { secret: string; secretKnown: boolean }): ProvisionResult => ({
+const provisioned = (edge: { hardeningFailed?: boolean; secret: string; secretKnown: boolean }): ProvisionResult => ({
   ledger: { created: [], reused: [] },
   storage: {
     apiKey: 'zone-pass',
@@ -145,6 +145,25 @@ describe('runInit', () => {
     expect(process.exit).toHaveBeenCalledWith(130)
     expect(mocks.log.info).toHaveBeenCalledWith('Created so far: storage zone "my-app" (id 100)')
     expect(process.listenerCount('SIGINT')).toBe(sigintListeners)
+  })
+
+  it('ends with a warning when hardening the Edge Script Pull Zone fails', async () => {
+    mocks.provisionInit.mockResolvedValue(
+      provisioned({ hardeningFailed: true, secret: 'known-secret', secretKnown: true }),
+    )
+
+    expect(await run()).toBeUndefined()
+    expect(mocks.log.warn.mock.lastCall?.[0]).toMatch(/hardening its Pull Zone failed/)
+  })
+
+  it('does not warn about hardening when it succeeds', async () => {
+    mocks.provisionInit.mockResolvedValue(
+      provisioned({ hardeningFailed: false, secret: 'known-secret', secretKnown: true }),
+    )
+
+    await run()
+
+    expect(warnings()).not.toMatch(/hardening/)
   })
 
   it('keeps a successful run when writing .env fails and asks to copy the lines', async () => {

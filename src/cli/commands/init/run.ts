@@ -294,5 +294,11 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
     }
   }
 
+  if (result.storage?.edge?.hardeningFailed) {
+    logger.warn(
+      'The Edge Script is live, but hardening its Pull Zone failed (see the warning above). Fix the Pull Zone in the Bunny dashboard or re-run `npx payload bunny:deploy-edge-script`.',
+    )
+  }
+
   outro('Done — paste the plugin block into payload.config.ts and restart. See /cli/init for details.')
 }

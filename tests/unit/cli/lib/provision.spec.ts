@@ -277,6 +277,17 @@ describe('provisionInit — create path', () => {
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
   })
 
+  it('reports a failed hardening of the Edge Script Pull Zone', async () => {
+    const answers = initAnswers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' })
+
+    installFetch({ pullZones: {} })
+    expect((await runProvision(buildInitPlan(answers))).storage?.edge?.hardeningFailed).toBe(false)
+
+    vi.restoreAllMocks()
+    installFetch({ pullZones: {}, rejectPathname: '/pullzone/601' })
+    expect((await runProvision(buildInitPlan(answers))).storage?.edge?.hardeningFailed).toBe(true)
+  })
+
   it('adds the Optimizer fields to the create body when optimizer is enabled', async () => {
     const calls = installFetch({ pullZones: {} })
     const plan = buildInitPlan(initAnswers({ optimizer: true, service: 'storage' }))

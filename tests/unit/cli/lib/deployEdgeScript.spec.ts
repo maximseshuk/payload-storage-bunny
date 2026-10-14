@@ -437,3 +437,36 @@ describe('deployEdgeScript secrets', () => {
     expect(firstDeleteIndex).toBeGreaterThan(publishIndex)
   })
 })
+
+describe('deployEdgeScript hardening', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const deployWithHarden = (pullZoneStatus: number) => {
+    spyFetch(({ url }) => {
+      if (url.includes('/compute/script?')) {
+        return jsonResponse({
+          Items: [{ Id: 7, LinkedPullZones: [{ DefaultHostname: 'uploader.b-cdn.net', Id: 3 }], Name: 'test-script' }],
+        })
+      }
+      if (url.includes('/pullzone/3')) {
+        return pullZoneStatus === 200 ? jsonResponse({}) : new Response('nope', { status: pullZoneStatus })
+      }
+      return jsonResponse({})
+    })
+    return deployEdgeScript({
+      ...baseDeploy,
+      skipHarden: false,
+      zones: { media: { accessKey: 'media-key', host: 'storage.bunnycdn.com' } },
+    })
+  }
+
+  it('reports a failed hardening step', async () => {
+    expect((await deployWithHarden(500)).hardeningFailed).toBe(true)
+  })
+
+  it('reports a successful hardening step', async () => {
+    expect((await deployWithHarden(200)).hardeningFailed).toBe(false)
+  })
+})

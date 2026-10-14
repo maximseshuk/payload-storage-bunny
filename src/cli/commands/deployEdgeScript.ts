@@ -261,6 +261,12 @@ export const deployEdgeScriptCommand = defineCLICommand({
           'After changing which zones use client uploads, re-run this command to sync the per-zone secrets (it adds new zones and removes stale ones).',
         )
       }
+      if (result.hardeningFailed) {
+        logger.error(
+          'The Edge Script is live, but hardening its Pull Zone failed (see the warning above). Re-run this command or fix the Pull Zone in the Bunny dashboard.',
+        )
+        return 1
+      }
     } catch (err) {
       logger.error(`${(err as Error).message}`)
       return 1

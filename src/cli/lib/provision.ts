@@ -69,7 +69,7 @@ export type Ledger = {
 
 export type StorageProvisionResult = {
   apiKey: string
-  edge?: { scriptUrl: string; secret: string; secretKnown?: boolean }
+  edge?: { hardeningFailed?: boolean; scriptUrl: string; secret: string; secretKnown?: boolean }
   hostname: string
   region: string
   tokenSecurityKey?: string
@@ -330,7 +330,7 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
     resolved = await enablePullZoneSecurity(accountApiKey, pullZone.Id)
   }
 
-  let edge: { scriptUrl: string; secret: string; secretKnown?: boolean } | undefined
+  let edge: StorageProvisionResult['edge']
   if (step.deployEdge) {
     onStep?.('Deploying the Edge Script for client uploads…')
     const providedSecret = input.edge?.sharedSecret
@@ -353,6 +353,7 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
       zones: { [step.zoneName]: { accessKey: zone.Password ?? '', host } },
     })
     edge = {
+      hardeningFailed: deployed.hardeningFailed,
       scriptUrl: deployed.scriptUrl,
       secret: deployed.sharedSecret,
       secretKnown: providedSecret !== undefined || deployed.sharedSecretWritten,
