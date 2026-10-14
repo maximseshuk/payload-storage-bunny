@@ -187,7 +187,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   )
 
   const handleUploadSuccess = useCallback(
-    (authData: TusAuthResponse, file: File, upload: tus.Upload) => {
+    (authData: TusAuthResponse, file: File) => {
       if (!isSelected(file)) {
         return
       }
@@ -196,29 +196,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
         uploadProgress: 100,
         uploadStatus: 'completed',
       })
-
-      upload
-        .findPreviousUploads()
-        // eslint-disable-next-line promise/always-return
-        .then((currentUploads) => {
-          if (!isSelected(file)) {
-            return
-          }
-          if (currentUploads.length > 0) {
-            updateState({ tusData: currentUploads[0] })
-          }
-          updateVideoFields(authData, file)
-          void cleanupTusLocalStorage(file, authData.videoId)
-        })
-        .catch((err) => {
-          // eslint-disable-next-line no-console
-          console.error('Error getting upload data:', err)
-          if (!isSelected(file)) {
-            return
-          }
-          updateVideoFields(authData, file)
-          void cleanupTusLocalStorage(file, authData.videoId)
-        })
+      updateVideoFields(authData, file)
+      void cleanupTusLocalStorage(file, authData.videoId)
     },
     [updateState, updateVideoFields],
   )
@@ -299,7 +278,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
           updateState({ estimatedTimeRemaining, uploadProgress: percentage })
         },
         onShouldRetry: shouldRetryTusRequest,
-        onSuccess: () => handleUploadSuccess(authData, file, upload),
+        onSuccess: () => handleUploadSuccess(authData, file),
         removeFingerprintOnSuccess: true,
         retryDelays: TUS_RETRY_DELAYS,
         uploadUrl: authData.uploadUrl,
@@ -438,16 +417,6 @@ export const FileManager: React.FC<FileManagerProps> = ({
         uploadStartTimeRef.current = Date.now()
         startingBytesRef.current = 0
 
-        if (existingVideoId && authData.videoId === existingVideoId) {
-          const previousUploads = await upload.findPreviousUploads()
-          if (!isSelected(file)) {
-            return
-          }
-          if (previousUploads.length > 0) {
-            upload.resumeFromPreviousUpload(previousUploads[0])
-          }
-        }
-
         updateState({ uploadStatus: 'uploading' })
         upload.start()
       } catch (err) {
@@ -565,7 +534,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
     }
   }
 
-  const resumeUpload = async () => {
+  const resumeUpload = () => {
     const file = state.selectedFile
     if (!file || !state.authData || state.authData.type !== 'upload') {
       return
@@ -580,22 +549,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
         uploadError: null,
         uploadStatus: 'uploading',
       })
-
-      const previousUploads = await upload.findPreviousUploads()
-      if (!isSelected(file)) {
-        return
-      }
-      if (previousUploads.length > 0) {
-        upload.resumeFromPreviousUpload(previousUploads[0])
-      }
-
       upload.start()
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to resume upload:', err)
-      if (!isSelected(file)) {
-        return
-      }
       updateState({
         uploadError: 'Failed to resume upload',
         uploadStatus: 'error',

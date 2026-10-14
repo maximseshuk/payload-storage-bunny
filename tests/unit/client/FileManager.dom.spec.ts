@@ -17,8 +17,10 @@ const state = vi.hoisted(() => {
     form: {} as Record<string, any>,
   }
   return {
+    authBodies: [] as Record<string, unknown>[],
     dispatchFields: vi.fn(),
     drafts: undefined as undefined | { autosave: boolean },
+    failAuth: [] as ((err: Error) => void)[],
     pendingAuth: [] as ((value: unknown) => void)[],
     pendingPrevious: [] as ((value: unknown) => void)[],
     set: (patch: Partial<typeof store>) => {
@@ -34,11 +36,13 @@ const state = vi.hoisted(() => {
       listeners.add(listener)
       return () => void listeners.delete(listener)
     },
+    storedUploads: [] as unknown[],
     toastError: vi.fn(),
     uploads: [] as {
       abort: ReturnType<typeof vi.fn>
       findPreviousUploads: ReturnType<typeof vi.fn>
       opts: Record<string, any>
+      resumeFromPreviousUpload: ReturnType<typeof vi.fn>
       start: ReturnType<typeof vi.fn>
     }[],
   }
@@ -88,14 +92,26 @@ vi.mock('@payloadcms/ui', async () => {
 })
 
 vi.mock('ky', () => ({
-  default: { post: () => ({ json: () => new Promise((resolve) => state.pendingAuth.push(resolve)) }) },
+  default: {
+    post: (_url: string, { json }: { json: Record<string, unknown> }) => {
+      state.authBodies.push(json)
+      return {
+        json: () =>
+          new Promise((resolve, reject) => {
+            state.pendingAuth.push(resolve)
+            state.failAuth.push(reject)
+          }),
+      }
+    },
+  },
 }))
 
 vi.mock('tus-js-client', () => ({
   Upload: class {
     abort = vi.fn(async () => {})
-    findPreviousUploads = vi.fn(async () => [])
+    findPreviousUploads = vi.fn(async () => state.storedUploads)
     opts: Record<string, any>
+    resumeFromPreviousUpload = vi.fn()
     start = vi.fn()
     constructor(_file: File, opts: Record<string, any>) {
       this.opts = opts
@@ -165,8 +181,11 @@ beforeEach(() => {
   state.setBackgroundProcessing.mockReset()
   state.setBackgroundProcessing.mockImplementation((value: boolean) => state.set({ backgroundProcessing: value }))
   state.uploads = []
+  state.authBodies = []
+  state.failAuth = []
   state.pendingAuth = []
   state.pendingPrevious = []
+  state.storedUploads = []
   state.setModified.mockClear()
   state.dispatchFields.mockClear()
   state.dispatchFields.mockImplementation((action) => state.set({ form: fieldReducer(state.store.form, action) }))
@@ -520,22 +539,14 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
       state.store.form = formState(saved)
       await prepare()
       await resolveAuth(0, uploadAuth)
-      let pending: (value: unknown[]) => void = () => {}
-      state.uploads[0]!.findPreviousUploads.mockImplementationOnce(
-        () => new Promise<unknown[]>((resolve) => (pending = resolve)),
-      )
-      state.setBackgroundProcessing.mockClear()
-
-      run(() => state.uploads[0]!.opts.onSuccess())
-      expect(state.setBackgroundProcessing).not.toHaveBeenCalledWith(false)
-
       let videoIdAtEnable: unknown
       state.setBackgroundProcessing.mockImplementation((value: boolean) => {
         if (!value) {
           videoIdAtEnable = state.store.form['bunnyData.stream.videoId']?.value
         }
       })
-      pending([])
+
+      run(() => state.uploads[0]!.opts.onSuccess())
       await flush()
 
       expect(videoIdAtEnable).toBe('video-x')
@@ -650,5 +661,57 @@ describe('TUS FileManager when the file changes while the upload starts', () => 
     unmount()
 
     expect(state.setBackgroundProcessing).toHaveBeenCalledExactlyOnceWith(false)
+  })
+})
+
+describe('TUS FileManager resume, retry and start over', () => {
+  const x = new File(['x'], 'x.mp4', { type: 'video/mp4' })
+  const click = (name: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `@seshuk/payload-storage-bunny:${name}` }))
+  const staleUpload = {
+    metadata: { videoId: 'video-other' },
+    uploadUrl: 'https://video.bunnycdn.com/tusupload/upload-other',
+  }
+
+  const restorable = async () => {
+    vi.mocked(findPreviousTusUploads).mockImplementation(
+      async () => [{ metadata: { title: 'old-x', videoId: 'video-x', videoToken: 'token' } }] as never,
+    )
+    mount(x)
+    await flush()
+    await resolveAuth(0, uploadAuth)
+    expect(uploadStatus()).toBe('idle')
+  }
+
+  it('resumes a previous upload at the URL from tus-auth, not at a stored upload of another video', async () => {
+    state.storedUploads = [staleUpload]
+    await restorable()
+
+    click('tusUploadResume')
+    await resolveAuth(1, uploadAuth)
+
+    expect(state.authBodies[1]).toMatchObject({ videoId: 'video-x', videoToken: 'token' })
+    const [upload] = state.uploads
+    expect(upload!.opts.uploadUrl).toBe(uploadAuth.uploadUrl)
+    expect(upload!.resumeFromPreviousUpload).not.toHaveBeenCalled()
+    expect(upload!.start).toHaveBeenCalled()
+  })
+
+  it('resumes a paused upload at the URL from tus-auth, not at a stored upload of another video', async () => {
+    state.storedUploads = [staleUpload]
+    mount(x)
+    await flush()
+    startUpload()
+    await resolveAuth(0, uploadAuth)
+
+    click('tusUploadPause')
+    click('tusUploadResume')
+    await flush()
+
+    const resumed = state.uploads[1]!
+    expect(resumed.opts.uploadUrl).toBe(uploadAuth.uploadUrl)
+    expect(resumed.resumeFromPreviousUpload).not.toHaveBeenCalled()
+    expect(resumed.start).toHaveBeenCalled()
+    expect(uploadStatus()).toBe('uploading')
   })
 })
