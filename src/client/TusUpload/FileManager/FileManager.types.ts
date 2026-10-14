@@ -17,3 +17,12 @@ export type UploadState = {
   uploadProgress: number
   uploadStatus: UploadStatus
 }
+
+export type FileManagerProps = {
+  collectionSlug: string
+  isAutoMode?: boolean
+  onCancel?: () => void
+  onDisableTus: () => void
+  preSelectedFile?: File | null
+  UploadControls?: React.ReactNode
+}
