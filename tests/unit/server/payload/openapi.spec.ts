@@ -13,7 +13,7 @@ import {
   tusAuthOperation,
 } from '@/server/payload/openapi.js'
 import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
-import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
+import { getStreamEndpoints } from '@/server/payload/stream/endpoints/index.js'
 import { MAX_LIMIT } from '@/server/payload/tasks/endpoint.js'
 import { BUNNY_TASK_NAMES } from '@/server/payload/tasks/run.js'
 import type { CollectionContext } from '@/shared/types/index.js'

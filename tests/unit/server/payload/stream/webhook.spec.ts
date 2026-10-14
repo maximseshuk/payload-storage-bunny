@@ -24,7 +24,7 @@ const mp4Resolutions = (...resolutions: string[]) => ({
 })
 
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
-const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
+const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints/index.js')
 
 const { createBaseStream, createOwnStream } = await import('../../../../helpers/unit/optionsBuilders.js')
 const { buildStreamReq, multiLibraryOptions } = await import('../../../../helpers/unit/stream.js')

@@ -44,7 +44,7 @@ vi.mock('@/server/payload/stream/sessionsCollection.js', () => ({
 
 const { signStreamVideoToken } = await import('@/server/payload/stream/tusSignature.js')
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
-const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
+const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints/index.js')
 
 const UPLOAD_URL = 'https://video.bunnycdn.com/tusupload/upload-1'
 

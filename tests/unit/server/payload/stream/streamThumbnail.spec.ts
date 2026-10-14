@@ -12,7 +12,7 @@ vi.mock('@/server/http/index.js', async (importOriginal) => ({
 }))
 
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
-const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
+const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints/index.js')
 
 const { createBaseStream } = await import('../../../../helpers/unit/optionsBuilders.js')
 const { buildStreamReq } = await import('../../../../helpers/unit/stream.js')

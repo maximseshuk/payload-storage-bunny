@@ -32,7 +32,7 @@ import {
   getHandleUpload,
   getStaticHandler,
 } from '@/server/payload/storage/index.js'
-import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
+import { getStreamEndpoints } from '@/server/payload/stream/endpoints/index.js'
 import {
   getAfterChangeHook,
   getBeforeValidateHook,

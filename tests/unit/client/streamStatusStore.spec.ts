@@ -9,7 +9,7 @@ import {
   subscribeStreamStatus,
 } from '@/client/StreamStatus/streamStatusStore.js'
 import { createNormalizedOptions } from '@/server/payload/options/normalizer.js'
-import { getStreamEndpoints } from '@/server/payload/stream/endpoints.js'
+import { getStreamEndpoints } from '@/server/payload/stream/endpoints/index.js'
 
 import { stubStatusPolling } from '../../helpers/unit/statusPolling.js'
 
