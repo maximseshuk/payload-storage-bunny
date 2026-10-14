@@ -380,6 +380,8 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
 
   const streamApiKeys = new Map<number, string>()
   const streamConflicts = new Set<number>()
+  const streamCleanupMaxAges = new Map<number, number | undefined>()
+  const cleanupConflicts = new Set<number>()
   const checkStreamConflict = (stream: NormalizedStreamOptions | undefined) => {
     if (!stream) {
       return
@@ -387,8 +389,14 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
     const existing = streamApiKeys.get(stream.libraryId)
     if (existing === undefined) {
       streamApiKeys.set(stream.libraryId, stream.apiKey)
-    } else if (existing !== stream.apiKey) {
+      streamCleanupMaxAges.set(stream.libraryId, stream.cleanup?.maxAge)
+      return
+    }
+    if (existing !== stream.apiKey) {
       streamConflicts.add(stream.libraryId)
+    }
+    if (streamCleanupMaxAges.get(stream.libraryId) !== stream.cleanup?.maxAge) {
+      cleanupConflicts.add(stream.libraryId)
     }
   }
 
@@ -437,6 +445,10 @@ export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions
 
   for (const libraryId of streamConflicts) {
     errors.push(`stream library ${libraryId} is configured with conflicting API keys across collections`)
+  }
+
+  for (const libraryId of cleanupConflicts) {
+    errors.push(`stream library ${libraryId} is configured with conflicting \`cleanup\` options across collections`)
   }
 
   for (const zoneName of storageConflicts) {

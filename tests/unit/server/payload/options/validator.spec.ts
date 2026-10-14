@@ -420,6 +420,37 @@ describe('options validator', () => {
       )
     })
 
+    it.each([
+      ['turns on cleanup for only one of them', true, undefined],
+      ['sets different cleanup maxAge values', { maxAge: 3600 }, { maxAge: 7200 }],
+    ])('throws when streams on the same library %s', (_, cleanupA, cleanupB) => {
+      const stream = { apiKey: 'same', hostname: 'a.b-cdn.net', libraryId: 55 }
+      const options = {
+        collections: {
+          a: { disablePayloadAccessControl: true },
+          b: { disablePayloadAccessControl: true, stream: { ...stream, cleanup: cleanupB } },
+        },
+        stream: { ...stream, cleanup: cleanupA },
+      } as unknown as BunnyStorageOptions
+
+      expect(() => normalizeAndValidate(options)).toThrow(
+        'stream library 55 is configured with conflicting `cleanup` options across collections',
+      )
+    })
+
+    it('accepts streams on the same library with the same cleanup options', () => {
+      const stream = { apiKey: 'same', cleanup: { maxAge: 3600 }, hostname: 'a.b-cdn.net', libraryId: 55 }
+      const options = {
+        collections: {
+          a: { disablePayloadAccessControl: true },
+          b: { disablePayloadAccessControl: true, stream: { ...stream, hostname: 'b.b-cdn.net' } },
+        },
+        stream,
+      } as unknown as BunnyStorageOptions
+
+      expect(() => normalizeAndValidate(options)).not.toThrow()
+    })
+
     it('throws when a webhook secret is an empty string', () => {
       const options = {
         collections: {

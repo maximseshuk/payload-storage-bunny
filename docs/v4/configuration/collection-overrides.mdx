@@ -125,7 +125,7 @@ The trigger is purely the presence of `apiKey`, so an object you meant as a mino
 
 </Warning>
 
-The completeness of full options is validated at startup: full storage options need `apiKey`/`hostname`/`zoneName`; full stream options need `apiKey`/`hostname`/`libraryId`. A single stream library must not be configured with conflicting `apiKey` values across collections.
+The completeness of full options is validated at startup: full storage options need `apiKey`/`hostname`/`zoneName`; full stream options need `apiKey`/`hostname`/`libraryId`. A single stream library must not be configured with conflicting `apiKey` values, webhook secrets or `cleanup` options (on in one place and off in another, or a different `maxAge`) across collections.
 
 ## Disabling a service or feature: use `false`
 
