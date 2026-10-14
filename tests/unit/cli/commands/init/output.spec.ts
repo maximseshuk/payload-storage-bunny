@@ -96,12 +96,21 @@ describe('buildInitOutput options block', () => {
     expect(buildInitOutput(initAnswers({ region: 'de', storageAccess: 'http' }), result()).optionsBlock).not.toContain(
       'region:',
     )
-    const ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 'http' }), result()).optionsBlock
+    const nyResult = result({ storage: { ...result().storage!, region: 'ny' } })
+    const ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 'http' }), nyResult).optionsBlock
     expect(ny).toContain("region: 'ny'")
     expect(ny).not.toContain('s3:')
-    const s3ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 's3' }), result()).optionsBlock
+    const s3ny = buildInitOutput(initAnswers({ region: 'ny', storageAccess: 's3' }), nyResult).optionsBlock
     expect(s3ny).toContain("region: 'ny'")
     expect(s3ny).toContain('s3: true')
+  })
+
+  it('uses the region of the provisioned zone over the answer', () => {
+    const block = buildInitOutput(
+      initAnswers({ region: 'de' }),
+      result({ storage: { ...result().storage!, region: 'ny' } }),
+    ).optionsBlock
+    expect(block).toContain("region: 'ny'")
   })
 
   it('adds the thumbnail width hint only when the optimizer is enabled', () => {

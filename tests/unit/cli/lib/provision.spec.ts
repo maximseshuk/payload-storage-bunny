@@ -31,7 +31,7 @@ type MockState = {
   rejectPathname?: string
   scriptSecrets?: Array<{ Id: number; Name: string }>
   storageAvailable?: boolean
-  storageZones?: Array<{ Id: number; Name: string; Password: string }>
+  storageZones?: Array<{ Id: number; Name: string; Password: string; Region?: string }>
 }
 
 const nextPullZoneId = { value: 900 }
@@ -417,6 +417,21 @@ describe('provisionInit — reuse path', () => {
     const optimizerPost = calls.find((c) => c.pathname === '/pullzone/888' && c.method === 'POST')
     expect(optimizerPost?.body).toMatchObject({ OptimizerEnabled: true, OptimizerMinifyCSS: false })
     expect(calls.some((c) => c.pathname === '/pullzone' && c.method === 'POST')).toBe(false)
+  })
+
+  it('uses the real region of a reused storage zone for the result and the Edge Script host', async () => {
+    const state = reusableStorage()
+    state.storageZones = [{ Id: 42, Name: 'my-app', Password: 'existing-pass', Region: 'NY' }]
+    const calls = installFetch(state)
+    const plan = buildInitPlan(
+      initAnswers({ clientUploads: true, deployEdge: true, region: 'de', service: 'storage', storageAccess: 'http' }),
+    )
+
+    const result = await runProvision(plan)
+
+    expect(result.storage?.region).toBe('ny')
+    const zoneSecret = calls.find((c) => c.method === 'POST' && c.body?.Name === 'ZONE_MY_APP')
+    expect(JSON.parse(String(zoneSecret?.body?.Secret))).toMatchObject({ host: 'ny.storage.bunnycdn.com' })
   })
 
   it('does not touch a reused pull zone when the optimizer is not requested', async () => {

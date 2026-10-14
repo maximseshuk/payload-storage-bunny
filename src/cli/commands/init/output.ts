@@ -15,8 +15,8 @@ export const EDGE_SECRET_PLACEHOLDER = 'set-me-to-your-existing-edge-secret'
 const UNKNOWN_EDGE_SECRET_WARNING =
   "Could not determine the existing Edge Script's shared secret — set BUNNY_EDGE_SECRET to the value used by your other project(s), or rotate it everywhere with `npx payload bunny:deploy-edge-script --secret <new>`."
 
-const effectiveRegion = (answers: InitAnswers): string =>
-  answers.storageTier === 'edge' ? DEFAULT_REGION : answers.region
+const effectiveRegion = (answers: InitAnswers, result: ProvisionResult): string =>
+  result.storage?.region ?? (answers.storageTier === 'edge' ? DEFAULT_REGION : answers.region)
 
 const usesS3ClientUploads = (answers: InitAnswers): boolean => answers.clientUploads && answers.storageAccess === 's3'
 
@@ -80,7 +80,7 @@ export const buildOptionsBlock = (answers: InitAnswers, result: ProvisionResult)
 
   if (wantsStorage(answers.service)) {
     const edge = edgeClientUploads(answers, result)
-    const region = effectiveRegion(answers)
+    const region = effectiveRegion(answers, result)
     lines.push('  storage: {')
     lines.push('    apiKey: process.env.BUNNY_STORAGE_API_KEY,')
     lines.push('    hostname: process.env.BUNNY_STORAGE_HOSTNAME,')
@@ -155,7 +155,7 @@ export const buildOptionsObject = (answers: InitAnswers, result: ProvisionResult
   }
 
   if (wantsStorage(answers.service) && result.storage) {
-    const region = effectiveRegion(answers)
+    const region = effectiveRegion(answers, result)
     if (answers.storageAccess === 's3') {
       options.storage = {
         apiKey: result.storage.apiKey,

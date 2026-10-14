@@ -30,6 +30,7 @@ type StorageZoneRecord = {
   Id: number
   Name: string
   Password?: string
+  Region?: string
 }
 
 type PullZoneRecord = {
@@ -276,6 +277,9 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
   let zone = await findStorageZone(accountApiKey, step.zoneName)
   if (zone) {
     ledger.reused.push({ id: zone.Id, kind: 'storage zone', name: zone.Name })
+    if (zone.Region && zone.Region !== step.region) {
+      logger.warn(`Storage zone "${zone.Name}" is in region ${zone.Region}, not ${step.region}; using ${zone.Region}.`)
+    }
   } else {
     if (!(await isStorageZoneNameAvailable(accountApiKey, step.zoneName))) {
       throw new Error(
@@ -294,6 +298,8 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
     })
     ledger.created.push({ id: zone.Id, kind: 'storage zone', name: zone.Name })
   }
+
+  const region = (zone.Region ?? step.region).toLowerCase()
 
   onStep?.(`Setting up pull zone "${step.zoneName}"…`)
   let pullZone = await findPullZone(accountApiKey, step.zoneName)
@@ -334,7 +340,7 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
   if (step.deployEdge) {
     onStep?.('Deploying the Edge Script for client uploads…')
     const providedSecret = input.edge?.sharedSecret
-    const host = storageHostFor(step.region === 'DE' ? undefined : step.region.toLowerCase())
+    const host = storageHostFor(region)
     const deployed = await deployEdgeScript({
       accountApiKey,
       additive: true,
@@ -364,7 +370,7 @@ const provisionStorage = async (input: ProvisionInput, step: StoragePlanStep): P
     apiKey: zone.Password ?? '',
     edge,
     hostname: hostnameOf(resolved),
-    region: step.region.toLowerCase(),
+    region,
     tokenSecurityKey: step.secure ? resolved.ZoneSecurityKey : undefined,
     zoneName: zone.Name,
   }
