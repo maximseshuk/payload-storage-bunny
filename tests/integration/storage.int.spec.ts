@@ -26,6 +26,9 @@ describe.skipIf(!hasBunnyCredentials())('Storage', () => {
   })
 
   afterAll(async () => {
+    for (const collection of ['storage-basic', 'thumbnail-custom', 'thumbnail-disabled']) {
+      await payload.delete({ collection, overrideAccess: true, where: { id: { exists: true } } })
+    }
     await payload.destroy()
   })
 
@@ -72,8 +75,5 @@ describe.skipIf(!hasBunnyCredentials())('Storage', () => {
     expect(custom.thumbnailURL).toContain('secure_thumb=true')
     expect(custom.thumbnailURL).toContain(`id=${custom.id}`)
     expect(disabled.thumbnailURL).toBeNull()
-
-    await payload.delete({ id: custom.id, collection: 'thumbnail-custom', overrideAccess: true })
-    await payload.delete({ id: disabled.id, collection: 'thumbnail-disabled', overrideAccess: true })
   })
 })

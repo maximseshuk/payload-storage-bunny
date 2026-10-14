@@ -16,6 +16,9 @@ describe.skipIf(!hasSignedBunnyCredentials())('signed URLs', () => {
   })
 
   afterAll(async () => {
+    for (const collection of ['storageMedia', 'streamMedia']) {
+      await payload.delete({ collection, overrideAccess: true, where: { id: { exists: true } } })
+    }
     await cleanupStreamVideos(['signed-stream-url-test'], { envPrefix: 'SIGNED' })
     await payload.destroy()
   })
@@ -35,12 +38,6 @@ describe.skipIf(!hasSignedBunnyCredentials())('signed URLs', () => {
       const response = await fetch(doc.url as string)
       expect(response.status).toBe(200)
       expect(response.headers.get('content-type')).toContain('image')
-
-      await payload.delete({
-        id: doc.id,
-        collection: 'storageMedia',
-        overrideAccess: true,
-      })
     })
   })
 
@@ -74,12 +71,6 @@ describe.skipIf(!hasSignedBunnyCredentials())('signed URLs', () => {
 
       const response = await fetch(freshDoc.url as string, { headers: { Referer: 'https://example.com/' } })
       expect(response.status).toBe(200)
-
-      await payload.delete({
-        id: doc.id,
-        collection: 'streamMedia',
-        overrideAccess: true,
-      })
     }, 180000)
   })
 })

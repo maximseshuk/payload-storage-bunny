@@ -7,13 +7,12 @@ import { createPayloadRequest } from 'payload'
 import { getFileFromUploadInstructions } from 'payload/internal'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { uploadStorageFile } from '@/server/bunny/storage.js'
-import { createStreamVideo, deleteStreamVideo, getStreamVideo } from '@/server/bunny/stream.js'
-import { HTTPError } from '@/server/http/index.js'
+import { deleteStorageFile, uploadStorageFile } from '@/server/bunny/storage.js'
+import { createStreamVideo, deleteStreamVideo } from '@/server/bunny/stream.js'
 import { streamUploadSessionsCollectionSlug } from '@/server/payload/stream/sessionsCollection.js'
 import { getStorageUrl } from '@/shared/constants.js'
 
-import { cleanupStreamVideos } from '../helpers/e2e/bunnyStream.js'
+import { cleanupStreamVideos, isVideoDeleted } from '../helpers/e2e/bunnyStream.js'
 import { getPayload } from '../helpers/int/getPayload.js'
 import { videoFile } from '../helpers/int/videoFile.js'
 import { hasBunnyCredentials } from '../helpers/shared/credentials.js'
@@ -22,6 +21,11 @@ describe.skipIf(!hasBunnyCredentials())('Stream cleanup task', () => {
   let payload: Payload
   let libraryId: number
   let apiKey: string
+  let photoPath: string | undefined
+  const storage = {
+    apiKey: process.env.BUNNY_STORAGE_API_KEY || '',
+    zoneName: process.env.BUNNY_STORAGE_ZONE_NAME || '',
+  }
 
   beforeAll(async () => {
     payload = await getPayload('cleanup')
@@ -30,24 +34,13 @@ describe.skipIf(!hasBunnyCredentials())('Stream cleanup task', () => {
   })
 
   afterAll(async () => {
-    await cleanupStreamVideos(['cleanup-test-replace'])
+    await payload.delete({ collection: 'cleanup-test', overrideAccess: true, where: { id: { exists: true } } })
+    if (photoPath) {
+      await deleteStorageFile({ ...storage, path: photoPath })
+    }
+    await cleanupStreamVideos(['cleanup-test-replace', 'cleanup-test-orphan', 'cleanup-test-deleted'])
     await payload.destroy()
   })
-
-  const isVideoDeleted = async (videoId: string) => {
-    for (let i = 0; i < 10; i++) {
-      try {
-        await getStreamVideo({ apiKey, libraryId, videoId })
-      } catch (err) {
-        if (!(err instanceof Error && err.cause instanceof HTTPError && err.cause.response.status === 404)) {
-          throw err
-        }
-        return true
-      }
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-    }
-    return false
-  }
 
   const createOrphanedSession = async (videoId: string) => {
     await payload.create({
@@ -115,10 +108,7 @@ describe.skipIf(!hasBunnyCredentials())('Stream cleanup task', () => {
       filename: 'photo.jpg',
       req,
     })
-    const storage = {
-      apiKey: process.env.BUNNY_STORAGE_API_KEY || '',
-      zoneName: process.env.BUNNY_STORAGE_ZONE_NAME || '',
-    }
+    photoPath = objectPath
     const objectStatus = async () => {
       const response = await fetch(`${getStorageUrl()}/${storage.zoneName}/${objectPath}`, {
         headers: { AccessKey: storage.apiKey },

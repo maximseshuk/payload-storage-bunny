@@ -30,10 +30,13 @@ describe.skipIf(!(hasBunnyCredentials() && hasSignedBunnyCredentials()))('multi-
       filePath: path.resolve(import.meta.dirname, '../fixtures/test-image.jpg'),
       overrideAccess: true,
     })
-    const response = await fetch(doc.url as string)
-    await response.body?.cancel()
-    await payload.delete({ id: doc.id, collection, overrideAccess: true })
-    return { status: response.status, url: doc.url as string }
+    try {
+      const response = await fetch(doc.url as string)
+      await response.body?.cancel()
+      return { status: response.status, url: doc.url as string }
+    } finally {
+      await payload.delete({ id: doc.id, collection, overrideAccess: true })
+    }
   }
 
   it('serves each storage collection from its own zone', async () => {

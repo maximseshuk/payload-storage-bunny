@@ -20,7 +20,7 @@ import { HTTPError } from '@/server/http/index.js'
 import { signStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 import type { StreamTusAuthResponse, StreamTusUploadData } from '@/shared/types/index.js'
 
-import { cleanupStreamVideos, waitForVideoProcessed } from '../helpers/e2e/bunnyStream.js'
+import { cleanupStreamVideos, isVideoDeleted, waitForVideoProcessed } from '../helpers/e2e/bunnyStream.js'
 import { getPayload } from '../helpers/int/getPayload.js'
 import { videoFile } from '../helpers/int/videoFile.js'
 import { hasBunnyCredentials, hasS3StorageCredentials } from '../helpers/shared/credentials.js'
@@ -87,16 +87,6 @@ const videoExists = async (videoId: string): Promise<boolean> => {
     }
     throw err
   }
-}
-
-const isVideoDeleted = async (videoId: string): Promise<boolean> => {
-  for (let i = 0; i < 10; i++) {
-    if (!(await videoExists(videoId))) {
-      return true
-    }
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-  }
-  return false
 }
 
 describe.skipIf(!hasBunnyCredentials())('file versions', () => {

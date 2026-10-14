@@ -1,3 +1,4 @@
+import { isNotFound } from '@/server/bunny/client.js'
 import {
   deleteStreamVideo,
   getStreamVideo,
@@ -76,6 +77,25 @@ export const waitForVideoProcessed = async (
   }
 
   log.warn(`Timeout waiting for video ${videoId} to process`)
+  return false
+}
+
+export const isVideoDeleted = async (videoId: string): Promise<boolean> => {
+  const credentials = getCredentials()
+  if (!credentials) {
+    throw new Error('Bunny Stream credentials not found')
+  }
+  for (let i = 0; i < 10; i++) {
+    try {
+      await getStreamVideo({ ...credentials, videoId })
+    } catch (err) {
+      if (!isNotFound(err)) {
+        throw err
+      }
+      return true
+    }
+    await sleep(3000)
+  }
   return false
 }
 
