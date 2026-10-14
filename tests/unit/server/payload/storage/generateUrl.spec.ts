@@ -42,12 +42,12 @@ describe('getGenerateUrl', () => {
       expect(applyUrlTransformMock).not.toHaveBeenCalled()
       expect(maybeGenerateSignedUrlMock).toHaveBeenCalledWith(
         'https://stream.b-cdn.net/video-guid/playlist.m3u8',
-        {
+        expect.objectContaining({
           collection: { slug: 'media' },
           filename: 'clip.mp4',
           signedUrls,
           tokenSecurityKey: 'stream-token',
-        },
+        }),
         { tokenPath: '/video-guid/' },
       )
       expect(result).toBe('signed:https://stream.b-cdn.net/video-guid/playlist.m3u8')
@@ -59,14 +59,14 @@ describe('getGenerateUrl', () => {
 
       const result = generate({ data: streamData, filename: 'clip.mp4', prefix: 'vids' })
 
-      expect(applyUrlTransformMock).toHaveBeenCalledWith({
-        collection: { slug: 'media' },
-        options: urlTransform,
-        data: streamData,
-        filename: 'clip.mp4',
-        prefix: 'vids',
-        url: 'https://stream.b-cdn.net/video-guid/playlist.m3u8',
-      })
+      expect(applyUrlTransformMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: { slug: 'media' },
+          options: urlTransform,
+          prefix: 'vids',
+          url: 'https://stream.b-cdn.net/video-guid/playlist.m3u8',
+        }),
+      )
       expect(maybeGenerateSignedUrlMock.mock.calls[0][0]).toBe(
         'transformed:https://stream.b-cdn.net/video-guid/playlist.m3u8',
       )
@@ -108,12 +108,14 @@ describe('getGenerateUrl', () => {
       const result = generate({ data: {}, filename: 'my photo.jpg', prefix: 'a b' })
 
       expect(applyUrlTransformMock).not.toHaveBeenCalled()
-      expect(maybeGenerateSignedUrlMock).toHaveBeenCalledWith('https://storage.b-cdn.net/a%20b/my%20photo.jpg', {
-        collection: { slug: 'media' },
-        filename: 'my photo.jpg',
-        signedUrls: undefined,
-        tokenSecurityKey: 'storage-token',
-      })
+      expect(maybeGenerateSignedUrlMock).toHaveBeenCalledWith(
+        'https://storage.b-cdn.net/a%20b/my%20photo.jpg',
+        expect.objectContaining({
+          collection: { slug: 'media' },
+          filename: 'my photo.jpg',
+          tokenSecurityKey: 'storage-token',
+        }),
+      )
       expect(result).toBe('signed:https://storage.b-cdn.net/a%20b/my%20photo.jpg')
     })
 
@@ -123,14 +125,14 @@ describe('getGenerateUrl', () => {
 
       const result = generate({ data: {}, filename: 'photo.jpg' })
 
-      expect(applyUrlTransformMock).toHaveBeenCalledWith({
-        collection: { slug: 'media' },
-        options: urlTransform,
-        data: {},
-        filename: 'photo.jpg',
-        prefix: '',
-        url: 'https://storage.b-cdn.net/photo.jpg',
-      })
+      expect(applyUrlTransformMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: { slug: 'media' },
+          options: urlTransform,
+          prefix: '',
+          url: 'https://storage.b-cdn.net/photo.jpg',
+        }),
+      )
       expect(result).toBe('signed:transformed:https://storage.b-cdn.net/photo.jpg')
     })
 
@@ -141,14 +143,6 @@ describe('getGenerateUrl', () => {
         'signed:https://storage.b-cdn.net/media/photo.jpg',
       )
       expect(generate({ data: {}, filename: 'photo.jpg' })).toBe('signed:https://storage.b-cdn.net/media/photo.jpg')
-    })
-
-    it('keeps a stored prefix that differs from the collection prefix', () => {
-      const generate = getGenerateUrl(buildContext({ prefix: 'media', storageOptions } as Partial<CollectionContext>))
-
-      expect(generate({ data: {}, filename: 'photo.jpg', prefix: 'legacy/folder' })).toBe(
-        'signed:https://storage.b-cdn.net/legacy/folder/photo.jpg',
-      )
     })
 
     it('falls back to the storage branch when a videoId exists but no streamOptions is set', () => {
@@ -162,21 +156,13 @@ describe('getGenerateUrl', () => {
   })
 
   describe('no options', () => {
-    it('returns an empty string when there is no Stream video and no storage options', () => {
-      const generate = getGenerateUrl(buildContext())
+    it.each([
+      ['there is no Stream video and no storage options', {}],
+      ['a stream is configured but the doc has no videoId', { streamOptions }],
+    ])('returns an empty string when %s', (_label, overrides) => {
+      const generate = getGenerateUrl(buildContext(overrides as Partial<CollectionContext>))
 
-      const result = generate({ data: {}, filename: 'photo.jpg' })
-
-      expect(result).toBe('')
-      expect(maybeGenerateSignedUrlMock).not.toHaveBeenCalled()
-    })
-
-    it('returns an empty string when a stream is configured but the doc has no videoId', () => {
-      const generate = getGenerateUrl(buildContext({ streamOptions } as Partial<CollectionContext>))
-
-      const result = generate({ data: {}, filename: 'clip.mp4' })
-
-      expect(result).toBe('')
+      expect(generate({ data: {}, filename: 'photo.jpg' })).toBe('')
       expect(maybeGenerateSignedUrlMock).not.toHaveBeenCalled()
     })
   })

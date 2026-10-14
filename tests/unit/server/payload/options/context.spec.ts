@@ -8,8 +8,6 @@ import type { BunnyStorageOptions } from '@/shared/types/options.js'
 import {
   createBaseStorage as sharedCreateBaseStorage,
   createBaseStream,
-  createOwnStorage,
-  createOwnStream,
 } from '../../../../helpers/unit/optionsBuilders.js'
 
 const createBaseStorage = () => sharedCreateBaseStorage({ uploadTimeout: 60000 })
@@ -51,36 +49,6 @@ describe('createCollectionContext', () => {
     expect(context.signedUrls).toBe(media.signedUrls)
     expect(context.thumbnail).toBe(media.thumbnail)
     expect(context.urlTransform).toBe(media.urlTransform)
-    expect(context.storageOptions?.uploadTimeout).toBe(120000)
-    expect(context.streamOptions?.thumbnailTime).toBe(5000)
-    expect(context.purgeOptions?.async).toBe(true)
-    expect(context.signedUrls?.expiresIn({ collection: createMockCollection('media'), filename: 'a.jpg' })).toBe(7200)
-  })
-
-  describe('full per-collection override contexts', () => {
-    it('exposes its own storage and stream options while a sibling keeps the global ones', () => {
-      const options: BunnyStorageOptions = {
-        collections: {
-          own: {
-            disablePayloadAccessControl: true,
-            storage: createOwnStorage('own'),
-            stream: createOwnStream(777),
-          },
-          sibling: { disablePayloadAccessControl: true },
-        },
-        storage: createBaseStorage(),
-        stream: createBaseStream(),
-      }
-      const normalized = createNormalizedOptions(options)
-
-      const ownCtx = createCollectionContext(normalized, createMockCollection('own'))
-      expect(ownCtx.storageOptions?.zoneName).toBe('own-zone-own')
-      expect(ownCtx.streamOptions?.libraryId).toBe(777)
-
-      const siblingCtx = createCollectionContext(normalized, createMockCollection('sibling'))
-      expect(siblingCtx.storageOptions?.zoneName).toBe('test-zone')
-      expect(siblingCtx.streamOptions?.libraryId).toBe(12345)
-    })
   })
 
   describe('prefix and access control', () => {

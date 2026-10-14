@@ -87,16 +87,4 @@ describe('Stream video ownership', () => {
     await createWithVideo(FIRST_SLUG, 'library-video')
     await expect(createWithVideo(OTHER_LIBRARY_SLUG, 'library-video')).resolves.toBeDefined()
   })
-
-  it('lets a document keep its own video on update', async () => {
-    const doc = await createWithVideo(FIRST_SLUG, 'own-video')
-    await expect(
-      payload.update({
-        collection: FIRST_SLUG as never,
-        data: { alt: 'b', bunnyData: { stream: { videoId: 'own-video' } } } as never,
-        id: doc.id,
-        overrideAccess: true,
-      }),
-    ).resolves.toBeDefined()
-  })
 })

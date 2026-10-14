@@ -13,22 +13,17 @@ const rawToken = (hashable: string) =>
   createHash('sha256').update(hashable).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 
 describe('pinned token output of the Bunny standard scheme', () => {
-  it('pins the token for key, path and expires', () => {
-    expect(generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000)).toBe(
-      'SxFvxHGdfK9v7p53gmnSvd84VLGy2GlsIrPBoCPGqns',
-    )
-  })
-
-  it('pins the token for key, path, expires and sorted params', () => {
-    expect(
-      generateSignedToken('test-security-key', '/path/to/file.jpg', 1700000000, 'token_countries=US,CA&width=500'),
-    ).toBe('d8_U6ufdeoXh1KgeBCjJHu3Di1Tlh_uMPWAbCfi9Ahg')
-  })
-
-  it('pins the token for token_path signing', () => {
-    expect(generateSignedToken('test-security-key', '/videos/', 1700000000, 'token_path=/videos/')).toBe(
-      'LK4PNazpPWHPtkD4ShDMsm7fGD8Bvg0HV5monXaghkg',
-    )
+  it.each([
+    ['key, path and expires', '/path/to/file.jpg', undefined, 'SxFvxHGdfK9v7p53gmnSvd84VLGy2GlsIrPBoCPGqns'],
+    [
+      'key, path, expires and sorted params',
+      '/path/to/file.jpg',
+      'token_countries=US,CA&width=500',
+      'd8_U6ufdeoXh1KgeBCjJHu3Di1Tlh_uMPWAbCfi9Ahg',
+    ],
+    ['token_path signing', '/videos/', 'token_path=/videos/', 'LK4PNazpPWHPtkD4ShDMsm7fGD8Bvg0HV5monXaghkg'],
+  ])('pins the token for %s', (_label, path, params, token) => {
+    expect(generateSignedToken('test-security-key', path, 1700000000, params)).toBe(token)
   })
 
   it('pins the full query mode URL', () => {
@@ -136,34 +131,16 @@ describe('IP-locked tokens', () => {
   })
 })
 
-describe('absolute expiry (expiresAt option)', () => {
-  it('uses the absolute timestamp as the expires value in hash and URL', () => {
-    const url = generateSignedUrl(
-      'https://cdn.example.com/file.jpg',
-      'test-security-key',
-      {},
-      { expiresAt: 1800000000 },
-    )
-
-    expect(url).toBe(
-      'https://cdn.example.com/file.jpg?token=dnOPvXnJbXAT1DoKqqvYP2nr0GQai6nYSbLUKhiTfjw&expires=1800000000',
-    )
-  })
-})
-
 describe('generateSignedToken', () => {
   const securityKey = 'test-security-key'
   const signedUrl = '/path/to/file.jpg'
   const expiration = 1700000000
 
-  it('throws without securityKey', () => {
-    expect(() => generateSignedToken('', signedUrl, expiration)).toThrow(
-      'Security key, signed URL, and expiration time are required',
-    )
-  })
-
-  it('throws with negative expiration', () => {
-    expect(() => generateSignedToken(securityKey, signedUrl, -1)).toThrow(
+  it.each([
+    ['without securityKey', '', expiration],
+    ['with negative expiration', securityKey, -1],
+  ])('throws %s', (_label, key, expires) => {
+    expect(() => generateSignedToken(key, signedUrl, expires)).toThrow(
       'Security key, signed URL, and expiration time are required',
     )
   })
@@ -211,14 +188,11 @@ describe('generateSignedUrl', () => {
       )
     })
 
-    it('throws without baseUrl', () => {
-      expect(() => generateSignedUrl('', securityKey, baseCountryOptions, options)).toThrow(
-        'Base URL, security key, and country options are required',
-      )
-    })
-
-    it('throws without securityKey', () => {
-      expect(() => generateSignedUrl('https://cdn.example.com/file.jpg', '', baseCountryOptions, options)).toThrow(
+    it.each([
+      ['baseUrl', '', securityKey],
+      ['securityKey', 'https://cdn.example.com/file.jpg', ''],
+    ])('throws without %s', (_label, baseUrl, key) => {
+      expect(() => generateSignedUrl(baseUrl, key, baseCountryOptions, options)).toThrow(
         'Base URL, security key, and country options are required',
       )
     })
@@ -265,22 +239,13 @@ describe('generateStreamTusUploadSignature', () => {
     expect(signature).toBe(expectedHash)
   })
 
-  it('throws without libraryId', () => {
-    expect(() =>
-      generateStreamTusUploadSignature({
-        ...validParams,
-        libraryId: 0,
-      }),
-    ).toThrow('Library ID, API key, expiration time, and video ID are required')
-  })
-
-  it('throws without videoId', () => {
-    expect(() =>
-      generateStreamTusUploadSignature({
-        ...validParams,
-        videoId: '',
-      }),
-    ).toThrow('Library ID, API key, expiration time, and video ID are required')
+  it.each([
+    ['libraryId', { libraryId: 0 }],
+    ['videoId', { videoId: '' }],
+  ])('throws without %s', (_label, change) => {
+    expect(() => generateStreamTusUploadSignature({ ...validParams, ...change })).toThrow(
+      'Library ID, API key, expiration time, and video ID are required',
+    )
   })
 })
 
@@ -302,6 +267,18 @@ describe('Stream video token', () => {
 
   it('verifies a token signed for the same video', () => {
     expect(verifyStreamVideoToken({ ...input, token: signStreamVideoToken(input) })).toBe(true)
+  })
+
+  it('rejects a token after it expires', () => {
+    vi.useFakeTimers()
+    try {
+      const token = signStreamVideoToken(input)
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1000)
+
+      expect(verifyStreamVideoToken({ ...input, token })).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it.each([

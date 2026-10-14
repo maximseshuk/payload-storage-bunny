@@ -191,16 +191,6 @@ describe('getStaticHandler dispatch', () => {
     expect(getVideoMock).not.toHaveBeenCalled()
   })
 
-  it('no longer serves a synthetic bunny:stream thumbnail filename', async () => {
-    const handler = getStaticHandler(context())
-    await handler(makeReq(), { doc: undefined, params: { filename: 'bunny:stream:vid1:thumbnail.jpg' } })
-
-    expect(streamHandlerMock).not.toHaveBeenCalled()
-    expect(storageHandlerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ filename: 'bunny:stream:vid1:thumbnail.jpg' }),
-    )
-  })
-
   it('serves the stream directly when the doc already has matching bunnyData', async () => {
     getBunnyDataMock.mockReturnValue({ stream: { videoId: 'vid1' } })
     const req = makeReq()
@@ -250,37 +240,20 @@ describe('getStaticHandler dispatch', () => {
     expect(await res.text()).toBe('Storage not configured')
   })
 
-  it('maps an upstream HTTPError 404 to a 404 response', async () => {
-    storageHandlerMock.mockRejectedValue(httpError(404))
+  it.each([
+    ['an upstream HTTPError 404', httpError(404), 404, 'Not Found', ''],
+    ['a non-404 HTTPError', httpError(500), 500, 'Internal Server Error', ''],
+    ['a generic error', new Error('boom'), 500, '', 'Internal Server Error'],
+  ])('maps %s to a %i response', async (_label, error, status, statusText, body) => {
+    storageHandlerMock.mockRejectedValue(error)
     const req = makeReq()
     const handler = getStaticHandler(context({ streamOptions: undefined }))
 
     const res = await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
 
-    expect(res.status).toBe(404)
-    expect(res.statusText).toBe('Not Found')
-    expect(req.payload.logger.error).toHaveBeenCalled()
-  })
-
-  it('maps a non-404 HTTPError to a 500 response', async () => {
-    storageHandlerMock.mockRejectedValue(httpError(500))
-    const handler = getStaticHandler(context({ streamOptions: undefined }))
-
-    const res = await handler(makeReq(), { doc: undefined, params: { filename: 'photo.jpg' } })
-
-    expect(res.status).toBe(500)
-    expect(res.statusText).toBe('Internal Server Error')
-  })
-
-  it('maps a generic error to a 500 response', async () => {
-    storageHandlerMock.mockRejectedValue(new Error('boom'))
-    const req = makeReq()
-    const handler = getStaticHandler(context({ streamOptions: undefined }))
-
-    const res = await handler(req, { doc: undefined, params: { filename: 'photo.jpg' } })
-
-    expect(res.status).toBe(500)
-    expect(await res.text()).toBe('Internal Server Error')
+    expect(res.status).toBe(status)
+    expect(res.statusText).toBe(statusText)
+    expect(await res.text()).toBe(body)
     expect(req.payload.logger.error).toHaveBeenCalled()
   })
 })

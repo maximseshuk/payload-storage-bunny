@@ -19,8 +19,7 @@ describe('purgeCache', () => {
 
     await purgeCache({ apiKey: 'key-123', url: 'https://cdn.example.com/x.jpg' })
 
-    expect(postMock).toHaveBeenCalledTimes(1)
-    expect(postMock).toHaveBeenCalledWith('https://api.bunny.net/purge', {
+    expect(postMock).toHaveBeenCalledExactlyOnceWith('https://api.bunny.net/purge', {
       headers: { AccessKey: 'key-123' },
       searchParams: { async: false, url: 'https://cdn.example.com/x.jpg' },
       timeout: 15000,
@@ -44,27 +43,13 @@ describe('purgeCache', () => {
     expect(postMock).not.toHaveBeenCalled()
   })
 
-  it('maps a 401 HTTPError to an invalid API key message', async () => {
-    postMock.mockRejectedValue(httpError(401))
+  it.each([
+    [401, 'Bunny.net: Invalid API key'],
+    [500, 'Bunny.net: Server error'],
+    [404, 'Unable to purge cache: https://cdn.example.com/x.jpg'],
+  ])('maps a %i HTTPError to "%s"', async (status, message) => {
+    postMock.mockRejectedValue(httpError(status))
 
-    await expect(purgeCache({ apiKey: 'key', url: 'https://cdn.example.com/x.jpg' })).rejects.toThrow(
-      'Bunny.net: Invalid API key',
-    )
-  })
-
-  it('maps a 500 HTTPError to a server error message', async () => {
-    postMock.mockRejectedValue(httpError(500))
-
-    await expect(purgeCache({ apiKey: 'key', url: 'https://cdn.example.com/x.jpg' })).rejects.toThrow(
-      'Bunny.net: Server error',
-    )
-  })
-
-  it('falls back to the generic message for other HTTPError statuses', async () => {
-    postMock.mockRejectedValue(httpError(404))
-
-    await expect(purgeCache({ apiKey: 'key', url: 'https://cdn.example.com/x.jpg' })).rejects.toThrow(
-      'Unable to purge cache: https://cdn.example.com/x.jpg',
-    )
+    await expect(purgeCache({ apiKey: 'key', url: 'https://cdn.example.com/x.jpg' })).rejects.toThrow(message)
   })
 })

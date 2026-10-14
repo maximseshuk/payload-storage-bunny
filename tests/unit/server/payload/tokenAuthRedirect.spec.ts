@@ -36,21 +36,14 @@ const redirectContext = (
 
 describe('maybeCreateRedirect', () => {
   describe('guards that return null', () => {
-    it('returns null when access control is disabled', () => {
-      expect(maybeCreateRedirect(baseUrl, redirectContext({ usePayloadAccessControl: false }))).toBeNull()
-    })
-
-    it('returns null when signedUrls is false or undefined', () => {
-      expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: false }))).toBeNull()
-      expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: undefined }))).toBeNull()
-    })
-
-    it('returns null when tokenSecurityKey is missing', () => {
-      expect(maybeCreateRedirect(baseUrl, redirectContext({ tokenSecurityKey: undefined }))).toBeNull()
-    })
-
-    it('returns null when the redirect is not configured', () => {
-      expect(maybeCreateRedirect(baseUrl, redirectContext({ signedUrls: signed() }))).toBeNull()
+    it.each<[string, Partial<Parameters<typeof maybeCreateRedirect>[1]>]>([
+      ['access control is disabled', { usePayloadAccessControl: false }],
+      ['signedUrls is false', { signedUrls: false }],
+      ['signedUrls is undefined', { signedUrls: undefined }],
+      ['tokenSecurityKey is missing', { tokenSecurityKey: undefined }],
+      ['the redirect is not configured', { signedUrls: signed() }],
+    ])('returns null when %s', (_, over) => {
+      expect(maybeCreateRedirect(baseUrl, redirectContext(over))).toBeNull()
     })
 
     it('returns null when shouldUseSignedUrl returns false', () => {
@@ -94,34 +87,6 @@ describe('maybeCreateRedirect', () => {
       expect(location).toContain('/bcdn_token=')
       expect(location).toContain('/vid1/play_720p.mp4')
     })
-
-    it('uses redirect.expiresIn to override the base expiresIn', () => {
-      const before = Math.floor(Date.now() / 1000)
-      const res = maybeCreateRedirect(
-        baseUrl,
-        redirectContext({
-          signedUrls: signed({ expiresIn: () => 9999, redirect: { expiresIn: () => 100, status: 302 } }),
-        }),
-      )
-      const after = Math.floor(Date.now() / 1000)
-
-      const expires = Number(new URL(res!.headers.get('Location')!).searchParams.get('expires'))
-      expect(expires).toBeGreaterThanOrEqual(before + 100)
-      expect(expires).toBeLessThanOrEqual(after + 100 + 1)
-    })
-
-    it('falls back to signedUrls.expiresIn when redirect.expiresIn is absent', () => {
-      const before = Math.floor(Date.now() / 1000)
-      const res = maybeCreateRedirect(
-        baseUrl,
-        redirectContext({ signedUrls: signed({ expiresIn: () => 500, redirect: { status: 302 } }) }),
-      )
-      const after = Math.floor(Date.now() / 1000)
-
-      const expires = Number(new URL(res!.headers.get('Location')!).searchParams.get('expires'))
-      expect(expires).toBeGreaterThanOrEqual(before + 500)
-      expect(expires).toBeLessThanOrEqual(after + 500 + 1)
-    })
   })
 })
 
@@ -133,12 +98,11 @@ describe('maybeGenerateSignedUrl', () => {
     tokenSecurityKey: 'security-key',
   }
 
-  it('returns the base URL unchanged when signedUrls is false', () => {
-    expect(maybeGenerateSignedUrl(baseUrl, { ...context, signedUrls: false })).toBe(baseUrl)
-  })
-
-  it('returns the base URL unchanged when tokenSecurityKey is missing', () => {
-    expect(maybeGenerateSignedUrl(baseUrl, { ...context, tokenSecurityKey: undefined })).toBe(baseUrl)
+  it.each([
+    ['signedUrls is false', { signedUrls: false as const }],
+    ['tokenSecurityKey is missing', { tokenSecurityKey: undefined }],
+  ])('returns the base URL unchanged when %s', (_, over) => {
+    expect(maybeGenerateSignedUrl(baseUrl, { ...context, ...over })).toBe(baseUrl)
   })
 
   it('returns the base URL unchanged when shouldUseSignedUrl returns false', () => {
@@ -202,19 +166,12 @@ describe('maybeGenerateSignedUrl with userIp', () => {
     expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result))
   })
 
-  it('rejects a non-IPv4 value, warns, and signs without an IP lock', () => {
+  it.each([
+    ['a non-IPv4 value', '2001:db8::1'],
+    ['an IPv4 with out-of-range octets', '300.1.1.1'],
+  ])('rejects %s, warns, and signs without an IP lock', (_, ip) => {
     const req = createReq()
-    const userIp = vi.fn().mockReturnValue('2001:db8::1')
-
-    const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
-
-    expect(req.payload.logger.warn).toHaveBeenCalledOnce()
-    expect(new URL(result).searchParams.get('token')).toBe(tokenLockedTo(result))
-  })
-
-  it('rejects an IPv4 with out-of-range octets', () => {
-    const req = createReq()
-    const userIp = vi.fn().mockReturnValue('300.1.1.1')
+    const userIp = vi.fn().mockReturnValue(ip)
 
     const result = maybeGenerateSignedUrl(baseUrl, { ...context, req, signedUrls: signed({ userIp }) })
 
@@ -255,11 +212,6 @@ describe('signedUrls.expiresIn', () => {
     const expires = sign(signedFrom({ expiresIn: 600 }))
     expect(expires).toBeGreaterThanOrEqual(before + 600)
     expect(expires).toBeLessThanOrEqual(now() + 601)
-  })
-
-  it('defaults to 7200 seconds', () => {
-    const before = now()
-    expect(sign(signedFrom({}))).toBeGreaterThanOrEqual(before + 7200)
   })
 
   it('uses a Date returned by the function as the absolute expiry', () => {

@@ -47,6 +47,45 @@ describe('options normalizer', () => {
       expect(normalized.collections.get('docs')?.hasGenerateFileURL).toBe(false)
       expect(normalized.collections.get('media')?.hasGenerateFileURL).toBe(false)
     })
+
+    it.each<[string, Partial<BunnyStorageOptions>]>([
+      ['purge', { purge: true }],
+      ['signedUrls', { signedUrls: true }],
+      ['storage', {}],
+      ['stream', { stream: createBaseStream() }],
+      ['thumbnail', { thumbnail: { sizeName: 'preview', urlTransform: { appendTimestamp: true } } }],
+      ['urlTransform', { urlTransform: { appendTimestamp: false, queryParams: { cdn: 'bunny' } } }],
+    ])('turns %s off for a collection set to false', (key, global) => {
+      const normalized = createNormalizedOptions({
+        accountApiKey: 'test-api-key',
+        collections: { docs: true, media: { [key]: false } },
+        storage: createBaseStorage(),
+        ...global,
+      })
+
+      expect(normalized.collections.get('docs')?.[key as 'storage']).toBeDefined()
+      expect(normalized.collections.get('media')?.[key as 'storage']).toBeUndefined()
+    })
+
+    it.each<[string, object]>([
+      [
+        'signedUrls',
+        {
+          expiresIn: expect.toSatisfy((expiresIn: (a: never) => number) => expiresIn(args) === 7200),
+          redirect: undefined,
+        },
+      ],
+      ['thumbnail', { appendTimestamp: true, queryParams: {}, streamAnimated: false }],
+      ['urlTransform', { appendTimestamp: false, queryParams: {} }],
+    ])('enables %s with defaults for true without global options', (key, expected) => {
+      const normalized = createNormalizedOptions({
+        accountApiKey: 'test-api-key',
+        collections: { media: { [key]: true } },
+        storage: createBaseStorage(),
+      })
+
+      expect(normalized.collections.get('media')?.[key as 'signedUrls']).toEqual(expected)
+    })
   })
 
   describe('thumbnail', () => {
@@ -169,31 +208,6 @@ describe('options normalizer', () => {
       expect(normalized.thumbnail?.appendTimestamp).toBe(false)
       expect(normalized.thumbnail?.queryParams).toEqual({})
     })
-
-    it('disables with false', () => {
-      const options: BunnyStorageOptions = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { thumbnail: false } },
-        storage: createBaseStorage(),
-        thumbnail: globalThumbnail,
-      }
-
-      const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.thumbnail).toBeUndefined()
-    })
-
-    it('enables with defaults for true without global options', () => {
-      const options: BunnyStorageOptions = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { thumbnail: true } },
-        storage: createBaseStorage(),
-      }
-
-      const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.thumbnail).toBeDefined()
-      expect(normalized.collections.get('media')?.thumbnail?.appendTimestamp).toBe(true)
-      expect(normalized.collections.get('media')?.thumbnail?.streamAnimated).toBe(false)
-    })
   })
 
   describe('urlTransform', () => {
@@ -280,71 +294,22 @@ describe('options normalizer', () => {
         queryParams: {},
       })
     })
-
-    it('disables with false', () => {
-      const options: BunnyStorageOptions = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { urlTransform: false as const } },
-        storage: createBaseStorage(),
-        urlTransform: globalUrlTransform,
-      }
-
-      const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.urlTransform).toBeUndefined()
-    })
-
-    it('enables with defaults for true without global options', () => {
-      const options: BunnyStorageOptions = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { urlTransform: true } },
-        storage: createBaseStorage(),
-      }
-
-      const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.urlTransform).toBeDefined()
-      expect(normalized.collections.get('media')?.urlTransform?.appendTimestamp).toBe(false)
-      expect(normalized.collections.get('media')?.urlTransform?.queryParams).toEqual({})
-    })
   })
 
   describe('signedUrls', () => {
-    it('inherits and overrides expiresIn', () => {
-      const cases: Array<{
-        collection:
-          | {
-              signedUrls: { expiresIn: number }
-            }
-          | true
-        expected: number
-      }> = [
-        { collection: true, expected: 3600 },
-        { collection: { signedUrls: { expiresIn: 7200 } }, expected: 7200 },
-      ]
-
-      cases.forEach(({ collection, expected }) => {
-        const options: BunnyStorageOptions = {
-          accountApiKey: 'test-api-key',
-          collections: { media: collection },
-          signedUrls: { expiresIn: 3600 },
-          storage: createBaseStorage(),
-        }
-
-        const normalized = createNormalizedOptions(options)
-        expect(normalized.collections.get('media')?.signedUrls?.expiresIn(args)).toBe(expected)
-      })
-    })
-
-    it('enables with defaults for true without global options', () => {
+    it.each([
+      { collection: true, expected: 3600 },
+      { collection: { signedUrls: { expiresIn: 7200 } }, expected: 7200 },
+    ])('resolves expiresIn to $expected for collection $collection', ({ collection, expected }) => {
       const options: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
-        collections: { media: { signedUrls: true } },
+        collections: { media: collection },
+        signedUrls: { expiresIn: 3600 },
         storage: createBaseStorage(),
       }
 
       const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.signedUrls).toBeDefined()
-      expect(normalized.collections.get('media')?.signedUrls?.expiresIn(args)).toBe(7200)
-      expect(normalized.collections.get('media')?.signedUrls?.redirect).toBeUndefined()
+      expect(normalized.collections.get('media')?.signedUrls?.expiresIn(args)).toBe(expected)
     })
 
     it('inherits global keys on a partial override', () => {
@@ -389,18 +354,6 @@ describe('options normalizer', () => {
 
       const normalized = createNormalizedOptions(options)
       expect(normalized.collections.get('media')?.signedUrls?.redirect).toBeUndefined()
-    })
-
-    it('disables with false', () => {
-      const options: BunnyStorageOptions = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { signedUrls: false } },
-        signedUrls: true,
-        storage: createBaseStorage(),
-      }
-
-      const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.signedUrls).toBeUndefined()
     })
 
     it('overrides userIp per collection', () => {
@@ -497,30 +450,19 @@ describe('options normalizer', () => {
   })
 
   describe('purge', () => {
-    it('inherits and overrides async', () => {
-      const cases: Array<{
-        collection:
-          | {
-              purge: { async: boolean }
-            }
-          | true
-        expected: boolean
-      }> = [
-        { collection: true, expected: false },
-        { collection: { purge: { async: true } }, expected: true },
-      ]
+    it.each([
+      { collection: true, expected: false },
+      { collection: { purge: { async: true } }, expected: true },
+    ])('resolves async to $expected for collection $collection', ({ collection, expected }) => {
+      const options: BunnyStorageOptions = {
+        accountApiKey: 'test-api-key',
+        collections: { media: collection },
+        purge: { async: false },
+        storage: createBaseStorage(),
+      }
 
-      cases.forEach(({ collection, expected }) => {
-        const options: BunnyStorageOptions = {
-          accountApiKey: 'test-api-key',
-          collections: { media: collection },
-          purge: { async: false },
-          storage: createBaseStorage(),
-        }
-
-        const normalized = createNormalizedOptions(options)
-        expect(normalized.collections.get('media')?.purge?.async).toBe(expected)
-      })
+      const normalized = createNormalizedOptions(options)
+      expect(normalized.collections.get('media')?.purge?.async).toBe(expected)
     })
 
     it('accepts true globally', () => {
@@ -558,18 +500,6 @@ describe('options normalizer', () => {
 
       const normalized = createNormalizedOptions(options)
       expect(normalized.purge).toBeUndefined()
-      expect(normalized.collections.get('media')?.purge).toBeUndefined()
-    })
-
-    it('disables with false', () => {
-      const options: BunnyStorageOptions = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { purge: false } },
-        purge: true,
-        storage: createBaseStorage(),
-      }
-
-      const normalized = createNormalizedOptions(options)
       expect(normalized.collections.get('media')?.purge).toBeUndefined()
     })
   })
@@ -751,18 +681,6 @@ describe('options normalizer', () => {
       expect(normalized.tasks).toEqual({ secret: 'a-long-enough-secret' })
     })
 
-    it('disables with false', () => {
-      const options: BunnyStorageOptions = {
-        accountApiKey: 'test-api-key',
-        collections: { media: { stream: false } },
-        storage: createBaseStorage(),
-        stream: globalStream,
-      }
-
-      const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.stream).toBeUndefined()
-    })
-
     it('disables TUS per collection with false', () => {
       const options: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
@@ -818,40 +736,18 @@ describe('options normalizer', () => {
   })
 
   describe('storage', () => {
-    it('inherits and overrides uploadTimeout', () => {
-      const cases: Array<{
-        collection:
-          | {
-              storage: { uploadTimeout: number }
-            }
-          | true
-        expected: number
-      }> = [
-        { collection: true, expected: 60000 },
-        { collection: { storage: { uploadTimeout: 120000 } }, expected: 120000 },
-      ]
-
-      cases.forEach(({ collection, expected }) => {
-        const options: BunnyStorageOptions = {
-          accountApiKey: 'test-api-key',
-          collections: { media: collection },
-          storage: { ...createBaseStorage(), uploadTimeout: 60000 },
-        }
-
-        const normalized = createNormalizedOptions(options)
-        expect(normalized.collections.get('media')?.storage?.uploadTimeout).toBe(expected)
-      })
-    })
-
-    it('disables with false', () => {
+    it.each([
+      { collection: true, expected: 60000 },
+      { collection: { storage: { uploadTimeout: 120000 } }, expected: 120000 },
+    ])('resolves uploadTimeout to $expected for collection $collection', ({ collection, expected }) => {
       const options: BunnyStorageOptions = {
         accountApiKey: 'test-api-key',
-        collections: { media: { storage: false } },
-        storage: createBaseStorage(),
+        collections: { media: collection },
+        storage: { ...createBaseStorage(), uploadTimeout: 60000 },
       }
 
       const normalized = createNormalizedOptions(options)
-      expect(normalized.collections.get('media')?.storage).toBeUndefined()
+      expect(normalized.collections.get('media')?.storage?.uploadTimeout).toBe(expected)
     })
 
     it.each([

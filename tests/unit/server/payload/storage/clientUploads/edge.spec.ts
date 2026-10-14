@@ -22,13 +22,6 @@ describe('Edge upload URL signing', () => {
     expect(verifyEdgeUploadUrl(url, base.secret, now + 1000)).toEqual({ valid: true })
   })
 
-  it('rejects a tampered path', () => {
-    const now = 1_700_000_000_000
-    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
-    const tampered = url.replace('media%2Fphoto.jpg', 'media%2Fevil.jpg')
-    expect(verifyEdgeUploadUrl(tampered, base.secret, now).valid).toBe(false)
-  })
-
   it('rejects a wrong secret', () => {
     const now = 1_700_000_000_000
     const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
@@ -47,19 +40,17 @@ describe('Edge upload URL signing', () => {
     expect(verifyEdgeUploadUrl('https://uploader.b-cdn.net/upload?X-Upload-Path=a', base.secret).valid).toBe(false)
   })
 
-  it('rejects a URL whose size or type was changed after signing', () => {
+  it.each([
+    ['path', 'media%2Fphoto.jpg', 'media%2Fevil.jpg'],
+    ['size', 'X-Upload-Size=512', 'X-Upload-Size=1024'],
+    ['type', 'X-Upload-Type=image%2Fjpeg', 'X-Upload-Type=text%2Fhtml'],
+    ['zone', 'X-Upload-Zone=media', 'X-Upload-Zone=other'],
+  ])('rejects a URL whose %s was changed after signing', (_field, from, to) => {
     const now = 1_700_000_000_000
     const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
-    const biggerFile = url.replace('X-Upload-Size=512', 'X-Upload-Size=1024')
-    const otherType = url.replace('X-Upload-Type=image%2Fjpeg', 'X-Upload-Type=text%2Fhtml')
-    expect(verifyEdgeUploadUrl(biggerFile, base.secret, now + 1000).valid).toBe(false)
-    expect(verifyEdgeUploadUrl(otherType, base.secret, now + 1000).valid).toBe(false)
-  })
+    const tampered = url.replace(from, to)
 
-  it('rejects a URL whose zone was changed after signing', () => {
-    const now = 1_700_000_000_000
-    const url = mintEdgeUploadUrl({ ...base, nonce: 'n', now })
-    const tampered = url.replace('X-Upload-Zone=media', 'X-Upload-Zone=other')
+    expect(tampered).not.toBe(url)
     expect(verifyEdgeUploadUrl(tampered, base.secret, now + 1000).valid).toBe(false)
   })
 })

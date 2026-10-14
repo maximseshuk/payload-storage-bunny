@@ -23,8 +23,7 @@ describe('deleteStorageFile', () => {
 
     await deleteStorageFile({ ...creds, path: 'nested/image.jpg' })
 
-    expect(deleteMock).toHaveBeenCalledTimes(1)
-    expect(deleteMock).toHaveBeenCalledWith('https://ny.storage.bunnycdn.com/my-zone/nested/image.jpg', {
+    expect(deleteMock).toHaveBeenCalledExactlyOnceWith('https://ny.storage.bunnycdn.com/my-zone/nested/image.jpg', {
       headers: { Accept: 'application/json', AccessKey: 'zone-pass' },
       timeout: 15000,
     })
@@ -38,16 +37,13 @@ describe('deleteStorageFile', () => {
     expect(deleteMock.mock.calls[0][0]).toBe('https://storage.bunnycdn.com/my-zone/a.jpg')
   })
 
-  it('maps a 400 HTTPError to a delete-failed message', async () => {
-    deleteMock.mockRejectedValue(httpError(400))
+  it.each([
+    [400, 'Bunny Storage: Delete failed'],
+    [401, 'Unable to delete file: a.jpg'],
+  ])('maps a %i HTTPError to "%s"', async (status, message) => {
+    deleteMock.mockRejectedValue(httpError(status))
 
-    await expect(deleteStorageFile({ ...creds, path: 'a.jpg' })).rejects.toThrow('Bunny Storage: Delete failed')
-  })
-
-  it('falls back to the generic message for other HTTPError statuses', async () => {
-    deleteMock.mockRejectedValue(httpError(401))
-
-    await expect(deleteStorageFile({ ...creds, path: 'a.jpg' })).rejects.toThrow('Unable to delete file: a.jpg')
+    await expect(deleteStorageFile({ ...creds, path: 'a.jpg' })).rejects.toThrow(message)
   })
 
   it('treats a missing object as deleted', async () => {
@@ -121,8 +117,7 @@ describe('uploadStorageFile', () => {
 
     await uploadStorageFile({ ...creds, buffer, mimeType: 'image/jpeg', path: 'nested/img.jpg' })
 
-    expect(putMock).toHaveBeenCalledTimes(1)
-    expect(putMock).toHaveBeenCalledWith('https://ny.storage.bunnycdn.com/my-zone/nested/img.jpg', {
+    expect(putMock).toHaveBeenCalledExactlyOnceWith('https://ny.storage.bunnycdn.com/my-zone/nested/img.jpg', {
       body: buffer,
       headers: { Accept: 'application/json', AccessKey: 'zone-pass', 'Content-Type': 'image/jpeg' },
       timeout: 15000,
@@ -157,27 +152,15 @@ describe('uploadStorageFile', () => {
     expect(putMock.mock.calls[0][1]).toMatchObject({ timeout: 90000 })
   })
 
-  it('maps a 400 HTTPError to an upload-failed message', async () => {
-    putMock.mockRejectedValue(httpError(400))
+  it.each([
+    [400, 'Bunny Storage: Upload failed'],
+    [401, 'Bunny Storage: Invalid access key, region, or file format'],
+    [500, 'Unable to upload file: a.jpg'],
+  ])('maps a %i HTTPError to "%s"', async (status, message) => {
+    putMock.mockRejectedValue(httpError(status))
 
     await expect(
       uploadStorageFile({ ...creds, buffer: Buffer.from('x'), mimeType: 'image/jpeg', path: 'a.jpg' }),
-    ).rejects.toThrow('Bunny Storage: Upload failed')
-  })
-
-  it('maps a 401 HTTPError to an invalid access key message', async () => {
-    putMock.mockRejectedValue(httpError(401))
-
-    await expect(
-      uploadStorageFile({ ...creds, buffer: Buffer.from('x'), mimeType: 'image/jpeg', path: 'a.jpg' }),
-    ).rejects.toThrow('Bunny Storage: Invalid access key, region, or file format')
-  })
-
-  it('falls back to the generic message for other HTTPError statuses', async () => {
-    putMock.mockRejectedValue(httpError(500))
-
-    await expect(
-      uploadStorageFile({ ...creds, buffer: Buffer.from('x'), mimeType: 'image/jpeg', path: 'a.jpg' }),
-    ).rejects.toThrow('Unable to upload file: a.jpg')
+    ).rejects.toThrow(message)
   })
 })

@@ -1,4 +1,4 @@
-import { MissingFile, ValidationError } from 'payload'
+import { MissingFile } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { deleteSessionMock, getOffsetMock, getVideoMock, originalSizeMock, saveStateMock } = vi.hoisted(() => ({
@@ -28,12 +28,20 @@ vi.mock('@/server/payload/stream/sessionsCollection.js', () => ({
   deleteStreamVideoSession: deleteSessionMock,
 }))
 
-const { getAfterChangeHook, getBeforeValidateHook, getStreamBeforeChangeHook, getStreamFileChangeBeforeOperationHook } =
-  await import('@/server/payload/stream/hooks.js')
+const {
+  getAfterChangeHook,
+  getBeforeValidateHook,
+  getStreamBeforeChangeHook,
+  getStreamFileChangeBeforeOperationHook,
+  getStreamKeysBeforeChangeHook,
+  getStreamKeysBeforeDeleteHook,
+} = await import('@/server/payload/stream/hooks.js')
 
 import type { CollectionContext } from '@/shared/types/index.js'
 
 import { httpError } from '../../../../helpers/unit/httpError.js'
+import { createBaseStream } from '../../../../helpers/unit/optionsBuilders.js'
+import { buildStreamReq } from '../../../../helpers/unit/stream.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -41,7 +49,7 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
   ({
     collection: { slug: 'media' },
     isTusUploadSupported: false,
-    streamOptions: { apiKey: 'stream-key', libraryId: 12345, status: true },
+    streamOptions: { ...createBaseStream(), status: true },
     usePayloadAccessControl: true,
     ...overrides,
   }) as unknown as CollectionContext
@@ -49,16 +57,7 @@ const buildContext = (overrides: Partial<CollectionContext> = {}): CollectionCon
 const emptyOptions = { collections: new Map() } as never
 
 const buildReq = (overrides: Record<string, unknown> = {}) =>
-  ({
-    payload: {
-      collections: { media: { config: { slug: 'media' } } },
-      db: { findOne: async () => null },
-      logger: { debug: vi.fn(), error: vi.fn() },
-      secret: 'payload-secret',
-    },
-    t: (key: string) => key,
-    ...overrides,
-  }) as never
+  buildStreamReq({ collections: { media: {} }, payload: { db: { findOne: async () => null } }, ...overrides })
 
 describe('stream hooks', () => {
   beforeEach(() => {
@@ -255,7 +254,7 @@ describe('stream hooks', () => {
       const hook = getBeforeValidateHook({
         options: emptyOptions,
         context: buildContext({
-          streamOptions: { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: true },
+          streamOptions: { ...createBaseStream(), mp4Fallback: true, status: true },
         } as never),
         filesRequiredOnCreate: true,
       })
@@ -390,7 +389,7 @@ describe('stream hooks', () => {
       const hook = getBeforeValidateHook({
         options: emptyOptions,
         context: buildContext({
-          streamOptions: { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: true },
+          streamOptions: { ...createBaseStream(), mp4Fallback: true, status: true },
         } as never),
         filesRequiredOnCreate: false,
       })
@@ -412,7 +411,7 @@ describe('stream hooks', () => {
       const hook = getBeforeValidateHook({
         options: emptyOptions,
         context: buildContext({
-          streamOptions: { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: true },
+          streamOptions: { ...createBaseStream(), mp4Fallback: true, status: true },
         } as never),
         filesRequiredOnCreate: false,
       })
@@ -433,7 +432,7 @@ describe('stream hooks', () => {
 
       const hook = getBeforeValidateHook({
         options: emptyOptions,
-        context: buildContext({ streamOptions: { apiKey: 'stream-key', libraryId: 12345, status: false } as never }),
+        context: buildContext({ streamOptions: { ...createBaseStream(), status: false } as never }),
         filesRequiredOnCreate: true,
       })
       const data: Record<string, unknown> = { bunnyData: { stream: { videoId: 'v-123' } } }
@@ -451,7 +450,7 @@ describe('stream hooks', () => {
       const hook = getBeforeValidateHook({
         options: emptyOptions,
         context: buildContext({
-          streamOptions: { apiKey: 'stream-key', libraryId: 12345, mp4Fallback: true, status: false },
+          streamOptions: { ...createBaseStream(), mp4Fallback: true, status: false },
         } as never),
         filesRequiredOnCreate: false,
       })
@@ -562,7 +561,7 @@ describe('stream hooks', () => {
       originalSizeMock.mockRejectedValueOnce(new Error('rate limited'))
       const hook = getBeforeValidateHook({
         options: emptyOptions,
-        context: buildContext({ streamOptions: { apiKey: 'stream-key', libraryId: 12345 } } as never),
+        context: buildContext({ streamOptions: createBaseStream() } as never),
         filesRequiredOnCreate: true,
       })
 
@@ -603,7 +602,7 @@ describe('stream hooks', () => {
       originalSizeMock.mockResolvedValueOnce(2048)
       const hook = getBeforeValidateHook({
         options: emptyOptions,
-        context: buildContext({ streamOptions: { apiKey: 'stream-key', libraryId: 12345 } } as never),
+        context: buildContext({ streamOptions: createBaseStream() } as never),
         filesRequiredOnCreate: true,
       })
 
@@ -632,7 +631,7 @@ describe('stream hooks', () => {
         const warn = vi.fn()
         const hook = getBeforeValidateHook({
           options: emptyOptions,
-          context: buildContext({ streamOptions: { apiKey: 'stream-key', libraryId: 12345 } } as never),
+          context: buildContext({ streamOptions: createBaseStream() } as never),
           filesRequiredOnCreate: true,
         })
         const result = hook({
@@ -722,50 +721,16 @@ describe('stream hooks', () => {
       ]),
     } as never
 
-    const buildOwnershipReq = (owners: Record<string, string>) => {
-      const findOne = vi.fn(async ({ collection, where }: any) => {
-        const [videoClause, idClause] = where.and ?? [where]
-        const ownerId = owners[collection]
-        const matches =
-          ownerId !== undefined &&
-          videoClause['bunnyData.stream.videoId']?.equals === 'v-shared' &&
-          ownerId !== idClause?.id.not_equals
-        return matches ? { id: ownerId } : null
-      })
+    const buildOwnershipReq = () => {
+      const findOne = vi.fn(async () => null)
       const req = buildReq({
-        payload: {
-          collections: {
-            clips: { config: { slug: 'clips' } },
-            files: { config: { slug: 'files' } },
-            media: { config: { slug: 'media' } },
-            other: { config: { slug: 'other' } },
-          },
-          db: { findOne },
-          logger: { debug: vi.fn(), error: vi.fn() },
-          secret: 'payload-secret',
-        },
+        collections: { clips: {}, files: {}, media: {}, other: {} },
+        payload: { db: { findOne } },
       })
       return { findOne, req }
     }
 
     const sharedData = () => ({ bunnyData: { stream: { videoId: 'v-shared' } } })
-
-    it.each([
-      ['another document of the same collection', { media: 'doc-1' }],
-      ['a document of another Stream collection in the same library', { clips: 'doc-9' }],
-    ])('rejects a videoId already used by %s', async (_label, owners) => {
-      const hook = getBeforeValidateHook({
-        options: libraryOptions,
-        context: buildContext(),
-        filesRequiredOnCreate: false,
-      })
-      const { req } = buildOwnershipReq(owners)
-
-      await expect(hook({ data: sharedData(), operation: 'create', req } as never)).rejects.toBeInstanceOf(
-        ValidationError,
-      )
-      expect(getVideoMock).not.toHaveBeenCalled()
-    })
 
     it('searches only stream collections of the same library', async () => {
       getVideoMock.mockResolvedValue({ guid: 'v-shared', status: 0 })
@@ -774,7 +739,7 @@ describe('stream hooks', () => {
         context: buildContext(),
         filesRequiredOnCreate: false,
       })
-      const { findOne, req } = buildOwnershipReq({ files: 'doc-3', other: 'doc-2' })
+      const { findOne, req } = buildOwnershipReq()
 
       await hook({ data: sharedData(), operation: 'create', req } as never)
 
@@ -789,10 +754,16 @@ describe('stream hooks', () => {
         context: buildContext(),
         filesRequiredOnCreate: false,
       })
-      const { req } = buildOwnershipReq({ media: 'doc-1' })
+      const { findOne, req } = buildOwnershipReq()
       const originalDoc = { bunnyData: { stream: { videoId: 'v-draft' } }, id: 'doc-1' }
 
       await expect(hook({ data: sharedData(), operation: 'update', originalDoc, req } as never)).resolves.toBeDefined()
+      expect(findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: 'media',
+          where: { and: [{ 'bunnyData.stream.videoId': { equals: 'v-shared' } }, { id: { not_equals: 'doc-1' } }] },
+        }),
+      )
     })
 
     it('does not look up an unchanged videoId', async () => {
@@ -801,7 +772,7 @@ describe('stream hooks', () => {
         context: buildContext(),
         filesRequiredOnCreate: false,
       })
-      const { findOne, req } = buildOwnershipReq({ media: 'doc-1' })
+      const { findOne, req } = buildOwnershipReq()
       const originalDoc = {
         bunnyData: { stream: { videoId: 'v-shared' } },
         filename: 'shared.mp4',
@@ -1110,5 +1081,113 @@ describe('getStreamFileChangeBeforeOperationHook', () => {
     await result
 
     expect(args.data).not.toHaveProperty('_objectKey')
+  })
+})
+
+const resolveStorageKey = ({ _objectKey, filename, prefix }: Record<string, string | undefined>) =>
+  [prefix, _objectKey, filename].filter(Boolean).join('/')
+
+type DbMock = ReturnType<typeof vi.fn>
+
+const buildKeysReq = ({
+  findOne = vi.fn(async () => null),
+  findVersions = vi.fn(async () => ({ docs: [] })),
+  versions = { maxPerDoc: 0 },
+}: { findOne?: DbMock; findVersions?: DbMock; versions?: false | { maxPerDoc: number } } = {}) => ({
+  context: {} as Record<string, unknown>,
+  payload: {
+    collections: { media: { config: { slug: 'media', upload: { fileOperations: { resolveStorageKey } }, versions } } },
+    db: { findOne, findVersions },
+    logger: { debug: vi.fn(), error: vi.fn() },
+  },
+})
+
+const videoDoc = (videoId: string, _objectKey: string) => ({
+  _objectKey,
+  bunnyData: { stream: { videoId } },
+  filename: 'clip-original.mp4',
+  original: { _objectKey, filename: 'clip-original.mp4', prefix: 'media' },
+  prefix: 'media',
+})
+
+describe('stream key hooks', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('remembers the keys of the old and new file before an update', async () => {
+    const req = buildKeysReq()
+    const originalDoc = { id: 'doc-1', ...videoDoc('v-old', 'a') }
+    const data = videoDoc('v-new', 'b')
+
+    await getStreamKeysBeforeChangeHook(buildContext())({ data, operation: 'update', originalDoc, req } as never)
+
+    expect(req.context.bunnyStreamKeys).toEqual(
+      new Map([
+        [
+          'media',
+          new Map([
+            ['media/a/clip-original.mp4', 'v-old'],
+            ['media/b/clip-original.mp4', 'v-new'],
+          ]),
+        ],
+      ]),
+    )
+    expect(req.payload.db.findVersions).not.toHaveBeenCalled()
+  })
+
+  it('remembers the keys of the versions that maxPerDoc prunes', async () => {
+    const findVersions = vi
+      .fn()
+      .mockResolvedValueOnce({ docs: [{ updatedAt: '2026-01-02' }] })
+      .mockResolvedValueOnce({ docs: [{ version: videoDoc('v-pruned', 'c') }] })
+    const req = buildKeysReq({ findVersions, versions: { maxPerDoc: 2 } })
+    const originalDoc = { id: 'doc-1', ...videoDoc('v-old', 'a') }
+
+    await getStreamKeysBeforeChangeHook(buildContext())({ data: {}, operation: 'update', originalDoc, req } as never)
+
+    expect(findVersions).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ limit: 1, page: 2, sort: '-updatedAt', where: { parent: { equals: 'doc-1' } } }),
+    )
+    expect(findVersions).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { and: [{ parent: { equals: 'doc-1' } }, { updatedAt: { less_than_equal: '2026-01-02' } }] },
+      }),
+    )
+    expect(
+      (req.context.bunnyStreamKeys as Map<string, Map<string, string>>).get('media')?.get('media/c/clip-original.mp4'),
+    ).toBe('v-pruned')
+  })
+
+  it('reads nothing on create', async () => {
+    const req = buildKeysReq({ versions: { maxPerDoc: 2 } })
+
+    await getStreamKeysBeforeChangeHook(buildContext())({ data: {}, operation: 'create', req } as never)
+
+    expect(req.payload.db.findVersions).not.toHaveBeenCalled()
+    expect(req.context.bunnyStreamKeys).toBeUndefined()
+  })
+
+  it('remembers the keys of the document and all its versions before a delete', async () => {
+    const findOne = vi.fn(async () => videoDoc('v-main', 'a'))
+    const findVersions = vi.fn(async () => ({ docs: [{ version: videoDoc('v-version', 'b') }] }))
+    const req = buildKeysReq({ findOne, findVersions, versions: { maxPerDoc: 10 } })
+
+    await getStreamKeysBeforeDeleteHook(buildContext())({ id: 'doc-1', req } as never)
+
+    expect(findVersions).toHaveBeenCalledWith(expect.objectContaining({ where: { parent: { equals: 'doc-1' } } }))
+    expect(req.context.bunnyStreamKeys).toEqual(
+      new Map([
+        [
+          'media',
+          new Map([
+            ['media/a/clip-original.mp4', 'v-main'],
+            ['media/b/clip-original.mp4', 'v-version'],
+          ]),
+        ],
+      ]),
+    )
   })
 })

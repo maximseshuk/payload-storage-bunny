@@ -46,7 +46,6 @@ vi.mock('@/server/bunny/cdn.js', () => ({
 import { buildContext, storageOptions, streamOptions } from '../../../../helpers/unit/context.js'
 import { createReq } from '../../../../helpers/unit/req.js'
 
-const { buildUploadStoragePathData } = await import('@payloadcms/plugin-cloud-storage/utilities')
 const { getForgetStreamVideoHook, getHandleUpload } = await import('@/server/payload/storage/handleUpload.js')
 
 const createFile = (overrides: Record<string, unknown> = {}) => ({
@@ -278,31 +277,36 @@ describe('getHandleUpload', () => {
   })
 
   describe('storage path', () => {
-    it('uploads via the HTTP backend when no S3 options are present', async () => {
-      uploadStorageFileMock.mockResolvedValue(undefined)
+    it.each([
+      ['HTTP', false, 'photo.jpg', 'image/jpeg', uploadStorageFileMock, uploadStorageFileS3Mock],
+      ['S3', true, 'doc.pdf', 'application/pdf', uploadStorageFileS3Mock, uploadStorageFileMock],
+    ])('uploads via the %s backend', async (_label, s3, filename, mimeType, used, unused) => {
+      used.mockResolvedValue(undefined)
 
-      const handler = getHandleUpload(buildContext({ storageOptions } as unknown as Partial<CollectionContext>))
+      const handler = getHandleUpload(
+        buildContext({ storageOptions: { ...storageOptions, s3 } } as unknown as Partial<CollectionContext>),
+      )
       const data: Record<string, unknown> = {}
-      const file = createFile()
+      const file = createFile({ filename, mimeType })
 
       await handler({
         collection: { slug: 'media' },
         data,
         file,
         req: createReq(),
-        storageFilePath: 'photo.jpg',
+        storageFilePath: filename,
       } as never)
 
-      expect(uploadStorageFileMock).toHaveBeenCalledWith({
+      expect(used).toHaveBeenCalledWith({
         apiKey: 'storage-key',
         buffer: file.buffer,
-        mimeType: 'image/jpeg',
-        path: 'photo.jpg',
+        mimeType,
+        path: filename,
         region: 'de',
         timeout: 60000,
         zoneName: 'my-zone',
       })
-      expect(uploadStorageFileS3Mock).not.toHaveBeenCalled()
+      expect(unused).not.toHaveBeenCalled()
       expect(data).toEqual({})
       expect(purgeCacheMock).not.toHaveBeenCalled()
     })
@@ -321,54 +325,6 @@ describe('getHandleUpload', () => {
       expect(uploadStorageFileMock).toHaveBeenCalled()
       expect(createStreamVideoMock).not.toHaveBeenCalled()
       expect(data).toEqual({ mimeType: 'image/jpeg' })
-    })
-
-    it('uploads via the S3 backend when S3 options are present', async () => {
-      uploadStorageFileS3Mock.mockResolvedValue(undefined)
-
-      const handler = getHandleUpload(
-        buildContext({ storageOptions: { ...storageOptions, s3: true } } as unknown as Partial<CollectionContext>),
-      )
-      const file = createFile({ filename: 'doc.pdf', mimeType: 'application/pdf' })
-
-      await handler({
-        collection: { slug: 'media' },
-        data: {},
-        file,
-        req: createReq(),
-        storageFilePath: 'doc.pdf',
-      } as never)
-
-      expect(uploadStorageFileS3Mock).toHaveBeenCalledWith({
-        apiKey: 'storage-key',
-        buffer: file.buffer,
-        mimeType: 'application/pdf',
-        path: 'doc.pdf',
-        region: 'de',
-        timeout: 60000,
-        zoneName: 'my-zone',
-      })
-      expect(uploadStorageFileMock).not.toHaveBeenCalled()
-    })
-
-    it('keeps an empty document prefix under the collection prefix', async () => {
-      uploadStorageFileMock.mockResolvedValue(undefined)
-
-      const handler = getHandleUpload(
-        buildContext({ prefix: 'media', storageOptions } as unknown as Partial<CollectionContext>),
-      )
-      const data = { prefix: '' }
-
-      await handler({
-        collection: { slug: 'media' },
-        data,
-        file: createFile(),
-        req: createReq(),
-        storageFilePath: buildUploadStoragePathData({ collectionPrefix: 'media', docPrefix: '', filename: 'photo.jpg' })
-          .storageFilePath,
-      } as never)
-
-      expect(uploadStorageFileMock.mock.calls[0][0].path).toBe('media/photo.jpg')
     })
   })
 

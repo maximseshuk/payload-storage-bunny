@@ -28,31 +28,22 @@ const hasField = (fields: Field[], name: string) => fields.some((f) => 'name' in
 const getField = (fields: Field[], name: string) => fields.find((f) => 'name' in f && f.name === name)
 
 describe('getFields prefix injection', () => {
-  it('injects a hidden readOnly prefix field when clientUploads.prefix is a function', () => {
+  it('injects a hidden prefix field that input cannot set when clientUploads.prefix is a function', () => {
     const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
 
-    const prefixField = getField(fields, 'prefix') as { admin?: Record<string, unknown>; defaultValue?: unknown }
+    const prefixField = getField(fields, 'prefix') as {
+      access?: Record<string, () => boolean>
+      admin?: Record<string, unknown>
+      defaultValue?: unknown
+    }
     expect(prefixField).toBeDefined()
-    expect(prefixField.admin).toMatchObject({ hidden: true, readOnly: true })
+    expect(prefixField.admin).toMatchObject({
+      disabled: { bulkEdit: true, column: true, filter: true, groupBy: true },
+      hidden: true,
+      readOnly: true,
+    })
     expect(prefixField).not.toHaveProperty('hidden')
     expect(prefixField.defaultValue).toBe('')
-  })
-
-  it('hides the injected prefix field from list columns, filters, group-by and bulk edit', () => {
-    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
-
-    expect((getField(fields, 'prefix') as { admin?: Record<string, unknown> }).admin?.disabled).toEqual({
-      bulkEdit: true,
-      column: true,
-      filter: true,
-      groupBy: true,
-    })
-  })
-
-  it('does not accept a prefix from create or update input', () => {
-    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
-
-    const prefixField = getField(fields, 'prefix') as { access?: Record<string, () => boolean> }
     expect(prefixField.access?.create?.()).toBe(false)
     expect(prefixField.access?.update?.()).toBe(false)
   })
@@ -68,24 +59,16 @@ describe('getFields prefix injection', () => {
     expect(prefixField.defaultValue).toBe('media')
   })
 
-  it('does not inject a prefix field when clientUploads.prefix is not a function', () => {
+  it.each([
+    ['is not a function', {}],
+    ['is absent', undefined],
+  ])('does not inject a prefix field when clientUploads.prefix %s', (_, clientUploads) => {
     const fields = getFields(
       collection,
-      context({
-        storageOptions: { ...dynamicPrefixStorage, clientUploads: {} },
-      } as never),
+      context({ storageOptions: { ...dynamicPrefixStorage, clientUploads } } as never),
       [],
     )
 
-    expect(hasField(fields, 'prefix')).toBe(false)
-  })
-
-  it('does not inject a prefix field when clientUploads is absent', () => {
-    const fields = getFields(
-      collection,
-      context({ storageOptions: { ...dynamicPrefixStorage, clientUploads: undefined } } as never),
-      [],
-    )
     expect(hasField(fields, 'prefix')).toBe(false)
   })
 
@@ -131,14 +114,11 @@ describe('getFields Bunny Stream status field', () => {
     expect(field.access.update()).toBe(false)
   })
 
-  it('does not add the field when the collection does not use Bunny Stream', () => {
-    const fields = getFields(collection, context({ storageOptions: dynamicPrefixStorage } as never), [])
-
-    expect(hasField(fields, 'bunnyStream')).toBe(false)
-  })
-
-  it('does not add the field when the collection has the status turned off', () => {
-    const fields = getFields(collection, context({ streamOptions: { libraryId: 703889, status: false } } as never), [])
+  it.each([
+    ['does not use Bunny Stream', { storageOptions: dynamicPrefixStorage }],
+    ['has the status turned off', { streamOptions: { libraryId: 703889, status: false } }],
+  ])('does not add the field when the collection %s', (_, over) => {
+    const fields = getFields(collection, context(over as never), [])
 
     expect(hasField(fields, 'bunnyStream')).toBe(false)
   })

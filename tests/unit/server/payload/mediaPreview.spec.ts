@@ -97,21 +97,20 @@ describe('bunnyStreamAdapter', () => {
     expect(result?.mode).toBe('inline')
   })
 
-  it('returns null for non-video/audio mime types', () => {
-    expect(resolve({ doc: streamDoc, mimeType: 'image/png' })).toBeNull()
-    expect(resolve({ doc: streamDoc })).toBeNull()
-  })
-
-  it('returns null when the doc carries no bunny stream data', () => {
-    expect(resolve({ doc: {}, mimeType: 'video/mp4' })).toBeNull()
-    expect(resolve({ doc: { bunnyData: { type: 'stream' } }, mimeType: 'video/mp4' })).toBeNull()
-  })
-
-  it('returns null when videoId or libraryId is missing', () => {
-    const noVideoId = { bunnyData: { stream: { libraryId: 123456 }, type: 'stream' } }
-    const noLibraryId = { bunnyData: { stream: { videoId: 'abc' }, type: 'stream' } }
-
-    expect(resolve({ doc: noVideoId, mimeType: 'video/mp4' })).toBeNull()
-    expect(resolve({ doc: noLibraryId, mimeType: 'video/mp4' })).toBeNull()
+  it.each([
+    ['non-video/audio mime types', { doc: streamDoc, mimeType: 'image/png' }],
+    ['a missing mime type', { doc: streamDoc }],
+    ['a doc without bunny data', { doc: {}, mimeType: 'video/mp4' }],
+    ['stream data without a stream object', { doc: { bunnyData: { type: 'stream' } }, mimeType: 'video/mp4' }],
+    [
+      'a missing videoId',
+      { doc: { bunnyData: { stream: { libraryId: 123456 }, type: 'stream' } }, mimeType: 'video/mp4' },
+    ],
+    [
+      'a missing libraryId',
+      { doc: { bunnyData: { stream: { videoId: 'abc' }, type: 'stream' } }, mimeType: 'video/mp4' },
+    ],
+  ])('returns null for %s', (_title, args) => {
+    expect(resolve(args)).toBeNull()
   })
 })

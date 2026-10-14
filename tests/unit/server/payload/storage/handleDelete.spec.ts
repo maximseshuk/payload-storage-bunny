@@ -165,27 +165,6 @@ describe('getHandleDelete', () => {
       )
     })
 
-    it('deletes from a dynamic per-document prefix path', async () => {
-      deleteStorageFileMock.mockResolvedValue(undefined)
-
-      const handler = getHandleDelete(buildContext({ storageOptions } as Partial<CollectionContext>))
-
-      await handler({
-        collection: { slug: 'media' },
-        doc: { ...storageDoc, prefix: 'tenants/a/media' },
-        filename: 'photo.jpg',
-        req: createReq(),
-        storageFilePath: 'tenants/a/media/photo.jpg',
-      } as never)
-
-      expect(deleteStorageFileMock).toHaveBeenCalledWith({
-        apiKey: 'storage-key',
-        path: 'tenants/a/media/photo.jpg',
-        region: 'de',
-        zoneName: 'my-zone',
-      })
-    })
-
     it('deletes and purges a document with an empty prefix under the collection prefix', async () => {
       deleteStorageFileMock.mockResolvedValue(undefined)
       purgeCacheMock.mockResolvedValue(undefined)

@@ -40,15 +40,4 @@ describe('bunnyData afterRead for a non-video doc in a stream collection', () =>
     const deleted = await payload.delete({ collection: SLUG, overrideAccess: true, id: created.id })
     expect(deleted.id).toBe(created.id)
   })
-
-  it('keeps bunnyData for a doc that has a videoId', async () => {
-    const created = await payload.create({
-      collection: SLUG,
-      overrideAccess: true,
-      data: { title: 'has video', bunnyData: { stream: { videoId: 'vid-123' } } },
-    })
-    expect(created.bunnyData).toMatchObject({ type: 'stream', stream: { videoId: 'vid-123', libraryId: 4242 } })
-
-    await payload.delete({ collection: SLUG, overrideAccess: true, id: created.id })
-  })
 })

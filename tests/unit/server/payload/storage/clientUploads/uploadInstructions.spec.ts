@@ -108,26 +108,20 @@ describe('client upload endpoint', () => {
     } as never)
 
     await expect(generate(options, photo)).rejects.toMatchObject({ status: 403 })
+    expect((await generate(options, { ...photo, overrideAccess: true })).type).toBe('http')
   })
 
-  it('requires a valid file size', async () => {
-    await expect(generate(s3Options(), { ...photo, filesize: undefined })).rejects.toMatchObject({ status: 400 })
-    await expect(generate(s3Options(), { ...photo, filesize: -1 })).rejects.toMatchObject({ status: 400 })
-    expect(presignMock).not.toHaveBeenCalled()
-  })
-
-  it('rejects SVG and XML files', async () => {
-    await expect(
-      generate(s3Options(), { ...photo, filename: 'logo.svg', mimeType: 'image/svg+xml' }),
-    ).rejects.toMatchObject({ status: 400 })
-    await expect(generate(s3Options(), { ...photo, filename: 'photo.xml' })).rejects.toMatchObject({ status: 400 })
-  })
-
-  it('rejects restricted file types by extension or MIME type', async () => {
-    await expect(generate(s3Options(), { ...photo, filename: 'photo.html' })).rejects.toMatchObject({ status: 415 })
-    await expect(generate(s3Options(), { ...photo, mimeType: 'text/javascript' })).rejects.toMatchObject({
-      status: 415,
-    })
+  it.each<[string, Record<string, unknown>, number]>([
+    ['a missing file size', { filesize: undefined }, 400],
+    ['a negative file size', { filesize: -1 }, 400],
+    ['an SVG file', { filename: 'logo.svg', mimeType: 'image/svg+xml' }, 400],
+    ['an XML file', { filename: 'photo.xml' }, 400],
+    ['a restricted extension', { filename: 'photo.html' }, 415],
+    ['a restricted MIME type', { mimeType: 'text/javascript' }, 415],
+    ['a MIME type the collection does not allow', { filename: 'doc.pdf', mimeType: 'application/pdf' }, 415],
+    ['a file over the size limit', { filename: 'big.png', filesize: 9_000_000, mimeType: 'image/png' }, 413],
+  ])('rejects %s with %i', async (_, body, status) => {
+    await expect(generate(s3Options(), { ...photo, ...body })).rejects.toMatchObject({ status })
     expect(presignMock).not.toHaveBeenCalled()
   })
 
@@ -226,28 +220,6 @@ describe('client upload endpoint', () => {
     ).toBe(`https://cdn.b-cdn.net/${signedPath}`)
   })
 
-  it('rejects a disallowed mime type', async () => {
-    await expect(
-      generate(s3Options(), {
-        collectionSlug: 'media',
-        filename: 'doc.pdf',
-        filesize: 1000,
-        mimeType: 'application/pdf',
-      }),
-    ).rejects.toMatchObject({ status: 415 })
-  })
-
-  it('rejects a file over the size limit', async () => {
-    await expect(
-      generate(s3Options(), {
-        collectionSlug: 'media',
-        filename: 'big.png',
-        filesize: 9_000_000,
-        mimeType: 'image/png',
-      }),
-    ).rejects.toMatchObject({ status: 413 })
-  })
-
   it('presigns an S3 PUT for the resolved key', async () => {
     const instructions = await generate(s3Options(), photo)
 
@@ -266,12 +238,26 @@ describe('client upload endpoint', () => {
     )
   })
 
-  it('applies a server-side prefix callback to the key', async () => {
+  it.each<[string, unknown, string, string]>([
+    ['applies a prefix callback to the key', true, 'tenants/acme', 'tenants/acme'],
+    [
+      'nests a prefix callback result under the static collection prefix',
+      { prefix: 'uploads' },
+      'tenants/../acme',
+      'uploads/tenants/acme',
+    ],
+    [
+      'keeps a prefix callback result already under the static collection prefix',
+      { prefix: 'uploads' },
+      'uploads/acme',
+      'uploads/acme',
+    ],
+  ])('%s', async (_, media, callbackPrefix, expected) => {
     const options = createNormalizedOptions({
-      collections: { media: true },
+      collections: { media },
       storage: {
         apiKey: 'zone-pw',
-        clientUploads: { prefix: () => 'tenants/acme' },
+        clientUploads: { prefix: () => callbackPrefix },
         hostname: 'cdn.b-cdn.net',
         s3: true,
         zoneName: 'zone',
@@ -280,50 +266,8 @@ describe('client upload endpoint', () => {
 
     const instructions = await generate(options, photo)
 
-    expect(instructions.file.uploadReference.prefix).toBe('tenants/acme')
-    expect(presignMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: expect.stringMatching(keyed('tenants/acme')) }),
-    )
-  })
-
-  it('nests a prefix callback result under the static collection prefix', async () => {
-    const options = createNormalizedOptions({
-      collections: { media: { prefix: 'uploads' } },
-      storage: {
-        apiKey: 'zone-pw',
-        clientUploads: { prefix: () => 'tenants/../acme' },
-        hostname: 'cdn.b-cdn.net',
-        s3: true,
-        zoneName: 'zone',
-      },
-    } as never)
-
-    const instructions = await generate(options, photo)
-
-    expect(instructions.file.uploadReference.prefix).toBe('uploads/tenants/acme')
-    expect(presignMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: expect.stringMatching(keyed('uploads/tenants/acme')) }),
-    )
-  })
-
-  it('keeps a prefix callback result already under the static collection prefix', async () => {
-    const options = createNormalizedOptions({
-      collections: { media: { prefix: 'uploads' } },
-      storage: {
-        apiKey: 'zone-pw',
-        clientUploads: { prefix: () => 'uploads/acme' },
-        hostname: 'cdn.b-cdn.net',
-        s3: true,
-        zoneName: 'zone',
-      },
-    } as never)
-
-    const instructions = await generate(options, photo)
-
-    expect(instructions.file.uploadReference.prefix).toBe('uploads/acme')
-    expect(presignMock).toHaveBeenCalledWith(
-      expect.objectContaining({ path: expect.stringMatching(keyed('uploads/acme')) }),
-    )
+    expect(instructions.file.uploadReference.prefix).toBe(expected)
+    expect(presignMock).toHaveBeenCalledWith(expect.objectContaining({ path: expect.stringMatching(keyed(expected)) }))
   })
 
   it('creates a signed Edge Script URL in edge mode', async () => {

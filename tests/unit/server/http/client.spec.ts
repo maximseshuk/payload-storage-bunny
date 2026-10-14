@@ -32,50 +32,37 @@ beforeEach(() => {
 })
 
 describe('httpFetch', () => {
-  it('uses GET by default and forwards no extra options', async () => {
+  const signal = AbortSignal.timeout(1000)
+
+  it.each([
+    ['uses GET by default and forwards no extra options', undefined, 'get', {}],
+    [
+      'calls the given method and forwards json, headers, timeout, signal and searchParams',
+      {
+        headers: { A: '1' },
+        json: { hi: true },
+        method: 'post',
+        searchParams: { p: 1 },
+        signal,
+        timeout: 5000,
+      },
+      'post',
+      { headers: { A: '1' }, json: { hi: true }, searchParams: { p: 1 }, signal, timeout: 5000 },
+    ],
+    ['uses an explicit retry option', { retry: 3 }, 'get', { retry: 3 }],
+    [
+      'marks streaming requests in the ky context so the drain hook skips them',
+      { stream: true },
+      'get',
+      { context: { stream: true } },
+    ],
+  ] as const)('%s', async (_title, options, method, expected) => {
     const response = new Response('ok')
-    getMock.mockResolvedValue(response)
+    const mock = method === 'post' ? postMock : getMock
+    mock.mockResolvedValue(response)
 
-    await expect(httpFetch('https://x.test/a')).resolves.toBe(response)
-    expect(getMock).toHaveBeenCalledWith('https://x.test/a', {})
-  })
-
-  it('calls the given method and forwards json, headers, timeout, signal and searchParams', async () => {
-    postMock.mockResolvedValue(new Response(null))
-    const signal = AbortSignal.timeout(1000)
-
-    await httpFetch('https://x.test/a', {
-      headers: { A: '1' },
-      json: { hi: true },
-      method: 'post',
-      searchParams: { p: 1 },
-      signal,
-      timeout: 5000,
-    })
-
-    expect(postMock).toHaveBeenCalledWith('https://x.test/a', {
-      headers: { A: '1' },
-      json: { hi: true },
-      searchParams: { p: 1 },
-      signal,
-      timeout: 5000,
-    })
-  })
-
-  it('uses an explicit retry option', async () => {
-    getMock.mockResolvedValue(new Response(null))
-
-    await httpFetch('https://x.test/a', { retry: 3 })
-
-    expect(getMock).toHaveBeenCalledWith('https://x.test/a', { retry: 3 })
-  })
-
-  it('marks streaming requests in the ky context so the drain hook skips them', async () => {
-    getMock.mockResolvedValue(new Response(null))
-
-    await httpFetch('https://x.test/a', { stream: true })
-
-    expect(getMock).toHaveBeenCalledWith('https://x.test/a', { context: { stream: true } })
+    await expect(httpFetch('https://x.test/a', options as never)).resolves.toBe(response)
+    expect(mock).toHaveBeenCalledWith('https://x.test/a', expected)
   })
 
   it('routes OPTIONS through the callable instance (ky has no .options method)', async () => {

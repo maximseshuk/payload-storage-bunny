@@ -4,11 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BunnyDataInternal } from '@/shared/types/core.js'
 import type { NormalizedStreamOptions } from '@/shared/types/index.js'
 
+import { createBaseStream } from '../../../../helpers/unit/optionsBuilders.js'
 import { signed } from '../../../../helpers/unit/signedUrls.js'
+import { buildStreamReq } from '../../../../helpers/unit/stream.js'
 
-const { fetchMock, getStreamVideoResolutionsMock } = vi.hoisted(() => ({
+const { fetchMock, getStreamVideoResolutionsMock, writeMock } = vi.hoisted(() => ({
   fetchMock: vi.fn(),
   getStreamVideoResolutionsMock: vi.fn(),
+  writeMock: vi.fn(),
 }))
 
 vi.mock('@/server/http/index.js', () => ({ httpFetch: fetchMock }))
@@ -18,32 +21,30 @@ vi.mock('@/server/bunny/stream.js', async (importOriginal) => {
   return { ...actual, getStreamVideoResolutions: getStreamVideoResolutionsMock }
 })
 
+vi.mock('@/server/payload/stream/storedStream.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/payload/stream/storedStream.js')>()),
+  writeStoredStream: writeMock,
+}))
+
 const { streamStaticHandler } = await import('@/server/payload/stream/serveStream.js')
 
 const collection = { slug: 'media' } as unknown as CollectionConfig
 
 const streamOptions = (over: Partial<NormalizedStreamOptions> = {}): NormalizedStreamOptions =>
   ({
-    apiKey: 'stream-key',
-    hostname: 'stream.b-cdn.net',
-    libraryId: 12345,
+    ...createBaseStream(),
     mimeTypes: ['video/*'],
     mp4Fallback: true,
-    tokenSecurityKey: 'stream-sec',
     uploadTimeout: 300000,
     ...over,
   }) as NormalizedStreamOptions
 
 const makeReq = (mainDoc: null | Record<string, unknown> = null): PayloadRequest =>
-  ({
+  buildStreamReq({
     headers: new Headers({ host: 'app.local' }),
-    payload: {
-      db: { findOne: vi.fn().mockResolvedValue(mainDoc), updateOne: vi.fn().mockResolvedValue({ id: 'doc1' }) },
-      logger: { debug: vi.fn(), error: vi.fn() },
-      update: vi.fn().mockResolvedValue({}),
-    },
+    payload: { db: { findOne: vi.fn().mockResolvedValue(mainDoc) }, update: vi.fn().mockResolvedValue({}) },
     url: '/api/media/file/video.mp4',
-  }) as unknown as PayloadRequest
+  })
 
 const streamBody = (text: string) =>
   new ReadableStream<Uint8Array>({
@@ -64,6 +65,7 @@ const headThenGet = () =>
 beforeEach(() => {
   fetchMock.mockReset()
   getStreamVideoResolutionsMock.mockReset()
+  writeMock.mockReset()
 })
 
 const savedResolutions: BunnyDataInternal = {
@@ -99,7 +101,7 @@ describe('streamStaticHandler', () => {
     })
 
     expect(res.status).toBe(302)
-    expect(res.headers.get('Location')).toMatch(/^https:\/\/stream\.b-cdn\.net\/bcdn_token=.+\/vid1\/playlist\.m3u8$/)
+    expect(res.headers.get('Location')).toMatch(/^https:\/\/stream\.bunny\.net\/bcdn_token=.+\/vid1\/playlist\.m3u8$/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -122,9 +124,9 @@ describe('streamStaticHandler', () => {
     expect(await res.text()).toBe('video-bytes')
 
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'head' })
-    expect(fetchMock.mock.calls[0][0]).toContain('stream.b-cdn.net/vid1/play_720p.mp4')
+    expect(fetchMock.mock.calls[0][0]).toContain('stream.bunny.net/vid1/play_720p.mp4')
     expect(getStreamVideoResolutionsMock).not.toHaveBeenCalled()
-    expect(req.payload.db.updateOne).not.toHaveBeenCalled()
+    expect(writeMock).not.toHaveBeenCalled()
   })
 
   it('sets the Referer header on the upstream requests when configured', async () => {
@@ -196,51 +198,32 @@ describe('streamStaticHandler', () => {
         videoId: 'vid1',
       })
       expect(req.payload.update).not.toHaveBeenCalled()
-      return req.payload.db.updateOne
     }
 
-    it('stores the discovered resolution straight in the main document and keeps its stored status', async () => {
-      const updateOne = await discover(true, {
-        bunnyData: { stream: { status: 'ready', videoId: 'vid1' } },
-        id: 'doc1',
-      })
+    const resolutions = { available: ['720p', '480p'], highest: '720p' }
 
-      expect(updateOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          collection: 'media',
-          data: {
-            bunnyData: {
-              stream: {
-                resolutions: { available: ['720p', '480p'], highest: '720p' },
-                status: 'ready',
-                videoId: 'vid1',
-              },
-            },
-            updatedAt: null,
-          },
-          where: {
-            and: [
-              { id: { equals: 'doc1' } },
-              { 'bunnyData.stream.videoId': { equals: 'vid1' } },
-              { 'bunnyData.stream.status': { equals: 'ready' } },
-            ],
-          },
-        }),
-      )
+    it('stores the discovered resolution straight in the main document and keeps its stored status', async () => {
+      await discover(true, { bunnyData: { stream: { status: 'ready', videoId: 'vid1' } }, id: 'doc1' })
+
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'media',
+        id: 'doc1',
+        req: expect.anything(),
+        stream: { resolutions, status: 'ready', videoId: 'vid1' },
+        whenStatus: 'ready',
+      })
     })
 
     it('stores the discovered resolution without a status when the status is turned off', async () => {
-      const updateOne = await discover(false, { bunnyData: { stream: { videoId: 'vid1' } }, id: 'doc1' })
+      await discover(false, { bunnyData: { stream: { videoId: 'vid1' } }, id: 'doc1' })
 
-      expect(updateOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: {
-            bunnyData: { stream: { resolutions: { available: ['720p', '480p'], highest: '720p' }, videoId: 'vid1' } },
-            updatedAt: null,
-          },
-          where: { and: [{ id: { equals: 'doc1' } }, { 'bunnyData.stream.videoId': { equals: 'vid1' } }] },
-        }),
-      )
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'media',
+        id: 'doc1',
+        req: expect.anything(),
+        stream: { resolutions, videoId: 'vid1' },
+        whenStatus: undefined,
+      })
     })
   })
 

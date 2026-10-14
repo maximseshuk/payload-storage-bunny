@@ -11,6 +11,7 @@ import {
 } from '@/cli/lib/provision.js'
 
 import { type FetchCall, jsonResponse, spyFetch } from '../../../helpers/unit/fetchMock.js'
+import { initAnswers } from '../../../helpers/unit/initAnswers.js'
 
 type PullZone = {
   Hostnames: Array<{ Value: string }>
@@ -168,30 +169,12 @@ const reusableStorage = (): MockState => ({
   storageZones: [{ Id: 42, Name: 'my-app', Password: 'existing-pass' }],
 })
 
-const answers = (overrides = {}) => ({
-  clientUploads: false,
-  collectionSlug: 'media',
-  deployEdge: false,
-  optimizer: false,
-  purge: false,
-  region: 'de',
-  service: 'both' as const,
-  signedUrls: false,
-  storageAccess: 'http' as const,
-  storageReplication: [] as string[],
-  storageTier: 'standard' as const,
-  storageZoneName: 'my-app',
-  streamReplication: [] as string[],
-  videoLibraryName: 'my-app-stream',
-  ...overrides,
-})
-
 describe('provisionInit — create path', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('creates the storage zone, pull zone and library with the documented request bodies (S3, signed)', async () => {
     const calls = installFetch({ pullZones: {} })
-    const plan = buildInitPlan(answers({ signedUrls: true, storageAccess: 's3' }))
+    const plan = buildInitPlan(initAnswers({ signedUrls: true, storageAccess: 's3' }))
 
     const result = await runProvision(plan)
 
@@ -239,7 +222,7 @@ describe('provisionInit — create path', () => {
 
   it('omits StorageZoneType and security when client uploads and signed URLs are off', async () => {
     const calls = installFetch({ pullZones: {} })
-    const plan = buildInitPlan(answers({ service: 'storage' }))
+    const plan = buildInitPlan(initAnswers({ service: 'storage' }))
 
     await runProvision(plan)
 
@@ -252,7 +235,7 @@ describe('provisionInit — create path', () => {
 
   it('sends ZoneTier 1 and forces Region DE for the Edge (SSD) tier and ignores the selected region', async () => {
     const calls = installFetch({ pullZones: {} })
-    const plan = buildInitPlan(answers({ region: 'uk', service: 'storage', storageTier: 'edge' }))
+    const plan = buildInitPlan(initAnswers({ region: 'uk', service: 'storage', storageTier: 'edge' }))
 
     await runProvision(plan)
 
@@ -262,7 +245,7 @@ describe('provisionInit — create path', () => {
 
   it('sends uppercased ReplicationRegions for storage and stream when chosen', async () => {
     const calls = installFetch({ pullZones: {} })
-    const plan = buildInitPlan(answers({ storageReplication: ['uk', 'se'], streamReplication: ['la'] }))
+    const plan = buildInitPlan(initAnswers({ storageReplication: ['uk', 'se'], streamReplication: ['la'] }))
 
     await runProvision(plan)
 
@@ -276,7 +259,7 @@ describe('provisionInit — create path', () => {
   it('deploys the Edge Script for an HTTP zone with client uploads and returns its URL and secret', async () => {
     const calls = installFetch({ pullZones: {} })
     const plan = buildInitPlan(
-      answers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' }),
+      initAnswers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' }),
     )
 
     const result = await runProvision(plan)
@@ -296,7 +279,7 @@ describe('provisionInit — create path', () => {
 
   it('adds the Optimizer fields to the create body when optimizer is enabled', async () => {
     const calls = installFetch({ pullZones: {} })
-    const plan = buildInitPlan(answers({ optimizer: true, service: 'storage' }))
+    const plan = buildInitPlan(initAnswers({ optimizer: true, service: 'storage' }))
 
     await runProvision(plan)
 
@@ -316,7 +299,7 @@ describe('provisionInit — create path', () => {
 describe('provisionInit — edge reuse path', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  const edgeAnswers = answers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' })
+  const edgeAnswers = initAnswers({ clientUploads: true, deployEdge: true, service: 'storage', storageAccess: 'http' })
 
   it('adds its own zone without rotating SHARED_SECRET or pruning other zones', async () => {
     const calls = installFetch({
@@ -384,7 +367,7 @@ describe('provisionInit — reuse path', () => {
     })
 
     const ledger = createLedger()
-    const result = await runProvision(buildInitPlan(answers()), ledger)
+    const result = await runProvision(buildInitPlan(initAnswers()), ledger)
 
     expect(calls.some((c) => c.pathname === '/storagezone' && c.method === 'POST')).toBe(false)
     expect(calls.some((c) => c.pathname === '/pullzone' && c.method === 'POST')).toBe(false)
@@ -400,7 +383,7 @@ describe('provisionInit — reuse path', () => {
 
   it('enables the Optimizer on a reused pull zone via POST /pullzone/{id}', async () => {
     const calls = installFetch(reusableStorage())
-    const plan = buildInitPlan(answers({ optimizer: true, service: 'storage' }))
+    const plan = buildInitPlan(initAnswers({ optimizer: true, service: 'storage' }))
 
     await runProvision(plan)
 
@@ -411,7 +394,7 @@ describe('provisionInit — reuse path', () => {
 
   it('does not touch a reused pull zone when the optimizer is not requested', async () => {
     const calls = installFetch(reusableStorage())
-    const plan = buildInitPlan(answers({ optimizer: false, service: 'storage' }))
+    const plan = buildInitPlan(initAnswers({ optimizer: false, service: 'storage' }))
 
     await runProvision(plan)
 
@@ -424,14 +407,14 @@ describe('provisionInit — conflicts and failures', () => {
 
   it('throws when the storage zone name is taken by another account', async () => {
     installFetch({ pullZones: {}, storageAvailable: false })
-    await expect(runProvision(buildInitPlan(answers({ service: 'storage' })))).rejects.toThrow(/already taken/)
+    await expect(runProvision(buildInitPlan(initAnswers({ service: 'storage' })))).rejects.toThrow(/already taken/)
   })
 
   it('rethrows a mid-run error and keeps the list of created resources', async () => {
     installFetch({ pullZones: {}, rejectPathname: '/pullzone' })
     const ledger = createLedger()
 
-    await expect(runProvision(buildInitPlan(answers({ service: 'storage' })), ledger)).rejects.toThrow(/Bunny API/)
+    await expect(runProvision(buildInitPlan(initAnswers({ service: 'storage' })), ledger)).rejects.toThrow(/Bunny API/)
 
     expect(ledger.created).toEqual([{ id: 100, kind: 'storage zone', name: 'my-app' }])
   })

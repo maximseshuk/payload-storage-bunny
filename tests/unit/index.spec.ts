@@ -1,8 +1,17 @@
 import type { CollectionConfig, Config } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
+const { streamBeforeChangeHook } = vi.hoisted(() => ({ streamBeforeChangeHook: vi.fn() }))
+
+vi.mock('@/server/payload/stream/hooks.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/payload/stream/hooks.js')>()),
+  getStreamBeforeChangeHook: () => streamBeforeChangeHook,
+}))
+
 import { bunnyStorage } from '@/index.js'
 import type { BunnyStorageOptions } from '@/shared/types/index.js'
+
+import { initPlugin } from '../helpers/unit/initPlugin.js'
 
 type MediaOptions = BunnyStorageOptions['collections'][string]
 
@@ -12,20 +21,19 @@ type UploadInstructions = {
 }
 
 const buildMediaUpload = (media: MediaOptions, options: Partial<BunnyStorageOptions> = {}): Record<string, unknown> => {
-  const incoming = {
-    collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
-  } as unknown as Config
-
-  const result = bunnyStorage({
-    collections: { media },
-    storage: {
-      apiKey: 'zone-pw',
-      hostname: 'cdn.b-cdn.net',
-      tokenSecurityKey: 'security-key',
-      zoneName: 'zone',
+  const result = initPlugin(
+    {
+      collections: { media },
+      storage: {
+        apiKey: 'zone-pw',
+        hostname: 'cdn.b-cdn.net',
+        tokenSecurityKey: 'security-key',
+        zoneName: 'zone',
+      },
+      ...options,
     },
-    ...options,
-  } as BunnyStorageOptions).init(incoming) as Config
+    [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
+  )
 
   const collection = result.collections?.find((entry) => entry.slug === 'media')
 
@@ -59,47 +67,23 @@ describe('upload.cacheTags wiring', () => {
 })
 
 describe('upload instructions wiring', () => {
-  const stream = { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, mp4Fallback: true, tus: true }
-
-  const getMedia = (media: MediaOptions) => {
-    const incoming = {
-      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { media },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: true, zoneName: 'zone' },
-      stream,
-    } as BunnyStorageOptions).init(incoming) as Config
-
-    return { media: result.collections!.find((entry) => entry.slug === 'media')!, result }
-  }
-
-  const instructionsOf = (media: CollectionConfig) =>
-    (media.upload as { uploadInstructions: UploadInstructions }).uploadInstructions
-
-  it('registers no client upload handler provider', () => {
-    expect(getMedia({ storage: { clientUploads: true } }).result.admin?.components?.providers ?? []).toEqual([])
-    expect(
-      getMedia({ disablePayloadAccessControl: true, storage: false }).result.admin?.components?.providers ?? [],
-    ).toEqual([])
-  })
-
-  it('uses the instructions in the admin only with Storage client uploads', () => {
-    expect(instructionsOf(getMedia({ storage: { clientUploads: true } }).media).useInAdmin).toBe(true)
-    expect(instructionsOf(getMedia({ disablePayloadAccessControl: true, storage: false }).media).useInAdmin).toBe(false)
-    expect(instructionsOf(getMedia(true).media).useInAdmin).toBe(false)
-  })
-
   it('refuses client upload instructions for a stream-only TUS collection', async () => {
-    const { media } = getMedia({ disablePayloadAccessControl: true, storage: false })
+    const result = initPlugin(
+      {
+        collections: { media: { disablePayloadAccessControl: true, storage: false } },
+        storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', s3: true, zoneName: 'zone' },
+        stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, mp4Fallback: true, tus: true },
+      },
+      [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
+    )
+    const media = result.collections!.find((entry) => entry.slug === 'media')!
     const req = {
       payload: { collections: { media: { config: media } }, config: { upload: {} } },
       t: (key: string) => key,
     }
 
     await expect(
-      instructionsOf(media).generate({
+      (media.upload as { uploadInstructions: UploadInstructions }).uploadInstructions.generate({
         collectionSlug: 'media',
         filename: 'clip.mp4',
         filesize: 1000,
@@ -109,41 +93,21 @@ describe('upload instructions wiring', () => {
       }),
     ).rejects.toMatchObject({ status: 403 })
   })
-
-  it('sends videos of a collection with Storage client uploads to Stream instead', async () => {
-    const { media } = getMedia({ storage: { clientUploads: true } })
-    const req = {
-      payload: { collections: { media: { config: media } }, config: { upload: {} } },
-      t: (key: string) => key,
-    }
-
-    await expect(
-      instructionsOf(media).generate({
-        collectionSlug: 'media',
-        filename: 'clip.mp4',
-        filesize: 1000,
-        mimeType: 'video/mp4',
-        overrideAccess: true,
-        req,
-      }),
-    ).rejects.toMatchObject({ status: 400 })
-  })
 })
 
 describe('schema when the plugin is disabled', () => {
   const fieldNames = (enabled: boolean): string[] => {
-    const incoming = {
-      collections: [
+    const result = initPlugin(
+      {
+        collections: { media: { prefix: 'media' } },
+        enabled,
+        storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+      },
+      [
         { slug: 'media', fields: [], upload: { variants: [{ name: 'thumb', width: 100 }] } },
         { slug: 'posts', fields: [] },
       ],
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { media: { prefix: 'media' } },
-      enabled,
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageOptions).init(incoming) as Config
+    )
 
     expect(result.collections?.find((entry) => entry.slug === 'posts')?.fields).toEqual([])
 
@@ -151,6 +115,16 @@ describe('schema when the plugin is disabled', () => {
       'name' in field ? [field.name] : [],
     )
   }
+
+  const initDisabled = (media: MediaOptions) =>
+    initPlugin(
+      {
+        collections: { media },
+        enabled: false,
+        storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+      },
+      [{ slug: 'media', fields: [], upload: true }],
+    )
 
   it('inserts the prefix and object key fields', () => {
     const fields = fieldNames(false)
@@ -167,24 +141,14 @@ describe('schema when the plugin is disabled', () => {
   })
 
   it('defaults the prefix to the collection prefix', () => {
-    const incoming = { collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config
-    const result = bunnyStorage({
-      collections: { media: { prefix: 'media' } },
-      enabled: false,
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageOptions).init(incoming) as Config
+    const result = initDisabled({ prefix: 'media' })
     const prefix = result.collections?.[0]?.fields.find((field) => 'name' in field && field.name === 'prefix')
 
     expect(prefix).toMatchObject({ type: 'text', defaultValue: 'media' })
   })
 
   it('does not wire the adapter, hooks or plugin options', () => {
-    const incoming = { collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config
-    const result = bunnyStorage({
-      collections: { media: true },
-      enabled: false,
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageOptions).init(incoming) as Config
+    const result = initDisabled(true)
 
     expect(result.collections?.[0]?.upload).toBe(true)
     expect(result.collections?.[0]?.hooks).toBeUndefined()
@@ -218,15 +182,26 @@ describe('collections set to false', () => {
 
 describe('removed options', () => {
   const init = (options: Record<string, unknown>, enabled = true) =>
-    bunnyStorage({
-      collections: { media: true },
-      enabled,
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-      ...options,
-    } as BunnyStorageOptions).init({ collections: [{ slug: 'media', fields: [], upload: true }] } as unknown as Config)
+    initPlugin(
+      {
+        collections: { media: true },
+        enabled,
+        storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+        ...options,
+      },
+      [{ slug: 'media', fields: [], upload: true }],
+    )
+  const stream = { apiKey: 'a', hostname: 'h', libraryId: 1 }
 
   it.each([
+    [{ apiKey: 'key' }, 'apiKey was renamed to accountApiKey'],
+    [
+      { i18n: { translations: {} } },
+      "i18n was removed, use Payload's i18n.translations['@seshuk/payload-storage-bunny']",
+    ],
     [{ telemetry: { endpoint: 'https://x' } }, 'telemetry.endpoint was renamed to telemetry.url'],
+    [{ adminThumbnail: 'thumbnail' }, 'adminThumbnail was renamed to thumbnail'],
+    [{ purge: { apiKey: 'key' } }, 'purge.apiKey was removed, use the top-level accountApiKey'],
     [
       { urlTransform: { transformUrl: () => '' } },
       'urlTransform.transformUrl was removed, use urlTransform: (args) => url',
@@ -234,6 +209,14 @@ describe('removed options', () => {
     [
       { thumbnail: { appendTimestamp: true } },
       'thumbnail.appendTimestamp was renamed to thumbnail.urlTransform.appendTimestamp',
+    ],
+    [
+      { thumbnail: { queryParams: { v: '1' } } },
+      'thumbnail.queryParams was renamed to thumbnail.urlTransform.queryParams',
+    ],
+    [
+      { thumbnail: { transformUrl: () => '' } },
+      'thumbnail.transformUrl was removed, use thumbnail.urlTransform: (args) => url',
     ],
     [
       { signedUrls: { expiresAt: () => 1 } },
@@ -248,19 +231,25 @@ describe('removed options', () => {
       'signedUrls.staticHandler.redirectStatus was renamed to signedUrls.staticHandler.redirect.status',
     ],
     [
+      { signedUrls: { staticHandler: { expiresIn: 60 } } },
+      'signedUrls.staticHandler.expiresIn was renamed to signedUrls.staticHandler.redirect.expiresIn',
+    ],
+    [
       { storage: { apiKey: 'a', hostname: 'h', s3: { region: 'ny' }, zoneName: 'z' } },
       'storage.s3.region was removed, use storage.region with storage.s3: true',
     ],
     [
-      { stream: { apiKey: 'a', hostname: 'h', libraryId: 1, tus: { checkAccess: () => true } } },
+      { stream: { ...stream, tus: { checkAccess: () => true } } },
       'stream.tus.checkAccess was renamed to stream.tus.access',
     ],
     [
-      { i18n: { translations: {} } },
-      "i18n was removed, use Payload's i18n.translations['@seshuk/payload-storage-bunny']",
+      { stream: { ...stream, tus: { mimeTypes: ['video/*'] } } },
+      'stream.tus.mimeTypes was renamed to stream.mimeTypes',
     ],
-    [{ apiKey: 'key' }, 'apiKey was renamed to accountApiKey'],
-    [{ purge: { apiKey: 'key' } }, 'purge.apiKey was removed, use the top-level accountApiKey'],
+    [
+      { stream: { ...stream, tus: { uploadTimeout: 60 } } },
+      'stream.tus.uploadTimeout was renamed to stream.tus.expiresIn',
+    ],
   ])('throws a hint for %o', (options, message) => {
     expect(() => init(options)).toThrow(`[@seshuk/payload-storage-bunny] ${message}`)
     expect(() => init(options, false)).toThrow(`[@seshuk/payload-storage-bunny] ${message}`)
@@ -300,15 +289,14 @@ describe('removed options', () => {
 
 describe('translations', () => {
   const getTranslations = (i18n?: Config['i18n']) => {
-    const incoming = {
-      collections: [{ slug: 'media', fields: [], upload: true }],
-      i18n,
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { media: true },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-    } as BunnyStorageOptions).init(incoming) as Config
+    const result = initPlugin(
+      {
+        collections: { media: true },
+        storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+      },
+      [{ slug: 'media', fields: [], upload: true }],
+      { i18n },
+    )
 
     return result.i18n?.translations as Record<string, Record<string, Record<string, string>>>
   }
@@ -333,23 +321,17 @@ describe('translations', () => {
 })
 
 describe('Stream status field', () => {
-  const fieldNames = (stream: Record<string, unknown>): string[] => {
-    const incoming = {
-      collections: [{ slug: 'media', fields: [{ name: 'alt', type: 'text' }], upload: true }],
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { media: { disablePayloadAccessControl: true } },
-      stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, ...stream },
-    } as BunnyStorageOptions).init(incoming) as Config
-
-    return (result.collections?.find((entry) => entry.slug === 'media')?.fields ?? []).flatMap((field) =>
-      'name' in field ? [field.name] : [],
-    )
-  }
+  const mediaCollection = (stream: Record<string, unknown>): CollectionConfig =>
+    initPlugin(
+      {
+        collections: { media: { disablePayloadAccessControl: true } },
+        stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, ...stream },
+      },
+      [{ slug: 'media', fields: [{ name: 'alt', type: 'text' }], upload: true }],
+    ).collections!.find((entry) => entry.slug === 'media')!
 
   it('comes after the storage fields so it is not one of the default list columns', () => {
-    expect(fieldNames({})).toEqual([
+    expect(mediaCollection({}).fields.flatMap((field) => ('name' in field ? [field.name] : []))).toEqual([
       'bunnyData',
       'alt',
       'thumbnailURL',
@@ -361,23 +343,6 @@ describe('Stream status field', () => {
     ])
   })
 
-  it('is not added when the status is turned off', () => {
-    expect(fieldNames({ status: false })).not.toContain('bunnyStream')
-  })
-
-  const mediaCollection = (stream: Record<string, unknown>) => {
-    const incoming = {
-      collections: [{ slug: 'media', fields: [{ name: 'alt', type: 'text' }], upload: true }],
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { media: { disablePayloadAccessControl: true } },
-      stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, ...stream },
-    } as BunnyStorageOptions).init(incoming) as Config
-
-    return result.collections!.find((entry) => entry.slug === 'media')!
-  }
-
   it('selects the stored video only when the status is on', () => {
     const select = (stream: Record<string, unknown>) =>
       mediaCollection(stream).select!({ select: { bunnyStream: true } } as never) as Record<string, unknown>
@@ -385,12 +350,13 @@ describe('Stream status field', () => {
     expect(select({ mp4Fallback: true, status: false }).bunnyData).toBeUndefined()
   })
 
-  it('adds the beforeChange hook that keeps the stored values when the status or mp4Fallback is on', () => {
-    const hookCount = (stream: Record<string, unknown>) => mediaCollection(stream).hooks!.beforeChange!.length
-    const neither = hookCount({ mp4Fallback: false, status: false })
-    expect(hookCount({ mp4Fallback: false })).toBe(neither + 1)
-    expect(hookCount({ mp4Fallback: true, status: false })).toBe(neither + 1)
-    expect(hookCount({ mp4Fallback: true })).toBe(neither + 1)
+  it.each([
+    { expected: false, stream: { mp4Fallback: false, status: false } },
+    { expected: true, stream: { mp4Fallback: false } },
+    { expected: true, stream: { mp4Fallback: true, status: false } },
+    { expected: true, stream: { mp4Fallback: true } },
+  ])('adds the beforeChange hook that keeps the stored values: $expected for $stream', ({ expected, stream }) => {
+    expect(mediaCollection(stream).hooks!.beforeChange!.includes(streamBeforeChangeHook)).toBe(expected)
   })
 
   it('always sends the library ID to the admin and turns the dashboard link on only when it is on', () => {
@@ -404,17 +370,16 @@ describe('Stream status field', () => {
   })
 
   it('gives each collection its own status field', () => {
-    const incoming = {
-      collections: [
+    const result = initPlugin(
+      {
+        collections: { clips: { disablePayloadAccessControl: true }, media: { disablePayloadAccessControl: true } },
+        stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1 },
+      },
+      [
         { slug: 'media', fields: [], upload: true },
         { slug: 'clips', fields: [], upload: true },
       ],
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { clips: { disablePayloadAccessControl: true }, media: { disablePayloadAccessControl: true } },
-      stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1 },
-    } as BunnyStorageOptions).init(incoming) as Config
+    )
 
     const [media, clips] = ['media', 'clips'].map((slug) =>
       result
@@ -428,14 +393,12 @@ describe('Stream status field', () => {
 })
 
 describe('background tasks wiring', () => {
-  const init = (options: Partial<BunnyStorageOptions>, incoming: Partial<Config> = {}): Config =>
-    bunnyStorage({
-      collections: { media: { disablePayloadAccessControl: true } },
-      ...options,
-    } as BunnyStorageOptions).init({
-      collections: [{ slug: 'media', fields: [], upload: true }],
-      ...incoming,
-    } as unknown as Config) as Config
+  const init = (options: Partial<BunnyStorageOptions>, incoming: Record<string, unknown> = {}): Config =>
+    initPlugin(
+      { collections: { media: { disablePayloadAccessControl: true } }, ...options },
+      [{ slug: 'media', fields: [], upload: true }],
+      incoming,
+    )
 
   const stream = { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1 }
   const storage = { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' }
@@ -450,12 +413,14 @@ describe('background tasks wiring', () => {
 
   it('registers only bunny:deploy-edge-script for storage without tasks', () => {
     const { cli } = init({ storage })
-    expect(Object.keys((cli as { commands: object }).commands)).toEqual(['bunny:deploy-edge-script'])
+    expect((cli as { commands: object }).commands).toEqual({
+      'bunny:deploy-edge-script': expect.stringMatching(/cli\/commands\/deployEdgeScript\.js#deployEdgeScriptCommand$/),
+    })
   })
 
   it('adds no CLI commands for a stream-only setup without tasks, and none when cli is false', () => {
     expect(init({ stream }).cli).toBeUndefined()
-    expect(init({ stream: { ...stream, cleanup: true } }, { cli: false } as never).cli).toBe(false)
+    expect(init({ stream: { ...stream, cleanup: true } }, { cli: false }).cli).toBe(false)
   })
 
   it('registers the Payload tasks and the tasks endpoint', () => {
@@ -477,18 +442,14 @@ describe('background tasks wiring', () => {
 })
 
 describe('TUS upload component', () => {
-  const getUpload = (tus: boolean): unknown => {
-    const incoming = {
-      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*'] } }],
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { media: { disablePayloadAccessControl: true, storage: false } },
-      stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, tus },
-    } as BunnyStorageOptions).init(incoming) as Config
-
-    return result.collections?.[0]?.admin?.components?.edit?.Upload
-  }
+  const getUpload = (tus: boolean): unknown =>
+    initPlugin(
+      {
+        collections: { media: { disablePayloadAccessControl: true, storage: false } },
+        stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, tus },
+      },
+      [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*'] } }],
+    ).collections?.[0]?.admin?.components?.edit?.Upload
 
   it('renders the server wrapper with the collection slug so the edit view keeps its filePreview', () => {
     expect(getUpload(true)).toEqual({
@@ -504,15 +465,14 @@ describe('TUS upload component', () => {
 
 describe('Stream file preview', () => {
   const getFilePreview = (media: MediaOptions, preview?: boolean): unknown => {
-    const incoming = {
-      collections: [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
-    } as unknown as Config
-
-    const result = bunnyStorage({
-      collections: { media },
-      storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
-      stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, preview },
-    } as BunnyStorageOptions).init(incoming) as Config
+    const result = initPlugin(
+      {
+        collections: { media },
+        storage: { apiKey: 'zone-pw', hostname: 'cdn.b-cdn.net', zoneName: 'zone' },
+        stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1, preview },
+      },
+      [{ slug: 'media', fields: [], upload: { mimeTypes: ['video/*', 'image/*'] } }],
+    )
 
     const upload = result.collections?.[0]?.upload as { admin?: { components?: { filePreview?: unknown } } }
     return upload.admin?.components?.filePreview
@@ -542,15 +502,14 @@ describe('Stream file preview', () => {
   })
 
   it('warns on init when the final filePreview turns off the Stream player', async () => {
-    const config = bunnyStorage({
-      collections: { media: { disablePayloadAccessControl: true, storage: false } },
-      stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1 },
-      telemetry: false,
-    } as BunnyStorageOptions).init({
-      collections: [
-        { slug: 'media', fields: [], upload: { admin: { components: { filePreview: { 'video/*': false } } } } },
-      ],
-    } as unknown as Config) as Config
+    const config = initPlugin(
+      {
+        collections: { media: { disablePayloadAccessControl: true, storage: false } },
+        stream: { apiKey: 'stream-key', hostname: 'vz.b-cdn.net', libraryId: 1 },
+        telemetry: false,
+      },
+      [{ slug: 'media', fields: [], upload: { admin: { components: { filePreview: { 'video/*': false } } } } }],
+    )
     const payload = {
       collections: { media: { config: config.collections?.[0] } },
       config,

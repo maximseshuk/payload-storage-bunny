@@ -3,45 +3,33 @@ import { describe, expect, it } from 'vitest'
 import { intersectMimeTypes, isImage, isRestrictedFileType, matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 
 describe('isImage', () => {
-  it('returns true for image/* types', () => {
-    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
-    imageTypes.forEach((type) => expect(isImage(type)).toBe(true))
+  it.each(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'])('returns true for %s', (type) => {
+    expect(isImage(type)).toBe(true)
   })
 
-  it('returns false for non-image types', () => {
-    const nonImageTypes = ['video/mp4', 'application/pdf', 'audio/mpeg', 'text/plain']
-    nonImageTypes.forEach((type) => expect(isImage(type)).toBe(false))
+  it.each(['video/mp4', 'application/pdf', 'audio/mpeg', 'text/plain'])('returns false for %s', (type) => {
+    expect(isImage(type)).toBe(false)
   })
 })
 
 describe('matchesMimeTypePattern', () => {
-  it('matches exact types', () => {
-    expect(matchesMimeTypePattern('video/mp4', 'video/mp4')).toBe(true)
-    expect(matchesMimeTypePattern('image/jpeg', 'image/jpeg')).toBe(true)
-  })
-
-  it('does not match different types', () => {
-    expect(matchesMimeTypePattern('video/mp4', 'video/webm')).toBe(false)
-    expect(matchesMimeTypePattern('video/mp4', 'audio/mp4')).toBe(false)
-  })
-
-  it('matches wildcards', () => {
-    expect(matchesMimeTypePattern('video/mp4', 'video/*')).toBe(true)
-    expect(matchesMimeTypePattern('video/webm', 'video/*')).toBe(true)
-    expect(matchesMimeTypePattern('audio/mpeg', 'audio/*')).toBe(true)
-    expect(matchesMimeTypePattern('image/png', 'image/*')).toBe(true)
-    expect(matchesMimeTypePattern('application/pdf', 'application/*')).toBe(true)
-  })
-
-  it('does not match a wildcard across categories', () => {
-    expect(matchesMimeTypePattern('audio/mp3', 'video/*')).toBe(false)
-    expect(matchesMimeTypePattern('video/mp4', 'image/*')).toBe(false)
-  })
-
-  it('handles edge cases', () => {
-    expect(matchesMimeTypePattern('video/mp4', '')).toBe(false)
-    expect(matchesMimeTypePattern('image/svg+xml', 'image/*')).toBe(true)
-    expect(matchesMimeTypePattern('application/vnd.ms-excel', 'application/*')).toBe(true)
+  it.each([
+    ['video/mp4', 'video/mp4', true],
+    ['image/jpeg', 'image/jpeg', true],
+    ['video/mp4', 'video/webm', false],
+    ['video/mp4', 'audio/mp4', false],
+    ['video/mp4', 'video/*', true],
+    ['video/webm', 'video/*', true],
+    ['audio/mpeg', 'audio/*', true],
+    ['image/png', 'image/*', true],
+    ['application/pdf', 'application/*', true],
+    ['audio/mp3', 'video/*', false],
+    ['video/mp4', 'image/*', false],
+    ['video/mp4', '', false],
+    ['image/svg+xml', 'image/*', true],
+    ['application/vnd.ms-excel', 'application/*', true],
+  ])('matches %s against %j: %s', (type, pattern, expected) => {
+    expect(matchesMimeTypePattern(type, pattern)).toBe(expected)
   })
 })
 

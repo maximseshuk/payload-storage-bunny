@@ -17,6 +17,7 @@ const {
   getStreamTusUploadOffset,
   getStreamTusUpload,
   getStreamVideo,
+  getStreamVideoOriginalSize,
   getStreamVideoState,
   getStreamVideoResolutions,
   getWebhookVideoState,
@@ -338,6 +339,28 @@ describe('listStreamVideos', () => {
   it('falls back to the generic message for other HTTPError statuses', async () => {
     getMock.mockRejectedValue(httpError(404))
     await expect(listStreamVideos({ ...creds })).rejects.toThrow('Unable to list videos')
+  })
+})
+
+describe('getStreamVideoOriginalSize', () => {
+  it.each([
+    ['the stored original size', { data: { originals: 2048 } }, 2048],
+    ['0 without storage data', { data: null }, 0],
+  ])('returns %s', async (_label, body, expected) => {
+    getMock.mockResolvedValue(jsonResponse(body))
+
+    expect(await getStreamVideoOriginalSize({ ...creds, videoId: 'vid-1' })).toBe(expected)
+    expect(getMock).toHaveBeenCalledWith(
+      'https://video.bunnycdn.com/library/42/videos/vid-1/storage',
+      expect.objectContaining({ headers: { Accept: 'application/json', AccessKey: 'stream-key' } }),
+    )
+  })
+
+  it('maps 404 to video not found', async () => {
+    getMock.mockRejectedValue(httpError(404))
+    await expect(getStreamVideoOriginalSize({ ...creds, videoId: 'vid-1' })).rejects.toThrow(
+      'Bunny Stream: Video not found: vid-1',
+    )
   })
 })
 

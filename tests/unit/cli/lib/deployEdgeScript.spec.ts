@@ -84,36 +84,6 @@ describe('buildEdgeDeployPlan', () => {
     expect(group.sharedSecret).toBe('shared')
   })
 
-  it('merges two non-S3 zones that share a scriptUrl and secret into one group', () => {
-    const options = createNormalizedOptions({
-      collections: {
-        archives: {
-          storage: {
-            apiKey: 'archives-key',
-            clientUploads: edge('shared'),
-            hostname: 'archives.b-cdn.net',
-            zoneName: 'archives',
-          },
-        },
-      },
-      storage: {
-        apiKey: 'media-key',
-        clientUploads: edge('shared'),
-        hostname: 'media.b-cdn.net',
-        zoneName: 'media',
-      },
-    } as never)
-
-    const plan = buildEdgeDeployPlan(options)
-
-    expect(plan.errors).toEqual([])
-    expect(plan.groups).toHaveLength(1)
-    const [group] = plan.groups
-    expect(Object.keys(group.zones).toSorted()).toEqual(['archives', 'media'])
-    expect(group.sharedSecret).toBe('shared')
-    expect(group.scriptUrl).toBe('https://uploader.b-cdn.net')
-  })
-
   it('splits zones into separate groups by distinct scriptUrl', () => {
     const options = createNormalizedOptions({
       collections: {

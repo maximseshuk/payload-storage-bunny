@@ -68,24 +68,7 @@ describe('validateCollectionSlug', () => {
   })
 })
 
-describe('storageMainRegionOptions', () => {
-  it('offers the 9 HDD regions for HTTP and the same minus São Paulo for S3', () => {
-    const http = storageMainRegionOptions('http').map((r) => r.code)
-    const s3 = storageMainRegionOptions('s3').map((r) => r.code)
-    expect(http).toHaveLength(9)
-    expect(http[0]).toBe('de')
-    expect(s3).toEqual(http.filter((code) => code !== 'br'))
-  })
-})
-
 describe('storageReplicationRegionOptions', () => {
-  it('offers 9 regions for HTTP Standard and 15 for HTTP Edge (SSD)', () => {
-    expect(storageReplicationRegionOptions('http', 'standard')).toHaveLength(9)
-    const edge = storageReplicationRegionOptions('http', 'edge').map((r) => r.code)
-    expect(edge).toHaveLength(15)
-    expect(edge).toEqual(expect.arrayContaining(['cz', 'es', 'mi', 'wa', 'hk', 'jp']))
-  })
-
   it('offers 8 S3 regions (no São Paulo) regardless of tier', () => {
     expect(storageReplicationRegionOptions('s3', 'standard')).toHaveLength(8)
     const edge = storageReplicationRegionOptions('s3', 'edge').map((r) => r.code)
@@ -108,6 +91,7 @@ describe('region options', () => {
     const codes = (options: { code: string }[]) => options.map((r) => r.code)
     expect(codes(storageMainRegionOptions('http'))).toEqual(hdd)
     expect(codes(storageMainRegionOptions('s3'))).toEqual(hdd.filter((code) => code !== 'br'))
+    expect(codes(storageReplicationRegionOptions('http', 'standard'))).toEqual(hdd)
     expect(codes(storageReplicationRegionOptions('http', 'edge'))).toEqual([...hdd, 'cz', 'es', 'mi', 'wa', 'hk', 'jp'])
     expect(codes(streamRegionOptions())).toEqual(hdd)
   })

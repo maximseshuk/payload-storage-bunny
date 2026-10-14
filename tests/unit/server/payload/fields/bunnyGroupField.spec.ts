@@ -26,27 +26,20 @@ const tokenFor = (videoId: string, collection = 'media', user: unknown = editor)
 
 describe('bunnyGroupField', () => {
   describe('getBunnyData', () => {
-    it('returns null when the doc is undefined', () => {
-      expect(getBunnyData(undefined, 'a.mp4')).toBeNull()
-    })
-
-    it('returns null when the doc is not an object', () => {
-      expect(getBunnyData('nope' as unknown as TypeWithID, 'a.mp4')).toBeNull()
-    })
-
-    it('returns null when the filename does not match', () => {
-      const doc = { filename: 'other.mp4', bunnyData: { stream: { videoId: 'v1' } } } as unknown as TypeWithID
-      expect(getBunnyData(doc, 'a.mp4')).toBeNull()
-    })
-
-    it('returns null when videoId is missing', () => {
-      const doc = { filename: 'a.mp4', bunnyData: { stream: {} } } as unknown as TypeWithID
-      expect(getBunnyData(doc, 'a.mp4')).toBeNull()
-    })
-
-    it('returns null when videoId is not a string', () => {
-      const doc = { filename: 'a.mp4', bunnyData: { stream: { videoId: 123 } } } as unknown as TypeWithID
-      expect(getBunnyData(doc, 'a.mp4')).toBeNull()
+    it.each<[string, unknown, string, string[]?]>([
+      ['the doc is undefined', undefined, 'a.mp4'],
+      ['the doc is not an object', 'nope', 'a.mp4'],
+      ['the filename does not match', { filename: 'other.mp4', bunnyData: { stream: { videoId: 'v1' } } }, 'a.mp4'],
+      ['videoId is missing', { filename: 'a.mp4', bunnyData: { stream: {} } }, 'a.mp4'],
+      ['videoId is not a string', { filename: 'a.mp4', bunnyData: { stream: { videoId: 123 } } }, 'a.mp4'],
+      [
+        'a stale videoId remains on an image',
+        { filename: 'photo.jpg', bunnyData: { stream: { videoId: 'v1' } }, mimeType: 'image/jpeg' },
+        'photo.jpg',
+        ['video/*'],
+      ],
+    ])('returns null when %s', (_, doc, filename, mimeTypes) => {
+      expect(getBunnyData(doc as TypeWithID | undefined, filename, mimeTypes)).toBeNull()
     })
 
     it('returns the stream payload for a valid doc', () => {
@@ -58,11 +51,6 @@ describe('bunnyGroupField', () => {
       expect(getBunnyData(doc, 'a.mp4')).toEqual({
         stream: { resolutions: { available: ['720p'], highest: '720p' }, videoId: 'v1' },
       })
-    })
-
-    it('returns null when a stale videoId remains on an image', () => {
-      const doc = { filename: 'photo.jpg', bunnyData: { stream: { videoId: 'v1' } }, mimeType: 'image/jpeg' }
-      expect(getBunnyData(doc as unknown as TypeWithID, 'photo.jpg', ['video/*'])).toBeNull()
     })
 
     it.each([

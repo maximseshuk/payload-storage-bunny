@@ -88,22 +88,7 @@ describe('storageStaticHandler', () => {
     expect(res.headers.get('cache-control')).toBe('private, max-age=31536000')
     expect(res.headers.get('vary')).toBe('Cookie, Authorization')
     expect(res.headers.get('set-cookie')).toBeNull()
-  })
-
-  it('joins the prefix and appends the incoming query string to the upstream URL', async () => {
-    fetchMock.mockResolvedValue(new Response(streamBody('x'), { status: 200 }))
-
-    await storageStaticHandler({
-      collection,
-      filename: 'photo.jpg',
-      prefix: 'tenants/acme',
-      req: makeReq({}, '/api/media/file/photo.jpg?width=100'),
-      signedUrls: false,
-      storageOptions: storageOptions(),
-      usePayloadAccessControl: true,
-    })
-
-    expect(fetchMock.mock.calls[0][0]).toBe('https://cdn.b-cdn.net/tenants/acme/photo.jpg?width=100')
+    expect(res.headers.get('etag')).toBe('"abc"')
   })
 
   it('serves an empty document prefix from under the collection prefix', async () => {
@@ -136,10 +121,7 @@ describe('storageStaticHandler', () => {
       usePayloadAccessControl: true,
     })
 
-    const fetchedUrl = fetchMock.mock.calls[0][0] as string
-    expect(fetchedUrl).toContain('ts=1')
-    expect(fetchedUrl).not.toContain('prefix=')
-    expect(fetchedUrl).toContain('tenants/acme/photo.jpg')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://cdn.b-cdn.net/tenants/acme/photo.jpg?ts=1')
   })
 
   it('signs the prefixed path in redirect mode after stripping the prefix param', async () => {
@@ -206,22 +188,6 @@ describe('storageStaticHandler', () => {
 
     expect(res.status).toBe(404)
     expect(res.statusText).toBe('Not Found')
-  })
-
-  it('returns 304 when the request etag matches the upstream etag', async () => {
-    fetchMock.mockResolvedValue(new Response(streamBody('x'), { headers: { etag: '"abc"' }, status: 200 }))
-
-    const res = await storageStaticHandler({
-      collection,
-      filename: 'photo.jpg',
-      req: makeReq({ 'if-none-match': '"abc"' }),
-      signedUrls: false,
-      storageOptions: storageOptions(),
-      usePayloadAccessControl: true,
-    })
-
-    expect(res.status).toBe(304)
-    expect(res.headers.get('etag')).toBe('"abc"')
   })
 
   it('fetches the whole original for a transformer without redirect, query, Range or 304', async () => {

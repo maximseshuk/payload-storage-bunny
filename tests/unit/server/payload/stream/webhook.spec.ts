@@ -2,11 +2,21 @@ import { createHmac } from 'node:crypto'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { requestMock } = vi.hoisted(() => ({ requestMock: vi.fn() }))
+const { checkSizeMock, requestMock, writeMock } = vi.hoisted(() => ({
+  checkSizeMock: vi.fn(),
+  requestMock: vi.fn(),
+  writeMock: vi.fn(),
+}))
 
 vi.mock('@/server/bunny/client.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/bunny/client.js')>()),
   bunnyRequest: requestMock,
+}))
+
+vi.mock('@/server/payload/stream/storedStream.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/payload/stream/storedStream.js')>()),
+  checkStreamOriginalSize: checkSizeMock,
+  writeStoredStream: writeMock,
 }))
 
 const mp4Resolutions = (...resolutions: string[]) => ({
@@ -16,7 +26,8 @@ const mp4Resolutions = (...resolutions: string[]) => ({
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
 const { getStreamEndpoints } = await import('@/server/payload/stream/endpoints.js')
 
-const collection = { slug: 'media', upload: { mimeTypes: ['video/mp4'] } }
+const { createBaseStream, createOwnStream } = await import('../../../../helpers/unit/optionsBuilders.js')
+const { buildStreamReq, multiLibraryOptions } = await import('../../../../helpers/unit/stream.js')
 
 const sign = (rawBody: string, secret: string) => createHmac('sha256', secret).update(rawBody).digest('hex')
 
@@ -25,46 +36,52 @@ const storedDoc = (stream: Record<string, unknown> = {}) => ({
   bunnyData: { stream: { videoId: 'v1', ...stream } },
 })
 
-const statusWhere = (id: string, status: Record<string, unknown>) => ({
-  and: [
-    { id: { equals: id } },
-    { 'bunnyData.stream.videoId': { equals: 'v1' } },
-    { 'bunnyData.stream.status': status },
-  ],
-})
+const expectWrite = (stream: Record<string, unknown>, whenStatus?: null | string, collection = 'media') =>
+  expect(writeMock).toHaveBeenCalledExactlyOnceWith({
+    collection,
+    id: 'doc-1',
+    req: expect.anything(),
+    stream: { videoId: 'v1', ...stream },
+    whenStatus,
+  })
 
 const buildOptions = (mp4Fallback = true, status = true) =>
   createNormalizedOptions({
     collections: { media: { disablePayloadAccessControl: true } },
-    stream: {
-      apiKey: 'stream-key',
-      hostname: 'stream.b-cdn.net',
-      libraryId: 12345,
-      mp4Fallback,
-      status,
-      webhook: { secret: 'hook-secret' },
-    },
+    stream: { ...createBaseStream(), mp4Fallback, status, webhook: { secret: 'hook-secret' } },
   } as never)
+
+const buildMultiOptions = () =>
+  createNormalizedOptions(
+    multiLibraryOptions({
+      alpha: { mp4Fallback: true, webhook: { secret: 'alpha-hook' } },
+      beta: { mp4Fallback: false, webhook: { secret: 'beta-hook' } },
+      gamma: { mp4Fallback: true },
+      stream: { mp4Fallback: true, webhook: { secret: 'global-hook' } },
+    }) as never,
+  )
+
+const video = { upload: { mimeTypes: ['video/mp4'] } }
 
 const buildReq = (
   body: Record<string, unknown>,
   {
     algorithm = 'hmac-sha256',
+    collections = ['media'],
     find = vi.fn(),
     findOne = vi.fn(),
     secret = 'hook-secret',
     signature,
     update = vi.fn(),
-    updateOne = vi.fn(),
     version = 'v1',
   }: {
     algorithm?: null | string
+    collections?: string[]
     find?: unknown
     findOne?: unknown
     secret?: null | string
     signature?: string
     update?: unknown
-    updateOne?: unknown
     version?: null | string
   } = {},
 ) => {
@@ -81,19 +98,17 @@ const buildReq = (
     headers.set('x-bunnystream-signature-algorithm', algorithm)
   }
 
-  return {
+  return buildStreamReq({
+    collections: Object.fromEntries(collections.map((slug) => [slug, video])),
     headers,
-    payload: {
-      collections: { media: { config: collection } },
-      db: { findOne, updateOne },
-      find,
-      logger: { debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
-      update,
-    },
+    payload: { db: { findOne }, find, update },
     text: async () => rawBody,
     url: 'http://localhost/api/storage-bunny/stream/webhook',
-  } as never
+  })
 }
+
+const buildMultiReq = (body: Record<string, unknown>, overrides: Parameters<typeof buildReq>[1] = {}) =>
+  buildReq(body, { collections: ['alpha', 'beta', 'gamma'], secret: 'global-hook', ...overrides })
 
 const getWebhookHandler = (options: ReturnType<typeof buildOptions>) => {
   const endpoint = getStreamEndpoints(options).find((e) => e.path === '/storage-bunny/stream/webhook')
@@ -103,36 +118,30 @@ const getWebhookHandler = (options: ReturnType<typeof buildOptions>) => {
 describe('Stream webhook endpoint', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    writeMock.mockResolvedValue(true)
   })
 
-  it('returns 401 for a signature computed with the wrong secret', async () => {
-    const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { secret: 'wrong' }))
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['a signature computed with the wrong secret', 111, { secret: 'wrong' }],
+    ['a signature computed with the wrong secret for the global library', 12345, { secret: 'wrong' }],
+    ['a signature computed with the secret of another library', 111, {}],
+    ['no signature header', 111, { secret: null }],
+    ['a malformed (non-hex, wrong length) signature', 111, { signature: 'nope' }],
+    ['an unsupported signature version', 111, { secret: 'alpha-hook', version: 'v2' }],
+    ['an unsupported signature algorithm', 111, { algorithm: 'hmac-sha1', secret: 'alpha-hook' }],
+    ['no signature version or algorithm', 111, { algorithm: null, secret: 'alpha-hook', version: null }],
+    ['a library without a webhook secret', 333, {}],
+    ['an unknown library', 99999, {}],
+  ] as const)('returns 401 for %s', async (_label, VideoLibraryId, overrides) => {
+    const res = await getWebhookHandler(buildMultiOptions())(
+      buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId }, overrides),
+    )
 
     expect(res.status).toBe(401)
-  })
-
-  it('returns 401 when the signature header is missing', async () => {
-    const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { secret: null }))
-
-    expect(res.status).toBe(401)
-  })
-
-  it('returns 401 for a malformed (non-hex, wrong length) signature', async () => {
-    const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { signature: 'nope' }))
-
-    expect(res.status).toBe(401)
-  })
-
-  it('returns 401 when the signature version or algorithm is unsupported', async () => {
-    const handler = getWebhookHandler(buildOptions())
-    const body = { Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }
-
-    expect((await handler(buildReq(body, { version: 'v2' }))).status).toBe(401)
-    expect((await handler(buildReq(body, { algorithm: 'hmac-sha1' }))).status).toBe(401)
-    expect((await handler(buildReq(body, { algorithm: null, version: null }))).status).toBe(401)
   })
 
   it('returns 400 for an invalid payload', async () => {
@@ -142,116 +151,73 @@ describe('Stream webhook endpoint', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 401 for an unknown library id', async () => {
-    const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 99999 }))
-
-    expect(res.status).toBe(401)
-  })
-
   it('stores the resolutions and the ready state on a finished (Status 3) webhook', async () => {
     const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
-    const updateOne = vi.fn().mockResolvedValue(null)
     requestMock.mockResolvedValue(mp4Resolutions('720p', '480p'))
 
     const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
 
     expect((await res.json()).success).toBe(true)
     expect(findOne).toHaveBeenCalledWith(
       expect.objectContaining({ collection: 'media', where: { 'bunnyData.stream.videoId': { equals: 'v1' } } }),
     )
-    expect(updateOne).toHaveBeenCalledTimes(1)
-    expect(updateOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        collection: 'media',
-        data: {
-          bunnyData: {
-            stream: { resolutions: { available: ['720p', '480p'], highest: '720p' }, status: 'ready', videoId: 'v1' },
-          },
-          updatedAt: null,
-        },
-        select: { id: true },
-        where: { and: [{ id: { equals: 'doc-1' } }, { 'bunnyData.stream.videoId': { equals: 'v1' } }] },
-      }),
-    )
+    expectWrite({ resolutions: { available: ['720p', '480p'], highest: '720p' }, status: 'ready' })
   })
 
   it.each([
-    [2, undefined, 'processing', { exists: false }],
-    [3, 'processing', 'ready', { equals: 'processing' }],
-    [5, 'processing', 'failed', { equals: 'processing' }],
-    [8, 'ready', 'failed', { equals: 'ready' }],
-  ])('stores the state of a Status %s webhook over a stored %s state', async (Status, stored, expected, where) => {
+    [2, undefined, 'processing', null],
+    [3, 'processing', 'ready', 'processing'],
+    [5, 'processing', 'failed', 'processing'],
+    [8, 'ready', 'failed', 'ready'],
+  ])('stores the state of a Status %s webhook over a stored %s state', async (Status, stored, expected, whenStatus) => {
     const findOne = vi.fn().mockResolvedValue(storedDoc({ status: stored }))
-    const updateOne = vi.fn().mockResolvedValue(null)
 
     const handler = getWebhookHandler(buildOptions(false))
-    await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+    await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
 
     expect(requestMock).not.toHaveBeenCalled()
-    expect(updateOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { bunnyData: { stream: { status: expected, videoId: 'v1' } }, updatedAt: null },
-        where: statusWhere('doc-1', where),
-      }),
-    )
-  })
-
-  it('keeps a stored processing state on a Status 4 webhook, because the first resolution cannot play yet', async () => {
-    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
-    const updateOne = vi.fn().mockResolvedValue(null)
-
-    const handler = getWebhookHandler(buildOptions())
-    await handler(buildReq({ Status: 4, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
-
-    expect(updateOne).not.toHaveBeenCalled()
+    expectWrite({ status: expected }, whenStatus)
   })
 
   it('a Status 3 webhook without mp4Fallback resends the stored resolutions when it writes the ready state', async () => {
     const resolutions = { available: ['720p'], highest: '720p' }
     const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions, status: 'processing' }))
-    const updateOne = vi.fn().mockResolvedValue(null)
 
     const handler = getWebhookHandler(buildOptions(false))
-    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
 
     expect(requestMock).not.toHaveBeenCalled()
-    expect(updateOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v1' } }, updatedAt: null },
-      }),
-    )
+    expectWrite({ resolutions, status: 'ready' }, 'processing')
   })
 
   it.each([
     [2, 'processing'],
+    [4, 'processing'],
     [4, 'ready'],
     [5, 'failed'],
     [1, 'ready'],
     [7, 'failed'],
   ])('writes nothing for a Status %s webhook over a stored %s state', async (Status, stored) => {
     const findOne = vi.fn().mockResolvedValue(storedDoc({ status: stored }))
-    const updateOne = vi.fn()
 
     const handler = getWebhookHandler(buildOptions())
-    const res = await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+    const res = await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
 
     expect((await res.json()).success).toBe(true)
     expect(findOne).toHaveBeenCalled()
-    expect(updateOne).not.toHaveBeenCalled()
+    expect(writeMock).not.toHaveBeenCalled()
   })
 
   it('writes nothing for a finished webhook when the state and resolutions are already stored', async () => {
     const resolutions = { available: ['720p'], highest: '720p' }
     const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions, status: 'ready' }))
-    const updateOne = vi.fn()
     requestMock.mockResolvedValue(mp4Resolutions('720p'))
 
     const handler = getWebhookHandler(buildOptions())
-    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
 
-    expect(updateOne).not.toHaveBeenCalled()
+    expect(writeMock).not.toHaveBeenCalled()
   })
 
   it.each([9, 10])('ignores a Status %s webhook that does not change the encoding state', async (Status) => {
@@ -263,69 +229,43 @@ describe('Stream webhook endpoint', () => {
     expect(findOne).not.toHaveBeenCalled()
   })
 
-  it('stores the ready state without resolutions when mp4Fallback is disabled', async () => {
-    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
-    const updateOne = vi.fn().mockResolvedValue(null)
-    const handler = getWebhookHandler(buildOptions(false))
-    const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
-
-    expect((await res.json()).success).toBe(true)
-    expect(requestMock).not.toHaveBeenCalled()
-    expect(updateOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { bunnyData: { stream: { status: 'ready', videoId: 'v1' } }, updatedAt: null },
-        where: statusWhere('doc-1', { equals: 'processing' }),
-      }),
-    )
-  })
-
-  it('warns when the original file of a video that became ready differs from the stored file size', async () => {
-    const findOne = vi.fn().mockResolvedValue({ ...storedDoc({ status: 'processing' }), filesize: 1000 })
-    const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
-    requestMock.mockResolvedValue({ json: async () => ({ data: { originals: 999 } }) })
-    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
+  it('checks the size of the original file of a video that became ready', async () => {
+    const doc = { ...storedDoc({ status: 'processing' }), filesize: 1000 }
+    const findOne = vi.fn().mockResolvedValue(doc)
+    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne })
 
     expect((await (await getWebhookHandler(buildOptions(false))(req)).json()).success).toBe(true)
 
-    expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ url: expect.stringMatching(/\/library\/12345\/videos\/v1\/storage$/) }),
-    )
-    expect((req as { payload: { logger: { warn: unknown } } }).payload.logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ collection: 'media', docId: 'doc-1', filesize: 1000, original: 999, videoId: 'v1' }),
+    expect(checkSizeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ apiKey: 'stream-key', collection: 'media', doc, libraryId: 12345, videoId: 'v1' }),
     )
   })
 
   it('skips the size check when another request already stored the ready state', async () => {
+    writeMock.mockResolvedValue(false)
     const findOne = vi.fn().mockResolvedValue({ ...storedDoc({ status: 'processing' }), filesize: 1000 })
-    const updateOne = vi.fn().mockResolvedValue(null)
-    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
+    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne })
 
     expect((await (await getWebhookHandler(buildOptions(false))(req)).json()).success).toBe(true)
 
-    expect(updateOne).toHaveBeenCalledOnce()
-    expect(requestMock).not.toHaveBeenCalled()
+    expect(writeMock).toHaveBeenCalledOnce()
+    expect(checkSizeMock).not.toHaveBeenCalled()
   })
 
   it('keeps the stored resolutions and still stores the state when the resolution lookup throws', async () => {
     const resolutions = { available: ['720p'], highest: '720p' }
     const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions, status: 'processing' }))
-    const updateOne = vi.fn().mockResolvedValue(null)
     requestMock.mockRejectedValue(new Error('bunny down'))
 
     const handler = getWebhookHandler(buildOptions())
-    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
+    const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne })
     const res = await handler(req)
 
     expect((await res.json()).success).toBe(true)
     expect((req as { payload: { logger: { error: unknown } } }).payload.logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ msg: '[bunny:stream] failed to fetch resolutions' }),
     )
-    expect(updateOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v1' } }, updatedAt: null },
-        where: statusWhere('doc-1', { equals: 'processing' }),
-      }),
-    )
+    expectWrite({ resolutions, status: 'ready' }, 'processing')
   })
 
   it.each([
@@ -336,37 +276,54 @@ describe('Stream webhook endpoint', () => {
     async (_, arrange) => {
       arrange()
       const findOne = vi.fn().mockResolvedValue(storedDoc({ resolutions: null, status: 'processing' }))
-      const updateOne = vi.fn()
 
       const handler = getWebhookHandler(buildOptions())
-      const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+      const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
 
       expect(res.status).toBe(500)
-      expect(updateOne).not.toHaveBeenCalled()
+      expect(writeMock).not.toHaveBeenCalled()
     },
   )
 
-  it('writes only while the document still points at the video of the webhook', async () => {
-    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
-    const updateOne = vi.fn().mockResolvedValue(null)
+  it.each([
+    ['a database error', 3, () => vi.fn().mockRejectedValue(new Error('connection refused')), 0],
+    [
+      'a failed write',
+      5,
+      () => {
+        writeMock.mockRejectedValue(new Error('write conflict'))
+        return vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
+      },
+      1,
+    ],
+  ])(
+    'answers 500 without looking again after %s, so Bunny sends the webhook again',
+    async (_, Status, arrange, writes) => {
+      vi.useFakeTimers()
+      const findOne = arrange()
+      const req = buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne })
 
-    const handler = getWebhookHandler(buildOptions(false))
-    await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+      const res = await getWebhookHandler(buildOptions())(req)
 
-    const where = updateOne.mock.calls[0][0].where.and
-    expect(where).toContainEqual({ 'bunnyData.stream.videoId': { equals: 'v1' } })
-  })
+      expect(res.status).toBe(500)
+      expect(await res.json()).toEqual({ error: 'Internal server error' })
+      expect(findOne).toHaveBeenCalledTimes(1)
+      expect(writeMock).toHaveBeenCalledTimes(writes)
+      expect(vi.getTimerCount()).toBe(0)
+      expect((req as any).payload.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: '[bunny:stream] webhook: error processing video' }),
+      )
+    },
+  )
 
   describe('with the status turned off', () => {
-    it('stores the resolutions straight to the database on a finished webhook, without payload.update', async () => {
+    it('stores the resolutions on a finished webhook without payload.update', async () => {
       const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-1' }] })
       const update = vi.fn()
-      const findOne = vi.fn().mockResolvedValue(storedDoc())
-      const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
       requestMock.mockResolvedValue(mp4Resolutions('720p'))
 
       const handler = getWebhookHandler(buildOptions(true, false))
-      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, update, updateOne })
+      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update })
       await handler(req)
 
       expect(find).toHaveBeenCalledWith({
@@ -376,42 +333,27 @@ describe('Stream webhook endpoint', () => {
         req,
         where: { 'bunnyData.stream.videoId': { equals: 'v1' } },
       })
-      expect(updateOne).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({
-          collection: 'media',
-          data: {
-            bunnyData: { stream: { resolutions: { available: ['720p'], highest: '720p' }, videoId: 'v1' } },
-            updatedAt: null,
-          },
-          req,
-          where: { and: [{ id: { equals: 'doc-1' } }, { 'bunnyData.stream.videoId': { equals: 'v1' } }] },
-        }),
-      )
+      expectWrite({ resolutions: { available: ['720p'], highest: '720p' } })
       expect(update).not.toHaveBeenCalled()
     })
 
     it.each([
       ['checks the file size when the resolutions change', undefined, 1],
       ['skips the file size check when a repeated webhook brings the same resolutions', ['720p'], 0],
-    ])('%s', async (_label, stored, warnings) => {
+    ])('%s', async (_label, stored, checks) => {
       const doc = {
         ...storedDoc(stored ? { resolutions: { available: stored, highest: '720p' } } : {}),
         filesize: 1000,
       }
       const find = vi.fn().mockResolvedValue({ docs: [doc] })
-      const findOne = vi.fn().mockResolvedValue(doc)
-      const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
-      requestMock.mockImplementation(async ({ url }: { url: string }) =>
-        url.endsWith('/storage') ? { json: async () => ({ data: { originals: 999 } }) } : mp4Resolutions('720p'),
+      requestMock.mockResolvedValue(mp4Resolutions('720p'))
+
+      await getWebhookHandler(buildOptions(true, false))(
+        buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find }),
       )
 
-      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, updateOne })
-      await getWebhookHandler(buildOptions(true, false))(req)
-
-      expect(updateOne).toHaveBeenCalledOnce()
-      expect(
-        (req as { payload: { logger: { warn: ReturnType<typeof vi.fn> } } }).payload.logger.warn,
-      ).toHaveBeenCalledTimes(warnings)
+      expect(writeMock).toHaveBeenCalledOnce()
+      expect(checkSizeMock).toHaveBeenCalledTimes(checks)
     })
 
     it.each([
@@ -420,13 +362,12 @@ describe('Stream webhook endpoint', () => {
     ])('answers 500 without writing when %s, so Bunny sends the webhook again', async (_, arrange) => {
       arrange()
       const find = vi.fn().mockResolvedValue({ docs: [{ id: 'doc-1' }] })
-      const update = vi.fn()
 
       const handler = getWebhookHandler(buildOptions(true, false))
-      const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, update }))
+      const res = await handler(buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find }))
 
       expect(res.status).toBe(500)
-      expect(update).not.toHaveBeenCalled()
+      expect(writeMock).not.toHaveBeenCalled()
     })
 
     it('answers 500 when the document lookup fails', async () => {
@@ -449,64 +390,50 @@ describe('Stream webhook endpoint', () => {
     ])('reads and writes nothing for a Status %s webhook (mp4Fallback %s)', async (Status, mp4Fallback) => {
       const find = vi.fn()
       const findOne = vi.fn()
-      const updateOne = vi.fn()
 
       const handler = getWebhookHandler(buildOptions(mp4Fallback, false))
-      const res = await handler(
-        buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne, updateOne }),
-      )
+      const res = await handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { find, findOne }))
 
       expect((await res.json()).success).toBe(true)
       expect(find).not.toHaveBeenCalled()
       expect(findOne).not.toHaveBeenCalled()
-      expect(updateOne).not.toHaveBeenCalled()
+      expect(writeMock).not.toHaveBeenCalled()
     })
   })
 
   describe('when the document does not exist yet', () => {
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
     it('looks again one second later and stores the state once the document exists', async () => {
       vi.useFakeTimers()
       const findOne = vi
         .fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValue(storedDoc({ status: 'processing' }))
-      const updateOne = vi.fn().mockResolvedValue({ id: 'doc-1' })
 
       const handler = getWebhookHandler(buildOptions(false))
-      const pending = handler(buildReq({ Status: 5, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+      const pending = handler(buildReq({ Status: 5, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
       await vi.advanceTimersByTimeAsync(999)
       expect(findOne).toHaveBeenCalledTimes(1)
       await vi.advanceTimersByTimeAsync(1)
       const res = await pending
 
       expect((await res.json()).success).toBe(true)
-      expect(findOne).toHaveBeenCalledTimes(3)
-      expect(updateOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: { bunnyData: { stream: { status: 'failed', videoId: 'v1' } }, updatedAt: null },
-          where: statusWhere('doc-1', { equals: 'processing' }),
-        }),
-      )
+      expect(findOne).toHaveBeenCalledTimes(2)
+      expectWrite({ status: 'failed' }, 'processing')
     })
 
     it.each([3, 5])('gives up after three more lookups for a Status %s webhook', async (Status) => {
       vi.useFakeTimers()
       const findOne = vi.fn().mockResolvedValue(null)
-      const updateOne = vi.fn()
 
       const handler = getWebhookHandler(buildOptions())
-      const pending = handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne }))
+      const pending = handler(buildReq({ Status, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne }))
       await vi.advanceTimersByTimeAsync(3000)
       const res = await pending
 
       expect((await res.json()).success).toBe(true)
       expect(findOne).toHaveBeenCalledTimes(4)
       expect(requestMock).not.toHaveBeenCalled()
-      expect(updateOne).not.toHaveBeenCalled()
+      expect(writeMock).not.toHaveBeenCalled()
     })
 
     it.each([0, 1, 2, 4, 6, 7, 8])('does not look again for a Status %s webhook', async (Status) => {
@@ -519,22 +446,6 @@ describe('Stream webhook endpoint', () => {
       expect((await res.json()).success).toBe(true)
       expect(findOne).toHaveBeenCalledTimes(1)
       expect(vi.getTimerCount()).toBe(0)
-    })
-
-    it('answers 500 without looking again after a database error, so Bunny sends the webhook again', async () => {
-      vi.useFakeTimers()
-      const findOne = vi.fn().mockRejectedValue(new Error('connection refused'))
-      const req = buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne })
-
-      const res = await getWebhookHandler(buildOptions())(req)
-
-      expect(res.status).toBe(500)
-      expect(await res.json()).toEqual({ error: 'Internal server error' })
-      expect(findOne).toHaveBeenCalledTimes(1)
-      expect(vi.getTimerCount()).toBe(0)
-      expect((req as any).payload.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ msg: '[bunny:stream] webhook: error processing video' }),
-      )
     })
 
     it('stops looking, logs and answers 500 when a later lookup fails', async () => {
@@ -566,137 +477,21 @@ describe('Stream webhook endpoint', () => {
     })
   })
 
-  it('answers 500 when storing the state fails', async () => {
-    const findOne = vi.fn().mockResolvedValue(storedDoc({ status: 'processing' }))
-    const updateOne = vi.fn().mockRejectedValue(new Error('write conflict'))
-    const req = buildReq({ Status: 5, VideoGuid: 'v1', VideoLibraryId: 12345 }, { findOne, updateOne })
-
-    const res = await getWebhookHandler(buildOptions())(req)
-
-    expect(res.status).toBe(500)
-    expect(updateOne).toHaveBeenCalledOnce()
-  })
-
   it('returns 500 when reading the raw body throws', async () => {
     const handler = getWebhookHandler(buildOptions())
-    const badReq = {
+    const badReq = buildStreamReq({
       headers: new Headers(),
-      payload: { collections: {}, logger: { debug: vi.fn(), error: vi.fn() } },
       text: async () => {
         throw new Error('body read failed')
       },
       url: 'http://localhost/api/storage-bunny/stream/webhook',
-    } as never
+    })
 
     const res = await handler(badReq)
     expect(res.status).toBe(500)
   })
 
   describe('multiple Stream libraries', () => {
-    const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
-    const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
-    const gamma = { slug: 'gamma', upload: { mimeTypes: ['video/mp4'] } }
-
-    const buildMultiOptions = () =>
-      createNormalizedOptions({
-        collections: {
-          alpha: {
-            disablePayloadAccessControl: true,
-            stream: {
-              apiKey: 'alpha-key',
-              hostname: 'alpha.b-cdn.net',
-              libraryId: 111,
-              mp4Fallback: true,
-              webhook: { secret: 'alpha-hook' },
-            },
-          },
-          beta: {
-            disablePayloadAccessControl: true,
-            stream: {
-              apiKey: 'beta-key',
-              hostname: 'beta.b-cdn.net',
-              libraryId: 222,
-              mp4Fallback: false,
-              webhook: { secret: 'beta-hook' },
-            },
-          },
-          gamma: {
-            disablePayloadAccessControl: true,
-            stream: { apiKey: 'gamma-key', hostname: 'gamma.b-cdn.net', libraryId: 333, mp4Fallback: true },
-          },
-        },
-        stream: {
-          apiKey: 'stream-key',
-          hostname: 'stream.b-cdn.net',
-          libraryId: 12345,
-          mp4Fallback: true,
-          webhook: { secret: 'global-hook' },
-        },
-      } as never)
-
-    const buildMultiReq = (
-      body: Record<string, unknown>,
-      {
-        findOne = vi.fn(),
-        secret = 'global-hook',
-        signature,
-        updateOne = vi.fn(),
-      }: { findOne?: unknown; secret?: null | string; signature?: string; updateOne?: unknown } = {},
-    ) => {
-      const rawBody = JSON.stringify(body)
-      const headers = new Headers()
-      const sig = signature !== undefined ? signature : secret ? sign(rawBody, secret) : undefined
-      if (sig) {
-        headers.set('x-bunnystream-signature', sig)
-        headers.set('x-bunnystream-signature-version', 'v1')
-        headers.set('x-bunnystream-signature-algorithm', 'hmac-sha256')
-      }
-
-      return {
-        headers,
-        payload: {
-          collections: { alpha: { config: alpha }, beta: { config: beta }, gamma: { config: gamma } },
-          db: { findOne, updateOne },
-          logger: { debug: vi.fn(), error: vi.fn() },
-        },
-        text: async () => rawBody,
-        url: 'http://localhost/api/storage-bunny/stream/webhook',
-      } as never
-    }
-
-    it('authenticates a body signed with the library-bound secret', async () => {
-      const handler = getWebhookHandler(buildMultiOptions())
-
-      const res = await handler(
-        buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 111 }, { secret: 'alpha-hook' }),
-      )
-      expect((await res.json()).success).toBe(true)
-    })
-
-    it('rejects a body signed with the secret of another library', async () => {
-      const handler = getWebhookHandler(buildMultiOptions())
-
-      const res = await handler(
-        buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 111 }, { secret: 'global-hook' }),
-      )
-      expect(res.status).toBe(401)
-    })
-
-    it('returns 401 for a library that has no configured webhook secret', async () => {
-      const handler = getWebhookHandler(buildMultiOptions())
-
-      const res = await handler(
-        buildMultiReq({ Status: 2, VideoGuid: 'v', VideoLibraryId: 333 }, { secret: 'global-hook' }),
-      )
-      expect(res.status).toBe(401)
-    })
-
-    it('returns 401 for a library not in the configured set', async () => {
-      const handler = getWebhookHandler(buildMultiOptions())
-      const res = await handler(buildMultiReq({ Status: 3, VideoGuid: 'v', VideoLibraryId: 555 }))
-      expect(res.status).toBe(401)
-    })
-
     it('searches only collections of the incoming library', async () => {
       const findOne = vi.fn().mockResolvedValue(null)
       const handler = getWebhookHandler(buildMultiOptions())
@@ -710,39 +505,27 @@ describe('Stream webhook endpoint', () => {
 
     it('respects per-collection mp4Fallback and uses the collection credentials', async () => {
       const findOne = vi.fn().mockResolvedValue(storedDoc())
-      const updateOne = vi.fn().mockResolvedValue(null)
       requestMock.mockResolvedValue(mp4Resolutions('720p'))
 
       const handler = getWebhookHandler(buildMultiOptions())
       await handler(
-        buildMultiReq(
-          { Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 },
-          { findOne, secret: 'alpha-hook', updateOne },
-        ),
+        buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 111 }, { findOne, secret: 'alpha-hook' }),
       )
       expect(requestMock).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: 'alpha-key', url: expect.stringContaining('/library/111/') }),
+        expect.objectContaining({ apiKey: 'own-stream-key-111', url: expect.stringContaining('/library/111/') }),
       )
-      expect(updateOne).toHaveBeenCalledWith(expect.objectContaining({ collection: 'alpha' }))
+      expect(writeMock).toHaveBeenCalledWith(expect.objectContaining({ collection: 'alpha' }))
 
       requestMock.mockClear()
+      writeMock.mockClear()
       const findBeta = vi.fn().mockResolvedValue(storedDoc())
-      const updateBeta = vi.fn().mockResolvedValue(null)
       const res = await handler(
-        buildMultiReq(
-          { Status: 3, VideoGuid: 'v1', VideoLibraryId: 222 },
-          { findOne: findBeta, secret: 'beta-hook', updateOne: updateBeta },
-        ),
+        buildMultiReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 222 }, { findOne: findBeta, secret: 'beta-hook' }),
       )
       expect((await res.json()).success).toBe(true)
       expect(findBeta).toHaveBeenCalledWith(expect.objectContaining({ collection: 'beta' }))
       expect(requestMock).not.toHaveBeenCalled()
-      expect(updateBeta).toHaveBeenCalledWith(
-        expect.objectContaining({
-          collection: 'beta',
-          data: { bunnyData: { stream: { status: 'ready', videoId: 'v1' } }, updatedAt: null },
-        }),
-      )
+      expectWrite({ status: 'ready' }, null, 'beta')
     })
 
     it('registers the webhook endpoint when only a collection has a webhook', () => {
@@ -750,13 +533,7 @@ describe('Stream webhook endpoint', () => {
         collections: {
           videos: {
             disablePayloadAccessControl: true,
-            stream: {
-              apiKey: 'v-key',
-              hostname: 'v.b-cdn.net',
-              libraryId: 900,
-              mp4Fallback: true,
-              webhook: { secret: 'only-hook' },
-            },
+            stream: createOwnStream(900, { mp4Fallback: true, webhook: { secret: 'only-hook' } }),
           },
         },
       } as never)

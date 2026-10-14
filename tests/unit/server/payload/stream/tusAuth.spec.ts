@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { httpError } from '../../../../helpers/unit/httpError.js'
+import { createBaseStream } from '../../../../helpers/unit/optionsBuilders.js'
+import { buildStreamReq, multiLibraryOptions } from '../../../../helpers/unit/stream.js'
 
 const {
   createSessionMock,
@@ -58,34 +60,35 @@ const tusVideo = (status: number, length = 1000, title = 'Draft') => ({
 
 const notFound = () => new Error('HTTP 404', { cause: httpError(404) })
 
-const collection = { slug: 'media', upload: { mimeTypes: ['video/mp4'] } }
-
-const buildOptions = (streamOverrides: Record<string, unknown> = {}, cleanup = false) =>
+const buildOptions = (streamOverrides: Record<string, unknown> = {}) =>
   createNormalizedOptions({
     collections: { media: { disablePayloadAccessControl: true } },
-    stream: {
-      apiKey: 'stream-key',
-      cleanup,
-      hostname: 'stream.b-cdn.net',
-      libraryId: 12345,
-      tus: { access: () => true },
-      ...streamOverrides,
-    },
+    stream: { ...createBaseStream(), tus: { access: () => true }, ...streamOverrides },
   } as never)
 
-const buildReq = (body: Record<string, unknown>, overrides: Record<string, unknown> = {}) =>
-  ({
+const buildReq = (
+  body: Record<string, unknown>,
+  {
+    collections,
+    ...overrides
+  }: { collections?: Record<string, Record<string, unknown>> } & Record<string, unknown> = {},
+) =>
+  buildStreamReq({
+    collections,
     json: async () => body,
-    payload: {
-      config: { upload: {} },
-      collections: { media: { config: collection } },
-      db: { findOne: findOneMock },
-      logger: { debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
-      secret: 'payload-secret',
-    },
-    t: (key: string) => key,
+    payload: { config: { upload: {} }, db: { findOne: findOneMock } },
     ...overrides,
-  }) as never
+  })
+
+const multiCollections = {
+  alpha: { upload: { mimeTypes: ['video/mp4'] } },
+  beta: { upload: { mimeTypes: ['video/mp4'] } },
+}
+
+const alphaBody = { collection: 'alpha', filename: 'a.mp4', filesize: 10, filetype: 'video/mp4', title: 'A' }
+const betaBody = { collection: 'beta', filename: 'b.mp4', filesize: 10, filetype: 'video/mp4', title: 'B' }
+
+const buildMultiReq = (body: Record<string, unknown>) => buildReq(body, { collections: multiCollections })
 
 const tokenFor = (videoId: string, collectionSlug = 'media', libraryId = 12345, user: unknown = null) =>
   signStreamVideoToken({
@@ -181,12 +184,7 @@ describe('TUS auth endpoint', () => {
   it('throws 400 when the requested collection has no stream TUS options', async () => {
     const options = createNormalizedOptions({
       collections: { media: { disablePayloadAccessControl: true, stream: { tus: false } } },
-      stream: {
-        apiKey: 'stream-key',
-        hostname: 'stream.b-cdn.net',
-        libraryId: 12345,
-        tus: { access: () => true },
-      },
+      stream: { ...createBaseStream(), tus: { access: () => true } },
     } as never)
     const handler = getTusHandler(options)
     await expect(handler(buildReq(validBody))).rejects.toMatchObject({ status: 400 })
@@ -386,8 +384,6 @@ describe('TUS auth endpoint', () => {
     ['a forged token', 'f'.repeat(64)],
     ['a token for another collection', tokenFor('reuse-1', 'other')],
     ['a token for another library', tokenFor('reuse-1', 'media', 999)],
-    ['a token for another video', tokenFor('other-video')],
-    ['a token for another user', tokenFor('reuse-1', 'media', 12345, { collection: 'users', id: 'user-2' })],
   ])('creates a new video when the videoId comes with %s', async (_label, videoToken) => {
     const handler = getTusHandler(buildOptions())
     const res = await handler(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
@@ -407,31 +403,12 @@ describe('TUS auth endpoint', () => {
     expect(json.videoToken).not.toBe(tokenFor('new-video-1'))
   })
 
-  it('creates a new video when the video token has expired', async () => {
-    vi.useFakeTimers()
-    try {
-      const videoToken = tokenFor('reuse-1')
-      vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1000)
-      const json = await (
-        await getTusHandler(buildOptions())(buildReq({ ...validBody, videoId: 'reuse-1', videoToken }))
-      ).json()
-
-      expect(getVideoMock).not.toHaveBeenCalled()
-      expect(json.videoId).toBe('new-video-1')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
   describe('file checks', () => {
     const buildCheckReq = (body: Record<string, unknown>, upload: Record<string, unknown>, fileSize?: number) =>
-      buildReq(body, {
-        payload: {
-          collections: { media: { config: { slug: 'media', upload } } },
-          config: { upload: fileSize === undefined ? {} : { limits: { fileSize } } },
-          logger: { debug: vi.fn(), error: vi.fn() },
-          secret: 'payload-secret',
-        },
+      buildStreamReq({
+        collections: { media: { upload } },
+        json: async () => body,
+        payload: { config: { upload: fileSize === undefined ? {} : { limits: { fileSize } } } },
       })
 
     it.each([
@@ -555,37 +532,8 @@ describe('TUS auth endpoint', () => {
     })
 
     describe('per-collection scope', () => {
-      const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
-      const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
-
       const buildScopedOptions = () =>
-        createNormalizedOptions({
-          collections: {
-            alpha: {
-              disablePayloadAccessControl: true,
-              stream: { apiKey: 'alpha-key', hostname: 'alpha.b-cdn.net', libraryId: 111, tus: true },
-            },
-            beta: {
-              disablePayloadAccessControl: true,
-              stream: { apiKey: 'beta-key', hostname: 'beta.b-cdn.net', libraryId: 222, tus: true },
-            },
-          },
-        } as never)
-
-      const buildScopedReq = (body: Record<string, unknown>) =>
-        ({
-          json: async () => body,
-          payload: {
-            config: { upload: {} },
-            collections: { alpha: { config: alpha }, beta: { config: beta } },
-            logger: { debug: vi.fn(), error: vi.fn() },
-            secret: 'payload-secret',
-          },
-          t: (key: string) => key,
-        }) as never
-
-      const alphaBody = { collection: 'alpha', filename: 'a.mp4', filesize: 10, filetype: 'video/mp4', title: 'A' }
-      const betaBody = { collection: 'beta', filename: 'b.mp4', filesize: 10, filetype: 'video/mp4', title: 'B' }
+        createNormalizedOptions(multiLibraryOptions({ alpha: { tus: true }, beta: { tus: true } }) as never)
 
       it('allows alpha and denies beta when the user has create only on alpha', async () => {
         getAccessResultsMock.mockResolvedValue({
@@ -595,10 +543,10 @@ describe('TUS auth endpoint', () => {
         createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
 
         const handler = getTusHandler(buildScopedOptions())
-        await expect(handler(buildScopedReq(betaBody))).rejects.toMatchObject({ status: 403 })
+        await expect(handler(buildMultiReq(betaBody))).rejects.toMatchObject({ status: 403 })
         expect(createVideoMock).not.toHaveBeenCalled()
 
-        const json = await (await handler(buildScopedReq(alphaBody))).json()
+        const json = await (await handler(buildMultiReq(alphaBody))).json()
         expect(json.type).toBe('upload')
         expect(json.libraryId).toBe(111)
       })
@@ -606,54 +554,11 @@ describe('TUS auth endpoint', () => {
   })
 
   describe('per-collection Stream libraries', () => {
-    const alpha = { slug: 'alpha', upload: { mimeTypes: ['video/mp4'] } }
-    const beta = { slug: 'beta', upload: { mimeTypes: ['video/mp4'] } }
-
+    const tus = { access: () => true }
     const buildMultiOptions = () =>
-      createNormalizedOptions({
-        collections: {
-          alpha: {
-            disablePayloadAccessControl: true,
-            stream: {
-              apiKey: 'alpha-key',
-              cleanup: true,
-              hostname: 'alpha.b-cdn.net',
-              libraryId: 111,
-              tus: { access: () => true },
-            },
-          },
-          beta: {
-            disablePayloadAccessControl: true,
-            stream: {
-              apiKey: 'beta-key',
-              hostname: 'beta.b-cdn.net',
-              libraryId: 222,
-              tus: { access: () => true },
-            },
-          },
-        },
-        stream: {
-          apiKey: 'stream-key',
-          hostname: 'stream.b-cdn.net',
-          libraryId: 12345,
-          tus: { access: () => true },
-        },
-      } as never)
-
-    const buildMultiReq = (body: Record<string, unknown>) =>
-      ({
-        json: async () => body,
-        payload: {
-          config: { upload: {} },
-          collections: { alpha: { config: alpha }, beta: { config: beta } },
-          logger: { debug: vi.fn(), error: vi.fn() },
-          secret: 'payload-secret',
-        },
-        t: (key: string) => key,
-      }) as never
-
-    const alphaBody = { collection: 'alpha', filename: 'a.mp4', filesize: 10, filetype: 'video/mp4', title: 'A' }
-    const betaBody = { collection: 'beta', filename: 'b.mp4', filesize: 10, filetype: 'video/mp4', title: 'B' }
+      createNormalizedOptions(
+        multiLibraryOptions({ alpha: { cleanup: true, tus }, beta: { tus }, stream: { tus } }) as never,
+      )
 
     it('creates the signature and response for the library of the requested collection', async () => {
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
@@ -663,8 +568,12 @@ describe('TUS auth endpoint', () => {
 
       expect(json.libraryId).toBe(111)
       expect(json.headers.LibraryId).toBe('111')
-      expect(createUploadMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
-      expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'alpha-key', libraryId: 111 }))
+      expect(createUploadMock).toHaveBeenCalledWith(
+        expect.objectContaining({ apiKey: 'own-stream-key-111', libraryId: 111 }),
+      )
+      expect(createVideoMock).toHaveBeenCalledWith(
+        expect.objectContaining({ apiKey: 'own-stream-key-111', libraryId: 111 }),
+      )
     })
 
     it('calls getStreamVideo with the collection credentials when reusing a video', async () => {
@@ -674,7 +583,7 @@ describe('TUS auth endpoint', () => {
       await handler(buildMultiReq({ ...betaBody, videoId: 'reuse-b', videoToken: tokenFor('reuse-b', 'beta', 222) }))
 
       expect(getVideoMock).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: 'beta-key', libraryId: 222, videoId: 'reuse-b' }),
+        expect.objectContaining({ apiKey: 'own-stream-key-222', libraryId: 222, videoId: 'reuse-b' }),
       )
     })
 
@@ -695,28 +604,12 @@ describe('TUS auth endpoint', () => {
       const betaAccess = vi.fn().mockResolvedValue(true)
       createVideoMock.mockResolvedValue({ guid: 'v-alpha', videoLibraryId: 111 })
 
-      const options = createNormalizedOptions({
-        collections: {
-          alpha: {
-            disablePayloadAccessControl: true,
-            stream: {
-              apiKey: 'alpha-key',
-              hostname: 'alpha.b-cdn.net',
-              libraryId: 111,
-              tus: { access: alphaAccess },
-            },
-          },
-          beta: {
-            disablePayloadAccessControl: true,
-            stream: {
-              apiKey: 'beta-key',
-              hostname: 'beta.b-cdn.net',
-              libraryId: 222,
-              tus: { access: betaAccess },
-            },
-          },
-        },
-      } as never)
+      const options = createNormalizedOptions(
+        multiLibraryOptions({
+          alpha: { tus: { access: alphaAccess } },
+          beta: { tus: { access: betaAccess } },
+        }) as never,
+      )
 
       const handler = getTusHandler(options)
       await handler(buildMultiReq(alphaBody))

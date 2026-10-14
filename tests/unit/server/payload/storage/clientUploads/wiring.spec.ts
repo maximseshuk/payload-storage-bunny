@@ -2,7 +2,9 @@ import type { Config } from 'payload'
 import { getUploadInstructions as getPayloadUploadInstructions, verifyClientUploadReceipt } from 'payload/internal'
 import { describe, expect, it, vi } from 'vitest'
 
-const { createTusUploadMock, createVideoMock } = vi.hoisted(() => ({
+const { beforeOperationHook, beforeValidateHook, createTusUploadMock, createVideoMock } = vi.hoisted(() => ({
+  beforeOperationHook: vi.fn(),
+  beforeValidateHook: vi.fn(),
   createTusUploadMock: vi.fn(async () => 'https://video.bunnycdn.com/tusupload/upload-token'),
   createVideoMock: vi.fn(async () => ({ guid: 'video-guid', videoLibraryId: 1 })),
 }))
@@ -13,15 +15,31 @@ vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
   createStreamVideo: createVideoMock,
 }))
 
-import { bunnyStorage } from '@/index.js'
+vi.mock('@/server/payload/stream/hooks.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/payload/stream/hooks.js')>()),
+  getBeforeValidateHook: () => beforeValidateHook,
+  getStreamFileChangeBeforeOperationHook: () => beforeOperationHook,
+}))
+
 import { verifyEdgeUploadUrl } from '@/server/payload/storage/clientUploads/mint.js'
 import { signStreamVideoToken } from '@/server/payload/stream/tusSignature.js'
 
+import { initPlugin } from '../../../../../helpers/unit/initPlugin.js'
+
 const edgeClientUploads = { edge: { scriptUrl: 'https://uploader.b-cdn.net', secret: 'shared' } }
 
-const buildResult = (clientUploads: false | typeof edgeClientUploads = edgeClientUploads): Config => {
-  const incoming = {
-    collections: [
+const buildResult = (clientUploads: false | typeof edgeClientUploads = edgeClientUploads): Config =>
+  initPlugin(
+    {
+      collections: { media: true },
+      storage: {
+        apiKey: 'zone-pw',
+        ...(clientUploads ? { clientUploads } : {}),
+        hostname: 'cdn.b-cdn.net',
+        zoneName: 'zone',
+      },
+    },
+    [
       { slug: 'users', auth: true, fields: [] },
       {
         slug: 'media',
@@ -29,18 +47,7 @@ const buildResult = (clientUploads: false | typeof edgeClientUploads = edgeClien
         upload: { disableLocalStorage: true, mimeTypes: ['image/*'] },
       },
     ],
-  } as unknown as Config
-
-  return bunnyStorage({
-    collections: { media: true },
-    storage: {
-      apiKey: 'zone-pw',
-      ...(clientUploads ? { clientUploads } : {}),
-      hostname: 'cdn.b-cdn.net',
-      zoneName: 'zone',
-    },
-  }).init(incoming) as Config
-}
+  )
 
 const photo = { collectionSlug: 'media', filename: 'photo.jpg', filesize: 1000, mimeType: 'image/jpeg' }
 
@@ -74,15 +81,6 @@ describe('client uploads plugin wiring', () => {
     )
     expect(getUploadInstructions(result)).not.toHaveProperty('adminHandler')
   })
-
-  it('registers the deploy-edge-script CLI command', () => {
-    const result = buildResult(false)
-    const commands = result.cli === false ? undefined : result.cli?.commands
-    expect(commands?.['bunny:deploy-edge-script']).toEqual(
-      expect.stringMatching(/cli\/commands\/deployEdgeScript\.js#deployEdgeScriptCommand$/),
-    )
-  })
-
   it('creates a signed Edge URL through the registered upload instructions', async () => {
     const result = buildResult()
 
@@ -105,16 +103,9 @@ describe('client uploads plugin wiring', () => {
     expect(instructions.file.uploadReference.signedReceipt).toEqual(expect.any(String))
   })
 
-  it('requires a signed client upload receipt and leaves the prefix to Payload', () => {
-    const withClientUploads = findMedia(buildResult())
-    const withoutClientUploads = findMedia(buildResult(false))
-
-    const instructionsOf = (collection: typeof withClientUploads) =>
-      (collection?.upload as { uploadInstructions?: UploadInstructions } | undefined)?.uploadInstructions
-    expect(instructionsOf(withClientUploads)?.requiresUploadReceipt).toBe(true)
-    expect(instructionsOf(withoutClientUploads)?.requiresUploadReceipt).toBe(true)
-    expect(withClientUploads?.hooks?.beforeChange?.length).toBe(withoutClientUploads?.hooks?.beforeChange?.length)
-    expect(withClientUploads?.hooks?.beforeOperation?.length).toBe(withoutClientUploads?.hooks?.beforeOperation?.length)
+  it('requires a signed client upload receipt', () => {
+    expect(getUploadInstructions(buildResult())?.requiresUploadReceipt).toBe(true)
+    expect(getUploadInstructions(buildResult(false))?.requiresUploadReceipt).toBe(true)
   })
 
   it('runs the default access check before a custom access callback, which can only narrow access', async () => {
@@ -137,14 +128,16 @@ describe('client uploads plugin wiring', () => {
 
   describe('stream client uploads', () => {
     const handlerPath = '@seshuk/payload-storage-bunny/client#BunnyClientUploadHandler'
-    const buildStreamClient = (upload: Record<string, unknown>) =>
-      bunnyStorage({
-        collections: { media: { disablePayloadAccessControl: true } },
-        stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, tus: true },
-      } as never).init({
-        collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true, ...upload } }],
-      } as unknown as Config) as Config
-
+    const streamOptions = {
+      collections: { media: { disablePayloadAccessControl: true } },
+      stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, tus: true },
+    }
+    const buildStreamClient = (upload: Record<string, unknown>, config: Record<string, unknown> = {}) =>
+      initPlugin(
+        streamOptions,
+        [{ slug: 'media', fields: [], upload: { disableLocalStorage: true, ...upload } }],
+        config,
+      )
     it('registers the TUS client upload handler only for collections without upload.mimeTypes', () => {
       const open = buildStreamClient({})
       expect(getUploadInstructions(open)?.useInAdmin).toBe(true)
@@ -162,17 +155,16 @@ describe('client uploads plugin wiring', () => {
 
     it('registers no TUS client upload handler when an upload transformer reads the whole video', () => {
       const build = (transformFile: boolean) =>
-        bunnyStorage({
-          collections: { media: { disablePayloadAccessControl: true } },
-          stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, tus: true },
-        } as never).init({
-          collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
-          upload: {
-            transformers: [
-              { mimeTypes: ['video/*'], name: 'watermark', ...(transformFile && { transformFile: () => {} }) },
-            ],
+        buildStreamClient(
+          {},
+          {
+            upload: {
+              transformers: [
+                { mimeTypes: ['video/*'], name: 'watermark', ...(transformFile && { transformFile: () => {} }) },
+              ],
+            },
           },
-        } as unknown as Config) as Config
+        )
 
       expect(getUploadInstructions(build(true))?.useInAdmin).toBe(false)
       expect(getUploadInstructions(build(false))?.useInAdmin).toBe(true)
@@ -212,14 +204,15 @@ describe('client uploads plugin wiring', () => {
         file: { filename: 'clip.mp4', size: 4096, uploadReference: { _objectKey: 'video-guid', prefix: '' } },
       })
       expect(createVideoMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'clip.mp4' }))
-      expect(createTusUploadMock).toHaveBeenCalledWith({
-        apiKey: 'stream-key',
-        headers: expect.objectContaining({ LibraryId: '1', VideoId: 'video-guid' }),
-        libraryId: 1,
-        metadata: { filetype: 'video/mp4', title: 'clip.mp4' },
-        size: 4096,
-        videoId: 'video-guid',
-      })
+      expect(createTusUploadMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: 'stream-key',
+          libraryId: 1,
+          metadata: { filetype: 'video/mp4', title: 'clip.mp4' },
+          size: 4096,
+          videoId: 'video-guid',
+        }),
+      )
       const [{ headers: creationHeaders }] = createTusUploadMock.mock.calls[0] as unknown as [
         { headers: Record<string, string> },
       ]
@@ -250,20 +243,22 @@ describe('client uploads plugin wiring', () => {
   it('makes the file optional on create for TUS collections and adds a validate and an operation hook', () => {
     const buildStream = (tus: boolean) =>
       findMedia(
-        bunnyStorage({
-          collections: { media: { disablePayloadAccessControl: true } },
-          stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, tus },
-        } as never).init({
-          collections: [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
-        } as unknown as Config) as Config,
+        initPlugin(
+          {
+            collections: { media: { disablePayloadAccessControl: true } },
+            stream: { apiKey: 'stream-key', hostname: 'stream.b-cdn.net', libraryId: 1, tus },
+          },
+          [{ slug: 'media', fields: [], upload: { disableLocalStorage: true } }],
+        ),
       )
 
     const withTus = buildStream(true)
     const withoutTus = buildStream(false)
     expect(withTus?.upload).toMatchObject({ filesRequiredOnCreate: false })
     expect(withoutTus?.upload).not.toHaveProperty('filesRequiredOnCreate')
-    expect(withTus?.hooks?.beforeValidate?.length).toBe((withoutTus?.hooks?.beforeValidate?.length ?? 0) + 1)
-    expect(withTus?.hooks?.beforeChange?.length).toBe(withoutTus?.hooks?.beforeChange?.length)
-    expect(withTus?.hooks?.beforeOperation?.length).toBe((withoutTus?.hooks?.beforeOperation?.length ?? 0) + 1)
+    expect(withTus?.hooks?.beforeValidate).toContain(beforeValidateHook)
+    expect(withTus?.hooks?.beforeOperation).toContain(beforeOperationHook)
+    expect(withoutTus?.hooks?.beforeValidate).not.toContain(beforeValidateHook)
+    expect(withoutTus?.hooks?.beforeOperation).not.toContain(beforeOperationHook)
   })
 })

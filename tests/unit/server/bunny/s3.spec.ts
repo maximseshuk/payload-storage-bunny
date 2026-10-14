@@ -89,8 +89,7 @@ describe('Storage S3 backend', () => {
         path: 'nested/my image.jpg',
       })
 
-      expect(putAnyObjectMock).toHaveBeenCalledTimes(1)
-      expect(putAnyObjectMock).toHaveBeenCalledWith('nested/my image.jpg', buffer, 'image/jpeg')
+      expect(putAnyObjectMock).toHaveBeenCalledExactlyOnceWith('nested/my image.jpg', buffer, 'image/jpeg')
     })
 
     it('passes the upload timeout to the client', async () => {
