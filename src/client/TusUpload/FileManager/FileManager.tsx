@@ -571,7 +571,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
       // eslint-disable-next-line no-console
       console.error('Failed to resume upload:', err)
       updateState({
-        uploadError: 'Failed to resume upload',
+        uploadError: t('@seshuk/payload-storage-bunny:tusUploadErrorRestoreUpload'),
         uploadStatus: 'error',
       })
     }

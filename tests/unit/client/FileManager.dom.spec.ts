@@ -36,6 +36,7 @@ const state = vi.hoisted(() => {
       listeners.add(listener)
       return () => void listeners.delete(listener)
     },
+    startError: null as Error | null,
     storedUploads: [] as unknown[],
     toastError: vi.fn(),
     uploads: [] as {
@@ -112,7 +113,11 @@ vi.mock('tus-js-client', () => ({
     findPreviousUploads = vi.fn(async () => state.storedUploads)
     opts: Record<string, any>
     resumeFromPreviousUpload = vi.fn()
-    start = vi.fn()
+    start = vi.fn(() => {
+      if (state.startError) {
+        throw state.startError
+      }
+    })
     constructor(_file: File, opts: Record<string, any>) {
       this.opts = opts
       state.uploads.push(this as never)
@@ -185,6 +190,7 @@ beforeEach(() => {
   state.failAuth = []
   state.pendingAuth = []
   state.pendingPrevious = []
+  state.startError = null
   state.storedUploads = []
   state.setModified.mockClear()
   state.dispatchFields.mockClear()
@@ -777,6 +783,22 @@ describe('TUS FileManager resume, retry and start over', () => {
     expect(screen.getByRole('status').textContent).toBe(
       '@seshuk/payload-storage-bunny:tusUploadStatusPaused {"progress":42}',
     )
+  })
+
+  it('shows the translated restore error when a paused upload cannot resume', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mount(x)
+    await flush()
+    startUpload()
+    await resolveAuth(0, uploadAuth)
+    click('tusUploadPause')
+    state.startError = new Error('tus: no file')
+
+    click('tusUploadResume')
+
+    expect(uploadStatus()).toBe('error')
+    expect(screen.getByText('@seshuk/payload-storage-bunny:tusUploadErrorRestoreUpload')).not.toBeNull()
+    consoleError.mockRestore()
   })
 
   it('forgets the previous upload when Start over runs', async () => {
