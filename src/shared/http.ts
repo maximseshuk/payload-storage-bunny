@@ -8,6 +8,17 @@ export const copyHeaders = (from: Headers): Headers => {
   return headers
 }
 
+export const upstreamErrorResponse = (response: Response): Response => {
+  response.body?.cancel().catch(() => {})
+  if (response.status === 404) {
+    return new Response(null, { status: 404, statusText: 'Not Found' })
+  }
+  if (response.status === 416) {
+    return new Response(null, { headers: copyHeaders(response.headers), status: 416 })
+  }
+  return new Response(null, { status: 502, statusText: 'Bad Gateway' })
+}
+
 export const jsonResponse = <T>(data: T, status = 200): Response => {
   return new Response(JSON.stringify(data), {
     headers: { 'Content-Type': 'application/json' },

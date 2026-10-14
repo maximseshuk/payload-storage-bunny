@@ -6,7 +6,7 @@ import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
 import { writeStoredStream } from '@/server/payload/stream/storedStream.js'
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStreamCdnUrl } from '@/server/urls.js'
-import { createProxyResponse } from '@/shared/http.js'
+import { createProxyResponse, upstreamErrorResponse } from '@/shared/http.js'
 import type { BunnyDataInternal } from '@/shared/types/core.js'
 import type { NormalizedSignedUrlsOptions, NormalizedStreamOptions } from '@/shared/types/index.js'
 
@@ -230,8 +230,8 @@ export const streamStaticHandler = async ({
     throwHttpErrors: false,
   })
 
-  if (!response.ok && response.status !== 206) {
-    return new Response(null, { status: 404, statusText: 'Not Found' })
+  if (!response.ok) {
+    return upstreamErrorResponse(response)
   }
 
   return createProxyResponse(response, {

@@ -126,13 +126,15 @@ describe('streamThumbnailStaticHandler', () => {
     expect((fetchMock.mock.calls[0][1].headers as Headers).get('referer')).toBe('https://app.local/')
   })
 
-  it('passes through the upstream status when the fetch is not ok', async () => {
-    fetchMock.mockResolvedValue({ body: null, headers: new Headers(), ok: false, status: 404 })
+  it.each([
+    [404, 404],
+    [500, 502],
+  ])('answers an upstream %i with %i', async (upstream, status) => {
+    fetchMock.mockResolvedValue({ body: null, headers: new Headers(), ok: false, status: upstream })
 
     const res = await streamThumbnailStaticHandler(baseArgs())
 
-    expect(res.status).toBe(404)
-    expect(await res.text()).toBe('Thumbnail not found')
+    expect(res.status).toBe(status)
   })
 
   it.each([401, 403])('answers 502 with a hint when the CDN refuses the thumbnail with %s', async (status) => {

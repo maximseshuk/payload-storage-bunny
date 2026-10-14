@@ -174,20 +174,47 @@ describe('storageStaticHandler', () => {
     expect(init.headers.get('Range')).toBe('bytes=0-99')
   })
 
-  it('returns 404 when the upstream response is not ok', async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 404 }))
+  it.each([
+    [404, 404, 'Not Found'],
+    [416, 416, ''],
+    [403, 502, 'Bad Gateway'],
+    [500, 502, 'Bad Gateway'],
+  ])('answers an upstream %i with %i and cancels the upstream body', async (upstream, status, statusText) => {
+    const body = streamBody('error')
+    const cancel = vi.spyOn(body, 'cancel')
+    fetchMock.mockResolvedValue(new Response(body, { headers: { 'content-range': 'bytes */10' }, status: upstream }))
 
     const res = await storageStaticHandler({
       collection,
       filename: 'missing.jpg',
-      req: makeReq(),
+      req: makeReq({ range: 'bytes=20-30' }),
       signedUrls: false,
       storageOptions: storageOptions(),
       usePayloadAccessControl: true,
     })
 
-    expect(res.status).toBe(404)
-    expect(res.statusText).toBe('Not Found')
+    expect(res.status).toBe(status)
+    expect(res.statusText).toBe(statusText)
+    expect(res.headers.get('content-range')).toBe(upstream === 416 ? 'bytes */10' : null)
+    expect(cancel).toHaveBeenCalled()
+  })
+
+  it('cancels the upstream body when it answers 304', async () => {
+    const body = streamBody('x')
+    const cancel = vi.spyOn(body, 'cancel')
+    fetchMock.mockResolvedValue(new Response(body, { headers: { etag: '"abc"' }, status: 200 }))
+
+    const res = await storageStaticHandler({
+      collection,
+      filename: 'photo.jpg',
+      req: makeReq({ 'if-none-match': '"abc"' }),
+      signedUrls: false,
+      storageOptions: storageOptions(),
+      usePayloadAccessControl: true,
+    })
+
+    expect(res.status).toBe(304)
+    expect(cancel).toHaveBeenCalled()
   })
 
   it('fetches the whole original for a transformer without redirect, query, Range or 304', async () => {

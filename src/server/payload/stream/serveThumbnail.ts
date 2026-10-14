@@ -3,7 +3,7 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { httpFetch } from '@/server/http/index.js'
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStreamCdnUrl } from '@/server/urls.js'
-import { copyHeaders } from '@/shared/http.js'
+import { copyHeaders, upstreamErrorResponse } from '@/shared/http.js'
 import type { NormalizedSignedUrlsOptions, NormalizedStreamOptions } from '@/shared/types/index.js'
 
 type Args = {
@@ -73,7 +73,7 @@ export const streamThumbnailStaticHandler = async ({
     }
 
     if (!response.ok) {
-      return new Response('Thumbnail not found', { status: response.status })
+      return upstreamErrorResponse(response)
     }
 
     return new Response(response.body, {

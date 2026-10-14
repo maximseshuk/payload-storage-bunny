@@ -266,6 +266,27 @@ describe('streamStaticHandler', () => {
     expect(await res.text()).toContain('`stream.referer`')
   })
 
+  it.each([
+    [404, 404],
+    [503, 502],
+  ])('answers %i when the CDN answers the MP4 request with %i', async (upstream, status) => {
+    fetchMock.mockImplementation((_url: string, init?: { method?: string }) =>
+      Promise.resolve(init?.method === 'head' ? okHead() : new Response(null, { status: upstream })),
+    )
+
+    const res = await streamStaticHandler({
+      bunnyData: savedResolutions,
+      collection,
+      docId: 'doc1',
+      req: makeReq(),
+      signedUrls: false,
+      streamOptions: streamOptions(),
+      usePayloadAccessControl: true,
+    })
+
+    expect(res.status).toBe(status)
+  })
+
   it('returns 404 when the CDN has no MP4 file', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 404 }))
     getStreamVideoResolutionsMock.mockResolvedValue({

@@ -286,9 +286,13 @@ export const streamThumbnailOperation: OpenAPIV3_1.OperationObject = {
     '403': { description: 'No read access to the document.' },
     '404': {
       description:
-        "Unknown `file`, the collection does not exist, is not managed by the plugin, has no Bunny Stream or `thumbnail`, turns off Payload access control, the document does not exist, neither the document nor its latest draft has the video `videoId`, or the CDN has no thumbnail for it. Other CDN errors return the CDN's status code.",
+        'Unknown `file`, the collection does not exist, is not managed by the plugin, has no Bunny Stream or `thumbnail`, turns off Payload access control, the document does not exist, neither the document nor its latest draft has the video `videoId`, or the CDN has no thumbnail for it.',
     },
     '500': { description: 'Unexpected failure. Details are hidden from the response.' },
+    '502': {
+      description:
+        'The CDN refused the thumbnail request (check `stream.referer` and `stream.tokenSecurityKey`) or failed with another error.',
+    },
   },
   security: [{}, { payloadToken: [] }],
   summary: 'Get the thumbnail of a Stream video',

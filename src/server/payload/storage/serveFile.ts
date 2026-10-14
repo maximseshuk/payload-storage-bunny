@@ -3,7 +3,7 @@ import type { CollectionConfig, FileHandlerOperation, PayloadRequest } from 'pay
 import { httpFetch } from '@/server/http/index.js'
 import { maybeCreateRedirect, maybeGenerateSignedUrl } from '@/server/payload/tokenAuth.js'
 import { buildStorageCdnUrl } from '@/server/urls.js'
-import { copyHeaders, createProxyResponse } from '@/shared/http.js'
+import { copyHeaders, createProxyResponse, upstreamErrorResponse } from '@/shared/http.js'
 import type { NormalizedSignedUrlsOptions, NormalizedStorageOptions } from '@/shared/types/index.js'
 
 type Args = {
@@ -69,14 +69,15 @@ export const storageStaticHandler = async ({
     throwHttpErrors: false,
   })
 
-  if (!response.ok && response.status !== 206) {
-    return new Response(null, { status: 404, statusText: 'Not Found' })
+  if (!response.ok) {
+    return upstreamErrorResponse(response)
   }
 
   const etagFromHeaders = req.headers.get('etag') || req.headers.get('if-none-match')
   const objectEtag = response.headers.get('etag')
 
   if (!isTransformSource && etagFromHeaders && objectEtag && etagFromHeaders === objectEtag) {
+    response.body?.cancel().catch(() => {})
     return new Response(null, {
       headers: copyHeaders(response.headers),
       status: 304,
