@@ -715,3 +715,23 @@ describe('TUS FileManager resume, retry and start over', () => {
     expect(uploadStatus()).toBe('uploading')
   })
 })
+
+describe('TUS FileManager form values after the upload', () => {
+  const x = new File(['x'], 'x.mp4', { type: 'video/mp4' })
+
+  it('writes the file name when tus-auth replaces the previous upload after the upload starts', async () => {
+    vi.mocked(findPreviousTusUploads).mockImplementation(
+      async () => [{ metadata: { title: 'old-title', videoId: 'video-old', videoToken: 'token-old' } }] as never,
+    )
+    mount(x)
+    await flush()
+    await resolveAuth(0, { ...uploadAuth, videoId: 'video-old', videoToken: 'token-old' })
+
+    fireEvent.click(screen.getByRole('button', { name: '@seshuk/payload-storage-bunny:tusUploadResume' }))
+    await resolveAuth(1, uploadAuth)
+    run(() => state.uploads[0]!.opts.onSuccess())
+    await flush()
+
+    expect(formValues()).toMatchObject({ 'bunnyData.stream.videoId': 'video-x', filename: 'x.mp4' })
+  })
+})

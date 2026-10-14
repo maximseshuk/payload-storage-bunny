@@ -79,6 +79,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   const previousVideoFieldsRef = useRef<null | Partial<FormState>>(null)
   const uploadedVideoFieldsRef = useRef<null | Record<string, unknown>>(null)
   const replaceLostUploadRef = useRef<(videoId: string, videoToken: string) => void>(() => {})
+  const tusDataRef = useRef<null | tus.PreviousUpload>(null)
 
   const { dispatchFields, getFields, setBackgroundProcessing, setModified } = useForm()
   const backgroundProcessing = useFormBackgroundProcessing()
@@ -129,15 +130,16 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
   const updateVideoFields = useCallback(
     ({ videoId, videoToken }: TusAuthResponse, file: File) => {
+      const tusData = tusDataRef.current
       const values = {
         'bunnyData.stream.videoId': videoId,
         'bunnyData.stream.videoToken': videoToken,
-        filename: state.tusData?.metadata?.title || file.name,
-        filesize: state.tusData?.size || file.size,
+        filename: tusData?.metadata?.title || file.name,
+        filesize: tusData?.size || file.size,
         focalX: null,
         focalY: null,
         height: null,
-        mimeType: state.tusData?.metadata?.filetype || file.type,
+        mimeType: tusData?.metadata?.filetype || file.type,
         width: null,
       }
       const fields = getFields()
@@ -147,7 +149,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
       setBackgroundProcessing(false)
       setModified(true)
     },
-    [getFields, setBackgroundProcessing, setModified, state.tusData, writeVideoFields],
+    [getFields, setBackgroundProcessing, setModified, writeVideoFields],
   )
 
   const tusAuthUrl = getTusAuthUrl(serverURL, api)
@@ -518,6 +520,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
   useEffect(() => {
     replaceLostUploadRef.current = (videoId, videoToken) => void performUpload(videoId, videoToken, true)
   }, [performUpload])
+
+  useEffect(() => {
+    tusDataRef.current = state.tusData
+  }, [state.tusData])
 
   const startNewUpload = () => performUpload()
   const restoreUpload = () =>
