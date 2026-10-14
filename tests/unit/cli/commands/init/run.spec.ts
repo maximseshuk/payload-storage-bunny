@@ -113,4 +113,22 @@ describe('runInit', () => {
     expect(mocks.appendEnvLines.mock.calls[0][1]).toContainEqual({ name: 'BUNNY_EDGE_SECRET', value: 'known-secret' })
     expect(warnings()).not.toMatch(/BUNNY_EDGE_SECRET was not written/)
   })
+
+  it('exits with 0 and provisions nothing when the shared-secret prompt is cancelled', async () => {
+    mocks.password.mockResolvedValue(Symbol('cancel'))
+
+    expect(await run()).toBe(0)
+    expect(mocks.provisionInit).not.toHaveBeenCalled()
+  })
+
+  it('passes a typed shared secret to provisioning', async () => {
+    mocks.password.mockResolvedValue('  typed-secret ')
+    mocks.provisionInit.mockResolvedValue(provisioned({ secret: 'typed-secret', secretKnown: true }))
+
+    await run()
+
+    expect(mocks.provisionInit).toHaveBeenCalledWith(
+      expect.objectContaining({ edge: { reuseScript: true, sharedSecret: 'typed-secret' } }),
+    )
+  })
 })

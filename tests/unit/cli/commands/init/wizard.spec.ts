@@ -48,4 +48,14 @@ describe('resolveAccountApiKey', () => {
     await expect(resolveAccountApiKey('some-key', logger)).rejects.toThrow(/network error/)
     expect(prompts.password).not.toHaveBeenCalled()
   })
+
+  it('exits with 0 when the key prompt is cancelled', async () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+    prompts.password.mockResolvedValue(Symbol('cancel'))
+
+    await expect(resolveAccountApiKey(undefined, logger)).rejects.toThrow('exit')
+    expect(exit).toHaveBeenCalledWith(0)
+  })
 })

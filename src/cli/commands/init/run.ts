@@ -218,7 +218,12 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
         message:
           "An Edge Script 'payload-storage-bunny-uploader' already exists. Enter its shared secret (the edge.secret / BUNNY_EDGE_SECRET from your existing config) to add this zone to it, or leave blank to skip.",
       })
-      if (!isCancel(provided) && String(provided).trim().length > 0) {
+      if (isCancel(provided)) {
+        cancel('Cancelled — nothing was created.')
+        process.exit(0)
+        return
+      }
+      if (String(provided).trim().length > 0) {
         edgeInput = { reuseScript: true, sharedSecret: String(provided).trim() }
       }
     }

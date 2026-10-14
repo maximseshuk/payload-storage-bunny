@@ -46,7 +46,7 @@ const REPLICATION_WARNING =
 const must = <T>(value: T | symbol): Exclude<T, symbol> => {
   if (isCancel(value)) {
     cancel('Cancelled — nothing was created.')
-    process.exit(1)
+    process.exit(0)
   }
   return value as Exclude<T, symbol>
 }
