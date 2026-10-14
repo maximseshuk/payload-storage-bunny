@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { httpError } from '../../../helpers/unit/httpError.js'
 
-const { callableMock, deleteMock, getMock, postMock } = vi.hoisted(() => ({
+const { callableMock, createMock, deleteMock, getMock, postMock } = vi.hoisted(() => ({
   callableMock: vi.fn(),
+  createMock: vi.fn(),
   deleteMock: vi.fn(),
   getMock: vi.fn(),
   postMock: vi.fn(),
@@ -19,7 +20,7 @@ vi.mock('ky', async (importOriginal) => {
     post: postMock,
     put: vi.fn(),
   })
-  return { ...actual, default: { create: () => instance } }
+  return { ...actual, default: { create: createMock.mockReturnValue(instance) } }
 })
 
 const { httpFetch, httpJson, httpSend } = await import('@/server/http/client.js')
@@ -72,6 +73,30 @@ describe('httpFetch', () => {
 
     expect(callableMock).toHaveBeenCalledWith('https://x.test/a', { method: 'OPTIONS' })
     expect(getMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('response drain hook', () => {
+  const [drain] = createMock.mock.calls[0][0].hooks.afterResponse
+
+  it('drains the body of a non-streaming response and ignores a body that fails mid-read', async () => {
+    const body = Promise.reject(new Error('socket hang up'))
+    const catchSpy = vi.spyOn(body, 'catch')
+    const blob = vi.fn(() => body)
+
+    drain({ options: { context: {} }, response: { blob } })
+    await Promise.resolve()
+
+    expect(blob).toHaveBeenCalledTimes(1)
+    expect(catchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves a streaming response untouched', () => {
+    const blob = vi.fn()
+
+    drain({ options: { context: { stream: true } }, response: { blob } })
+
+    expect(blob).not.toHaveBeenCalled()
   })
 })
 

@@ -17,7 +17,7 @@ const client = ky.create({
   hooks: {
     afterResponse: [
       ({ options, response }) => {
-        if (!options.context.stream) void response.blob()
+        if (!options.context.stream) response.blob().catch(() => {})
       },
     ],
   },
