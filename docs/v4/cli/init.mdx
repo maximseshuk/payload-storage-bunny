@@ -71,7 +71,7 @@ Replication regions are optional and **permanent** once the zone is created. You
 ## What it never does
 
 - It never edits `payload.config.ts` — it prints the options for you to paste.
-- It writes secrets to disk only if you opt in to appending them to `./.env`, and it never overwrites values that already exist there.
+- It writes secrets to disk only if you opt in to appending them to `./.env`, and it never overwrites values that already exist there. A new `.env` is readable by your user only (mode `600`). If the wizard does not know the secret of an existing Edge Script, it leaves `BUNNY_EDGE_SECRET` out of `.env` and asks you to add it.
 - It never deletes any Bunny resource.
 
 ## Reuse and partial failure

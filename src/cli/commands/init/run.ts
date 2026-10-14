@@ -10,7 +10,7 @@ import { buildInitPlan, PRICING, PRICING_NOTE } from '@/cli/lib/plan.js'
 import type { EdgeProvisionInput, Ledger, PreflightResult } from '@/cli/lib/provision.js'
 import { createLedger, preflightInit, provisionInit } from '@/cli/lib/provision.js'
 
-import { buildInitOutput, buildInstallLines } from './output.js'
+import { buildInitOutput, buildInstallLines, EDGE_SECRET_PLACEHOLDER } from './output.js'
 import { resolveAccountApiKey, runWizard } from './wizard.js'
 
 const logger: Logger = { error: log.error, info: log.info, warn: log.warn }
@@ -249,7 +249,10 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
 
     const doAppend = await confirm({ initialValue: false, message: 'Append these lines to ./.env?' })
     if (!isCancel(doAppend) && doAppend) {
-      const appendResult = appendEnvLines('.env', output.env)
+      const appendResult = appendEnvLines(
+        '.env',
+        output.env.filter((entry) => entry.value !== EDGE_SECRET_PLACEHOLDER),
+      )
       if (appendResult.appended.length > 0) {
         logger.info(
           `${appendResult.created ? 'Created' : 'Updated'} ${appendResult.filePath} (+${appendResult.appended.length} variable${appendResult.appended.length === 1 ? '' : 's'}).`,
@@ -257,6 +260,9 @@ export const runInit = async (options: { apiKey?: string; dryRun?: boolean; vers
       }
       if (appendResult.skipped.length > 0) {
         logger.warn(`Kept existing values for: ${appendResult.skipped.join(', ')} (not overwritten).`)
+      }
+      if (output.env.some((entry) => entry.value === EDGE_SECRET_PLACEHOLDER)) {
+        logger.warn('BUNNY_EDGE_SECRET was not written: add it to .env with your existing Edge Script secret.')
       }
     }
   } catch (err) {

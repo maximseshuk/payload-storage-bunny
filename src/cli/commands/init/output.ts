@@ -10,7 +10,7 @@ export type InitOutput = {
   warnings: string[]
 }
 
-const EDGE_SECRET_PLACEHOLDER = 'set-me-to-your-existing-edge-secret'
+export const EDGE_SECRET_PLACEHOLDER = 'set-me-to-your-existing-edge-secret'
 
 const UNKNOWN_EDGE_SECRET_WARNING =
   "Could not determine the existing Edge Script's shared secret — set BUNNY_EDGE_SECRET to the value used by your other project(s), or rotate it everywhere with `npx payload bunny:deploy-edge-script --secret <new>`."

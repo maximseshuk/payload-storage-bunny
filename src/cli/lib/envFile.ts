@@ -63,7 +63,7 @@ export const appendEnvLines = (filePath: string, entries: EnvEntry[]): AppendEnv
       next += '\n'
     }
     next += `${newLines.join('\n')}\n`
-    writeFileSync(resolved, next)
+    writeFileSync(resolved, next, { mode: 0o600 })
   }
 
   return { appended, created: !exists, filePath: resolved, skipped }

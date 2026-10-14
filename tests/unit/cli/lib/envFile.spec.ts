@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -67,6 +67,13 @@ describe('appendEnvLines', () => {
     expect(readFileSync(file, 'utf8')).toBe(
       'BUNNY_STORAGE_API_KEY=zone-pass\nBUNNY_STORAGE_HOSTNAME=my-app.b-cdn.net\n',
     )
+  })
+
+  it('creates the file readable by the owner only', () => {
+    const file = envPath()
+    appendEnvLines(file, entries)
+
+    expect(statSync(file).mode & 0o777).toBe(0o600)
   })
 
   it('appends only missing names to an existing file and preserves a trailing newline', () => {
