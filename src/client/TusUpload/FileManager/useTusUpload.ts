@@ -498,11 +498,15 @@ export const useTusUpload = ({
 
   const startNewUpload = () => performUpload()
   const startOver = () => {
-    if (state.selectedFile && state.existingVideoId) {
-      void cleanupTusLocalStorage(state.selectedFile, state.existingVideoId)
-      updateState({ canRestore: false, existingVideoId: null, tusData: null })
+    const file = state.selectedFile
+    if (!file) {
+      return
     }
-    return performUpload()
+    if (state.existingVideoId) {
+      void cleanupTusLocalStorage(file, state.existingVideoId)
+    }
+    resetState()
+    updateState({ fileName: file.name, selectedFile: file })
   }
   const restoreUpload = () =>
     state.existingVideoId ? performUpload(state.existingVideoId, state.tusData?.metadata?.videoToken) : performUpload()

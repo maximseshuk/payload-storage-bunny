@@ -806,9 +806,24 @@ describe('TUS FileManager resume, retry and start over', () => {
 
     click('tusUploadStartOver')
     await flush()
+    startUpload()
+    await flush()
 
     expect(cleanupTusLocalStorage).toHaveBeenCalledExactlyOnceWith(x, 'video-x')
     expect(state.authBodies[1]).toMatchObject({ videoId: undefined, videoToken: undefined })
+  })
+
+  it('puts back the editable file name when Start over runs', async () => {
+    await restorable()
+    expect(fileName()).toBe('old-x')
+
+    click('tusUploadStartOver')
+    await flush()
+
+    expect(fileName()).toBe('x.mp4')
+    expect(screen.getByLabelText<HTMLInputElement>('upload:fileName').readOnly).toBe(false)
+    expect(uploadStatus()).toBe('idle')
+    expect(state.authBodies).toHaveLength(1)
   })
 })
 
