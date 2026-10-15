@@ -17,7 +17,6 @@ import type { CollectionContext } from '@/shared/types/index.js'
 const context = (streamOptions?: Partial<CollectionContext['streamOptions']>): CollectionContext =>
   ({ streamOptions: streamOptions as CollectionContext['streamOptions'] }) as CollectionContext
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const findField = (field: any, name: string) => field.fields.find((f: any) => f.name === name)
 const run = (doc: any) => (getAfterReadHook() as any)({ doc })
 const editor = { collection: 'users', id: 'user-1' }

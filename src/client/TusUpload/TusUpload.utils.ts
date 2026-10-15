@@ -20,7 +20,6 @@ export const clickFileFieldRemoveButton = (root: HTMLElement | null, timeoutMs =
         observer.disconnect()
         clearTimeout(timeoutId)
         ;(button as HTMLButtonElement).click()
-        // eslint-disable-next-line promise/no-multiple-resolved
         resolve(true)
       }
     })
