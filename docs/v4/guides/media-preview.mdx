@@ -109,6 +109,6 @@ With `status: false` the preview renders the same player iframe as before, right
 
 The endpoint reads the document with Payload access control, so a user sees the state only for documents they can read.
 
-The stored state is the last known state. The status endpoint is authoritative. In a collection with drafts, the admin can load the latest version, which still holds the state from when it was saved, because state writes do not create versions. So the first time you open the preview it can send one status request even for a `ready` video.
+The stored state is the last known state. The status endpoint is authoritative. In a collection with drafts, the admin can load the latest version, which can still hold the state from when it was saved, because state writes do not create versions. With [status sync](/v4/configuration/background-tasks#status-sync) on, a run copies the state of the main document into that version while the version has no state, or is `processing` and was saved in the last `maxAge` seconds. Until then, the first time you open the preview it can send one status request even for a `ready` video.
 
 See the [`@seshuk/payload-plugin-media-preview`](https://github.com/maximseshuk/payload-plugin-media-preview) docs for previewing other file types (images, documents), per-collection adapters, and field placement.

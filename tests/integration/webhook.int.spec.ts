@@ -271,6 +271,98 @@ describe.skipIf(!hasBunnyCredentials())('Stream webhook', () => {
     }
   }, 30000)
 
+  it('stores the state and resolutions in the draft version when only a draft has the video', async () => {
+    const publishedVideoId = `published-video-${Date.now()}`
+    const draftVideoId = `draft-only-video-${Date.now()}`
+    const libraryId = parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0')
+    const created = await payload.db.create({
+      collection: 'webhook-drafts',
+      data: {
+        _status: 'published',
+        alt: 'Published alt',
+        bunnyData: { stream: { status: 'ready', videoId: publishedVideoId } },
+        filename: `${publishedVideoId}.mp4`,
+        mimeType: 'video/mp4',
+      },
+    })
+    const versionsOf = async () =>
+      (
+        await payload.db.findVersions({
+          collection: 'webhook-drafts',
+          pagination: false,
+          sort: '-updatedAt',
+          where: { parent: { equals: created.id } },
+        })
+      ).docs
+    vi.mocked(getStreamVideo).mockResolvedValueOnce({
+      availableResolutions: null,
+      guid: draftVideoId,
+      status: BunnyStreamVideoStatus.Transcoding,
+      storageSize: 1,
+      title: 'Draft video',
+    } as any)
+
+    try {
+      await payload.update({
+        id: created.id,
+        collection: 'webhook-drafts',
+        data: { alt: 'Draft alt', bunnyData: { stream: { status: 'processing', videoId: draftVideoId } } } as any,
+        draft: true,
+        overrideAccess: true,
+      })
+      const before = await versionsOf()
+      const mainBefore = await payload.findByID({ id: created.id, collection: 'webhook-drafts', overrideAccess: true })
+      expect((before[0]!.version as any).bunnyData.stream).toMatchObject({
+        status: 'processing',
+        videoId: draftVideoId,
+      })
+      vi.mocked(getReadyResolutions).mockResolvedValueOnce({ available: ['720p'], highest: '720p' })
+
+      const response = await callWebhook({ Status: 3, VideoGuid: draftVideoId, VideoLibraryId: libraryId })
+      expect(response.status).toBe(200)
+
+      const draft = await payload.findByID({
+        id: created.id,
+        collection: 'webhook-drafts',
+        draft: true,
+        overrideAccess: true,
+      })
+      expect(draft).toMatchObject({
+        _status: 'draft',
+        alt: 'Draft alt',
+        filename: (before[0]!.version as any).filename,
+      })
+      expect((draft.bunnyData as any).stream).toMatchObject({
+        resolutions: { available: ['720p'], highest: '720p' },
+        status: 'ready',
+        videoId: draftVideoId,
+      })
+
+      const after = await versionsOf()
+      expect(after.map(({ id, latest, updatedAt }) => ({ id, latest, updatedAt }))).toEqual(
+        before.map(({ id, latest, updatedAt }) => ({ id, latest, updatedAt })),
+      )
+      expect(after[0]!.version).toMatchObject({
+        ...before[0]!.version,
+        bunnyData: { stream: { resolutions: { available: ['720p'], highest: '720p' }, status: 'ready' } },
+      })
+
+      const main = await payload.findByID({ id: created.id, collection: 'webhook-drafts', overrideAccess: true })
+      expect(main).toMatchObject({ _status: 'published', alt: 'Published alt', updatedAt: mainBefore.updatedAt })
+      expect((main.bunnyData as any).stream).toMatchObject({ status: 'ready', videoId: publishedVideoId })
+
+      const stale = await callWebhook({ Status: 2, VideoGuid: draftVideoId, VideoLibraryId: libraryId })
+      expect(stale.status).toBe(200)
+      const afterStale = await versionsOf()
+      expect((afterStale[0]!.version as any).bunnyData.stream.status).toBe('ready')
+    } finally {
+      vi.mocked(getStreamVideo).mockReset()
+      vi.mocked(getReadyResolutions).mockReset()
+      await payload.db.deleteVersions({ collection: 'webhook-drafts', where: { parent: { equals: created.id } } })
+      await payload.db.deleteOne({ collection: 'webhook-drafts', where: { id: { equals: created.id } } })
+    }
+  }, 30000)
+
   it('keeps the webhook resolutions when the status is off and a draft without them is published', async () => {
     const videoId = `plain-publish-video-${Date.now()}`
     const created = await payload.db.create({

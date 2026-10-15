@@ -222,4 +222,96 @@ describe.skipIf(!hasBunnyCredentials())('Stream status sync task', () => {
       })
     }
   })
+
+  it('stores the state of a video that only the latest draft version has', async () => {
+    const drafts = 'status-sync-drafts'
+    const earlier = new Date(Date.now() - 60_000).toISOString()
+    const now = new Date().toISOString()
+    const stream = (status: string, videoId: string) => ({ bunnyData: { stream: { status, videoId } } })
+    const draftOnly = await payload.db.create({
+      collection: drafts,
+      data: { _status: 'published', alt: 'Draft only', ...stream('ready', 'sync-draft-main') },
+    })
+    const sameVideo = await payload.db.create({
+      collection: drafts,
+      data: { _status: 'published', alt: 'Same video', ...stream('processing', 'sync-draft-same') },
+    })
+    const createVersion = (parent: number | string, alt: string, data: Record<string, unknown>, at = now) =>
+      payload.db.createVersion({
+        autosave: false,
+        collectionSlug: drafts,
+        createdAt: at,
+        parent,
+        updatedAt: at,
+        versionData: { _status: 'draft', alt, ...data } as never,
+      })
+    await createVersion(draftOnly.id, 'Old draft', stream('processing', 'sync-draft-old'), earlier)
+    const draft = await createVersion(draftOnly.id, 'New draft', stream('processing', 'sync-draft-new'))
+    const mirror = await createVersion(sameVideo.id, 'Same video', stream('processing', 'sync-draft-same'))
+    const versionOf = async (id: number | string) =>
+      (await payload.db.findVersions({ collection: drafts, pagination: false, where: { id: { equals: id } } })).docs[0]
+    const before = await versionOf(draft.id)
+    const mirrorBefore = await versionOf(mirror.id)
+    const findVersions = payload.db.findVersions
+    const scanned: unknown[][] = []
+    const spy = vi.spyOn(payload.db, 'findVersions').mockImplementation(async (args) => {
+      const found = await findVersions.call(payload.db, args)
+      if (args.select) {
+        scanned.push(found.docs)
+      }
+      return found
+    })
+    const actual = await vi.importActual<typeof import('@/server/bunny/stream.js')>('@/server/bunny/stream.js')
+    const lookups: string[] = []
+    vi.mocked(getStreamVideo).mockImplementation(async ({ videoId }) => {
+      lookups.push(videoId)
+      return { status: BunnyStreamVideoStatus.Finished } as never
+    })
+
+    try {
+      const result = await syncStreamStatus({ payload })
+      expect(lookups.toSorted()).toEqual(['sync-draft-new', 'sync-draft-same'])
+      expect(result).toEqual({ checked: 2, failed: 0, hasMore: false, updated: 3 })
+      expect(scanned).toHaveLength(1)
+      expect(scanned[0]).toHaveLength(2)
+      for (const row of scanned[0] as any[]) {
+        expect(row.version.bunnyData.stream.videoId).toEqual(expect.any(String))
+        expect(row.version.alt).toBeUndefined()
+        expect(row.updatedAt).toEqual(expect.any(String))
+      }
+      expect(await versionOf(mirror.id)).toEqual({
+        ...mirrorBefore,
+        version: {
+          ...mirrorBefore!.version,
+          bunnyData: { stream: { status: 'ready', videoId: 'sync-draft-same' } },
+        },
+      })
+      expect(await versionOf(draft.id)).toEqual({
+        ...before,
+        version: {
+          ...before!.version,
+          bunnyData: { stream: { status: 'ready', videoId: 'sync-draft-new' } },
+        },
+      })
+      const mains = await payload.db.find({
+        collection: drafts,
+        pagination: false,
+        where: { id: { in: [draftOnly.id, sameVideo.id] } },
+      })
+      expect(
+        mains.docs.map((doc) => (doc as any).bunnyData.stream).toSorted((a, b) => a.videoId.localeCompare(b.videoId)),
+      ).toEqual([
+        { status: 'ready', videoId: 'sync-draft-main' },
+        { status: 'ready', videoId: 'sync-draft-same' },
+      ])
+
+      expect(await syncStreamStatus({ payload })).toEqual({ checked: 0, failed: 0, hasMore: false, updated: 0 })
+      expect(scanned).toEqual([expect.any(Array), []])
+    } finally {
+      spy.mockRestore()
+      vi.mocked(getStreamVideo).mockImplementation(actual.getStreamVideo)
+      await payload.db.deleteVersions({ collection: drafts, where: { parent: { in: [draftOnly.id, sameVideo.id] } } })
+      await payload.db.deleteMany({ collection: drafts, where: { id: { in: [draftOnly.id, sameVideo.id] } } })
+    }
+  })
 })

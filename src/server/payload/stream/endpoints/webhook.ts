@@ -7,7 +7,12 @@ import { getReadyResolutions, getWebhookVideoState, isMissingResolutions } from 
 import { readStoredVideo } from '@/server/payload/fields/bunnyGroupField.js'
 import { streamWebhookOperation } from '@/server/payload/openapi.js'
 import { createCollectionContext } from '@/server/payload/options/context.js'
-import { checkStreamOriginalSize, writeStoredStream } from '@/server/payload/stream/storedStream.js'
+import {
+  checkStreamOriginalSize,
+  findStreamVersion,
+  writeStoredStream,
+  writeStoredVersionStream,
+} from '@/server/payload/stream/storedStream.js'
 import { jsonResponse } from '@/shared/http.js'
 import type { NormalizedBunnyStorageOptions } from '@/shared/types/optionsNormalized.js'
 
@@ -72,8 +77,12 @@ export const getStreamWebhookEndpoint = (
           req,
           where: { 'bunnyData.stream.videoId': { equals: VideoGuid } },
         })
-        const stored = readStoredVideo(doc)
-        if (!doc || !stored?.videoId) {
+        const version = doc
+          ? undefined
+          : await findStreamVersion({ collection: collectionSlug, req, videoId: VideoGuid })
+        const found = doc ?? (version && { ...version.version, id: version.parent })
+        const stored = readStoredVideo(found)
+        if (!found || !stored?.videoId) {
           return null
         }
 
@@ -99,9 +108,9 @@ export const getStreamWebhookEndpoint = (
         const resolutionsChanged = !isDeepStrictEqual(resolutions, stored.resolutions)
 
         if (statusChanged || resolutionsChanged) {
-          const written = await writeStoredStream({
+          const written = await (version ? writeStoredVersionStream : writeStoredStream)({
             collection: collectionSlug,
-            id: doc.id,
+            id: version?.id ?? found.id,
             req,
             stream: { resolutions, status, videoId: stored.videoId },
             whenStatus: resolutionsChanged ? undefined : (stored.status ?? null),
@@ -117,7 +126,7 @@ export const getStreamWebhookEndpoint = (
             await checkStreamOriginalSize({
               apiKey,
               collection: collectionSlug,
-              doc,
+              doc: found,
               libraryId,
               logger: req.payload.logger,
               videoId: VideoGuid,
@@ -167,9 +176,11 @@ export const getStreamWebhookEndpoint = (
               },
             })
 
-            if (docs.docs.length > 0) {
-              const doc = docs.docs[0]
-
+            const version = docs.docs[0]
+              ? undefined
+              : await findStreamVersion({ collection: collectionSlug, req, videoId: VideoGuid })
+            const doc = docs.docs[0] ?? (version && { ...version.version, id: version.parent })
+            if (doc) {
               const resolutions = await getReadyResolutions({
                 apiKey: collectionStreamOptions.apiKey,
                 encoded: true,
@@ -188,9 +199,9 @@ export const getStreamWebhookEndpoint = (
                 continue
               }
 
-              const written = await writeStoredStream({
+              const written = await (version ? writeStoredVersionStream : writeStoredStream)({
                 collection: collectionSlug,
-                id: doc.id,
+                id: version?.id ?? doc.id,
                 req,
                 stream: { resolutions, videoId: VideoGuid },
               })

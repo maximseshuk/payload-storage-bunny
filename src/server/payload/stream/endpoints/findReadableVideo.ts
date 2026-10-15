@@ -9,6 +9,7 @@ import type { NormalizedBunnyStorageOptions, NormalizedStreamOptions } from '@/s
 type ReadableVideo = {
   context: CollectionContext
   doc: TypeWithID
+  fromDraft: boolean
   stored: NonNullable<ReturnType<typeof readStoredVideo>>
   streamOptions: NormalizedStreamOptions
   videoId: string
@@ -51,7 +52,8 @@ export const findReadableVideo = async (
       trash: true,
     })
   let doc = await read(false)
-  if (readStreamFileVideoId(doc, streamOptions.mimeTypes) !== videoId) {
+  const fromDraft = readStreamFileVideoId(doc, streamOptions.mimeTypes) !== videoId
+  if (fromDraft) {
     doc = await read(true)
   }
   const stored = readStoredVideo(doc)
@@ -59,5 +61,5 @@ export const findReadableVideo = async (
     throw new NotFound(req.t)
   }
 
-  return { context, doc, stored, streamOptions, videoId }
+  return { context, doc, fromDraft, stored, streamOptions, videoId }
 }

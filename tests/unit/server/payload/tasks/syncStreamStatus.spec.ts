@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { checkSizeMock, getVideoMock, listVideosMock, readyResolutionsMock, writeMock } = vi.hoisted(() => ({
-  checkSizeMock: vi.fn(),
-  getVideoMock: vi.fn(),
-  listVideosMock: vi.fn(),
-  readyResolutionsMock: vi.fn(),
-  writeMock: vi.fn(),
-}))
+const { checkSizeMock, getVideoMock, listVideosMock, readyResolutionsMock, writeMock, writeVersionMock } = vi.hoisted(
+  () => ({
+    checkSizeMock: vi.fn(),
+    getVideoMock: vi.fn(),
+    listVideosMock: vi.fn(),
+    readyResolutionsMock: vi.fn(),
+    writeMock: vi.fn(),
+    writeVersionMock: vi.fn(),
+  }),
+)
 
 vi.mock('@/server/bunny/stream.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/server/bunny/stream.js')>()
@@ -22,6 +25,7 @@ vi.mock('@/server/payload/stream/storedStream.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/payload/stream/storedStream.js')>()),
   checkStreamOriginalSize: checkSizeMock,
   writeStoredStream: writeMock,
+  writeStoredVersionStream: writeVersionMock,
 }))
 
 const { BunnyStreamVideoStatus } = await import('@/server/bunny/stream.js')
@@ -75,6 +79,7 @@ describe('syncStreamStatus', () => {
     listVideosMock.mockResolvedValue({ items: [] })
     readyResolutionsMock.mockImplementation(async ({ resolutions }) => resolutions)
     writeMock.mockResolvedValue(true)
+    writeVersionMock.mockResolvedValue(true)
   })
 
   it('checks the size of the original file of each video that became ready', async () => {
@@ -435,5 +440,190 @@ describe('syncStreamStatus', () => {
 
     expect(await handler({ req })).toEqual({ output: {} })
     expect(find).toHaveBeenCalled()
+  })
+
+  describe('in a collection with drafts', () => {
+    const versionRow = (index: number) => ({
+      id: `ver-${index}`,
+      parent: `doc-${index}`,
+      updatedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, 1000 - index)).toISOString(),
+      version: {
+        bunnyData: { stream: { status: 'processing', videoId: `v-draft-${index}` } },
+        filesize: 1000,
+      },
+    })
+
+    const mainsOf = (ids: unknown[]) =>
+      ids.map((id) => ({ id, bunnyData: { stream: { status: 'ready', videoId: `v-main-${String(id)}` } } }))
+
+    const buildDraftsPayload = (options: unknown, mains: unknown[] | undefined, ...versionPages: unknown[][]) => {
+      const built = buildPayload(options, [])
+      const findVersions = vi.fn().mockResolvedValue({ docs: [] })
+      for (const page of versionPages) {
+        findVersions.mockResolvedValueOnce({ docs: page })
+      }
+      const dbFind = vi.fn().mockImplementation(async ({ where }) => ({ docs: mains ?? mainsOf(where.and[0].id.in) }))
+      const payload = built.payload as unknown as Record<string, any>
+      payload.collections.videos.config.versions = { drafts: true }
+      payload.db = { find: dbFind, findVersions }
+      return { ...built, dbFind, findVersions }
+    }
+
+    it('also checks the latest versions with the same filters and stores the state in the version', async () => {
+      const row = versionRow(0)
+      const { dbFind, findVersions, payload, req } = buildDraftsPayload(
+        buildOptions({ limit: 7, maxAge: 60 }),
+        undefined,
+        [row],
+      )
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 1, failed: 0, hasMore: false, updated: 1 })
+
+      expect(findVersions).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          collection: 'videos',
+          limit: 7,
+          pagination: false,
+          req,
+          select: { parent: true, updatedAt: true, version: { bunnyData: true, filesize: true } },
+          sort: ['-updatedAt', '-id'],
+        }),
+      )
+      const [pending, latest] = findVersions.mock.calls[0]![0].where.and
+      expect(latest).toEqual({ latest: { equals: true } })
+      expect(pending.or[0].and[0]).toEqual({ 'version.bunnyData.stream.status': { equals: 'processing' } })
+      expect(pending.or[0].and[1].updatedAt.greater_than).toEqual(expect.any(String))
+      expect(pending.or[1]).toEqual({
+        and: [
+          { 'version.bunnyData.stream.status': { exists: false } },
+          { 'version.bunnyData.stream.videoId': { exists: true } },
+        ],
+      })
+      expect(dbFind).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          collection: 'videos',
+          select: { bunnyData: true },
+          where: { and: [{ id: { in: ['doc-0'] } }] },
+        }),
+      )
+      expect(writeMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'videos',
+        id: 'ver-0',
+        req,
+        stream: { resolutions: undefined, status: 'ready', videoId: 'v-draft-0' },
+        whenStatus: 'processing',
+      })
+      expect(checkSizeMock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ collection: 'videos', doc: { ...row.version, id: 'doc-0' }, videoId: 'v-draft-0' }),
+      )
+    })
+
+    it('copies the state of the main document into a version with the same video without asking Bunny', async () => {
+      const resolutions = { available: ['720p'], highest: '720p' }
+      const { payload, req } = buildDraftsPayload(
+        buildOptions(),
+        [{ id: 'doc-0', bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v-draft-0' } } }],
+        [versionRow(0)],
+      )
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 0, failed: 0, hasMore: false, updated: 1 })
+      expect(getVideoMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'videos',
+        id: 'ver-0',
+        req,
+        stream: { resolutions, status: 'ready', videoId: 'v-draft-0' },
+        whenStatus: 'processing',
+      })
+      expect(checkSizeMock).not.toHaveBeenCalled()
+    })
+
+    it('copies processing from the main document into a same-video version with no state', async () => {
+      const row = versionRow(0)
+      row.version.bunnyData.stream = { videoId: 'v-draft-0' } as typeof row.version.bunnyData.stream
+      const { payload, req } = buildDraftsPayload(
+        buildOptions(),
+        [{ id: 'doc-0', bunnyData: { stream: { status: 'processing', videoId: 'v-draft-0' } } }],
+        [row],
+      )
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 0, failed: 0, hasMore: false, updated: 1 })
+      expect(getVideoMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'videos',
+        id: 'ver-0',
+        req,
+        stream: { status: 'processing', videoId: 'v-draft-0' },
+        whenStatus: null,
+      })
+    })
+
+    it.each([
+      ['has the same state', 'processing'],
+      ['has no state yet', undefined],
+    ])('skips a version with the same video as its main document when the main document %s', async (_label, status) => {
+      const { payload, req } = buildDraftsPayload(
+        buildOptions(),
+        [{ id: 'doc-0', bunnyData: { stream: { status, videoId: 'v-draft-0' } } }],
+        [versionRow(0)],
+      )
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 0, failed: 0, hasMore: false, updated: 0 })
+      expect(getVideoMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).not.toHaveBeenCalled()
+    })
+
+    it('skips a version whose document is in the trash or gone', async () => {
+      const { dbFind, payload, req } = buildDraftsPayload(buildOptions(), [], [versionRow(0)])
+      ;(payload as any).collections.videos.config.trash = true
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 0, failed: 0, hasMore: false, updated: 0 })
+      expect(dbFind.mock.calls[0]![0].where).toEqual({
+        and: [{ id: { in: ['doc-0'] } }, { deletedAt: { exists: false } }],
+      })
+      expect(writeVersionMock).not.toHaveBeenCalled()
+    })
+
+    it('counts only version writes that matched', async () => {
+      writeVersionMock.mockResolvedValue(false)
+      const { payload, req } = buildDraftsPayload(buildOptions(), undefined, [versionRow(0)])
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 1, failed: 0, hasMore: false, updated: 0 })
+      expect(checkSizeMock).not.toHaveBeenCalled()
+    })
+
+    it('pages through the versions by updatedAt and id', async () => {
+      const first = [versionRow(0), versionRow(1)]
+      const { findVersions, payload, req } = buildDraftsPayload(buildOptions({ limit: 2 }), undefined, first, [
+        versionRow(2),
+      ])
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 3, failed: 0, hasMore: false, updated: 3 })
+      expect(findVersions).toHaveBeenCalledTimes(2)
+      const { and } = findVersions.mock.calls[1]![0].where
+      expect(and.at(-1)).toEqual({
+        or: [
+          { updatedAt: { less_than: first[1]!.updatedAt } },
+          { and: [{ updatedAt: { equals: first[1]!.updatedAt } }, { id: { less_than: 'ver-1' } }] },
+        ],
+      })
+    })
+
+    it('does not look in the versions after a rate limit stops the run', async () => {
+      getVideoMock.mockRejectedValue(wrapped(429))
+      const { findVersions, payload, req } = buildDraftsPayload(buildOptions(), undefined, [versionRow(0)])
+      ;(payload as any).find.mockReset().mockResolvedValue({ docs: docsFor(1) })
+
+      expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 0, failed: 0, hasMore: true, updated: 0 })
+      expect(findVersions).not.toHaveBeenCalled()
+    })
+  })
+
+  it('does not look in the versions of a collection without drafts', async () => {
+    const { payload, req } = buildPayload(buildOptions(), docsFor(1))
+
+    expect(await syncStreamStatus({ payload, req })).toEqual({ checked: 1, failed: 0, hasMore: false, updated: 1 })
+    expect(writeVersionMock).not.toHaveBeenCalled()
   })
 })

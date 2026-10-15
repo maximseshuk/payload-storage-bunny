@@ -6,11 +6,19 @@ import { buildConfigWithDefaults } from '../../helpers/shared/buildConfigWithDef
 import { createMediaCollection } from '../../helpers/shared/createMediaCollection.js'
 
 export default buildConfigWithDefaults({
-  collections: [createMediaCollection({ slug: 'status-sync-test' })],
+  collections: [
+    createMediaCollection({ slug: 'status-sync-test' }),
+    createMediaCollection({ slug: 'status-sync-drafts', versions: { drafts: true } }),
+  ],
   storage: [
     bunnyStorage({
       accountApiKey: process.env.BUNNY_ACCOUNT_API_KEY || '',
       collections: {
+        'status-sync-drafts': {
+          disablePayloadAccessControl: true,
+          prefix: 'status-sync-drafts',
+          signedUrls: false,
+        },
         'status-sync-test': {
           disablePayloadAccessControl: true,
           prefix: 'status-sync-test',

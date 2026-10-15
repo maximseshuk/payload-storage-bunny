@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest, Where } from 'payload'
+import type { JsonObject, Payload, PayloadRequest, TypeWithVersion, Where } from 'payload'
 
 import type { BunnyStreamCredentials } from '@/server/bunny/stream.js'
 import {
@@ -20,6 +20,19 @@ type WriteStoredStreamArgs = {
   whenStatus?: null | StreamVideoState
 }
 
+const VERSION_WRITE_ATTEMPTS = 3
+
+const storedStreamWhere = (
+  path: string,
+  { id, stream, whenStatus }: Pick<WriteStoredStreamArgs, 'id' | 'stream' | 'whenStatus'>,
+): Where[] => [
+  { id: { equals: id } },
+  { [`${path}.videoId`]: { equals: stream.videoId } },
+  ...(whenStatus === undefined
+    ? []
+    : [{ [`${path}.status`]: whenStatus ? { equals: whenStatus } : { exists: false } }]),
+]
+
 export const writeStoredStream = async ({
   collection,
   id,
@@ -27,10 +40,7 @@ export const writeStoredStream = async ({
   stream,
   whenStatus,
 }: WriteStoredStreamArgs): Promise<boolean> => {
-  const where: Where[] = [{ id: { equals: id } }, { 'bunnyData.stream.videoId': { equals: stream.videoId } }]
-  if (whenStatus !== undefined) {
-    where.push({ 'bunnyData.stream.status': whenStatus ? { equals: whenStatus } : { exists: false } })
-  }
+  const where = storedStreamWhere('bunnyData.stream', { id, stream, whenStatus })
 
   const stored = readStoredVideo(await req.payload.db.findOne({ collection, req, where: { and: where } }))
   if (!stored) {
@@ -56,6 +66,104 @@ export const writeStoredStream = async ({
     where: { and: where },
   })
   return Boolean(updated)
+}
+
+export const findStreamVersion = async ({
+  collection,
+  parent,
+  req,
+  videoId,
+}: {
+  collection: string
+  parent?: number | string
+  req: PayloadRequest
+  videoId: string
+}): Promise<TypeWithVersion<JsonObject> | undefined> => {
+  if (!req.payload.collections[collection]?.config.versions?.drafts) {
+    return undefined
+  }
+  const byVideo: Where = {
+    and: [
+      { 'version.bunnyData.stream.videoId': { equals: videoId } },
+      ...(parent === undefined ? [] : [{ parent: { equals: parent } }]),
+    ],
+  }
+  const findNewest = async (where: Where) =>
+    (
+      await req.payload.db.findVersions<JsonObject>({
+        collection,
+        limit: 1,
+        pagination: false,
+        req,
+        sort: '-updatedAt',
+        where,
+      })
+    ).docs[0]
+  return (await findNewest({ and: [byVideo, { latest: { equals: true } }] })) ?? (await findNewest(byVideo))
+}
+
+export const writeStoredVersionStream = async ({
+  collection,
+  id,
+  req,
+  stream,
+  whenStatus,
+}: WriteStoredStreamArgs): Promise<boolean> => {
+  const where = storedStreamWhere('version.bunnyData.stream', { id, stream, whenStatus })
+
+  for (let attempt = 0; attempt < VERSION_WRITE_ATTEMPTS; attempt++) {
+    const {
+      docs: [row],
+    } = await req.payload.db.findVersions<JsonObject>({
+      collection,
+      limit: 1,
+      pagination: false,
+      req,
+      where: { and: where },
+    })
+    const stored = readStoredVideo(row?.version)
+    if (!row || !stored) {
+      return false
+    }
+
+    const updated = await req.payload.db.updateVersion({
+      id,
+      collection,
+      req,
+      select: { id: true },
+      versionData: {
+        createdAt: row.createdAt,
+        latest: row.latest,
+        parent: row.parent,
+        publishedLocale: row.publishedLocale,
+        updatedAt: row.updatedAt,
+        version: {
+          ...row.version,
+          bunnyData: {
+            stream: {
+              ...stored,
+              ...(stream.resolutions && { resolutions: stream.resolutions }),
+              ...(stream.status !== undefined && { status: stream.status }),
+              videoId: stream.videoId,
+            },
+          },
+        },
+      },
+      where: {
+        and: [
+          ...where,
+          { updatedAt: { equals: row.updatedAt } },
+          row.latest === true
+            ? { latest: { equals: true } }
+            : { or: [{ latest: { equals: false } }, { latest: { exists: false } }] },
+        ],
+      } as never,
+    })
+    if (updated) {
+      return true
+    }
+  }
+  return false
 }
 
 export const fetchStreamVideoState = async (

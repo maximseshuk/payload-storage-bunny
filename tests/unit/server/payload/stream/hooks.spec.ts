@@ -876,6 +876,62 @@ describe('stream hooks', () => {
       expect(result).toEqual({ bunnyData: { stream: { status: 'processing', videoId: 'v2' } } })
     })
 
+    describe('when the main document has another video', () => {
+      const draftReq = (findVersions: unknown) =>
+        buildReq({
+          collections: { media: { versions: { drafts: true } } },
+          payload: {
+            db: { findOne: vi.fn().mockResolvedValue(storedMain), findVersions },
+            logger: { debug: vi.fn(), error: vi.fn() },
+          },
+        })
+
+      it('copies the stored status and resolutions of the draft version of this document with the video', async () => {
+        const findVersions = vi.fn().mockResolvedValue({
+          docs: [{ id: 'ver-1', version: { bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v2' } } } }],
+        })
+        const data = { alt: 'autosave', bunnyData: { stream: { status: 'processing', videoId: 'v2' } } }
+
+        const result = await getStreamBeforeChangeHook(mp4Context())({
+          data,
+          operation: 'update',
+          originalDoc: { id: 1, bunnyData: { stream: { status: 'processing', videoId: 'v2' } } },
+          req: draftReq(findVersions),
+        } as never)
+
+        expect(findVersions).toHaveBeenCalledWith(
+          expect.objectContaining({
+            collection: 'media',
+            where: {
+              and: [
+                { and: [{ 'version.bunnyData.stream.videoId': { equals: 'v2' } }, { parent: { equals: 1 } }] },
+                { latest: { equals: true } },
+              ],
+            },
+          }),
+        )
+        expect(result).toEqual({
+          alt: 'autosave',
+          bunnyData: { stream: { resolutions, status: 'ready', videoId: 'v2' } },
+        })
+      })
+
+      it('keeps the incoming values when no version has the video', async () => {
+        const findVersions = vi.fn().mockResolvedValue({ docs: [] })
+        const data = { bunnyData: { stream: { status: 'processing', videoId: 'v2' } } }
+
+        const result = await getStreamBeforeChangeHook(mp4Context())({
+          data,
+          operation: 'update',
+          originalDoc: { id: 1 },
+          req: draftReq(findVersions),
+        } as never)
+
+        expect(findVersions).toHaveBeenCalled()
+        expect(result).toEqual({ bunnyData: { stream: { status: 'processing', videoId: 'v2' } } })
+      })
+    })
+
     it('does not read the database on create or without a video', async () => {
       const findOne = vi.fn()
       const hook = getStreamBeforeChangeHook(mp4Context())

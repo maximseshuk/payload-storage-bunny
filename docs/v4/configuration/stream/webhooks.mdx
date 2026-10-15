@@ -57,6 +57,8 @@ In a library with JIT encoding, the status check and status sync store `processi
 
 With `stream.status: false`, the webhook stores no state. It only updates `resolutions` when `mp4Fallback` is on. Like the state writes, this goes straight to the database: it does not run your collection hooks, does not create a version and does not change `updatedAt`. When Bunny has no MP4 resolutions yet, fetching them fails or reading the document fails, the webhook answers `500`, so Bunny sends it again.
 
+With drafts, a draft can have a new video while the published document still has the old one. When no document has the video and the collection has `versions.drafts`, the webhook updates the latest version that has the video, or else the newest one. This works with and without `stream.status`. It changes only `bunnyData.stream` and keeps the other fields and the `updatedAt` of the version. The same rules apply as for a document: a `processing` status never replaces `ready` or `failed`. If an autosave changes the version at the same moment, the webhook reads the version again and tries up to 2 more times. It never overwrites the autosaved fields, and it does not write when the autosave stored another state. If all 3 tries miss, the webhook still answers `200`. The status check or status sync then stores the state later.
+
 ## When the webhook arrives before the document
 
 A short video can finish encoding before your app saves the document. Bunny then sends the webhook while the document does not exist yet, or while it is not committed to the database. The webhook finds no document, so it cannot store the state. While `stream.status` is on, four things cover this case:
@@ -65,6 +67,8 @@ A short video can finish encoding before your app saves the document. Bunny then
 2. **Webhook retry.** For `3` Finished and `5` Failed, the webhook looks for the document up to 3 more times, 1 second apart. It looks only in the collections that use the library and have `stream.status` on. It stops at the first match, so the request takes at most about 3 seconds longer. It does not retry other status codes. If it still finds no document, it answers `200`, so Bunny does not send the webhook again. If reading or writing the document fails, it answers `500`, so Bunny can send the webhook again. The write changes the document only while it still holds the same video and, when only the state changes, the state it read. So a repeated webhook is safe.
 3. **Preview status check.** While the stored state is `processing`, the [media preview](/v4/guides/media-preview#processing-state) asks the Bunny API and stores the new state.
 4. **Status sync.** If you turn on [status sync](/v4/configuration/background-tasks#status-sync), it stores the state of `processing` videos and of videos with no status in the background, without opening the preview.
+
+In a collection with drafts, all four also work for a video that only a draft has. The status check and status sync then store the state in the version, like the webhook does.
 
 When the status check or status sync stores `ready`, Bunny has finished encoding the video, `mp4Fallback` is on and the document has no `resolutions` yet, they fetch the MP4 `resolutions` and store them in the same write. If that fetch fails or Bunny returns no MP4 resolutions yet, they do not store `ready`: the document stays `processing`, so the next check or run tries again. A `429` answer during status sync also stops the run.
 

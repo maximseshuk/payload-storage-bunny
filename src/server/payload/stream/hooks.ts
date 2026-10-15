@@ -26,6 +26,7 @@ import { hasStatus, readStoredVideo, setStoredVideoId } from '@/server/payload/f
 import { rememberStreamKeys, setStreamKey } from '@/server/payload/storage/fileOperations.js'
 import { getLibraryCollectionSlugs, isVideoReferenced } from '@/server/payload/stream/references.js'
 import { deleteStreamVideoSession } from '@/server/payload/stream/sessionsCollection.js'
+import { findStreamVersion } from '@/server/payload/stream/storedStream.js'
 import { checkStreamTusUpload, isStreamUploadVerified } from '@/server/payload/stream/tusUpload.js'
 import { isStreamFileMimeType, matchesMimeTypePattern } from '@/shared/mimeTypes.js'
 import type { CollectionContext } from '@/shared/types/index.js'
@@ -338,13 +339,15 @@ export const getStreamBeforeChangeHook = (
       }
     }
 
-    const stored = readStoredVideo(
-      await req.payload.db.findOne({
-        collection: context.collection.slug,
-        req,
-        where: { id: { equals: originalDoc.id } },
-      }),
+    const collection = context.collection.slug
+    let stored = readStoredVideo(
+      await req.payload.db.findOne({ collection, req, where: { id: { equals: originalDoc.id } } }),
     )
+    if (stored?.videoId !== incoming.videoId) {
+      stored = readStoredVideo(
+        (await findStreamVersion({ collection, parent: originalDoc.id, req, videoId: incoming.videoId }))?.version,
+      )
+    }
     if (stored?.videoId !== incoming.videoId) {
       return data
     }

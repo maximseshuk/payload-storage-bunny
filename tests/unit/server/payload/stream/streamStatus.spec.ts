@@ -2,16 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { httpError } from '../../../../helpers/unit/httpError.js'
 
-const { checkSizeMock, findByIDMock, getVideoMock, listVideosMock, readyResolutionsMock, writeMock } = vi.hoisted(
-  () => ({
-    checkSizeMock: vi.fn(),
-    findByIDMock: vi.fn(),
-    getVideoMock: vi.fn(),
-    listVideosMock: vi.fn(),
-    readyResolutionsMock: vi.fn(),
-    writeMock: vi.fn(),
-  }),
-)
+const {
+  checkSizeMock,
+  findByIDMock,
+  findVersionMock,
+  getVideoMock,
+  listVideosMock,
+  readyResolutionsMock,
+  writeMock,
+  writeVersionMock,
+} = vi.hoisted(() => ({
+  checkSizeMock: vi.fn(),
+  findByIDMock: vi.fn(),
+  findVersionMock: vi.fn(),
+  getVideoMock: vi.fn(),
+  listVideosMock: vi.fn(),
+  readyResolutionsMock: vi.fn(),
+  writeMock: vi.fn(),
+  writeVersionMock: vi.fn(),
+}))
 
 vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/bunny/stream.js')>()),
@@ -23,7 +32,9 @@ vi.mock('@/server/bunny/stream.js', async (importOriginal) => ({
 vi.mock('@/server/payload/stream/storedStream.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/payload/stream/storedStream.js')>()),
   checkStreamOriginalSize: checkSizeMock,
+  findStreamVersion: findVersionMock,
   writeStoredStream: writeMock,
+  writeStoredVersionStream: writeVersionMock,
 }))
 
 const { createNormalizedOptions } = await import('@/server/payload/options/normalizer.js')
@@ -83,6 +94,7 @@ describe('stream status endpoint', () => {
     listVideosMock.mockResolvedValue({ items: [] })
     readyResolutionsMock.mockImplementation(async ({ resolutions }) => resolutions)
     writeMock.mockResolvedValue(true)
+    writeVersionMock.mockResolvedValue(true)
     handler = getHandler()
   })
 
@@ -182,6 +194,72 @@ describe('stream status endpoint', () => {
 
     expect(await readState(handler(mediaReq()))).toEqual({ resolutions, state: 'ready' })
     expectWrite({ resolutions, status: 'ready' }, null)
+  })
+
+  describe('when only a draft has the video', () => {
+    const draftDoc = { ...streamDoc({ status: 'processing' }), filesize: 1000 }
+
+    beforeEach(() => {
+      findByIDMock
+        .mockResolvedValueOnce(streamDoc({ status: 'ready', videoId: 'video-old' }))
+        .mockResolvedValueOnce(draftDoc)
+      findVersionMock.mockResolvedValue({ id: 'ver-1', parent: '1', version: draftDoc })
+      getVideoMock.mockResolvedValue({ availableResolutions: '720p', status: 4 })
+    })
+
+    it('stores the state in the version with the video and checks the size', async () => {
+      expect(await readState(handler(mediaReq()))).toEqual({ state: 'ready' })
+      expect(findByIDMock).toHaveBeenLastCalledWith(expect.objectContaining({ draft: true }))
+      expect(findVersionMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'media',
+        parent: '1',
+        req: expect.anything(),
+        videoId: 'video-1',
+      })
+      expect(writeVersionMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'media',
+        id: 'ver-1',
+        req: expect.anything(),
+        stream: { status: 'ready', videoId: 'video-1' },
+        whenStatus: 'processing',
+      })
+      expect(writeMock).not.toHaveBeenCalled()
+      expect(checkSizeMock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ collection: 'media', doc: draftDoc, videoId: 'video-1' }),
+      )
+    })
+
+    it('skips the size check when the version write does not match any more', async () => {
+      writeVersionMock.mockResolvedValue(false)
+
+      expect(await readState(handler(mediaReq()))).toEqual({ state: 'ready' })
+      expect(checkSizeMock).not.toHaveBeenCalled()
+    })
+
+    it('does not look in the versions when the state does not change', async () => {
+      getVideoMock.mockResolvedValue({ availableResolutions: null, status: 3 })
+
+      expect(await readState(handler(mediaReq()))).toEqual({ state: 'processing' })
+      expect(findVersionMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).not.toHaveBeenCalled()
+    })
+
+    it('writes nothing when no version has the video any more', async () => {
+      findVersionMock.mockResolvedValue(undefined)
+
+      expect(await readState(handler(mediaReq()))).toEqual({ state: 'ready' })
+      expect(writeVersionMock).not.toHaveBeenCalled()
+      expect(writeMock).not.toHaveBeenCalled()
+      expect(checkSizeMock).not.toHaveBeenCalled()
+    })
+  })
+
+  it('does not look in the versions when the main document has the video', async () => {
+    getVideoMock.mockResolvedValue({ availableResolutions: '720p', status: 4 })
+
+    await handler(mediaReq())
+    expect(findVersionMock).not.toHaveBeenCalled()
+    expectWrite({ status: 'ready' })
   })
 
   it('maps a video that Bunny no longer has to failed when the library still answers', async () => {

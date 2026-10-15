@@ -7,7 +7,9 @@ import { isAdminUser } from '@/server/payload/options/access.js'
 import {
   checkStreamOriginalSize,
   fetchStreamVideoState,
+  findStreamVersion,
   writeStoredStream,
+  writeStoredVersionStream,
 } from '@/server/payload/stream/storedStream.js'
 import { jsonResponse } from '@/shared/http.js'
 import type { PluginStorageBunnyTFunction } from '@/shared/translations/index.js'
@@ -47,6 +49,7 @@ export const getStreamStatusEndpoint = (
         const {
           context,
           doc,
+          fromDraft,
           stored,
           streamOptions: collectionStreamOptions,
           videoId,
@@ -90,25 +93,29 @@ export const getStreamStatusEndpoint = (
                   if (isMissingResolutions({ encoded, mp4Fallback, resolutions })) {
                     next = 'processing'
                   }
-                  if (
-                    next !== stored.status &&
-                    (await writeStoredStream({
+                  if (next !== stored.status) {
+                    const version = fromDraft
+                      ? await findStreamVersion({ collection: collectionSlug, parent: doc.id, req, videoId })
+                      : undefined
+                    const write = {
                       collection: collectionSlug,
-                      id: doc.id,
                       req,
                       stream: { resolutions, status: next, videoId },
                       whenStatus: stored.status ?? null,
-                    })) &&
-                    next === 'ready'
-                  ) {
-                    await checkStreamOriginalSize({
-                      apiKey,
-                      collection: collectionSlug,
-                      doc,
-                      libraryId,
-                      logger: req.payload.logger,
-                      videoId,
-                    })
+                    }
+                    const written = version
+                      ? await writeStoredVersionStream({ ...write, id: version.id })
+                      : !fromDraft && (await writeStoredStream({ ...write, id: doc.id }))
+                    if (written && next === 'ready') {
+                      await checkStreamOriginalSize({
+                        apiKey,
+                        collection: collectionSlug,
+                        doc,
+                        libraryId,
+                        logger: req.payload.logger,
+                        videoId,
+                      })
+                    }
                   }
                 } catch (err) {
                   req.payload.logger.error({ err, msg: '[bunny:stream] status: failed to store state', videoId })

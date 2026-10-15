@@ -2,10 +2,11 @@ import { createHmac } from 'node:crypto'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { checkSizeMock, requestMock, writeMock } = vi.hoisted(() => ({
+const { checkSizeMock, requestMock, writeMock, writeVersionMock } = vi.hoisted(() => ({
   checkSizeMock: vi.fn(),
   requestMock: vi.fn(),
   writeMock: vi.fn(),
+  writeVersionMock: vi.fn(),
 }))
 
 vi.mock('@/server/bunny/client.js', async (importOriginal) => ({
@@ -17,6 +18,7 @@ vi.mock('@/server/payload/stream/storedStream.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/payload/stream/storedStream.js')>()),
   checkStreamOriginalSize: checkSizeMock,
   writeStoredStream: writeMock,
+  writeStoredVersionStream: writeVersionMock,
 }))
 
 const mp4Resolutions = (...resolutions: string[]) => ({
@@ -68,8 +70,10 @@ const buildReq = (
   {
     algorithm = 'hmac-sha256',
     collections = ['media'],
+    drafts = false,
     find = vi.fn(),
     findOne = vi.fn(),
+    findVersions = vi.fn(),
     secret = 'hook-secret',
     signature,
     update = vi.fn(),
@@ -77,8 +81,10 @@ const buildReq = (
   }: {
     algorithm?: null | string
     collections?: string[]
+    drafts?: boolean
     find?: unknown
     findOne?: unknown
+    findVersions?: unknown
     secret?: null | string
     signature?: string
     update?: unknown
@@ -99,9 +105,11 @@ const buildReq = (
   }
 
   return buildStreamReq({
-    collections: Object.fromEntries(collections.map((slug) => [slug, video])),
+    collections: Object.fromEntries(
+      collections.map((slug) => [slug, drafts ? { ...video, versions: { drafts: true } } : video]),
+    ),
     headers,
-    payload: { db: { findOne }, find, update },
+    payload: { db: { findOne, findVersions }, find, update },
     text: async () => rawBody,
     url: 'http://localhost/api/storage-bunny/stream/webhook',
   })
@@ -119,6 +127,7 @@ describe('Stream webhook endpoint', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     writeMock.mockResolvedValue(true)
+    writeVersionMock.mockResolvedValue(true)
   })
 
   afterEach(() => {
@@ -489,6 +498,144 @@ describe('Stream webhook endpoint', () => {
 
     const res = await handler(badReq)
     expect(res.status).toBe(500)
+  })
+
+  describe('when only a draft has the video', () => {
+    const draftVersion = (stream: Record<string, unknown> = {}) => ({
+      id: 'ver-1',
+      parent: 'doc-1',
+      version: { bunnyData: { stream: { videoId: 'v1', ...stream } }, filesize: 1000, title: 'Draft' },
+    })
+
+    it('stores the state and resolutions in the latest version that has the video', async () => {
+      const findOne = vi.fn().mockResolvedValue(null)
+      const findVersions = vi.fn().mockResolvedValue({ docs: [draftVersion({ status: 'processing' })] })
+      requestMock.mockResolvedValue(mp4Resolutions('720p'))
+
+      const res = await getWebhookHandler(buildOptions())(
+        buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { drafts: true, findOne, findVersions }),
+      )
+
+      expect((await res.json()).success).toBe(true)
+      expect(findVersions).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          collection: 'media',
+          limit: 1,
+          sort: '-updatedAt',
+          where: {
+            and: [{ and: [{ 'version.bunnyData.stream.videoId': { equals: 'v1' } }] }, { latest: { equals: true } }],
+          },
+        }),
+      )
+      expect(writeMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'media',
+        id: 'ver-1',
+        req: expect.anything(),
+        stream: { resolutions: { available: ['720p'], highest: '720p' }, status: 'ready', videoId: 'v1' },
+        whenStatus: undefined,
+      })
+      expect(checkSizeMock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ doc: expect.objectContaining({ filesize: 1000, id: 'doc-1' }) }),
+      )
+    })
+
+    it('skips the size check when the version write does not match any more', async () => {
+      writeVersionMock.mockResolvedValue(false)
+      const findVersions = vi.fn().mockResolvedValue({ docs: [draftVersion({ status: 'processing' })] })
+
+      const res = await getWebhookHandler(buildOptions(false))(
+        buildReq(
+          { Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 },
+          { drafts: true, findOne: vi.fn().mockResolvedValue(null), findVersions },
+        ),
+      )
+
+      expect((await res.json()).success).toBe(true)
+      expect(writeVersionMock).toHaveBeenCalledOnce()
+      expect(checkSizeMock).not.toHaveBeenCalled()
+    })
+
+    it('guards the stored state of the version on a state-only change', async () => {
+      const findVersions = vi.fn().mockResolvedValue({ docs: [draftVersion({ status: 'processing' })] })
+
+      await getWebhookHandler(buildOptions(false))(
+        buildReq(
+          { Status: 5, VideoGuid: 'v1', VideoLibraryId: 12345 },
+          { drafts: true, findOne: vi.fn().mockResolvedValue(null), findVersions },
+        ),
+      )
+
+      expect(writeVersionMock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ id: 'ver-1', stream: { status: 'failed', videoId: 'v1' }, whenStatus: 'processing' }),
+      )
+    })
+
+    it('does not overwrite a newer state of the version with a stale processing webhook', async () => {
+      const findVersions = vi.fn().mockResolvedValue({ docs: [draftVersion({ status: 'ready' })] })
+
+      const res = await getWebhookHandler(buildOptions())(
+        buildReq(
+          { Status: 2, VideoGuid: 'v1', VideoLibraryId: 12345 },
+          { drafts: true, findOne: vi.fn().mockResolvedValue(null), findVersions },
+        ),
+      )
+
+      expect((await res.json()).success).toBe(true)
+      expect(writeVersionMock).not.toHaveBeenCalled()
+      expect(writeMock).not.toHaveBeenCalled()
+    })
+
+    it('stores only the resolutions in the version when the status is turned off', async () => {
+      const find = vi.fn().mockResolvedValue({ docs: [] })
+      const findVersions = vi.fn().mockResolvedValue({ docs: [draftVersion()] })
+      requestMock.mockResolvedValue(mp4Resolutions('720p'))
+
+      const res = await getWebhookHandler(buildOptions(true, false))(
+        buildReq({ Status: 3, VideoGuid: 'v1', VideoLibraryId: 12345 }, { drafts: true, find, findVersions }),
+      )
+
+      expect((await res.json()).success).toBe(true)
+      expect(writeMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).toHaveBeenCalledExactlyOnceWith({
+        collection: 'media',
+        id: 'ver-1',
+        req: expect.anything(),
+        stream: { resolutions: { available: ['720p'], highest: '720p' }, videoId: 'v1' },
+      })
+    })
+
+    it('does not look in the versions of a collection without drafts', async () => {
+      const findVersions = vi.fn()
+
+      const res = await getWebhookHandler(buildOptions())(
+        buildReq(
+          { Status: 2, VideoGuid: 'v1', VideoLibraryId: 12345 },
+          { findOne: vi.fn().mockResolvedValue(null), findVersions },
+        ),
+      )
+
+      expect((await res.json()).success).toBe(true)
+      expect(findVersions).not.toHaveBeenCalled()
+      expect(writeMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).not.toHaveBeenCalled()
+    })
+
+    it('answers 200 and writes nothing when no document or version has the video', async () => {
+      const findVersions = vi.fn().mockResolvedValue({ docs: [] })
+
+      const res = await getWebhookHandler(buildOptions())(
+        buildReq(
+          { Status: 2, VideoGuid: 'v1', VideoLibraryId: 12345 },
+          { drafts: true, findOne: vi.fn().mockResolvedValue(null), findVersions },
+        ),
+      )
+
+      expect(res.status).toBe(200)
+      expect(findVersions).toHaveBeenCalledTimes(2)
+      expect(writeMock).not.toHaveBeenCalled()
+      expect(writeVersionMock).not.toHaveBeenCalled()
+    })
   })
 
   describe('multiple Stream libraries', () => {
