@@ -165,7 +165,7 @@ You can now run the Stream tasks without Payload jobs, and keep the stored statu
 v4 supports Payload 4. It follows the new storage adapter API, so most changes come from Payload itself. Do steps 1 to 4 first. The later steps only apply to some apps.
 
 <Info>
-  **Requires Payload `4.0.0-beta.0` or later and Node.js 24.15 or later.** Canary builds of Payload are not supported.
+  **Requires Payload `4.0.0-beta.0` or later, Next.js `>=16.4 <17` and Node.js 24.15 or later.** Canary builds of Payload are not supported.
   Upgrade Node and Payload first. Follow the [Payload 4 migration
   guide](https://payloadcms.com/docs/beta/migration-guide/v4) for the changes in Payload itself.
 </Info>
@@ -177,6 +177,16 @@ Payload 4 needs Node.js 24.15 or later. Then install v4 of the plugin and its pe
 ```bash
 npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.1 @payloadcms/translations@4.0.0-beta.1 @payloadcms/ui@4.0.0-beta.1 sanitize-filename@1.6.4
 ```
+
+React 19 (`react`, `react-dom`) is a peer dependency too. If you use the [media preview plugin](/v4/guides/media-preview), update it with `npm install @seshuk/payload-plugin-media-preview@beta`.
+
+Payload 4 removed the top-level `sharp` option. If your config still sets it, Payload stops at startup. Remove the option, or run Payload's codemod:
+
+```bash
+npx @payloadcms/codemod --transform migrate-sharp-to-transformer
+```
+
+Payload 4 also renamed image sizes to variants. Declare them in `sharpTransformer({ collections: { <slug>: { variants } } })` from `@payloadcms/transformer-sharp` instead of `upload.imageSizes`. See the [Payload 4 migration guide](https://payloadcms.com/docs/beta/migration-guide/v4).
 
 ### 2. Register the adapter under `storage`
 
@@ -248,11 +258,13 @@ These changes do not throw an error. Check them if they apply to your app:
 - When a collection sets `generateFileURL` and `signedUrls.userIp` is set, the plugin now keeps the `generateFileURL` result. In v3, it replaced it with an IP-locked signed URL.
 - Cache purge now purges the plain CDN URL with a trailing `*`. This also clears cached copies with query strings, such as signed or transformed URLs. The plugin purges only when Payload deletes a file, not after an upload, because every upload writes a new key.
 - Payload 4 turns `versions` on by default. With `versions`, a replaced file or Stream video stays in Bunny while a document or version references it. Set `versions: false` to delete it on replace, as before. See [Replaced files stay while a version uses them](#4-replaced-files-stay-while-a-version-uses-them).
-- A collection with TUS gets `upload.filesRequiredOnCreate: false`, and the plugin checks the rule itself. See [TUS saves send no file](#6-tus-saves-send-no-file).
+- A collection with TUS gets `upload.filesRequiredOnCreate: false`, and the plugin checks the rule itself. Videos from the bulk upload drawer go to Bunny Stream over TUS, except when Payload must read the whole file, for example when the collection sets `upload.mimeTypes`. See [TUS saves send no file](#6-tus-saves-send-no-file).
+- With an upload transformer set and Payload access control on, the `thumbnailURL` of a Stream video now points to `<routes.api>/storage-bunny/stream/thumbnail/...`. `<routes.api>` is the API route of your Payload config, `/api` by default. Old URLs that you copied somewhere else return `404`. See [Thumbnail URLs](/v4/configuration/thumbnails#thumbnail-urls).
+- The webhook writes `bunnyData.stream` straight to the database and no longer runs your collection hooks. See [Webhook writes skip collection hooks](#7-webhook-writes-skip-collection-hooks).
 
-### 4. Add the `prefix` column (SQL databases)
+### 4. Migrate the database
 
-Every upload collection that uses the plugin now has a hidden `prefix` field. Payload adds it even when the collection has no static `prefix`, and even when you set `enabled: false`. This keeps the schema the same in every environment.
+This step applies to every database, MongoDB too. Every upload collection that uses the plugin now has a hidden `prefix` field. Payload adds it even when the collection has no static `prefix`, and even when you set `enabled: false`. This keeps the schema the same in every environment.
 
 On Postgres, SQLite and D1, `prefix` is a new column on each upload collection's table. Payload also adds a hidden `_objectKey` field, an `original` group, and `prefix` and `_objectKey` on each image variant. Payload 4.0.0-beta.0 also renames image `sizes` to `variants`. So on every database, MongoDB too, first create Payload's predefined `sizes-to-variants` migration with the package of your database adapter, as shown in [Create the migrations](#2-create-the-migrations). Then create a migration for the other changes and run both, for example on Postgres:
 
@@ -264,9 +276,11 @@ npx payload migrate
 
 In development, Payload pushes the schema for you. Run the `sizes-to-variants` migration first there too: without it, the push can offer to drop the `sizes_*` columns, and the stored image sizes are lost. On MongoDB, skip the second `migrate:create` and only run `npx payload migrate`: the new fields need no migration of their own. The column defaults to the collection's static `prefix`, or an empty string, so existing rows keep resolving to the same files.
 
-Stream collections also get an indexed `bunny_data_stream_status` column for the stored [encoding state](/v4/guides/stored-data). Payload 4 has more schema changes of its own, such as versions and job fields. The plain `migrate:create` run covers them all.
+Stream collections also get an indexed `bunny_data_stream_status` column for the stored [encoding state](/v4/guides/stored-data). Payload 4 has more schema changes of its own, such as versions and job fields. The plain `migrate:create` run covers them all. If your project already has migrations, or runs migrations in CI, read [Create the migrations](#2-create-the-migrations) first.
 
-If you use Bunny Stream, run `npx payload generate:importmap` after the upgrade. Stream collections get a [Bunny Stream status field](/v4/guides/stored-data#bunny-stream-status-in-the-admin) with its own components, and the media preview adapter uses its own preview component.
+Existing videos show **Unknown** until their status is filled. Turn on [status sync](/v4/configuration/background-tasks#status-sync), or open the document in the admin. To keep the old behavior, set `stream.status: false` and `stream.preview: false`.
+
+If you use generated types, run `npx payload generate:types`. If you use Bunny Stream, run `npx payload generate:importmap` after the upgrade. Stream collections get a [Bunny Stream status field](/v4/guides/stored-data#bunny-stream-status-in-the-admin) with its own components, and the media preview adapter uses its own preview component. See [Regenerate the import map](#8-regenerate-the-import-map).
 
 ### 5. Redeploy the Edge Script
 
@@ -275,6 +289,8 @@ If you use [client uploads](/v4/configuration/storage/client-uploads) with an Ed
 ```bash
 npx payload bunny:deploy-edge-script
 ```
+
+The new script answers `503` when its `SHARED_SECRET` is missing. See [Redeploy the Edge Script](#9-redeploy-the-edge-script).
 
 Payload 4 replaced `bin` scripts with `cli.commands`. The plugin registers `bunny:deploy-edge-script` there for you, so the command itself does not change. It is not available when you set `cli: false`.
 
@@ -312,7 +328,7 @@ await fetch('/api/media', { method: 'POST', credentials: 'include', body: formDa
 
 See [Custom upload clients](/v4/configuration/storage/client-uploads#custom-upload-clients) for a version with error handling.
 
-For Stream uploads, `tus-auth` no longer accepts `head` and no longer returns `clientUploadContext`. Upload the video over TUS, then save the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken` and no file. See [Custom TUS clients](/v4/configuration/stream/tus).
+For Stream uploads, `tus-auth` no longer accepts `head` and no longer returns `clientUploadContext`. It creates the TUS upload and returns `uploadUrl`, `headers` and `expiresIn` instead of `authorizationSignature`, `authorizationExpire` and `thumbnailTime`. Do not create the upload with `POST` yourself. Send the file to `uploadUrl` with `PATCH` requests, then save the document with `bunnyData.stream.videoId` and `bunnyData.stream.videoToken` and no file. See [TUS saves send no file](#6-tus-saves-send-no-file) and [Custom TUS clients](/v4/configuration/stream/tus).
 
 ### 7. Read errors from `errors`
 
@@ -341,6 +357,8 @@ This step only applies if you upgrade from v3.1.0 or earlier. v3.1.1 and later a
 ### 11. Stream cleanup schedule
 
 If you set `stream.cleanup.schedule.cron`, check that it uses Payload 4's stricter cron syntax. A step must follow `*` or a range, so write `*/10`, not `/10` or `5/10`. The default `0 2 * * *` is valid.
+
+Collections that use the same Stream library must have the same `cleanup` setting, or the plugin throws at startup. See [One cleanup setting per library](#10-one-cleanup-setting-per-library).
 
 ### 12. Move TUS labels to Payload's `i18n`
 
