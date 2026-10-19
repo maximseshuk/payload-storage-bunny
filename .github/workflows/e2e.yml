@@ -43,7 +43,7 @@ jobs:
       - run: echo "Approved for ${{ github.event.pull_request.head.sha }}"
 
   e2e:
-    name: ${{ matrix.name }}
+    name: E2E
     needs: approve
     if: >-
       !cancelled() && !github.event.pull_request.draft && (
@@ -62,17 +62,13 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - name: Integration tests (SQLite)
-            db: sqlite
+          - db: sqlite
             script: test:int
-          - name: Integration tests (Postgres)
-            db: postgres
+          - db: postgres
             script: test:int
-          - name: Integration tests (MongoDB)
-            db: mongodb
+          - db: mongodb
             script: test:int
-          - name: Browser e2e
-            db: sqlite
+          - db: sqlite
             script: test:e2e
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
