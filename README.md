@@ -73,7 +73,7 @@ See the [Setup Wizard](https://payload-storage-bunny.seshuk.im/v4/cli/init) docs
 ### Install
 
 ```bash
-npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.1 @payloadcms/translations@4.0.0-beta.1 @payloadcms/ui@4.0.0-beta.1 sanitize-filename@1.6.4
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.2 @payloadcms/translations@4.0.0-beta.2 @payloadcms/ui@4.0.0-beta.2 sanitize-filename@1.6.4
 ```
 
 v4 is in beta under the `beta` npm tag, and Payload 4 is published under `beta`. The command also installs the peer dependencies that a Payload app does not have yet. `payload` and React 19 are already in your app. Use the same exact version for `@payloadcms/plugin-cloud-storage`, `@payloadcms/translations`, `@payloadcms/ui` and your `payload` package. For Payload 3, use `@seshuk/payload-storage-bunny@3`.

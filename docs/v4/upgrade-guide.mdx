@@ -7,9 +7,9 @@ This guide covers upgrading between versions of the Bunny Storage plugin.
 
 ## v4.0.0-beta.1 to v4.0.0-beta.2
 
-### 1. Update Payload to 4.0.0-beta.1
+### 1. Update Payload to 4.0.0-beta.2
 
-The plugin now needs Payload `4.0.0-beta.0` or later, and with it Next.js `>=16.4 <17`. Canary builds of Payload are not supported. Update `payload`, `@payloadcms/plugin-cloud-storage`, `@payloadcms/ui` and your other `@payloadcms/*` packages to `4.0.0-beta.1`, the same exact version for all of them. `@payloadcms/ui` and React 19 (`react`, `react-dom`) are new peer dependencies. If you use the [media preview plugin](/v4/guides/media-preview), update it to `2.0.0-beta.3` or later with `npm install @seshuk/payload-plugin-media-preview@beta`. Follow the [Payload 4 migration guide](https://payloadcms.com/docs/beta/migration-guide/v4) for the changes in Payload itself.
+The plugin now needs Payload `4.0.0-beta.0` or later, and with it Next.js `>=16.4 <17`. Canary builds of Payload are not supported. Update `payload`, `@payloadcms/plugin-cloud-storage`, `@payloadcms/ui` and your other `@payloadcms/*` packages to `4.0.0-beta.2`, the same exact version for all of them. `@payloadcms/ui` and React 19 (`react`, `react-dom`) are new peer dependencies. If you use the [media preview plugin](/v4/guides/media-preview), update it to `2.0.0-beta.3` or later with `npm install @seshuk/payload-plugin-media-preview@beta`. Follow the [Payload 4 migration guide](https://payloadcms.com/docs/beta/migration-guide/v4) for the changes in Payload itself.
 
 Payload 4 removed the top-level `sharp` option. If your config still sets it, Payload stops at startup with ``The top-level `sharp` config option was removed in Payload 4.0.`` Remove the option, or run Payload's codemod:
 
@@ -175,7 +175,7 @@ v4 supports Payload 4. It follows the new storage adapter API, so most changes c
 Payload 4 needs Node.js 24.15 or later. Then install v4 of the plugin and its peer dependencies. Use the same exact version for the `@payloadcms/*` packages and your `payload` package:
 
 ```bash
-npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.1 @payloadcms/translations@4.0.0-beta.1 @payloadcms/ui@4.0.0-beta.1 sanitize-filename@1.6.4
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.2 @payloadcms/translations@4.0.0-beta.2 @payloadcms/ui@4.0.0-beta.2 sanitize-filename@1.6.4
 ```
 
 React 19 (`react`, `react-dom`) is a peer dependency too. If you use the [media preview plugin](/v4/guides/media-preview), update it with `npm install @seshuk/payload-plugin-media-preview@beta`.
