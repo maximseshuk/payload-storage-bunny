@@ -9,7 +9,7 @@
     "validate": "mint validate"
   },
   "devDependencies": {
-    "mint": "4.2.1018"
+    "mint": "4.2.1047"
   },
   "devEngines": {
     "packageManager": {
