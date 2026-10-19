@@ -44,6 +44,7 @@ const stream = {
   apiKey: process.env.BUNNY_STREAM_API_KEY || '',
   libraryId: parseInt(process.env.BUNNY_STREAM_LIBRARY_ID || '0', 10),
 }
+const listed = { interval: 2_000, timeout: 30_000 }
 const collections = [
   'fv-storage',
   'fv-storage-pruned',
@@ -216,7 +217,7 @@ describe.skipIf(!hasBunnyCredentials())('file versions', () => {
 
     expect(await existing(createdKeys)).toEqual([])
     expect(await existing(keysOf(replaced))).toEqual(keysOf(replaced))
-    await expect.poll(async () => (await fetch(created.url!)).status, { interval: 2_000, timeout: 30_000 }).toBe(404)
+    await expect.poll(async () => (await fetch(created.url!)).status, listed).toBe(404)
 
     await payload.delete({ id: created.id, collection: 'fv-storage-unversioned', overrideAccess: true })
 
@@ -271,6 +272,7 @@ describe.skipIf(!hasBunnyCredentials())('file versions', () => {
   }, 180000)
 
   it('stores the new video of a server-side replace made with access control and keeps the old one for its version', async () => {
+    await cleanupStreamVideos('fv-stream-access')
     const {
       docs: [user],
     } = await payload.find({ collection: 'users', limit: 1, overrideAccess: true })
@@ -307,13 +309,16 @@ describe.skipIf(!hasBunnyCredentials())('file versions', () => {
     for (const videoId of videoIds) {
       expect(await videoExists(videoId)).toBe(true)
     }
-    const { items } = await listStreamVideos({ ...stream, itemsPerPage: 1000 })
-    expect(
-      items
-        .filter((video) => video.title === 'fv-stream-access.mp4')
-        .map((video) => video.guid)
-        .toSorted(),
-    ).toEqual(videoIds.toSorted())
+    await expect
+      .poll(
+        async () =>
+          (await listStreamVideos({ ...stream, itemsPerPage: 1000 })).items
+            .filter((video) => video.title === 'fv-stream-access.mp4')
+            .map((video) => video.guid)
+            .toSorted(),
+        listed,
+      )
+      .toEqual(videoIds.toSorted())
 
     await payload.delete({ id: created.id, collection: 'fv-stream', overrideAccess: true })
 
@@ -705,7 +710,7 @@ describe.skipIf(!hasBunnyCredentials())('file versions', () => {
       }) as Promise<UploadDoc>
 
     const tusViewVideos = async () =>
-      (await listStreamVideos(stream)).items
+      (await listStreamVideos({ ...stream, itemsPerPage: 1000 })).items
         .filter((video) => video.title?.startsWith('fv-stream-tus-view'))
         .map((video) => video.guid)
         .toSorted()
@@ -726,7 +731,10 @@ describe.skipIf(!hasBunnyCredentials())('file versions', () => {
     expect(auth.expiresIn).toBe(300)
     expect(await isVideoDeleted(smaller.videoId)).toBe(true)
 
-    const videosBeforeRenew = await tusViewVideos()
+    let videosBeforeRenew: string[] = []
+    await expect
+      .poll(async () => (videosBeforeRenew = await tusViewVideos()), listed)
+      .toSatisfy((ids: string[]) => ids.includes(auth.videoId) && !ids.includes(smaller.videoId))
     for (const body of [
       { filesize: buffer.length, videoId: auth.videoId, videoToken: 'f'.repeat(64) },
       { filesize: buffer.length + 1, videoId: auth.videoId, videoToken: auth.videoToken },
@@ -737,7 +745,6 @@ describe.skipIf(!hasBunnyCredentials())('file versions', () => {
       })
     }
     expect(await tusViewVideos()).toEqual(videosBeforeRenew)
-    expect(videosBeforeRenew).toContain(auth.videoId)
     const half = Math.floor(buffer.length / 2)
     expect(await patch(auth, 0, buffer.subarray(0, half))).toBe(204)
     await expect(save(auth)).rejects.toMatchObject({

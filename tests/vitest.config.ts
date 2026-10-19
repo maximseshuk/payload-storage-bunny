@@ -34,7 +34,15 @@ export default defineConfig({
           include: ['tests/unit/**/*.dom.spec.ts'],
         },
       },
-      { extends: true, test: { name: 'int', include: ['tests/integration/**/*.int.spec.ts'] } },
+      {
+        extends: true,
+        test: {
+          name: 'int',
+          hookTimeout: 60000,
+          include: ['tests/integration/**/*.int.spec.ts'],
+          retry: process.env.CI ? 1 : 0,
+        },
+      },
     ],
     root: fileURLToPath(new URL('..', import.meta.url)),
     testTimeout: 30000,
