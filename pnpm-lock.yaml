@@ -243,8 +243,8 @@ importers:
         specifier: ^0.9.8
         version: 0.9.8
       '@seshuk/payload-plugin-media-preview':
-        specifier: ^2.0.0-beta.4
-        version: 2.0.0-beta.4(@payloadcms/translations@4.0.0-beta.4)(@payloadcms/ui@4.0.0-beta.4(@types/react@19.3.0)(monaco-editor@0.52.2)(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2))(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: ^2.0.0-beta.5
+        version: 2.0.0-beta.5(@payloadcms/translations@4.0.0-beta.4)(@payloadcms/ui@4.0.0-beta.4(@types/react@19.3.0)(monaco-editor@0.52.2)(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2))(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@seshuk/payload-plugin-tooling':
         specifier: 0.2.4
         version: 0.2.4(9dcaebde97d3080aeaca5948cce5ec09)
@@ -2557,13 +2557,13 @@ packages:
   '@scarf/scarf@1.4.0':
     resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
 
-  '@seshuk/payload-plugin-media-preview@2.0.0-beta.4':
-    resolution: {integrity: sha512-FSEX9LyCDZoy6+K90Fsk7UDS6rUnRcU7zUghQFf4wZswpOlFvr4jZ28WX23rc9nTUDCMZEK+wLWIo58rylHrCg==}
-    engines: {node: '>=24.15.0'}
+  '@seshuk/payload-plugin-media-preview@2.0.0-beta.5':
+    resolution: {integrity: sha512-rITFNDBKSdA+JxpLLyat5Qq0C2xT+A+hqxFFopV5XniU2IO5Skj7r6UFlKK0aM1IJiKox0q1ZpHf6GlPhaA2Ug==}
+    engines: {node: '>=24.22.1'}
     peerDependencies:
-      '@payloadcms/translations': ^4.0.0-0
-      '@payloadcms/ui': ^4.0.0-0
-      payload: ^4.0.0-0
+      '@payloadcms/translations': '>=4.0.0-beta.4 <4.0.0-canary.0 || ^4.0.0'
+      '@payloadcms/ui': '>=4.0.0-beta.4 <4.0.0-canary.0 || ^4.0.0'
+      payload: '>=4.0.0-beta.4 <4.0.0-canary.0 || ^4.0.0'
       react: ^19.0.1 || ^19.1.2 || ^19.2.1
       react-dom: ^19.0.1 || ^19.1.2 || ^19.2.1
 
@@ -9456,7 +9456,7 @@ snapshots:
 
   '@scarf/scarf@1.4.0': {}
 
-  '@seshuk/payload-plugin-media-preview@2.0.0-beta.4(@payloadcms/translations@4.0.0-beta.4)(@payloadcms/ui@4.0.0-beta.4(@types/react@19.3.0)(monaco-editor@0.52.2)(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2))(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@seshuk/payload-plugin-media-preview@2.0.0-beta.5(@payloadcms/translations@4.0.0-beta.4)(@payloadcms/ui@4.0.0-beta.4(@types/react@19.3.0)(monaco-editor@0.52.2)(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2))(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@payloadcms/translations': 4.0.0-beta.4
       '@payloadcms/ui': 4.0.0-beta.4(@types/react@19.3.0)(monaco-editor@0.52.2)(payload@4.0.0-beta.4(graphql@16.11.0)(supports-color@7.2.0)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)

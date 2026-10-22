@@ -17,6 +17,8 @@ npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@
 
 Also update `@payloadcms/next`, your database adapter and any other `@payloadcms/*` package to `4.0.0-beta.4`.
 
+If you use the [media preview plugin](/v4/guides/media-preview), update it to `2.0.0-beta.5` or later with `npm install @seshuk/payload-plugin-media-preview@beta`.
+
 On Postgres and SQLite, Payload `4.0.0-beta.3` changes the unique index of the `_locales` tables. If you use migrations, run `npx payload migrate:create` after the update and check the migration.
 
 Check the Payload [4.0.0-beta.3](https://github.com/payloadcms/payload/releases/tag/v4.0.0-beta.3) and [4.0.0-beta.4](https://github.com/payloadcms/payload/releases/tag/v4.0.0-beta.4) release notes for the other changes in Payload. The plugin options do not change.

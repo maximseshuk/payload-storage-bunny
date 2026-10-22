@@ -48,3 +48,4 @@ minimumReleaseAgeExclude:
   - '@payloadcms/ui@4.0.0-beta.4'
   - payload@4.0.0-beta.4
   - '@payloadcms/transformer-sharp@4.0.0-beta.4'
+  - '@seshuk/payload-plugin-media-preview@2.0.0-beta.5'
