@@ -4,7 +4,7 @@ Payload 4 storage adapter for Bunny.net. Wrap `@payloadcms/plugin-cloud-storage`
 
 ## Environment
 
-- pnpm 12. Node.js 24.15+. Payload 4.
+- pnpm 12. Node.js 24.22.1+. Payload 4.
 - Shared dev config from `@seshuk/payload-plugin-tooling` (oxlint, oxfmt, tsconfig, tsdown, test DB).
 - Secrets from `.env` (`dotenv`). Never hardcode keys.
 - Agent skills not vendored: only `skills-lock.json` committed. Restore: `npx skills experimental_install`. Build, tests, CI not use them.
@@ -108,10 +108,10 @@ New per-collection override (e.g. `stream.quality`):
 
 ## Branches
 
-| Branch | Major | Payload | Node   | Takes                                                        |
-| ------ | ----- | ------- | ------ | ------------------------------------------------------------ |
-| `main` | v4    | 4       | 24.15+ | all work; PRs target `main`                                  |
-| `3.x`  | v3    | 3       | 22+    | critical/high security fixes only, cherry-picked from `main` |
+| Branch | Major | Payload | Node     | Takes                                                        |
+| ------ | ----- | ------- | -------- | ------------------------------------------------------------ |
+| `main` | v4    | 4       | 24.22.1+ | all work; PRs target `main`                                  |
+| `3.x`  | v3    | 3       | 22+      | critical/high security fixes only, cherry-picked from `main` |
 
 `3.x` has no docs site. Its docs and changelog live on `main`.
 

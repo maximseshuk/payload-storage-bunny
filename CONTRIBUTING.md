@@ -10,7 +10,7 @@ Thanks for helping with the Bunny.net storage adapter for Payload. This guide co
 
 ## Setup
 
-You need Node.js 24.15+ and pnpm 12.
+You need Node.js 24.22.1+ and pnpm 12.
 
 ```bash
 pnpm install

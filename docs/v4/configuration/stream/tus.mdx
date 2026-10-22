@@ -174,6 +174,6 @@ Do not send a file and a TUS `videoId` in the same request. The plugin uses the 
 - Bulk uploads and form saves cannot be cancelled and do not resume. Use TUS mode in the edit view for large files.
 - The size limit for TUS uploads relies on the 5-minute lifetime of the TUS headers and on the [size check after encoding](#size-check-after-encoding). Bunny accepts only the declared number of bytes for the upload that the plugin created. But until the headers expire, Bunny also accepts a new upload for the same video, also after the save, and replaces the video with it. After the upload is complete, `tus-auth` gives no new headers for the video. The size check after encoding then logs a warning when the encoded original has another size than the document. It does not block or delete the video.
 - When Bunny no longer knows a finished upload and reports no original file, the save trusts the declared size.
-- With Payload 4.0.0-beta.0 and 4.0.0-beta.1, the bulk upload drawer shows `Successfully saved N files` even when a video upload failed. Payload ignores the error. The plugin shows its own error notification, and the document is not created. The drawer also removes the file, so add it again to retry.
+- The bulk upload drawer shows `Successfully saved N files` even when a video upload failed. Payload ignores the error. The plugin shows its own error notification, and the document is not created. The drawer also removes the file, so add it again to retry.
 
 </Warning>
