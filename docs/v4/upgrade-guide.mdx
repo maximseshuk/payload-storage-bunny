@@ -5,6 +5,22 @@ description: 'Upgrade between major versions of the Bunny Storage plugin — opt
 
 This guide covers upgrading between versions of the Bunny Storage plugin.
 
+## v4.0.0-beta.2 to v4.0.0-beta.3
+
+### Update Node.js and Payload
+
+Plugin `4.0.0-beta.3` needs Payload `4.0.0-beta.4` or later and Node.js 24.22.1 or later. Payload `4.0.0-beta.4` itself needs Node.js 24.22.1, so update Node.js first. Then update `payload`, `@payloadcms/plugin-cloud-storage`, `@payloadcms/ui` and your other `@payloadcms/*` packages to `4.0.0-beta.4`, the same exact version for all of them:
+
+```bash
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.4 @payloadcms/translations@4.0.0-beta.4 @payloadcms/ui@4.0.0-beta.4 payload@4.0.0-beta.4
+```
+
+Also update `@payloadcms/next`, your database adapter and any other `@payloadcms/*` package to `4.0.0-beta.4`.
+
+On Postgres and SQLite, Payload `4.0.0-beta.3` changes the unique index of the `_locales` tables. If you use migrations, run `npx payload migrate:create` after the update and check the migration.
+
+Check the Payload [4.0.0-beta.3](https://github.com/payloadcms/payload/releases/tag/v4.0.0-beta.3) and [4.0.0-beta.4](https://github.com/payloadcms/payload/releases/tag/v4.0.0-beta.4) release notes for the other changes in Payload. The plugin options do not change.
+
 ## v4.0.0-beta.1 to v4.0.0-beta.2
 
 ### 1. Update Payload to 4.0.0-beta.2
@@ -165,17 +181,17 @@ You can now run the Stream tasks without Payload jobs, and keep the stored statu
 v4 supports Payload 4. It follows the new storage adapter API, so most changes come from Payload itself. Do steps 1 to 4 first. The later steps only apply to some apps.
 
 <Info>
-  **Requires Payload `4.0.0-beta.0` or later, Next.js `>=16.4 <17` and Node.js 24.15 or later.** Canary builds of Payload are not supported.
+  **Requires Payload `4.0.0-beta.4` or later, Next.js `>=16.4 <17` and Node.js 24.22.1 or later.** Canary builds of Payload are not supported.
   Upgrade Node and Payload first. Follow the [Payload 4 migration
   guide](https://payloadcms.com/docs/beta/migration-guide/v4) for the changes in Payload itself.
 </Info>
 
 ### 1. Update Node and the packages
 
-Payload 4 needs Node.js 24.15 or later. Then install v4 of the plugin and its peer dependencies. Use the same exact version for the `@payloadcms/*` packages and your `payload` package:
+Payload 4 needs Node.js 24.22.1 or later. Then install v4 of the plugin and its peer dependencies. Use the same exact version for the `@payloadcms/*` packages and your `payload` package:
 
 ```bash
-npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.2 @payloadcms/translations@4.0.0-beta.2 @payloadcms/ui@4.0.0-beta.2 sanitize-filename@1.6.4
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.4 @payloadcms/translations@4.0.0-beta.4 @payloadcms/ui@4.0.0-beta.4 sanitize-filename@1.6.4
 ```
 
 React 19 (`react`, `react-dom`) is a peer dependency too. If you use the [media preview plugin](/v4/guides/media-preview), update it with `npm install @seshuk/payload-plugin-media-preview@beta`.
