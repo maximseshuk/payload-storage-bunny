@@ -66,7 +66,7 @@ body:
         @seshuk/payload-storage-bunny: 4.0.0
         payload: 4.0.0
         next: 16.4.0
-        node: 24.15.0
+        node: 24.22.1
         database adapter: @payloadcms/db-sqlite 4.0.0
       render: shell
     validations:
