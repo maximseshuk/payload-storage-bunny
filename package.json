@@ -109,8 +109,8 @@
     "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.10",
-    "@electric-sql/pglite-socket": "0.2.13",
+    "@electric-sql/pglite": "0.5.11",
+    "@electric-sql/pglite-socket": "0.2.14",
     "@next/env": "^16.4.0",
     "@payloadcms/db-mongodb": "4.0.0-beta.2",
     "@payloadcms/db-postgres": "4.0.0-beta.2",
@@ -132,10 +132,10 @@
     "@vitest/coverage-v8": "^5.0.4",
     "chalk": "^6.0.1",
     "dotenv-cli": "^11.0.0",
-    "happy-dom": "21.0.3",
+    "happy-dom": "21.0.4",
     "mongodb-memory-server": "^11.3.0",
     "next": "16.4.2",
-    "oxfmt": "^0.73.0",
+    "oxfmt": "^0.74.0",
     "oxlint": "^1.87.0",
     "payload": "4.0.0-beta.2",
     "react": "catalog:",
