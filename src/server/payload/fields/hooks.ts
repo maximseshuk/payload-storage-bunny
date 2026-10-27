@@ -37,7 +37,9 @@ const applyTransform = (
   })
 }
 
-export const getAdminThumbnail = (context: CollectionContext) => {
+export const getAdminThumbnail = (
+  context: CollectionContext,
+): ((args: { doc: Record<string, unknown>; req: PayloadRequest }) => null | string) | undefined => {
   const { collection, signedUrls, storageOptions, streamOptions, thumbnail } = context
 
   if (!thumbnail) {

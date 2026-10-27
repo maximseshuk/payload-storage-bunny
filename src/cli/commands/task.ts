@@ -1,9 +1,9 @@
-import { strictObject, z } from 'payload'
+import { type CLICommand, strictObject, z } from 'payload'
 import { defineCLICommand } from 'payload/cli'
 
 import { BUNNY_TASK_NAMES, countTaskErrors, runBunnyTask } from '@/server/payload/tasks/run.js'
 
-export const taskCommand = defineCLICommand({
+export const taskCommand: CLICommand = defineCLICommand({
   cli: { task: 'argument' },
   description: 'Run a storage-bunny background task now: cleanup or status-sync.',
   examples: ['payload bunny:task cleanup', 'payload bunny:task status-sync --limit 200'],

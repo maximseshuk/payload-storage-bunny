@@ -362,10 +362,10 @@ const tasksOperation: OpenAPIV3_1.OperationObject = {
   tags: ['Background tasks'],
 }
 
-export const tasksOperations = {
+export const tasksOperations: Record<'get' | 'post', OpenAPIV3_1.OperationObject> = {
   get: { ...tasksOperation, security: [{ tasksSecret: [] }] },
   post: tasksOperation,
-} satisfies Record<'get' | 'post', OpenAPIV3_1.OperationObject>
+}
 
 export const bunnyDataFieldOpenApi: OpenAPIV3_1.SchemaObject = {
   description:

@@ -14,7 +14,7 @@ export const OPTIONS_DEFAULTS = {
   },
   storage: {
     region: 'de',
-    uploadTimeout: TIMEOUTS.UPLOAD,
+    uploadTimeout: TIMEOUTS.UPLOAD as typeof TIMEOUTS.UPLOAD,
   },
   stream: {
     cleanup: {
@@ -24,7 +24,7 @@ export const OPTIONS_DEFAULTS = {
         queue: 'storage-bunny',
       },
     },
-    mimeTypes: TUS_MIME_TYPES,
+    mimeTypes: TUS_MIME_TYPES as typeof TUS_MIME_TYPES,
     mp4Fallback: false,
     preview: true,
     status: {
@@ -42,7 +42,7 @@ export const OPTIONS_DEFAULTS = {
       autoMode: true,
       expiresIn: 3600,
     },
-    uploadTimeout: TIMEOUTS.STREAM_UPLOAD,
+    uploadTimeout: TIMEOUTS.STREAM_UPLOAD as typeof TIMEOUTS.STREAM_UPLOAD,
   },
   thumbnail: {
     appendTimestamp: true,

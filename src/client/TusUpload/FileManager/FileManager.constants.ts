@@ -2,9 +2,9 @@ import type { UploadState } from './FileManager.types.js'
 
 export const BASE_CLASS = 'storage-bunny-tus-upload'
 
-export const TUS_RETRY_DELAYS = [0, 3000, 5000, 10000, 20000, 60000, 60000]
+export const TUS_RETRY_DELAYS: number[] = [0, 3000, 5000, 10000, 20000, 60000, 60000]
 
-export const UPLOADED_FILE_PATHS = [
+export const UPLOADED_FILE_PATHS: string[] = [
   'bunnyData.stream.videoId',
   'bunnyData.stream.videoToken',
   'filename',

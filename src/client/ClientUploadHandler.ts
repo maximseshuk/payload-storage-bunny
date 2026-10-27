@@ -3,7 +3,7 @@
 import { createClientUploadHandler } from '@payloadcms/plugin-cloud-storage/client'
 import type { TFunction } from '@payloadcms/translations'
 import { toast, useTranslation } from '@payloadcms/ui'
-import { type ComponentProps, createElement } from 'react'
+import { type ComponentProps, createElement, type FunctionComponentElement } from 'react'
 import * as tus from 'tus-js-client'
 
 import {
@@ -17,7 +17,9 @@ import type { StreamTusUploadData } from '@/shared/types/index.js'
 
 const RETRY_DELAYS = [0, 1000, 3000]
 
-const ClientUploadHandler = createClientUploadHandler<{ t: TFunction<PluginStorageBunnyTranslationsKeys> }>({
+const ClientUploadHandler: ReturnType<
+  typeof createClientUploadHandler<{ t: TFunction<PluginStorageBunnyTranslationsKeys> }>
+> = createClientUploadHandler<{ t: TFunction<PluginStorageBunnyTranslationsKeys> }>({
   name: 'bunny',
   handler: async ({ apiRoute, collectionSlug, data, file, props: { t }, serverURL }) => {
     if (!data || typeof data !== 'object') {
@@ -72,7 +74,9 @@ const ClientUploadHandler = createClientUploadHandler<{ t: TFunction<PluginStora
   },
 })
 
-export const BunnyClientUploadHandler = (props: Omit<ComponentProps<typeof ClientUploadHandler>, 'props'>) => {
+export const BunnyClientUploadHandler = (
+  props: Omit<ComponentProps<typeof ClientUploadHandler>, 'props'>,
+): FunctionComponentElement<ComponentProps<typeof ClientUploadHandler>> => {
   const { t } = useTranslation<PluginStorageBunnyTranslations, PluginStorageBunnyTranslationsKeys>()
   return createElement(ClientUploadHandler, { ...props, props: { t } })
 }
