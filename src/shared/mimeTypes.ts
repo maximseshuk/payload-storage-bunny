@@ -1,4 +1,4 @@
-export const isImage = (mimeType: string) => mimeType.startsWith('image/')
+export const isImage = (mimeType: string): boolean => mimeType.startsWith('image/')
 
 export const matchesMimeTypePattern = (mimeType: string, pattern: string): boolean => {
   return pattern.endsWith('*') ? mimeType.startsWith(pattern.slice(0, -1)) : mimeType === pattern

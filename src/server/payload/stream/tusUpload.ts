@@ -36,7 +36,7 @@ const readsWholeStreamFile = (transformer: UploadTransformer, mimeTypes: string[
 export const hasStreamClientUploads = (
   { collection, isTusUploadSupported, storageOptions, streamOptions }: CollectionContext,
   transformers: undefined | UploadTransformer[],
-) =>
+): boolean =>
   isTusUploadSupported &&
   (!storageOptions || !!storageOptions.clientUploads) &&
   !(typeof collection.upload === 'object' && collection.upload.mimeTypes?.length) &&

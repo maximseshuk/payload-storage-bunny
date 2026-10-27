@@ -23,7 +23,12 @@ export const generateStreamTusUploadSignature = ({
 export const getStreamTusHeaders = ({
   expiresIn,
   ...args
-}: { expiresIn: number } & Omit<Parameters<typeof generateStreamTusUploadSignature>[0], 'expirationTime'>) => {
+}: { expiresIn: number } & Omit<Parameters<typeof generateStreamTusUploadSignature>[0], 'expirationTime'>): {
+  AuthorizationExpire: string
+  AuthorizationSignature: string
+  LibraryId: string
+  VideoId: string
+} => {
   const expirationTime = Math.floor(Date.now() / 1000) + expiresIn
   return {
     AuthorizationExpire: String(expirationTime),

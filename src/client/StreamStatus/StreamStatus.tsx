@@ -231,7 +231,7 @@ const toResolutions = (value: unknown): string[] => {
   return Array.isArray(available) ? available.filter((item): item is string => typeof item === 'string') : []
 }
 
-export const StreamStatusField = ({ path }: SelectFieldClientProps) => {
+export const StreamStatusField: React.FC<SelectFieldClientProps> = ({ path }) => {
   const t = usePluginTranslation()
   const { id, collectionSlug, data } = useDocumentInfo()
   const stored = data?.bunnyData?.stream

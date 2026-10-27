@@ -25,7 +25,7 @@ export function UploadDropzoneContent({
   onPasteFromClipboard,
   pasteButtonClassName,
   pasteTooltip,
-}: UploadDropzoneContentProps) {
+}: UploadDropzoneContentProps): React.JSX.Element {
   const { t } = useTranslation()
   const inputRef = React.useRef<HTMLInputElement>(null)
 

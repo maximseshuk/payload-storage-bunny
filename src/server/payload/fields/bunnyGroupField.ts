@@ -223,7 +223,7 @@ export const getStreamSelect = (select?: SelectFn): SelectFn => {
   }
 }
 
-export const hasStatus = (status: unknown, value: 'draft' | 'published') =>
+export const hasStatus = (status: unknown, value: 'draft' | 'published'): boolean =>
   status === value || (!!status && typeof status === 'object' && Object.values(status).includes(value))
 
 export const readStoredVideo = (doc: unknown): StoredStream | undefined => {

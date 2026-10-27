@@ -20,7 +20,7 @@ export const TIMEOUTS = {
   UPLOAD: 120000,
 } as const
 
-export const TUS_MIME_TYPES = [
+export const TUS_MIME_TYPES: string[] = [
   'video/mp4',
   'video/x-matroska',
   'video/webm',

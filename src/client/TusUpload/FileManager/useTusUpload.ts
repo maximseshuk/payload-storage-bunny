@@ -36,7 +36,21 @@ export const useTusUpload = ({
   onCancel,
   onDisableTus,
   preSelectedFile,
-}: Omit<FileManagerProps, 'UploadControls'>) => {
+}: Omit<FileManagerProps, 'UploadControls'>): {
+  acceptMimeTypes: string
+  handleFileNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  handleFileRemoval: () => void
+  handleFileSelection: (files: File | FileList) => Promise<void>
+  inputRef: React.RefObject<HTMLInputElement | null>
+  pauseUpload: () => void
+  previewSrc: null | string
+  restoreUpload: () => Promise<void>
+  resumeUpload: () => void
+  retryUpload: () => Promise<void>
+  startNewUpload: () => Promise<void>
+  startOver: () => void
+  state: UploadState
+} => {
   const [state, setState] = useState<UploadState>(INITIAL_STATE)
   const inputRef = useRef<HTMLInputElement>(null)
   const tusUploadRef = useRef<null | tus.Upload>(null)

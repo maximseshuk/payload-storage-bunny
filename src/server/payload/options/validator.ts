@@ -118,7 +118,7 @@ const rawCollectionEnablesClientUploads = (original: BunnyStorageOptions, slug: 
   return Boolean(collectionClientUploads)
 }
 
-export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions) => {
+export const validateNormalizedOptions = (options: NormalizedBunnyStorageOptions): void => {
   const errors: string[] = []
 
   if (options.collections.size === 0) {

@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 
-import { strictObject, z } from 'payload'
+import { type CLICommand, strictObject, z } from 'payload'
 import { defineCLICommand } from 'payload/cli'
 import { findConfig } from 'payload/node'
 
@@ -54,7 +54,7 @@ const optionalNumber = (description: string) => z.optional(z.number()).check(z.d
 const optionalFlag = (description: string) => z.optional(z.boolean()).check(z.describe(description))
 const negatableFlag = (description: string) => z._default(z.boolean(), true).check(z.describe(description))
 
-export const deployEdgeScriptCommand = defineCLICommand({
+export const deployEdgeScriptCommand: CLICommand = defineCLICommand({
   description: 'Deploy the Bunny Edge Script used for client-direct uploads.',
   input: strictObject({
     apiKey: optionalString('Bunny account API key (defaults to BUNNY_ACCOUNT_API_KEY; resolved after --env-file).'),

@@ -16,7 +16,7 @@ type SigningOptions = {
   userIp?: string
 }
 
-export const MAX_EXPIRES_IN_SECONDS = 10 * 365 * 24 * 60 * 60
+export const MAX_EXPIRES_IN_SECONDS: number = 10 * 365 * 24 * 60 * 60
 
 const IPV4_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
 
