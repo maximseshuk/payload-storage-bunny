@@ -53,7 +53,7 @@ An image served from Bunny Storage:
 
 ## Quick start
 
-Requires **Payload 4.0.0-beta.0 or later** (canary builds are not supported), **Next.js >=16.4 <17**, **React 19** and **Node.js 24.15 or later**. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
+Requires **Payload 4.0.0-beta.4 or later** (canary builds are not supported), **Next.js >=16.4 <17**, **React 19** and **Node.js 24.22.1 or later**. For Payload 3, use `@seshuk/payload-storage-bunny@3`.
 
 > [!IMPORTANT]
 > **Upgrading from v3?** Register the adapter under `storage` instead of `plugins`. Some options are renamed, and the plugin throws at startup with the new name for each old key. Custom upload clients must move to Payload's `POST /api/upload-instructions` endpoint, and SQL databases need a migration for the new upload fields (`prefix`, the `original` group, and `prefix` and `_objectKey` on image variants). Every database, MongoDB too, first needs Payload's `sizes-to-variants` migration. Follow the [Upgrade Guide](https://payload-storage-bunny.seshuk.im/v4/upgrade-guide).
@@ -73,7 +73,7 @@ See the [Setup Wizard](https://payload-storage-bunny.seshuk.im/v4/cli/init) docs
 ### Install
 
 ```bash
-npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.2 @payloadcms/translations@4.0.0-beta.2 @payloadcms/ui@4.0.0-beta.2 sanitize-filename@1.6.4
+npm install @seshuk/payload-storage-bunny@beta @payloadcms/plugin-cloud-storage@4.0.0-beta.4 @payloadcms/translations@4.0.0-beta.4 @payloadcms/ui@4.0.0-beta.4 sanitize-filename@1.6.4
 ```
 
 v4 is in beta under the `beta` npm tag, and Payload 4 is published under `beta`. The command also installs the peer dependencies that a Payload app does not have yet. `payload` and React 19 are already in your app. Use the same exact version for `@payloadcms/plugin-cloud-storage`, `@payloadcms/translations`, `@payloadcms/ui` and your `payload` package. For Payload 3, use `@seshuk/payload-storage-bunny@3`.

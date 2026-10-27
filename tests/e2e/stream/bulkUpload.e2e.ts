@@ -40,8 +40,10 @@ const dropLargeVideo = async (page: Page, filename: string): Promise<void> => {
   await page.locator('.dropzone').first().dispatchEvent('drop', { dataTransfer })
 }
 
+const bulkAltField = (page: Page) => page.locator('.bulk-upload--file-manager input[name="alt"]')
+
 const saveBulkUpload = async (page: Page): Promise<void> => {
-  await page.locator('#field-alt').fill('Bulk video')
+  await bulkAltField(page).fill('Bulk video')
   await page.locator('.bulk-upload--actions-bar__saveButtons').getByRole('button', { name: 'Save' }).click()
   await expect(page.locator('.payload-toast-container')).toContainText('Successfully saved 1 files', {
     timeout: 120000,
@@ -164,10 +166,10 @@ test.describe('Stream bulk upload behind a request body limit', () => {
     await waitForFormReady(page)
     await dropLargeVideo(page, 'stream-bulk-discarded.mp4')
 
-    await expect(page.locator('#field-alt')).toBeVisible()
+    await expect(bulkAltField(page)).toBeVisible()
     await page.locator('.bulk-upload--file-manager .dialog__header').getByRole('button', { name: 'Close' }).click()
     await page.getByRole('button', { name: 'Leave anyway' }).click()
-    await expect(page.locator('#field-alt')).toBeHidden()
+    await expect(bulkAltField(page)).toBeHidden()
 
     await page.getByRole('button', { name: 'Create New' }).click()
     await expect(page.getByRole('button', { name: 'Enable TUS mode' })).toBeVisible()
